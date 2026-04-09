@@ -366,3 +366,47 @@ pub(crate) fn body_text_row(
     }
     CardRow::new(border, accent_style(style), segments, None)
 }
+
+/// Top border row with a title. Used by browser and image cards.
+pub(crate) fn top_border_row_with_title(
+    border: &'static str,
+    title: &str,
+    body_width: usize,
+    style: &CardStyle,
+) -> CardRow {
+    let mut segments = Vec::new();
+    if body_width == 0 {
+        return CardRow::new(border, accent_style(style), segments, None);
+    }
+
+    let title_style = if palette_mode() == PaletteMode::Ansi16 {
+        Style::default().fg(ansi16_inverse_color())
+    } else {
+        title_text_style(style)
+    };
+
+    segments.push(CardSegment::new(" ", title_style));
+    let remaining = body_width.saturating_sub(1);
+    let text = truncate_with_ellipsis(title, remaining);
+    if !text.is_empty() {
+        segments.push(CardSegment::new(text, title_style));
+    }
+    CardRow::new(border, accent_style(style), segments, None)
+}
+
+/// Bottom border row with hint text. Used by browser, image, and web_search.
+pub(crate) fn bottom_border_row_with_hint(
+    border: &'static str,
+    hint: &str,
+    body_width: usize,
+    style: &CardStyle,
+) -> CardRow {
+    let text = truncate_with_ellipsis(hint, body_width);
+    let hint_style = if palette_mode() == PaletteMode::Ansi16 {
+        Style::default().fg(ansi16_inverse_color())
+    } else {
+        hint_text_style(style)
+    };
+    let segment = CardSegment::new(text, hint_style);
+    CardRow::new(border, accent_style(style), vec![segment], None)
+}

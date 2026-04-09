@@ -1,19 +1,15 @@
 use super::card_style::{
-    accent_style,
-    ansi16_inverse_color,
     blank_border_row,
     body_text_row,
+    bottom_border_row_with_hint,
     browser_card_style,
     card_body_width,
     fill_card_background,
-    hint_text_style,
     primary_text_style,
     rows_to_lines,
     secondary_text_style,
-    title_text_style,
-    truncate_with_ellipsis,
+    top_border_row_with_title,
     CardRow,
-    CardSegment,
     CardStyle,
     CARD_ACCENT_WIDTH,
     CARD_BORDER_TOP as BORDER_TOP,
@@ -24,7 +20,6 @@ use super::*;
 use crate::colors;
 use crate::text_formatting::wrap_text;
 use crate::history::state::ImageRecord;
-use crate::theme::{palette_mode, PaletteMode};
 use code_protocol::num_format::format_with_separators_u64;
 use ::image::ImageReader;
 use ::image::image_dimensions;
@@ -193,47 +188,7 @@ impl ImageOutputCell {
         lines
     }
 
-    fn top_border_row(&self, body_width: usize, style: &CardStyle) -> CardRow {
-        let mut segments = Vec::new();
-        if body_width == 0 {
-            return CardRow::new(
-                BORDER_TOP,
-                accent_style(style),
-                segments,
-                None,
-            );
-        }
 
-        let title_style = if palette_mode() == PaletteMode::Ansi16 {
-            Style::default().fg(ansi16_inverse_color())
-        } else {
-            title_text_style(style)
-        };
-
-        segments.push(CardSegment::new(" ", title_style));
-        let remaining = body_width.saturating_sub(1);
-        let text = truncate_with_ellipsis(self.header_title_text().as_str(), remaining);
-        if !text.is_empty() {
-            segments.push(CardSegment::new(text, title_style));
-        }
-        CardRow::new(BORDER_TOP, accent_style(style), segments, None)
-    }
-
-    fn bottom_border_row(&self, body_width: usize, style: &CardStyle) -> CardRow {
-        let text = truncate_with_ellipsis(HINT_TEXT, body_width);
-        let hint_style = if palette_mode() == PaletteMode::Ansi16 {
-            Style::default().fg(ansi16_inverse_color())
-        } else {
-            hint_text_style(style)
-        };
-        let segment = CardSegment::new(text, hint_style);
-        CardRow::new(
-            BORDER_BOTTOM,
-            accent_style(style),
-            vec![segment],
-            None,
-        )
-    }
 
     fn build_card_rows(
         &self,
@@ -245,7 +200,7 @@ impl ImageOutputCell {
         };
 
         let mut rows: Vec<CardRow> = Vec::new();
-        rows.push(self.top_border_row(body_width, style));
+        rows.push(top_border_row_with_title(BORDER_TOP, &self.header_title_text(), body_width, style));
         rows.push(blank_border_row(BORDER_BODY, body_width, style));
 
         let mut image_layout = self.compute_image_layout(body_width);
@@ -323,7 +278,7 @@ impl ImageOutputCell {
         }
 
         rows.push(blank_border_row(BORDER_BODY, body_width, style));
-        rows.push(self.bottom_border_row(body_width, style));
+        rows.push(bottom_border_row_with_hint(BORDER_BOTTOM, HINT_TEXT, body_width, style));
 
         (rows, image_layout)
     }

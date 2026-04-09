@@ -345,19 +345,12 @@ impl AgentRunCell {
             .iter()
             .any(|agent| matches!(agent.status_kind, AgentStatusKind::Running | AgentStatusKind::Pending));
 
-        let text_value = if has_running_agents {
-            CARD_HINT_EXPAND_STOP.to_string()
+        let hint = if has_running_agents {
+            CARD_HINT_EXPAND_STOP
         } else {
-            CARD_HINT_EXPAND.to_string()
+            CARD_HINT_EXPAND
         };
-        let text = truncate_with_ellipsis(text_value.as_str(), body_width);
-        let hint_style = if palette_mode() == PaletteMode::Ansi16 {
-            Style::default().fg(ansi16_inverse_color())
-        } else {
-            hint_text_style(style)
-        };
-        let segment = CardSegment::new(text, hint_style);
-        CardRow::new(BORDER_BOTTOM, accent_style(style), vec![segment], None)
+        bottom_border_row_with_hint(BORDER_BOTTOM, hint, body_width, style)
     }
 
     pub(crate) fn set_batch_label(&mut self, batch: Option<String>) {

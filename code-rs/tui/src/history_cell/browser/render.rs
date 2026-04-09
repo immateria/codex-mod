@@ -5,17 +5,16 @@ use super::screenshot::ScreenshotLayout;
 use super::super::{HistoryCell, HistoryCellType, ToolCellStatus};
 use super::super::card_style::{
     accent_style,
-    ansi16_inverse_color,
     blank_border_row,
     body_text_row,
+    bottom_border_row_with_hint,
     browser_card_style,
     card_body_width,
     fill_card_background,
-    hint_text_style,
     primary_text_style,
     rows_to_lines,
     secondary_text_style,
-    title_text_style,
+    top_border_row_with_title,
     truncate_with_ellipsis,
     CardRow,
     CardSegment,
@@ -23,7 +22,6 @@ use super::super::card_style::{
 };
 use crate::text_formatting::split_long_word;
 use crate::colors;
-use crate::theme::{palette_mode, PaletteMode};
 use crate::ui_consts::CARD_HINT_BROWSER_STOP;
 use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
@@ -82,43 +80,6 @@ impl BrowserSessionCell {
         title
     }
 
-    fn top_border_row(&self, body_width: usize, style: &CardStyle) -> CardRow {
-        let mut segments = Vec::new();
-        if body_width == 0 {
-            return CardRow::new(
-                BORDER_TOP,
-                accent_style(style),
-                segments,
-                None,
-            );
-        }
-
-        let title_style = if palette_mode() == PaletteMode::Ansi16 {
-            Style::default().fg(ansi16_inverse_color())
-        } else {
-            title_text_style(style)
-        };
-
-        segments.push(CardSegment::new(" ", title_style));
-        let remaining = body_width.saturating_sub(1);
-        let text = truncate_with_ellipsis(self.header_summary_text().as_str(), remaining);
-        if !text.is_empty() {
-            segments.push(CardSegment::new(text, title_style));
-        }
-        CardRow::new(BORDER_TOP, accent_style(style), segments, None)
-    }
-
-    fn bottom_border_row(&self, body_width: usize, style: &CardStyle) -> CardRow {
-        let text_value = CARD_HINT_BROWSER_STOP.to_string();
-        let text = truncate_with_ellipsis(text_value.as_str(), body_width);
-        let hint_style = if palette_mode() == PaletteMode::Ansi16 {
-            Style::default().fg(ansi16_inverse_color())
-        } else {
-            hint_text_style(style)
-        };
-        let segment = CardSegment::new(text, hint_style);
-        CardRow::new(BORDER_BOTTOM, accent_style(style), vec![segment], None)
-    }
 
     fn display_host(&self) -> Option<String> {
         self
@@ -146,7 +107,7 @@ impl BrowserSessionCell {
         };
 
         let mut rows: Vec<CardRow> = Vec::new();
-        rows.push(self.top_border_row(body_width, style));
+        rows.push(top_border_row_with_title(BORDER_TOP, &self.header_summary_text(), body_width, style));
         rows.push(blank_border_row(BORDER_BODY, body_width, style));
 
         let mut screenshot_layout = self.compute_screenshot_layout(body_width);
@@ -274,7 +235,7 @@ impl BrowserSessionCell {
         }
 
         rows.push(blank_border_row(BORDER_BODY, body_width, style));
-        rows.push(self.bottom_border_row(body_width, style));
+        rows.push(bottom_border_row_with_hint(BORDER_BOTTOM, CARD_HINT_BROWSER_STOP, body_width, style));
 
         (rows, screenshot_layout)
     }
