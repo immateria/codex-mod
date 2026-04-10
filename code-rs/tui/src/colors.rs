@@ -384,3 +384,6 @@ pub(crate) fn style_light_blue() -> Style { Style::default().fg(light_blue()) }
 pub(crate) fn style_on_background() -> Style { Style::default().bg(background()) }
 pub(crate) fn style_on_overlay_scrim() -> Style { Style::default().bg(overlay_scrim()) }
 pub(crate) fn style_on_selection() -> Style { Style::default().bg(selection()) }
+
+// Combined fg+bg helpers for the most common pairings.
+pub(crate) fn style_text_on_bg() -> Style { Style::default().fg(text()).bg(background()) }

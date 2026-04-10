@@ -105,7 +105,7 @@ mod imp {
                 .borders(Borders::ALL)
                 .title(Line::from(" Chrome Launch Options "))
                 .title_alignment(Alignment::Center)
-                .style(crate::colors::style_on_background().fg(crate::colors::text()))
+                .style(crate::colors::style_text_on_bg())
                 .border_style(crate::colors::style_border());
             let inner = block.inner(area);
             block.render(area, buf);
@@ -171,7 +171,7 @@ mod imp {
 
             Paragraph::new(lines)
                 .alignment(Alignment::Left)
-                .style(crate::colors::style_on_background().fg(crate::colors::text()))
+                .style(crate::colors::style_text_on_bg())
                 .render(content_area, buf);
         }
 
@@ -273,7 +273,7 @@ mod android_stub {
                 .borders(Borders::ALL)
                 .title(Line::from(" Chrome Launch Options "))
                 .title_alignment(Alignment::Center)
-                .style(crate::colors::style_on_background().fg(crate::colors::text()))
+                .style(crate::colors::style_text_on_bg())
                 .border_style(crate::colors::style_border());
             let inner = block.inner(area);
             block.render(area, buf);
@@ -307,7 +307,7 @@ mod android_stub {
 
             Paragraph::new(lines)
                 .alignment(Alignment::Left)
-                .style(crate::colors::style_on_background().fg(crate::colors::text()))
+                .style(crate::colors::style_text_on_bg())
                 .render(content_area, buf);
         }
 

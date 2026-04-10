@@ -97,7 +97,7 @@ impl AgentEditorView {
         let block = Block::default()
             .borders(Borders::ALL)
             .border_style(crate::colors::style_border())
-            .style(crate::colors::style_on_background().fg(crate::colors::text()))
+            .style(crate::colors::style_text_on_bg())
             .title(" Configure Agent ")
             .title_alignment(Alignment::Center);
         let inner = block.inner(area);
@@ -138,7 +138,7 @@ impl AgentEditorView {
             .alignment(Alignment::Left)
             .scroll((scroll, 0))
             .wrap(ratatui::widgets::Wrap { trim: false })
-            .style(crate::colors::style_on_background().fg(crate::colors::text()))
+            .style(crate::colors::style_text_on_bg())
             .render(content, buf);
 
         // Render scroll indicator if content overflows

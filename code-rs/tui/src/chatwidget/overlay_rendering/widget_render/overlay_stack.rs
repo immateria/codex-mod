@@ -275,9 +275,14 @@ impl ChatWidget<'_> {
                         }
                     }
 
-                    // Fill body background with a slightly lighter paper-like background
+                    // Fill body background with a slightly lighter/darker paper-like background
                     let bg = crate::colors::background();
-                    let paper_color = crate::colors::mix_toward(bg, ratatui::style::Color::White, 0.06);
+                    let contrast_target = if crate::colors::is_dark_theme() {
+                        ratatui::style::Color::White
+                    } else {
+                        ratatui::style::Color::Black
+                    };
+                    let paper_color = crate::colors::mix_toward(bg, contrast_target, 0.06);
                     let body_bg = Style::default().bg(paper_color);
                     let _perf_overlay_body_bg2 = if self.perf_state.enabled {
                         Some(std::time::Instant::now())

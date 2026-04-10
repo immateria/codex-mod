@@ -215,7 +215,7 @@ impl Widget for LimitsSingleBodyWidget {
     fn render(self, area: Rect, buf: &mut Buffer) {
         Paragraph::new(self.lines)
             .wrap(Wrap { trim: false })
-            .style(crate::colors::style_on_background().fg(crate::colors::text()))
+            .style(crate::colors::style_text_on_bg())
             .render(area, buf);
     }
 }
@@ -258,7 +258,7 @@ impl Widget for LimitsPaneWidget {
 
         Paragraph::new(self.lines)
             .wrap(Wrap { trim: false })
-            .style(crate::colors::style_on_background().fg(crate::colors::text()))
+            .style(crate::colors::style_text_on_bg())
             .render(body_area, buf);
     }
 }

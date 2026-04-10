@@ -12,7 +12,7 @@ pub(crate) fn render_popup_frame(area: Rect, buf: &mut Buffer, title: &str) -> O
     let block = Block::default()
         .borders(Borders::ALL)
         .border_style(crate::colors::style_border())
-        .style(crate::colors::style_on_background().fg(crate::colors::text()))
+        .style(crate::colors::style_text_on_bg())
         .title(title)
         .title_alignment(Alignment::Center);
 

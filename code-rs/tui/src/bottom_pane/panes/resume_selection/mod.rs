@@ -249,7 +249,7 @@ impl BottomPaneView<'_> for ResumeSelectionView {
             crate::bottom_pane::settings_ui::hints::hint_esc(" Cancel"),
         ]);
         Paragraph::new(footer_line)
-            .style(crate::colors::style_on_background().fg(crate::colors::text()))
+            .style(crate::colors::style_text_on_bg())
             .render(footer, buf);
     }
 }

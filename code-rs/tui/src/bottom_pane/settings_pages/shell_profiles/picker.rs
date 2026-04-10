@@ -448,7 +448,7 @@ impl ShellProfilesSettingsView {
                     .bg(crate::colors::selection())
                     .fg(crate::colors::text_bright())
             } else {
-                crate::colors::style_on_background().fg(crate::colors::text())
+                crate::colors::style_text_on_bg()
             };
             fill_rect(buf, row_area, Some(' '), base);
 

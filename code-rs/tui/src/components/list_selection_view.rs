@@ -315,7 +315,7 @@ impl BottomPaneView<'_> for ListSelectionView {
                 let spacer_y = inner.y + inner.height - footer_rows - bottom_spacer_rows;
                 let spacer_area = Rect { x: inner.x.saturating_add(1), y: spacer_y, width: content_width, height: bottom_spacer_rows };
                 Paragraph::new(Line::from(""))
-                    .style(crate::colors::style_on_background().fg(crate::colors::text()))
+                    .style(crate::colors::style_text_on_bg())
                     .render(spacer_area, buf);
             }
             // Render footer on the last inner line
@@ -326,7 +326,7 @@ impl BottomPaneView<'_> for ListSelectionView {
                 crate::bottom_pane::settings_ui::hints::hint_esc(" Cancel"),
             ]);
             Paragraph::new(line)
-                .style(crate::colors::style_on_background().fg(crate::colors::text()))
+                .style(crate::colors::style_text_on_bg())
                 .render(footer_area, buf);
         }
     }

@@ -307,7 +307,7 @@ impl SettingsOverlayView {
 
         Paragraph::new(help.lines.clone())
             .alignment(Alignment::Left)
-            .style(crate::colors::style_on_background().fg(crate::colors::text()))
+            .style(crate::colors::style_text_on_bg())
             .wrap(Wrap { trim: true })
             .render(inner, buf);
     }
