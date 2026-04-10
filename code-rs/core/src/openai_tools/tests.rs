@@ -94,6 +94,13 @@
                 "local_shell",
                 "update_plan",
                 "request_user_input",
+                "request_permissions",
+                "list_mcp_resources",
+                "list_mcp_resource_templates",
+                "read_mcp_resource",
+                "read_file",
+                "list_dir",
+                "grep_files",
                 "browser",
                 "agent",
                 "wait",
@@ -128,6 +135,13 @@
                 "write_stdin",
                 "update_plan",
                 "request_user_input",
+                "request_permissions",
+                "list_mcp_resources",
+                "list_mcp_resource_templates",
+                "read_mcp_resource",
+                "read_file",
+                "list_dir",
+                "grep_files",
                 "browser",
                 "agent",
                 "wait",
@@ -226,6 +240,13 @@
                 "local_shell",
                 "update_plan",
                 "request_user_input",
+                "request_permissions",
+                "list_mcp_resources",
+                "list_mcp_resource_templates",
+                "read_mcp_resource",
+                "read_file",
+                "list_dir",
+                "grep_files",
                 "browser",
                 "agent",
                 "wait",
@@ -259,6 +280,13 @@
                 "shell",
                 "update_plan",
                 "request_user_input",
+                "request_permissions",
+                "list_mcp_resources",
+                "list_mcp_resource_templates",
+                "read_mcp_resource",
+                "read_file",
+                "list_dir",
+                "grep_files",
                 "browser",
                 "agent",
                 "wait",
@@ -330,6 +358,13 @@
             &[
                 "shell",
                 "request_user_input",
+                "request_permissions",
+                "list_mcp_resources",
+                "list_mcp_resource_templates",
+                "read_mcp_resource",
+                "read_file",
+                "list_dir",
+                "grep_files",
                 "browser",
                 "agent",
                 "wait",
@@ -342,7 +377,7 @@
         );
 
         assert_eq!(
-            tools[9],
+            tools[16],
             OpenAiTool::Function(ResponsesApiTool {
                 name: "test_server/do_something_cool".to_string(),
                 parameters: JsonSchema::Object {
@@ -455,6 +490,13 @@
                 "shell",
                 "image_view",
                 "request_user_input",
+                "request_permissions",
+                "list_mcp_resources",
+                "list_mcp_resource_templates",
+                "read_mcp_resource",
+                "read_file",
+                "list_dir",
+                "grep_files",
                 "browser",
                 "agent",
                 "wait",
@@ -467,7 +509,7 @@
         );
 
         assert_eq!(
-            tools[10],
+            tools[17],
             OpenAiTool::Function(ResponsesApiTool {
                 name: "test_server/do_something_cool".to_string(),
                 parameters: JsonSchema::Object {
@@ -582,6 +624,13 @@
                 "shell",
                 "image_view",
                 "request_user_input",
+                "request_permissions",
+                "list_mcp_resources",
+                "list_mcp_resource_templates",
+                "read_mcp_resource",
+                "read_file",
+                "list_dir",
+                "grep_files",
                 "browser",
                 "agent",
                 "wait",
@@ -594,7 +643,7 @@
         );
 
         assert_eq!(
-            tools[10],
+            tools[17],
             OpenAiTool::Function(ResponsesApiTool {
                 name: "dash/search".to_string(),
                 parameters: JsonSchema::Object {
@@ -658,6 +707,13 @@
             &[
                 "shell",
                 "request_user_input",
+                "request_permissions",
+                "list_mcp_resources",
+                "list_mcp_resource_templates",
+                "read_mcp_resource",
+                "read_file",
+                "list_dir",
+                "grep_files",
                 "browser",
                 "agent",
                 "wait",
@@ -732,6 +788,13 @@
             &[
                 "shell",
                 "request_user_input",
+                "request_permissions",
+                "list_mcp_resources",
+                "list_mcp_resource_templates",
+                "read_mcp_resource",
+                "read_file",
+                "list_dir",
+                "grep_files",
                 "browser",
                 "agent",
                 "wait",
@@ -743,7 +806,7 @@
             ],
         );
         assert_eq!(
-            tools[9],
+            tools[16],
             OpenAiTool::Function(ResponsesApiTool {
                 name: "dash/tags".to_string(),
                 parameters: JsonSchema::Object {
@@ -807,6 +870,13 @@
             &[
                 "shell",
                 "request_user_input",
+                "request_permissions",
+                "list_mcp_resources",
+                "list_mcp_resource_templates",
+                "read_mcp_resource",
+                "read_file",
+                "list_dir",
+                "grep_files",
                 "browser",
                 "agent",
                 "wait",
@@ -818,7 +888,7 @@
             ],
         );
         assert_eq!(
-            tools[9],
+            tools[16],
             OpenAiTool::Function(ResponsesApiTool {
                 name: "dash/value".to_string(),
                 parameters: JsonSchema::Object {

@@ -1141,8 +1141,8 @@ mod tests {
                     id_token: IdTokenInfo {
                         email: Some("user@example.com".to_string()),
                         chatgpt_plan_type: Some(PlanType::Known(KnownPlan::Pro)),
-                        chatgpt_user_id: None,
-                        chatgpt_account_id: None,
+                        chatgpt_user_id: Some("user-12345".to_string()),
+                        chatgpt_account_id: Some("bc3618e3-489d-4d49-9362-1561dc53ba53".to_string()),
                         raw_jwt: fake_jwt,
                     },
                     access_token: "test-access-token".to_string(),
@@ -1196,8 +1196,9 @@ mod tests {
                     id_token: IdTokenInfo {
                         email: Some("user@example.com".to_string()),
                         chatgpt_plan_type: Some(PlanType::Known(KnownPlan::Pro)),
-                        chatgpt_user_id: None,
-                        chatgpt_account_id: None,                        raw_jwt: fake_jwt,
+                        chatgpt_user_id: Some("user-12345".to_string()),
+                        chatgpt_account_id: Some("bc3618e3-489d-4d49-9362-1561dc53ba53".to_string()),
+                        raw_jwt: fake_jwt,
                     },
                     access_token: "test-access-token".to_string(),
                     refresh_token: "test-refresh-token".to_string(),

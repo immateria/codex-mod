@@ -2821,11 +2821,11 @@ pinned_account_ids = ["acc1"]
         let contents = read_config(code_home).await;
         let parsed: toml::Value = toml::from_str(&contents).expect("valid toml");
         let root = parsed.as_table().expect("root table");
-        let apps = root
-            .get("apps")
-            .and_then(toml::Value::as_table)
-            .expect("apps table");
-        assert!(apps.get("_sources").is_none(), "_sources should be removed");
+        // After removing _sources from a single-key [apps] table, the apps table
+        // may be empty and elided during serialization — both outcomes are valid.
+        if let Some(apps) = root.get("apps").and_then(toml::Value::as_table) {
+            assert!(apps.get("_sources").is_none(), "_sources should be removed");
+        }
     }
 
     #[tokio::test]

@@ -510,18 +510,10 @@ mod tests {
     }
 
     #[test]
-    fn github_copilot_defaults_match_cli_contract() {
-        assert_eq!(
-            default_params_for("github-copilot", true),
-            vec!["--autopilot", "--allow-all-tools", "--no-ask-user", "-s"]
-        );
-        assert_eq!(
-            default_params_for("github-copilot", false),
-            vec!["--autopilot", "--yolo", "--no-ask-user", "-s"]
-        );
-
-        let spec = agent_model_spec("copilot").expect("copilot alias should resolve");
-        assert_eq!(spec.slug, "github-copilot");
+    fn removed_agent_spec_returns_empty_defaults() {
+        // github-copilot was removed from AGENT_MODEL_SPECS; verify graceful fallback
+        assert!(default_params_for("github-copilot", true).is_empty());
+        assert!(default_params_for("github-copilot", false).is_empty());
     }
 
     #[test]

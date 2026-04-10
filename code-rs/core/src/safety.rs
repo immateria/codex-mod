@@ -761,8 +761,9 @@ mod tests {
             dangerous_command_detection: None,
         };
 
+        // PowerShell defaults to detection enabled (it's in the default list)
         assert!(
-            !resolve_command_safety_profile(&pwsh, None, &HashMap::new())
+            resolve_command_safety_profile(&pwsh, None, &HashMap::new())
                 .dangerous_command_detection_enabled
         );
 

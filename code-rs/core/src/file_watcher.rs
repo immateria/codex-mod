@@ -429,12 +429,18 @@ mod tests {
         drop(raw_tx);
 
         // The flush path emits on shutdown even if it's still throttled.
-        let event = rx.recv().await.expect("flush event");
-        match event {
-            FileWatcherEvent::SkillsChanged { paths } => {
-                assert_eq!(paths, vec![root.join("a/SKILL.md"), root.join("b/SKILL.md")]);
+        // Due to the 10s throttle interval, the first event may be emitted
+        // immediately and the second flushed on channel close — collect both.
+        let mut all_paths = Vec::new();
+        while let Ok(event) = rx.recv().await {
+            match event {
+                FileWatcherEvent::SkillsChanged { paths } => {
+                    all_paths.extend(paths);
+                }
             }
         }
+        all_paths.sort_unstable();
+        assert_eq!(all_paths, vec![root.join("a/SKILL.md"), root.join("b/SKILL.md")]);
     }
 
     #[test]
