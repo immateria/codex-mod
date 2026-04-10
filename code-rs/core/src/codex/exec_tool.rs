@@ -777,8 +777,7 @@ pub(crate) async fn handle_container_exec_with_params(
         && params
             .justification
             .as_ref()
-            .map(|value| value.trim().is_empty())
-            .unwrap_or(true)
+            .is_none_or(|value| value.trim().is_empty())
     {
         return ResponseInputItem::FunctionCallOutput {
             call_id,
@@ -939,8 +938,7 @@ pub(crate) async fn handle_container_exec_with_params(
         && params
             .additional_permissions
             .as_ref()
-            .map(code_protocol::models::PermissionProfile::is_empty)
-            .unwrap_or(true)
+            .is_none_or(code_protocol::models::PermissionProfile::is_empty)
     {
         return ResponseInputItem::FunctionCallOutput {
             call_id,

@@ -203,8 +203,7 @@ impl PatchSummaryCell {
             let cache = self.cached_layout.borrow();
             cache
                 .as_ref()
-                .map(|layout| layout.width != effective_width)
-                .unwrap_or(true)
+                .is_none_or(|layout| layout.width != effective_width)
         };
 
         if needs_rebuild {

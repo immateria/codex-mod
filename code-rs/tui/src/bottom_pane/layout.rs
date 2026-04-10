@@ -19,8 +19,7 @@ impl<'a> BottomPane<'a> {
                     .as_ref()
                     .as_any()
                     .and_then(|any| any.downcast_ref::<AutoCoordinatorView>())
-                    .map(AutoCoordinatorView::composer_visible)
-                    .unwrap_or(true);
+                    .is_none_or(AutoCoordinatorView::composer_visible);
                 if composer_visible {
                     self.composer.desired_height(width)
                 } else {
@@ -69,8 +68,7 @@ impl<'a> BottomPane<'a> {
             let composer_visible = view
                 .as_any()
                 .and_then(|any| any.downcast_ref::<AutoCoordinatorView>())
-                .map(AutoCoordinatorView::composer_visible)
-                .unwrap_or(true);
+                .is_none_or(AutoCoordinatorView::composer_visible);
             let composer_height = if composer_visible {
                 self.composer.desired_height(area.width)
             } else {

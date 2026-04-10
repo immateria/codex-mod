@@ -403,8 +403,7 @@ impl ModelSelectionData {
         for idx in self.sorted_preset_indices.iter().copied() {
             let flat_preset = &self.flat_presets[idx];
             let is_new_model = previous_model
-                .map(|prev| !prev.eq_ignore_ascii_case(&flat_preset.model))
-                .unwrap_or(true);
+                .is_none_or(|prev| !prev.eq_ignore_ascii_case(&flat_preset.model));
 
             if is_new_model {
                 if previous_model.is_some() {
@@ -462,8 +461,7 @@ impl ModelSelectionData {
         for (preset_pos, preset_index) in self.sorted_preset_indices.iter().copied().enumerate() {
             let flat_preset = &self.flat_presets[preset_index];
             let is_new_model = previous_model
-                .map(|model| !model.eq_ignore_ascii_case(&flat_preset.model))
-                .unwrap_or(true);
+                .is_none_or(|model| !model.eq_ignore_ascii_case(&flat_preset.model));
 
             if is_new_model {
                 if previous_model.is_some() {

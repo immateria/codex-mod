@@ -691,8 +691,7 @@ impl ModelClient {
             tools_json.retain(|tool| {
                 tool.get("type")
                     .and_then(|value| value.as_str())
-                    .map(|tool_type| tool_type != "web_search")
-                    .unwrap_or(true)
+                    .is_none_or(|tool_type| tool_type != "web_search")
             });
         }
 
@@ -1131,8 +1130,7 @@ impl ModelClient {
             tools_json.retain(|tool| {
                 tool.get("type")
                     .and_then(|value| value.as_str())
-                    .map(|tool_type| tool_type != "web_search")
-                    .unwrap_or(true)
+                    .is_none_or(|tool_type| tool_type != "web_search")
                 });
         }
 

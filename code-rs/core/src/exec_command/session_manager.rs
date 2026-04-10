@@ -262,8 +262,7 @@ impl SessionManager {
             && params
                 .justification
                 .as_ref()
-                .map(|justification| justification.trim().is_empty())
-                .unwrap_or(true)
+                .is_none_or(|justification| justification.trim().is_empty())
         {
             return Err(
                 "sandbox_permissions=require_escalated requires a justification".to_string(),
@@ -275,8 +274,7 @@ impl SessionManager {
             && params
                 .additional_permissions
                 .as_ref()
-                .map(code_protocol::models::PermissionProfile::is_empty)
-                .unwrap_or(true)
+                .is_none_or(code_protocol::models::PermissionProfile::is_empty)
         {
             return Err(
                 "sandbox_permissions=with_additional_permissions requires additional_permissions"

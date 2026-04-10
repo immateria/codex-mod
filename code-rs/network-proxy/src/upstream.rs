@@ -71,8 +71,7 @@ fn read_proxy_env(keys: &[&str]) -> Option<ProxyAddress> {
                 if proxy
                     .protocol
                     .as_ref()
-                    .map(rama_net::Protocol::is_http)
-                    .unwrap_or(true)
+                    .is_none_or(rama_net::Protocol::is_http)
                 {
                     return Some(proxy);
                 }

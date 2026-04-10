@@ -192,8 +192,7 @@ impl Turn {
             .filter(|item| {
                 item.role
                     .as_deref()
-                    .map(|r| r.eq_ignore_ascii_case("user"))
-                    .unwrap_or(true)
+                    .is_none_or(|r| r.eq_ignore_ascii_case("user"))
             })
             .flat_map(TurnItem::text_values)
             .collect();

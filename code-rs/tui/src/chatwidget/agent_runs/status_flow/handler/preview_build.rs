@@ -30,8 +30,7 @@ pub(super) fn build_previews(
         if tracker
             .batch_label
             .as_ref()
-            .map(|label| label.trim().is_empty())
-            .unwrap_or(true)
+            .is_none_or(|label| label.trim().is_empty())
             && let Some(cleaned) =
                 clean_label(agent.name.as_str()).filter(|name| !looks_like_uuid(name))
         {

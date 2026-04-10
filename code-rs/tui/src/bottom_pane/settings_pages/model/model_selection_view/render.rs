@@ -266,8 +266,7 @@ impl ModelSelectionView {
             };
             let flat_preset = &self.data.flat_presets[*preset_index];
             let is_new_model = previous_model
-                .map(|model| !model.eq_ignore_ascii_case(&flat_preset.model))
-                .unwrap_or(true);
+                .is_none_or(|model| !model.eq_ignore_ascii_case(&flat_preset.model));
 
             if is_new_model {
                 if previous_model.is_some() {

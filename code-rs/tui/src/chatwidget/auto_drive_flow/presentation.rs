@@ -369,8 +369,7 @@ impl ChatWidget<'_> {
             .auto_state
             .current_display_line
             .as_ref()
-            .map(|current| current != &display)
-            .unwrap_or(true);
+            .is_none_or(|current| current != &display);
 
         if needs_update {
             self.auto_state.current_display_line = Some(display);
@@ -461,8 +460,7 @@ impl ChatWidget<'_> {
                     .auto_state
                     .current_reasoning_title
                     .as_ref()
-                    .map(|existing| existing != &title)
-                    .unwrap_or(true);
+                    .is_none_or(|existing| existing != &title);
                 if needs_update {
                     self.auto_state.current_reasoning_title = Some(title.clone());
                     self.auto_state.current_display_line = Some(title);

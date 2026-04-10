@@ -260,8 +260,7 @@ impl BrowserManager {
                         consecutive_mismatch += 1;
                         let now = std::time::Instant::now();
                         let can_correct = last_correction
-                            .map(|t| now.duration_since(t) >= min_correction_interval)
-                            .unwrap_or(true);
+                            .is_none_or(|t| now.duration_since(t) >= min_correction_interval);
 
                         // Check gate: allow disabling auto-corrections at runtime.
                         let enabled = *correction_enabled.read().await;
@@ -283,8 +282,7 @@ impl BrowserManager {
                         } else {
                             // Throttled: log at most every 5 minutes.
                             let should_warn = last_warn
-                                .map(|t| now.duration_since(t) >= warn_interval)
-                                .unwrap_or(true);
+                                .is_none_or(|t| now.duration_since(t) >= warn_interval);
                             if should_warn {
                                 warn!(
                                     "Viewport drift detected (throttled): {}x{}@{} vs expected {}x{}@{} (external={}, can_correct={})",

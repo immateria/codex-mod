@@ -83,8 +83,7 @@ pub(crate) fn get_upgrade_version(config: &Config) -> Option<String> {
 
     let should_refresh = cached_info
         .as_ref()
-        .map(|info| !is_cache_fresh(info))
-        .unwrap_or(true);
+        .is_none_or(|info| !is_cache_fresh(info));
 
     if should_refresh {
         tokio::spawn(async move {

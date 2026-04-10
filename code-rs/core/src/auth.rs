@@ -536,8 +536,7 @@ pub async fn auth_for_stored_account(
                     expires_at <= now
                 } else {
                     last_refresh
-                        .map(|last| last < now - chrono::Duration::days(28))
-                        .unwrap_or(true)
+                        .is_none_or(|last| last < now - chrono::Duration::days(28))
                 }
             } else {
                 false

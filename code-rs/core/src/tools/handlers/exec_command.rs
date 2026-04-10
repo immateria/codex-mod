@@ -133,8 +133,7 @@ impl ToolHandler for ExecCommandToolHandler {
                         && params
                             .justification
                             .as_ref()
-                            .map(|justification| justification.trim().is_empty())
-                            .unwrap_or(true)
+                            .is_none_or(|justification| justification.trim().is_empty())
                     {
                         return unsupported_tool_call_output(
                             &call_id,
@@ -151,8 +150,7 @@ impl ToolHandler for ExecCommandToolHandler {
                     if sandbox_permissions.uses_additional_permissions()
                         && additional_permissions
                             .as_ref()
-                            .map(code_protocol::models::PermissionProfile::is_empty)
-                            .unwrap_or(true)
+                            .is_none_or(code_protocol::models::PermissionProfile::is_empty)
                     {
                         return unsupported_tool_call_output(
                             &call_id,

@@ -579,8 +579,7 @@ fn resolve_agent_command_for_check(
         let is_builtin_family = matches!(spec.family, "code" | "codex" | "cloud");
         let uses_default_cli = cfg_trimmed
             .as_ref()
-            .map(|cmd| cmd.is_empty() || cmd.eq_ignore_ascii_case(spec.cli))
-            .unwrap_or(true);
+            .is_none_or(|cmd| cmd.is_empty() || cmd.eq_ignore_ascii_case(spec.cli));
 
         if uses_default_cli {
             return (spec.cli.to_string(), is_builtin_family);

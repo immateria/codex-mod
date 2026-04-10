@@ -38,11 +38,9 @@ pub(crate) fn extract_latest_bold_title(text: &str) -> Option<String> {
                 let before = prev_non_ws(text, start);
                 let after = next_non_ws(text, idx + 2);
                 let looks_like_heading = before
-                    .map(|ch| matches!(ch, '"' | '\n' | '\r' | ':' | '[' | '{'))
-                    .unwrap_or(true)
+                    .is_none_or(|ch| matches!(ch, '"' | '\n' | '\r' | ':' | '[' | '{'))
                     && after
-                        .map(|ch| matches!(ch, '"' | '\n' | '\r' | ',' | '}' | ']'))
-                        .unwrap_or(true);
+                        .is_none_or(|ch| matches!(ch, '"' | '\n' | '\r' | ',' | '}' | ']'));
 
                 if looks_like_heading
                     && let Some(clean) = normalize_candidate(candidate) {

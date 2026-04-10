@@ -268,8 +268,7 @@ impl TerminalOverlay {
     pub(crate) fn terminal_last_line_is_blank(&self) -> bool {
         self.terminal_lines
             .last()
-            .map(line_is_blank)
-            .unwrap_or(true)
+            .is_none_or(line_is_blank)
     }
 
     pub(crate) fn append_chunk(&mut self, chunk: &[u8], is_stderr: bool) {

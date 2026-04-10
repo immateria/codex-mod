@@ -31,7 +31,6 @@ impl ChatWidget<'_> {
 
     pub(in super::super) fn multiline_slash_command_requires_split(command_line: &str) -> bool {
         Self::slash_command_from_line(command_line)
-            .map(|cmd| !cmd.is_prompt_expanding())
-            .unwrap_or(true)
+            .is_none_or(|cmd| !cmd.is_prompt_expanding())
     }
 }

@@ -56,8 +56,7 @@ fn rounded_enabled() -> bool {
     *ROUNDED.get_or_init(|| {
         std::env::var("CODEX_TUI_ROUNDED")
             .ok()
-            .map(|v| v == "1")
-            .unwrap_or(true)
+            .is_none_or(|v| v == "1")
     })
 }
 
@@ -436,8 +435,7 @@ fn draw_diff_overlay(frame: &mut Frame, area: Rect, app: &mut App) {
     let raw_empty = app
         .diff_overlay
         .as_ref()
-        .map(|o| o.sd.wrapped_lines().is_empty())
-        .unwrap_or(true);
+        .is_none_or(|o| o.sd.wrapped_lines().is_empty());
     if app.details_inflight && raw_empty {
         draw_centered_spinner(frame, content_area, &mut app.throbber, "Loading details…");
     } else {

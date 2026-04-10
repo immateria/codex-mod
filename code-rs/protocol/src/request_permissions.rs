@@ -33,8 +33,7 @@ impl RequestPermissionProfile {
             && self
                 .file_system
                 .as_ref()
-                .map(FileSystemPermissions::is_empty)
-                .unwrap_or(true)
+                .is_none_or(FileSystemPermissions::is_empty)
     }
 }
 
