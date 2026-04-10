@@ -3,7 +3,7 @@ use ratatui::prelude::*;
 // Paragraph/Widget previously used; manual cell writes now keep static layer intact.
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
-pub enum IntroArtSize {
+pub(crate) enum IntroArtSize {
     Large,
     Medium,
     Small,
@@ -52,7 +52,7 @@ pub(crate) struct IntroAnimationRenderParams<'a> {
     pub row_offset: u16,
 }
 
-pub fn intro_art_size_for_width(width: u16) -> IntroArtSize {
+pub(crate) fn intro_art_size_for_width(width: u16) -> IntroArtSize {
     if width >= LARGE_MIN_WIDTH {
         IntroArtSize::Large
     } else if width >= MEDIUM_MIN_WIDTH {
@@ -76,7 +76,7 @@ pub(crate) fn intro_art_size_for_area(width: u16, height: u16) -> IntroArtSize {
     }
 }
 
-pub fn intro_art_height(size: IntroArtSize) -> u16 {
+pub(crate) fn intro_art_height(size: IntroArtSize) -> u16 {
     match size {
         IntroArtSize::Large => 28,
         IntroArtSize::Medium => 21,

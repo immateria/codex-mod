@@ -27,7 +27,7 @@ const ANSI_16_TO_RGB: [(u8, u8, u8); 16] = [
 ];
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum TerminalBackgroundSource {
+pub(crate) enum TerminalBackgroundSource {
     Osc11,
     ColorFgBg,
     /// System appearance (e.g., macOS Dark/Light setting)
@@ -36,10 +36,10 @@ pub enum TerminalBackgroundSource {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct TerminalBackgroundDetection {
-    pub is_dark: bool,
-    pub source: TerminalBackgroundSource,
-    pub rgb: Option<(u8, u8, u8)>,
+pub(crate) struct TerminalBackgroundDetection {
+    pub(crate) is_dark: bool,
+    pub(crate) source: TerminalBackgroundSource,
+    pub(crate) rgb: Option<(u8, u8, u8)>,
 }
 
 fn set_nonblocking(tty: &std::fs::File) {
@@ -105,7 +105,7 @@ fn parse_three_nums(s: &str) -> Option<(u32, u32, u32)> {
     None
 }
 
-pub fn get_cell_size_pixels() -> Option<(u16, u16)> {
+pub(crate) fn get_cell_size_pixels() -> Option<(u16, u16)> {
     // Open /dev/tty for reading and writing
     let mut tty_w = OpenOptions::new().write(true).open("/dev/tty").ok()?;
     let mut tty_r = OpenOptions::new().read(true).open("/dev/tty").ok()?;
@@ -341,7 +341,7 @@ fn detect_dark_from_rgb(rgb: (u8, u8, u8)) -> bool {
     crate::colors::wcag_relative_luminance(rgb.0, rgb.1, rgb.2) < 0.45
 }
 
-pub fn detect_dark_terminal_background() -> Option<TerminalBackgroundDetection> {
+pub(crate) fn detect_dark_terminal_background() -> Option<TerminalBackgroundDetection> {
     if let Ok(value) = env::var("CODE_DISABLE_THEME_AUTODETECT")
         && code_core::util::is_truthy(&value) {
             return None;

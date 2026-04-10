@@ -2,30 +2,30 @@ use ratatui::prelude::Color;
 use std::time::Duration;
 
 #[derive(Clone, Copy, Debug)]
-pub struct GradientSpec {
-    pub left: Color,
-    pub right: Color,
-    pub bias: f32,
+pub(crate) struct GradientSpec {
+    pub(crate) left: Color,
+    pub(crate) right: Color,
+    pub(crate) bias: f32,
 }
 
 #[derive(Clone, Copy, Debug)]
-pub struct PaletteSpec {
-    pub border: Color,
-    pub text: Color,
+pub(crate) struct PaletteSpec {
+    pub(crate) border: Color,
+    pub(crate) text: Color,
     #[allow(dead_code)] // assigned in palette() but not yet read; kept for future card themes
-    pub title: Color,
-    pub footer: Color,
+    pub(crate) title: Color,
+    pub(crate) footer: Color,
 }
 
 #[derive(Clone, Copy, Debug)]
-pub struct RevealConfig {
-    pub duration: Duration,
-    pub variant: RevealVariant,
+pub(crate) struct RevealConfig {
+    pub(crate) duration: Duration,
+    pub(crate) variant: RevealVariant,
 }
 
 #[derive(Clone, Copy, Debug)]
 #[allow(dead_code)] // variants matched in gradient_background; constructed as themes are added
-pub enum RevealVariant {
+pub(crate) enum RevealVariant {
     GlitchSweep,
     VertDrift,
     DiagonalPulse,
@@ -40,17 +40,17 @@ pub enum RevealVariant {
 }
 
 #[derive(Clone, Copy, Debug)]
-pub struct CardTheme {
-    pub gradient: GradientSpec,
-    pub palette: PaletteSpec,
-    pub reveal: Option<RevealConfig>,
+pub(crate) struct CardTheme {
+    pub(crate) gradient: GradientSpec,
+    pub(crate) palette: PaletteSpec,
+    pub(crate) reveal: Option<RevealConfig>,
 }
 
 #[derive(Clone, Copy, Debug)]
-pub struct CardThemeDefinition {
+pub(crate) struct CardThemeDefinition {
     #[allow(dead_code)]
-    pub name: &'static str,
-    pub theme: CardTheme,
+    pub(crate) name: &'static str,
+    pub(crate) theme: CardTheme,
 }
 
 #[allow(clippy::disallowed_methods)]
@@ -87,7 +87,7 @@ fn reveal(duration_ms: u64, variant: RevealVariant) -> Option<RevealConfig> {
     })
 }
 
-pub fn search_dark_theme() -> CardThemeDefinition {
+pub(crate) fn search_dark_theme() -> CardThemeDefinition {
     CardThemeDefinition {
         name: "Search Dark",
         theme: CardTheme {
@@ -98,7 +98,7 @@ pub fn search_dark_theme() -> CardThemeDefinition {
     }
 }
 
-pub fn auto_drive_dark_theme() -> CardThemeDefinition {
+pub(crate) fn auto_drive_dark_theme() -> CardThemeDefinition {
     CardThemeDefinition {
         name: "Auto Drive Dark",
         theme: CardTheme {
@@ -109,7 +109,7 @@ pub fn auto_drive_dark_theme() -> CardThemeDefinition {
     }
 }
 
-pub fn browser_dark_theme() -> CardThemeDefinition {
+pub(crate) fn browser_dark_theme() -> CardThemeDefinition {
     CardThemeDefinition {
         name: "Browser Dark",
         theme: CardTheme {
@@ -120,7 +120,7 @@ pub fn browser_dark_theme() -> CardThemeDefinition {
     }
 }
 
-pub fn agent_read_only_dark_theme() -> CardThemeDefinition {
+pub(crate) fn agent_read_only_dark_theme() -> CardThemeDefinition {
     CardThemeDefinition {
         name: "Agent Green Dark",
         theme: CardTheme {
@@ -131,7 +131,7 @@ pub fn agent_read_only_dark_theme() -> CardThemeDefinition {
     }
 }
 
-pub fn agent_read_only_light_theme() -> CardThemeDefinition {
+pub(crate) fn agent_read_only_light_theme() -> CardThemeDefinition {
     CardThemeDefinition {
         name: "Agent Green Light",
         theme: CardTheme {
@@ -142,7 +142,7 @@ pub fn agent_read_only_light_theme() -> CardThemeDefinition {
     }
 }
 
-pub fn search_light_theme() -> CardThemeDefinition {
+pub(crate) fn search_light_theme() -> CardThemeDefinition {
     CardThemeDefinition {
         name: "Search Light",
         theme: CardTheme {
@@ -153,7 +153,7 @@ pub fn search_light_theme() -> CardThemeDefinition {
     }
 }
 
-pub fn auto_drive_light_theme() -> CardThemeDefinition {
+pub(crate) fn auto_drive_light_theme() -> CardThemeDefinition {
     CardThemeDefinition {
         name: "Auto Drive Light",
         theme: CardTheme {
@@ -164,7 +164,7 @@ pub fn auto_drive_light_theme() -> CardThemeDefinition {
     }
 }
 
-pub fn browser_light_theme() -> CardThemeDefinition {
+pub(crate) fn browser_light_theme() -> CardThemeDefinition {
     CardThemeDefinition {
         name: "Browser Light",
         theme: CardTheme {

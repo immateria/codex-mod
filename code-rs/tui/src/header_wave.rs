@@ -6,7 +6,7 @@ use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
 use ratatui::style::Color;
 
-pub struct HeaderWaveEffect {
+pub(crate) struct HeaderWaveEffect {
     enabled: Cell<bool>,
     started_at: Cell<Option<Instant>>,
     next_frame: Cell<Option<Instant>>,
@@ -14,9 +14,9 @@ pub struct HeaderWaveEffect {
 
 impl HeaderWaveEffect {
     /// Animation cadence; keep this in sync with the ScheduleFrameIn duration.
-    pub const FRAME_INTERVAL: Duration = crate::timing::ANIMATION_FRAME_INTERVAL;
+    pub(crate) const FRAME_INTERVAL: Duration = crate::timing::ANIMATION_FRAME_INTERVAL;
 
-    pub fn new() -> Self {
+    pub(crate) fn new() -> Self {
         Self {
             enabled: Cell::new(false),
             started_at: Cell::new(None),
@@ -24,7 +24,7 @@ impl HeaderWaveEffect {
         }
     }
 
-    pub fn set_enabled(&self, enabled: bool, now: Instant) {
+    pub(crate) fn set_enabled(&self, enabled: bool, now: Instant) {
         self.enabled.set(enabled);
         if enabled {
             self.started_at.set(Some(now));
@@ -35,12 +35,12 @@ impl HeaderWaveEffect {
         }
     }
 
-    pub fn is_enabled(&self) -> bool {
+    pub(crate) fn is_enabled(&self) -> bool {
         self.enabled.get()
     }
 
     /// Returns true if the caller should schedule another frame tick.
-    pub fn schedule_if_needed(&self, now: Instant) -> bool {
+    pub(crate) fn schedule_if_needed(&self, now: Instant) -> bool {
         if !self.enabled.get() {
             return false;
         }
@@ -53,7 +53,7 @@ impl HeaderWaveEffect {
         }
     }
 
-    pub fn render(&self, area: Rect, buf: &mut Buffer, now: Instant) {
+    pub(crate) fn render(&self, area: Rect, buf: &mut Buffer, now: Instant) {
         if !self.enabled.get() {
             return;
         }

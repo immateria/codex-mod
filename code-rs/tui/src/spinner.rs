@@ -9,13 +9,13 @@ use std::sync::RwLockWriteGuard;
 use unicode_width::UnicodeWidthStr;
 
 #[derive(Debug, Clone)]
-pub struct Spinner {
+pub(crate) struct Spinner {
     /// Machine name (from JSON key)
-    pub name: String,
+    pub(crate) name: String,
     /// Human‑readable label (Title Case)
-    pub label: String,
-    pub interval_ms: u64,
-    pub frames: Vec<String>,
+    pub(crate) label: String,
+    pub(crate) interval_ms: u64,
+    pub(crate) frames: Vec<String>,
 }
 
 #[derive(Deserialize)]
@@ -97,9 +97,9 @@ fn write_lock<T>(lock: &RwLock<T>) -> RwLockWriteGuard<'_, T> {
     unwrap_lock(lock.write())
 }
 
-pub fn init_spinner(name: &str) { switch_spinner(name); }
+pub(crate) fn init_spinner(name: &str) { switch_spinner(name); }
 
-pub fn switch_spinner(name: &str) {
+pub(crate) fn switch_spinner(name: &str) {
     if ALL_SPINNERS.is_empty() { return; }
     let raw = name.trim();
     // Update the canonical current name (custom or built‑in)
@@ -114,7 +114,7 @@ pub fn switch_spinner(name: &str) {
     *write_lock(&CURRENT_INDEX) = idx;
 }
 
-pub fn current_spinner() -> &'static Spinner {
+pub(crate) fn current_spinner() -> &'static Spinner {
     if ALL_SPINNERS.is_empty() { return &FALLBACK_SPINNER; }
     // Resolve by current name first (supports custom), then fall back to ALL_SPINNERS by index
     let name = read_lock(&CURRENT_NAME).clone();
@@ -124,7 +124,7 @@ pub fn current_spinner() -> &'static Spinner {
     &ALL_SPINNERS[idx]
 }
 
-pub fn find_spinner_by_name(name: &str) -> Option<&'static Spinner> {
+pub(crate) fn find_spinner_by_name(name: &str) -> Option<&'static Spinner> {
     let raw = name.trim();
     // custom first
     if let Some(pos) = read_lock(&CUSTOM_SPINNERS).iter().position(|s| s.name == raw) {
@@ -142,19 +142,19 @@ pub fn find_spinner_by_name(name: &str) -> Option<&'static Spinner> {
         })
 }
 
-pub fn spinner_names() -> Vec<String> {
+pub(crate) fn spinner_names() -> Vec<String> {
     let mut v: Vec<String> = ALL_SPINNERS.iter().map(|s| s.name.clone()).collect();
     v.extend(read_lock(&CUSTOM_SPINNERS).iter().map(|s| s.name.clone()));
     v
 }
 
-pub fn spinner_label_for(name: &str) -> String {
+pub(crate) fn spinner_label_for(name: &str) -> String {
     find_spinner_by_name(name)
         .map(|s| s.label.clone())
         .unwrap_or_else(|| humanize(name))
 }
 
-pub fn frame_at_time(def: &Spinner, now_ms: u128) -> String {
+pub(crate) fn frame_at_time(def: &Spinner, now_ms: u128) -> String {
     if def.frames.is_empty() { return String::new(); }
     let idx = ((now_ms as u64 / def.interval_ms) as usize) % def.frames.len();
     def.frames[idx].clone()
@@ -197,7 +197,7 @@ fn vpush(out: &mut Vec<Spinner>, name: &str, sj: SpinnerJson) {
     out.push(Spinner { name: name.to_string(), label, interval_ms: sj.interval, frames: sj.frames });
 }
 
-pub fn global_max_frame_len() -> usize {
+pub(crate) fn global_max_frame_len() -> usize {
     let mut maxlen = 0usize;
     for spinner in ALL_SPINNERS.iter() {
         for frame in &spinner.frames {
@@ -212,9 +212,9 @@ pub fn global_max_frame_len() -> usize {
     maxlen
 }
 
-pub fn set_custom_spinners(custom: Vec<Spinner>) { *write_lock(&CUSTOM_SPINNERS) = custom; }
+pub(crate) fn set_custom_spinners(custom: Vec<Spinner>) { *write_lock(&CUSTOM_SPINNERS) = custom; }
 
-pub fn add_custom_spinner(name: String, label: String, interval_ms: u64, frames: Vec<String>) {
+pub(crate) fn add_custom_spinner(name: String, label: String, interval_ms: u64, frames: Vec<String>) {
     let mut v = write_lock(&CUSTOM_SPINNERS);
     if let Some(pos) = v.iter().position(|s| s.name == name) {
         v[pos] = Spinner { name, label, interval_ms, frames };

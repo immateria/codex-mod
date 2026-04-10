@@ -58,15 +58,15 @@ fn force_upgrade_preview_enabled() -> bool {
     }
 }
 
-pub fn upgrade_ui_enabled() -> bool {
+pub(crate) fn upgrade_ui_enabled() -> bool {
     !cfg!(debug_assertions) || force_upgrade_preview_enabled()
 }
 
-pub fn auto_upgrade_runtime_enabled() -> bool {
+pub(crate) fn auto_upgrade_runtime_enabled() -> bool {
     !cfg!(debug_assertions)
 }
 
-pub fn get_upgrade_version(config: &Config) -> Option<String> {
+pub(crate) fn get_upgrade_version(config: &Config) -> Option<String> {
     let version_file = version_filepath(config);
     let read_path = resolve_code_path_for_read(&config.code_home, Path::new(VERSION_FILENAME));
     let originator = config.responses_originator_header.clone();
@@ -106,11 +106,11 @@ pub fn get_upgrade_version(config: &Config) -> Option<String> {
 }
 
 #[derive(Debug, Clone)]
-pub struct UpdateCheckInfo {
-    pub latest_version: Option<String>,
+pub(crate) struct UpdateCheckInfo {
+    pub(crate) latest_version: Option<String>,
 }
 
-pub async fn check_for_updates_now(config: &Config) -> anyhow::Result<UpdateCheckInfo> {
+pub(crate) async fn check_for_updates_now(config: &Config) -> anyhow::Result<UpdateCheckInfo> {
     let version_file = version_filepath(config);
     let originator = config.responses_originator_header.clone();
     let info = check_for_update(&version_file, &originator).await?;
@@ -144,7 +144,7 @@ const VERSION_FILENAME: &str = "version.json";
 const LATEST_RELEASE_URL: &str = "https://api.github.com/repos/immateria/codex-mod/releases/latest";
 const CURRENT_RELEASE_REPO: &str = "immateria/codex-mod";
 const LEGACY_RELEASE_REPO: &str = "openai/codex";
-pub const CODE_RELEASE_URL: &str = "https://github.com/immateria/codex-mod/releases/latest";
+pub(crate) const CODE_RELEASE_URL: &str = "https://github.com/immateria/codex-mod/releases/latest";
 
 const CACHE_TTL_HOURS: i64 = 20;
 const MAX_CLOCK_SKEW_MINUTES: i64 = 5;
@@ -166,7 +166,7 @@ const AUTO_UPGRADE_LOCK_FILE: &str = "auto-upgrade.lock";
 const AUTO_UPGRADE_LOCK_TTL: Duration = Duration::from_secs(900); // 15 minutes
 
 #[derive(Debug, Clone)]
-pub enum UpgradeResolution {
+pub(crate) enum UpgradeResolution {
     Command { command: Vec<String>, display: String },
     Manual { instructions: String },
 }
@@ -175,7 +175,7 @@ fn version_filepath(config: &Config) -> PathBuf {
     config.code_home.join(VERSION_FILENAME)
 }
 
-pub fn resolve_upgrade_resolution(config: &Config) -> UpgradeResolution {
+pub(crate) fn resolve_upgrade_resolution(config: &Config) -> UpgradeResolution {
     if cfg!(target_os = "android") {
         return UpgradeResolution::Manual {
             instructions: "On Android/Termux, upgrade by rebuilding from source and replacing the installed binary.".to_string(),
@@ -199,12 +199,12 @@ pub fn resolve_upgrade_resolution(config: &Config) -> UpgradeResolution {
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
-pub struct AutoUpgradeOutcome {
-    pub installed_version: Option<String>,
-    pub user_notice: Option<String>,
+pub(crate) struct AutoUpgradeOutcome {
+    pub(crate) installed_version: Option<String>,
+    pub(crate) user_notice: Option<String>,
 }
 
-pub async fn auto_upgrade_if_enabled(config: &Config) -> anyhow::Result<AutoUpgradeOutcome> {
+pub(crate) async fn auto_upgrade_if_enabled(config: &Config) -> anyhow::Result<AutoUpgradeOutcome> {
     if !config.auto_upgrade_enabled {
         return Ok(AutoUpgradeOutcome::default());
     }

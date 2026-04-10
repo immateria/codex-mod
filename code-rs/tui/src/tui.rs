@@ -38,11 +38,11 @@ pub type Tui = Terminal<CrosstermBackend<BufWriter<Stdout>>>;
 
 /// Terminal information queried at startup
 #[derive(Clone)]
-pub struct TerminalInfo {
+pub(crate) struct TerminalInfo {
     /// The image picker with detected capabilities
-    pub picker: Option<Picker>,
+    pub(crate) picker: Option<Picker>,
     /// Measured font size (width, height) in pixels
-    pub font_size: (u16, u16),
+    pub(crate) font_size: (u16, u16),
 }
 
 impl std::fmt::Debug for TerminalInfo {
@@ -55,7 +55,7 @@ impl std::fmt::Debug for TerminalInfo {
 }
 
 /// Initialize the terminal (full screen mode with alternate screen)
-pub fn init(config: &Config) -> Result<(Tui, TerminalInfo)> {
+pub(crate) fn init(config: &Config) -> Result<(Tui, TerminalInfo)> {
     // Initialize the theme based on config
     crate::theme::init_theme(&config.tui.theme);
     // Initialize spinner selection and register custom spinners from config
@@ -222,7 +222,7 @@ fn set_panic_hook() {
 }
 
 /// Restore the terminal to its original state
-pub fn restore() -> Result<()> {
+pub(crate) fn restore() -> Result<()> {
     // Pop may fail on platforms that didn't support the push; ignore errors.
     let _ = execute!(stdout(), PopKeyboardEnhancementFlags);
     // Belt-and-suspenders: on terminals that do not maintain a clean stack,
@@ -249,7 +249,7 @@ pub fn restore() -> Result<()> {
 /// Leave only the alternate screen, keeping raw mode and input configuration intact.
 /// This is used for the Ctrl+T "standard terminal" mode so users can scroll
 /// and select text in the host terminal.
-pub fn leave_alt_screen_only() -> Result<()> {
+pub(crate) fn leave_alt_screen_only() -> Result<()> {
     // Best effort: disable mouse capture so selection/scroll works naturally.
     let _ = execute!(stdout(), DisableMouseCapture);
     // Also disable bracketed paste and focus tracking to avoid escape sequences
@@ -270,7 +270,7 @@ pub fn leave_alt_screen_only() -> Result<()> {
 
 /// Re-enter the alternate screen without reinitializing global state.
 /// Restores title and colors and performs a full clear to ensure a clean frame.
-pub fn enter_alt_screen_only(theme_fg: ratatui::style::Color, theme_bg: ratatui::style::Color) -> Result<()> {
+pub(crate) fn enter_alt_screen_only(theme_fg: ratatui::style::Color, theme_bg: ratatui::style::Color) -> Result<()> {
     // Re-enable enhanced keyboard and focus/paste signaling for full TUI fidelity.
     if supports_keyboard_enhancement().unwrap_or(false) && should_enable_keyboard_enhancement() {
         let _ = execute!(
@@ -323,7 +323,7 @@ fn disable_alternate_scroll_mode() -> Result<()> {
 /// consumer is paused (e.g., when the display sleeps). Falls back to writable
 /// on poll errors or non-Unix platforms.
 #[cfg(unix)]
-pub fn stdout_ready_for_writes() -> bool {
+pub(crate) fn stdout_ready_for_writes() -> bool {
     use libc::{poll, pollfd, POLLOUT};
 
     let fd = std::io::stdout().as_raw_fd();
@@ -340,7 +340,7 @@ pub fn stdout_ready_for_writes() -> bool {
 }
 
 #[cfg(not(unix))]
-pub fn stdout_ready_for_writes() -> bool {
+pub(crate) fn stdout_ready_for_writes() -> bool {
     true
 }
 

@@ -69,7 +69,7 @@ fn pref_cell() -> &'static std::sync::RwLock<HighlightPref> {
 }
 
 /// Initialize the highlight preference from config.
-pub fn init_highlight_from_config(cfg: &code_core::config_types::HighlightConfig) {
+pub(crate) fn init_highlight_from_config(cfg: &code_core::config_types::HighlightConfig) {
     let raw = cfg.theme.as_deref().unwrap_or("auto");
     let val_trim = raw.trim();
     // Only support "auto" or a bare theme name. Anything else falls back to auto.

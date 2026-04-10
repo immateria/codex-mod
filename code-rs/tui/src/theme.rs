@@ -39,39 +39,39 @@ fn write_lock<T>(lock: &RwLock<T>) -> RwLockWriteGuard<'_, T> {
 
 /// Represents a complete theme with all colors resolved
 #[derive(Debug, Clone, PartialEq)]
-pub struct Theme {
+pub(crate) struct Theme {
     // Primary colors
-    pub primary: Color,
-    pub secondary: Color,
-    pub background: Color,
-    pub foreground: Color,
+    pub(crate) primary: Color,
+    pub(crate) secondary: Color,
+    pub(crate) background: Color,
+    pub(crate) foreground: Color,
 
     // UI elements
-    pub border: Color,
-    pub border_focused: Color,
-    pub selection: Color,
-    pub cursor: Color,
+    pub(crate) border: Color,
+    pub(crate) border_focused: Color,
+    pub(crate) selection: Color,
+    pub(crate) cursor: Color,
 
     // Status colors
-    pub success: Color,
-    pub warning: Color,
-    pub error: Color,
-    pub info: Color,
+    pub(crate) success: Color,
+    pub(crate) warning: Color,
+    pub(crate) error: Color,
+    pub(crate) info: Color,
 
     // Text colors
-    pub text: Color,
-    pub text_dim: Color,
-    pub text_bright: Color,
+    pub(crate) text: Color,
+    pub(crate) text_dim: Color,
+    pub(crate) text_bright: Color,
 
     // Syntax/special colors
-    pub keyword: Color,
-    pub string: Color,
-    pub comment: Color,
-    pub function: Color,
+    pub(crate) keyword: Color,
+    pub(crate) string: Color,
+    pub(crate) comment: Color,
+    pub(crate) function: Color,
 
     // Animation colors
-    pub spinner: Color,
-    pub progress: Color,
+    pub(crate) spinner: Color,
+    pub(crate) progress: Color,
 }
 
 impl Default for Theme {
@@ -81,7 +81,7 @@ impl Default for Theme {
 }
 
 /// Initialize the global theme from configuration
-pub fn init_theme(config: &ThemeConfig) {
+pub(crate) fn init_theme(config: &ThemeConfig) {
     let mapped_name = map_theme_for_palette(config.name, config.is_dark);
     let mut theme = get_predefined_theme(mapped_name);
     // Important: Only apply color overrides for the Custom theme.
@@ -110,7 +110,7 @@ pub fn init_theme(config: &ThemeConfig) {
 }
 
 /// Get the current theme (cheap Arc clone instead of full struct copy)
-pub fn current_theme() -> Arc<Theme> {
+pub(crate) fn current_theme() -> Arc<Theme> {
     Arc::clone(&read_lock(&CURRENT_THEME))
 }
 
@@ -119,35 +119,35 @@ pub(crate) fn current_theme_name() -> ThemeName {
 }
 
 /// Get the custom theme's display label, if any
-pub fn custom_theme_label() -> Option<String> {
+pub(crate) fn custom_theme_label() -> Option<String> {
     read_lock(&CUSTOM_THEME_LABEL).clone()
 }
 
 /// Set/update the custom theme's label at runtime
-pub fn set_custom_theme_label(label: String) {
+pub(crate) fn set_custom_theme_label(label: String) {
     *write_lock(&CUSTOM_THEME_LABEL) = Some(label);
 }
 
 /// Set/update the custom theme's colors at runtime
-pub fn set_custom_theme_colors(colors: code_core::config_types::ThemeColors) {
+pub(crate) fn set_custom_theme_colors(colors: code_core::config_types::ThemeColors) {
     *write_lock(&CUSTOM_THEME_COLORS) = Some(colors);
 }
 
 /// Return the custom theme colors, if known in this session
-pub fn custom_theme_colors() -> Option<code_core::config_types::ThemeColors> {
+pub(crate) fn custom_theme_colors() -> Option<code_core::config_types::ThemeColors> {
     read_lock(&CUSTOM_THEME_COLORS).clone()
 }
 
-pub fn set_custom_theme_is_dark(is_dark: Option<bool>) {
+pub(crate) fn set_custom_theme_is_dark(is_dark: Option<bool>) {
     *write_lock(&CUSTOM_THEME_IS_DARK) = is_dark;
 }
 
-pub fn custom_theme_is_dark() -> Option<bool> {
+pub(crate) fn custom_theme_is_dark() -> Option<bool> {
     *read_lock(&CUSTOM_THEME_IS_DARK)
 }
 
 /// Switch to a different predefined theme
-pub fn switch_theme(theme_name: ThemeName) {
+pub(crate) fn switch_theme(theme_name: ThemeName) {
     let mapped_name = map_theme_for_palette(theme_name, custom_theme_is_dark());
     let mut theme = get_predefined_theme(mapped_name);
     if needs_ansi256_fallback() {

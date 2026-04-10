@@ -13,7 +13,7 @@ lazy_static! {
 }
 
 #[derive(Debug)]
-pub enum PromptArgsError {
+pub(crate) enum PromptArgsError {
     MissingAssignment { token: String },
     MissingKey { token: String },
 }
@@ -32,7 +32,7 @@ impl PromptArgsError {
 }
 
 #[derive(Debug)]
-pub enum PromptExpansionError {
+pub(crate) enum PromptExpansionError {
     Args {
         command: String,
         error: PromptArgsError,
@@ -110,7 +110,7 @@ pub(crate) fn parse_prompt_inputs(rest: &str) -> Result<HashMap<String, String>,
 /// If the text does not start with `/prompts:`, or if no prompt named `name` exists,
 /// the function returns `Ok(None)`. On success it returns
 /// `Ok(Some(expanded))`; otherwise it returns a descriptive error.
-pub fn expand_custom_prompt(
+pub(crate) fn expand_custom_prompt(
     text: &str,
     custom_prompts: &[CustomPrompt],
 ) -> Result<Option<String>, PromptExpansionError> {

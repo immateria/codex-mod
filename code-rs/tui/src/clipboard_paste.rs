@@ -5,7 +5,7 @@ use tempfile::Builder;
 use arboard;
 
 #[derive(Debug)]
-pub enum PasteImageError {
+pub(crate) enum PasteImageError {
     ClipboardUnavailable(String),
     #[cfg_attr(not(feature = "clipboard"), allow(dead_code))]
     NoImage(String),
@@ -28,14 +28,14 @@ impl std::fmt::Display for PasteImageError {
 impl std::error::Error for PasteImageError {}
 
 #[derive(Debug, Clone)]
-pub struct PastedImageInfo {
-    pub width: u32,
-    pub height: u32,
+pub(crate) struct PastedImageInfo {
+    pub(crate) width: u32,
+    pub(crate) height: u32,
 }
 
 /// Capture image from system clipboard, encode to PNG, and return bytes plus metadata.
 #[cfg(feature = "clipboard")]
-pub fn paste_image_as_png() -> Result<(Vec<u8>, PastedImageInfo), PasteImageError> {
+pub(crate) fn paste_image_as_png() -> Result<(Vec<u8>, PastedImageInfo), PasteImageError> {
     tracing::debug!("attempting clipboard image read");
     let mut cb = arboard::Clipboard::new()
         .map_err(|e| PasteImageError::ClipboardUnavailable(e.to_string()))?;
@@ -72,14 +72,14 @@ pub fn paste_image_as_png() -> Result<(Vec<u8>, PastedImageInfo), PasteImageErro
 }
 
 #[cfg(not(feature = "clipboard"))]
-pub fn paste_image_as_png() -> Result<(Vec<u8>, PastedImageInfo), PasteImageError> {
+pub(crate) fn paste_image_as_png() -> Result<(Vec<u8>, PastedImageInfo), PasteImageError> {
     Err(PasteImageError::ClipboardUnavailable(
         "clipboard feature not enabled for this platform".to_string(),
     ))
 }
 
 /// Write clipboard PNG to a temporary file and return the path.
-pub fn paste_image_to_temp_png() -> Result<(PathBuf, PastedImageInfo), PasteImageError> {
+pub(crate) fn paste_image_to_temp_png() -> Result<(PathBuf, PastedImageInfo), PasteImageError> {
     let (png, info) = paste_image_as_png()?;
     let tmp = Builder::new()
         .prefix("codex-clipboard-")
@@ -92,7 +92,7 @@ pub fn paste_image_to_temp_png() -> Result<(PathBuf, PastedImageInfo), PasteImag
 }
 
 /// Interpret pasted text as an image (data URL or raw base64) and write a PNG temporary file.
-pub fn try_decode_base64_image_to_temp_png(pasted: &str) -> Result<(PathBuf, PastedImageInfo), PasteImageError> {
+pub(crate) fn try_decode_base64_image_to_temp_png(pasted: &str) -> Result<(PathBuf, PastedImageInfo), PasteImageError> {
     let s = pasted.trim();
     if s.is_empty() {
         return Err(PasteImageError::DecodeFailed("empty".into()));
@@ -150,7 +150,7 @@ pub fn try_decode_base64_image_to_temp_png(pasted: &str) -> Result<(PathBuf, Pas
 }
 
 /// Normalize pasted text that may represent a filesystem path.
-pub fn normalize_pasted_path(pasted: &str) -> Option<PathBuf> {
+pub(crate) fn normalize_pasted_path(pasted: &str) -> Option<PathBuf> {
     let pasted = pasted.trim();
 
     if let Ok(url) = url::Url::parse(pasted)
