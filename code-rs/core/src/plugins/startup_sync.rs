@@ -135,7 +135,7 @@ fn sync_openai_plugins_repo_via_http(code_home: &Path, api_base_url: &str) -> Re
     let remote_sha = runtime.block_on(fetch_curated_repo_remote_sha(api_base_url))?;
     let local_sha = read_sha_file(&sha_path);
 
-    if local_sha.as_deref() == Some(remote_sha.as_str()) && repo_path.is_dir() {
+    if local_sha.as_deref() == Some(&remote_sha) && repo_path.is_dir() {
         return Ok(remote_sha);
     }
 
@@ -277,7 +277,7 @@ fn sync_repo_via_git(
     let remote_sha = git_ls_remote_sha(git_binary, repo_url, git_ref)?;
     let local_sha = read_local_git_or_sha_file(repo_path, sha_path, git_binary);
 
-    if local_sha.as_deref() == Some(remote_sha.as_str()) && repo_path.join(".git").is_dir() {
+    if local_sha.as_deref() == Some(&remote_sha) && repo_path.join(".git").is_dir() {
         return Ok(remote_sha);
     }
 
@@ -296,10 +296,10 @@ fn sync_repo_via_git(
     let clone_context = format!("git clone {label}");
     let clone_output = run_git_command_with_timeout(
         &mut clone_command,
-        clone_context.as_str(),
+        &clone_context,
         CURATED_PLUGINS_GIT_TIMEOUT,
     )?;
-    ensure_git_success(&clone_output, clone_context.as_str())?;
+    ensure_git_success(&clone_output, &clone_context)?;
 
     let cloned_sha = git_head_sha(&cloned_repo_path, git_binary)?;
     if cloned_sha != remote_sha {

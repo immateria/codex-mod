@@ -652,7 +652,6 @@ pub fn is_progress(s:    &str) -> bool { PROGRESS_ICONS.iter().any(|icon| icon.m
 pub fn is_spinner(s:     &str) -> bool { matches!(s, "◐" | "◓" | "◑" | "◒") }
 pub fn is_context(s:     &str) -> bool { GUTTER_CONTEXT.matches(s) }
 pub fn is_compaction(s:  &str) -> bool { GUTTER_COMPACTION.matches(s) }
-pub fn is_background(s:  &str) -> bool { GUTTER_BACKGROUND.matches(s) }
 
 // ── Selection prefix helper ──────────────────────────────────────────
 use std::borrow::Cow;

@@ -12,7 +12,7 @@ pub struct GradientSpec {
 pub struct PaletteSpec {
     pub border: Color,
     pub text: Color,
-    #[allow(dead_code)]
+    #[allow(dead_code)] // assigned in palette() but not yet read; kept for future card themes
     pub title: Color,
     pub footer: Color,
 }

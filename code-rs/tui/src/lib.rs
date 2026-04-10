@@ -86,7 +86,7 @@ mod auto_drive_style;
 mod header_wave;
 mod history_cell;
 mod history;
-#[allow(dead_code)]
+#[allow(dead_code)] // Icon registry: many entries exist for future UI features
 pub(crate) mod icons;
 mod insert_history;
 pub(crate) mod live_wrap;

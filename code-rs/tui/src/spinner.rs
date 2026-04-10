@@ -201,12 +201,12 @@ pub fn global_max_frame_len() -> usize {
     let mut maxlen = 0usize;
     for spinner in ALL_SPINNERS.iter() {
         for frame in &spinner.frames {
-            maxlen = maxlen.max(frame.as_str().width());
+            maxlen = maxlen.max(frame.width());
         }
     }
     for spinner in read_lock(&CUSTOM_SPINNERS).iter() {
         for frame in &spinner.frames {
-            maxlen = maxlen.max(frame.as_str().width());
+            maxlen = maxlen.max(frame.width());
         }
     }
     maxlen

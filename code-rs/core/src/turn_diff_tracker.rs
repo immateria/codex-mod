@@ -236,7 +236,7 @@ impl TurnDiffTracker {
         });
 
         for internal in baseline_file_names {
-            aggregated.push_str(self.get_file_diff(&internal).as_str());
+            aggregated.push_str(&self.get_file_diff(&internal));
             if !aggregated.ends_with('\n') {
                 aggregated.push('\n');
             }
