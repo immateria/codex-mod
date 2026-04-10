@@ -153,12 +153,12 @@ mod imp {
                 crate::bottom_pane::settings_ui::hints::KeyHint::new(
                     format!("{ud}/jk", ud = crate::icons::nav_up_down()),
                     " navigate",
-                ).with_key_style(crate::colors::style_function()),
+                ),
                 crate::bottom_pane::settings_ui::hints::hint_enter(" select"),
                 crate::bottom_pane::settings_ui::hints::KeyHint::new(
                     format!("{}/q", crate::icons::escape()),
                     " cancel",
-                ).with_key_style(crate::colors::style_error()),
+                ),
             ]));
 
             let content_area = inner.inner(crate::ui_consts::UNIFORM_PAD);

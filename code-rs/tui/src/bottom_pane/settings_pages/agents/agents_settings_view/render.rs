@@ -50,8 +50,8 @@ impl SubagentEditorView {
         let hints = [
             KeyHint::new(key_tab(), " next"),
             KeyHint::new(key_reverse_tab(), " prev"),
-            KeyHint::new(key_space(), " toggle").with_key_style(Style::new().fg(colors::success())),
-            KeyHint::new(key_ctrl("S"), " save").with_key_style(Style::new().fg(colors::success())),
+            KeyHint::new(key_space(), " toggle"),
+            KeyHint::new(key_ctrl("S"), " save"),
             hint_esc(" back"),
         ];
         let (status_lines, footer_lines) =

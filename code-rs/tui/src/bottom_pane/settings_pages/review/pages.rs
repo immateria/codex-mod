@@ -23,8 +23,7 @@ impl ReviewSettingsView {
         vec![
             hint_nav(" navigate"),
             hint_enter(" select"),
-            KeyHint::new(crate::bottom_pane::settings_ui::hints::key_space(), " toggle")
-                .with_key_style(Style::new().fg(colors::success())),
+            KeyHint::new(crate::bottom_pane::settings_ui::hints::key_space(), " toggle"),
             hint_nav_horizontal(" adjust"),
             hint_esc(" close"),
         ]

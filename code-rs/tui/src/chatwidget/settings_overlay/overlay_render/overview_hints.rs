@@ -72,8 +72,7 @@ impl SettingsOverlayView {
             crate::bottom_pane::settings_ui::hints::hint_nav(" navigate"),
             crate::bottom_pane::settings_ui::hints::hint_enter(" open"),
             crate::bottom_pane::settings_ui::hints::hint_esc(" close"),
-            crate::bottom_pane::settings_ui::hints::KeyHint::new("?", " help")
-                .with_key_style(crate::colors::style_info()),
+            crate::bottom_pane::settings_ui::hints::KeyHint::new("?", " help"),
         ]);
 
         Paragraph::new(line)

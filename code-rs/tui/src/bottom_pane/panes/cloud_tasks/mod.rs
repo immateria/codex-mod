@@ -52,12 +52,9 @@ impl CloudTasksView {
                 shortcut_line(&[
                     hint_nav(" navigate"),
                     crate::bottom_pane::settings_ui::hints::hint_enter(" actions"),
-                    KeyHint::new("r", " refresh")
-                        .with_key_style(crate::colors::style_info()),
-                    KeyHint::new("n", " new")
-                        .with_key_style(crate::colors::style_function()),
-                    KeyHint::new("e", " environments")
-                        .with_key_style(crate::colors::style_function()),
+                    KeyHint::new("r", " refresh"),
+                    KeyHint::new("n", " new"),
+                    KeyHint::new("e", " environments"),
                     hint_esc(" close"),
                 ])
             },

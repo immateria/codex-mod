@@ -34,10 +34,8 @@ impl ExperimentalFeaturesSettingsView {
 
         let shortcuts = vec![
             hint_nav(" navigate"),
-            KeyHint::new(crate::bottom_pane::settings_ui::hints::key_space(), " toggle")
-                .with_key_style(Style::new().fg(colors::success())),
-            KeyHint::new(crate::bottom_pane::settings_ui::hints::key_ctrl("S"), " save")
-                .with_key_style(Style::new().fg(colors::success())),
+            KeyHint::new(crate::bottom_pane::settings_ui::hints::key_space(), " toggle"),
+            KeyHint::new(crate::bottom_pane::settings_ui::hints::key_ctrl("S"), " save"),
             hint_esc(" close"),
         ];
 

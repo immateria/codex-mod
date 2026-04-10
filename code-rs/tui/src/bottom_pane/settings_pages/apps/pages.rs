@@ -110,15 +110,13 @@ impl AppsSettingsView {
 
         let shortcuts = vec![
             hint_nav(" navigate"),
-            KeyHint::new(crate::bottom_pane::settings_ui::hints::key_space(), " pin")
-                .with_key_style(Style::new().fg(colors::success())),
+            KeyHint::new(crate::bottom_pane::settings_ui::hints::key_space(), " pin"),
             hint_enter(" details"),
-            KeyHint::new("m", " mode").with_key_style(Style::new().fg(colors::primary())),
-            KeyHint::new("r", " refresh").with_key_style(Style::new().fg(colors::info())),
-            KeyHint::new("a", " accounts").with_key_style(Style::new().fg(colors::primary())),
-            KeyHint::new("l", " login").with_key_style(Style::new().fg(colors::success())),
-            KeyHint::new(crate::bottom_pane::settings_ui::hints::key_ctrl("S"), " save")
-                .with_key_style(Style::new().fg(colors::success())),
+            KeyHint::new("m", " mode"),
+            KeyHint::new("r", " refresh"),
+            KeyHint::new("a", " accounts"),
+            KeyHint::new("l", " login"),
+            KeyHint::new(crate::bottom_pane::settings_ui::hints::key_ctrl("S"), " save"),
             hint_esc(" close"),
         ];
 
@@ -287,8 +285,8 @@ impl AppsSettingsView {
         }
 
         let mut shortcuts = vec![
-            KeyHint::new("r", " refresh").with_key_style(Style::new().fg(colors::info())),
-            KeyHint::new("a", " accounts").with_key_style(Style::new().fg(colors::primary())),
+            KeyHint::new("r", " refresh"),
+            KeyHint::new("a", " accounts"),
             hint_esc(" back"),
         ];
         if let Some(crate::chatwidget::AppsAccountStatusState::Failed {
@@ -297,7 +295,7 @@ impl AppsSettingsView {
         {
             shortcuts.insert(
                 2,
-                KeyHint::new("l", " login").with_key_style(Style::new().fg(colors::success())),
+                KeyHint::new("l", " login"),
             );
         }
 

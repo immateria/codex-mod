@@ -116,8 +116,7 @@ impl MemoriesSettingsView {
             hint_nav(" navigate"),
             hint_nav_horizontal(" cycle"),
             hint_enter(" edit/activate"),
-            KeyHint::new(crate::bottom_pane::settings_ui::hints::key_ctrl("S"), " apply")
-                .with_key_style(Style::new().fg(colors::success())),
+            KeyHint::new(crate::bottom_pane::settings_ui::hints::key_ctrl("S"), " apply"),
             hint_esc(" close"),
         ])]
     }

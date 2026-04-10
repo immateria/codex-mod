@@ -335,13 +335,10 @@ impl ShellProfilesSettingsView {
 
     pub(super) fn picker_footer_lines() -> Vec<Line<'static>> {
         use crate::bottom_pane::settings_ui::hints::{hint_esc, hint_nav, shortcut_line, KeyHint};
-        let s_success = crate::colors::style_success();
         vec![shortcut_line(&[
             hint_nav(" navigate"),
-            KeyHint::new("Space/Enter", " toggle")
-                .with_key_style(s_success),
-            KeyHint::new("Ctrl+S", " save")
-                .with_key_style(s_success),
+            KeyHint::new("Space/Enter", " toggle"),
+            KeyHint::new("Ctrl+S", " save"),
             hint_esc(" cancel"),
         ])]
     }

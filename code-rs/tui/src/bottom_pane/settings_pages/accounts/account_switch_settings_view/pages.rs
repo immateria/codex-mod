@@ -24,10 +24,8 @@ impl AccountSwitchSettingsView {
         .with_shortcuts(
             crate::bottom_pane::settings_ui::hints::ShortcutPlacement::Bottom,
             vec![
-                KeyHint::new(format!("{ud}/Tab", ud = crate::icons::nav_up_down()), " navigate")
-                    .with_key_style(Style::new().fg(colors::function())),
-                KeyHint::new("Enter/Space", " activate")
-                    .with_key_style(Style::new().fg(colors::success())),
+                KeyHint::new(format!("{ud}/Tab", ud = crate::icons::nav_up_down()), " navigate"),
+                KeyHint::new("Enter/Space", " activate"),
                 hint_esc(" close"),
             ],
         )
@@ -137,8 +135,8 @@ impl AccountSwitchSettingsView {
             Line::from(""),
         ];
         let shortcuts = vec![
-            KeyHint::new(format!("{ud}/Tab", ud = crate::icons::nav_up_down()), " select").with_key_style(Style::new().fg(colors::function())),
-            KeyHint::new("Enter/Space", " apply").with_key_style(Style::new().fg(colors::success())),
+            KeyHint::new(format!("{ud}/Tab", ud = crate::icons::nav_up_down()), " select"),
+            KeyHint::new("Enter/Space", " apply"),
             hint_esc(" back"),
         ];
 

@@ -1,6 +1,6 @@
 use super::*;
 
-use ratatui::style::{Style, Stylize};
+use ratatui::style::Style;
 use ratatui::text::{Line, Span};
 
 use crate::bottom_pane::settings_ui::editor_page::SettingsEditorPage;
@@ -28,7 +28,7 @@ impl InterfaceSettingsView {
             hint_nav(" navigate"),
             hint_enter(" activate"),
             hint_nav_horizontal(" adjust"),
-            KeyHint::new(key_ctrl("S"), " save").with_key_style(Style::new().fg(crate::colors::success())),
+            KeyHint::new(key_ctrl("S"), " save"),
             hint_esc(" close"),
         ];
         let footer_lines = vec![self.main_footer_line_for_row(selected_row)];
@@ -92,13 +92,11 @@ impl InterfaceSettingsView {
             | HotkeyScope::OpenBsd
             | HotkeyScope::NetBsd
             | HotkeyScope::Dragonfly => Some(
-                KeyHint::new("i", " inherit")
-                    .with_key_style(Style::new().fg(crate::colors::function())),
+                KeyHint::new("i", " inherit"),
             ),
         };
         let legacy_hint = row.supports_legacy_hotkey().then(|| {
             KeyHint::new("l", " legacy")
-                .with_key_style(Style::new().fg(crate::colors::function()))
         });
 
         let max_key = self.hotkey_scope.max_function_key();
@@ -109,8 +107,8 @@ impl InterfaceSettingsView {
         )));
 
         let mut footer_hints = vec![
-            hint_esc(" cancel").with_key_style(Style::new().fg(crate::colors::error()).bold()),
-            KeyHint::new("d", " disable").with_key_style(Style::new().fg(crate::colors::function())),
+            hint_esc(" cancel"),
+            KeyHint::new("d", " disable"),
         ];
         if let Some(hint) = legacy_hint {
             footer_hints.push(hint);

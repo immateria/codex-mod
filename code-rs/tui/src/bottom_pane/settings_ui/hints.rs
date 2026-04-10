@@ -34,11 +34,6 @@ impl<'a> KeyHint<'a> {
         }
     }
 
-    pub(crate) fn with_key_style(mut self, key_style: Style) -> Self {
-        self.key_style = key_style;
-        self
-    }
-
     pub(crate) fn with_key_spans(mut self, spans: Vec<Span<'static>>) -> Self {
         self.key_spans = Some(spans);
         self
@@ -228,22 +223,23 @@ fn shortcut_lines_wrapped(hints: &[KeyHint<'_>], max_width: u16) -> Vec<Line<'st
 /// `primary()` — so the pair reads as two distinct arrows rather than a
 /// monochrome zigzag.
 pub(crate) fn hint_nav(description: &'static str) -> KeyHint<'static> {
+    let c = colors::primary();
     KeyHint::new(icons::nav_up_down(), description)
         .with_key_spans(vec![
-            Span::styled(icons::arrow_up(), Style::new().fg(colors::function())),
+            Span::styled(icons::arrow_up(), Style::new().fg(c)),
             Span::raw(" "),
-            Span::styled(icons::arrow_down(), Style::new().fg(colors::primary())),
+            Span::styled(icons::arrow_down(), Style::new().fg(c)),
         ])
 }
 
-/// Horizontal (◂ ▸) hint with bi-colored arrows — left in `function()`, right
-/// in `primary()`.
+/// Horizontal (◂ ▸) hint with theme-colored arrows.
 pub(crate) fn hint_nav_horizontal(description: &'static str) -> KeyHint<'static> {
+    let c = colors::primary();
     KeyHint::new(icons::nav_left_right(), description)
         .with_key_spans(vec![
-            Span::styled(icons::arrow_left(), Style::new().fg(colors::function())),
+            Span::styled(icons::arrow_left(), Style::new().fg(c)),
             Span::raw(" "),
-            Span::styled(icons::arrow_right(), Style::new().fg(colors::primary())),
+            Span::styled(icons::arrow_right(), Style::new().fg(c)),
         ])
 }
 
@@ -263,14 +259,14 @@ pub(crate) fn key_ctrl(key: &str) -> String {
     icons::ctrl_combo(key)
 }
 
-/// Esc hint with `colors::error()` key style.
+/// Esc hint using theme `primary()` key style.
 pub(crate) fn hint_esc(description: &'static str) -> KeyHint<'static> {
-    KeyHint::new(icons::escape(), description).with_key_style(Style::new().fg(colors::error()))
+    KeyHint::new(icons::escape(), description)
 }
 
-/// Enter/confirm hint with `colors::success()` key style.
+/// Enter/confirm hint using theme `primary()` key style.
 pub(crate) fn hint_enter(description: &'static str) -> KeyHint<'static> {
-    KeyHint::new(icons::enter(), description).with_key_style(Style::new().fg(colors::success()))
+    KeyHint::new(icons::enter(), description)
 }
 
 pub(crate) fn status_and_shortcuts(

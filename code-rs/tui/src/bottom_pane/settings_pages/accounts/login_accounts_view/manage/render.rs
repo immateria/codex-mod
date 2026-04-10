@@ -110,10 +110,8 @@ impl LoginAccountsState {
         lines.push(shortcut_line(&[
             hint_nav(" navigate"),
             hint_enter(" select"),
-            KeyHint::new("d", " disconnect")
-                .with_key_style(crate::colors::style_warning().add_modifier(Modifier::BOLD)),
-            KeyHint::new("p", " paths")
-                .with_key_style(crate::colors::style_info().add_modifier(Modifier::BOLD)),
+            KeyHint::new("d", " disconnect"),
+            KeyHint::new("p", " paths"),
             hint_esc(" close"),
         ]));
 

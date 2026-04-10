@@ -214,25 +214,21 @@ impl McpSettingsView {
         let hints: Vec<KeyHint<'static>> = match self.mode {
             McpSettingsMode::Main => vec![
                 hint_nav(" navigate"),
-                KeyHint::new(crate::icons::space(), " toggle tool")
-                    .with_key_style(crate::colors::style_success()),
+                KeyHint::new(crate::icons::space(), " toggle tool"),
                 hint_enter(" expand tool"),
                 KeyHint::new(
                     format!("{}/Click", crate::icons::tab()),
                     " focus pane",
-                ).with_key_style(crate::colors::style_function()),
-                KeyHint::new("E", " edit scheduling")
-                    .with_key_style(crate::colors::style_function()),
-                KeyHint::new("W", " wrap")
-                    .with_key_style(crate::colors::style_function()),
+                ),
+                KeyHint::new("E", " edit scheduling"),
+                KeyHint::new("W", " wrap"),
                 hint_esc(" close"),
             ],
             McpSettingsMode::EditServerScheduling(_) | McpSettingsMode::EditToolScheduling(_) => {
                 vec![
                     hint_nav(" navigate"),
                     hint_enter(" edit/toggle"),
-                    KeyHint::new(crate::icons::ctrl_combo("S"), " save")
-                        .with_key_style(crate::colors::style_function()),
+                    KeyHint::new(crate::icons::ctrl_combo("S"), " save"),
                     hint_esc(" cancel"),
                 ]
             }

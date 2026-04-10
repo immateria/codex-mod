@@ -30,10 +30,8 @@ impl PlanningSettingsView {
                 KeyHint::new(
                     format!("{}/{}", crate::icons::enter(), crate::icons::space()),
                     " toggle/open",
-                )
-                .with_key_style(Style::new().fg(colors::function())),
-                crate::bottom_pane::settings_ui::hints::hint_esc(" close")
-                    .with_key_style(Style::new().fg(colors::function())),
+                ),
+                crate::bottom_pane::settings_ui::hints::hint_esc(" close"),
             ],
         )
     }

@@ -13,7 +13,6 @@ impl StatusLineSetupView {
             return;
         }
 
-        let s_function = crate::colors::style_function();
         let s_success = crate::colors::style_success();
         let s_text_bright = crate::colors::style_text_bright();
         let s_text_dim = crate::colors::style_text_dim();
@@ -35,12 +34,9 @@ impl StatusLineSetupView {
         lines.push({
             use crate::bottom_pane::settings_ui::hints::{hint_enter, hint_esc, hint_nav_horizontal, shortcut_line, KeyHint};
             shortcut_line(&[
-                KeyHint::new(crate::icons::tab(), " lane")
-                    .with_key_style(s_function),
-                KeyHint::new("p", " primary")
-                    .with_key_style(s_function),
-                KeyHint::new(crate::icons::space(), " toggle")
-                    .with_key_style(s_success),
+                KeyHint::new(crate::icons::tab(), " lane"),
+                KeyHint::new("p", " primary"),
+                KeyHint::new(crate::icons::space(), " toggle"),
                 hint_nav_horizontal(" reorder"),
                 hint_enter(" apply"),
                 hint_esc(" cancel"),

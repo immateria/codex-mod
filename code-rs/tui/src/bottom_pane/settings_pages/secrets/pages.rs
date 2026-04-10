@@ -98,14 +98,14 @@ impl SecretsSettingsView {
     fn list_shortcuts(&self, deleting: bool) -> Vec<KeyHint<'static>> {
         let mut hints = vec![
             hint_nav(" navigate"),
-            KeyHint::new("r", " refresh").with_key_style(Style::new().fg(colors::info())),
+            KeyHint::new("r", " refresh"),
             hint_esc(" back"),
         ];
 
         if !deleting {
             hints.insert(
                 1,
-                KeyHint::new("Del", " delete").with_key_style(Style::new().fg(colors::error())),
+                KeyHint::new("Del", " delete"),
             );
         }
 

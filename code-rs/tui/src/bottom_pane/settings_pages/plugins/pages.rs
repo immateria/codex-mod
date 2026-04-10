@@ -202,13 +202,13 @@ impl PluginsSettingsView {
         let mut shortcuts = vec![
             hint_nav(" navigate"),
             hint_enter(" details"),
-            KeyHint::new("s", " sources").with_key_style(Style::new().fg(colors::primary())),
-            KeyHint::new("r", " refresh").with_key_style(Style::new().fg(colors::info())),
-            KeyHint::new("R", " sync").with_key_style(Style::new().fg(colors::info())),
+            KeyHint::new("s", " sources"),
+            KeyHint::new("r", " refresh"),
+            KeyHint::new("R", " sync"),
         ];
         if show_auth_recovery_actions {
-            shortcuts.push(KeyHint::new("l", " login").with_key_style(Style::new().fg(colors::success())));
-            shortcuts.push(KeyHint::new("a", " accounts").with_key_style(Style::new().fg(colors::primary())));
+            shortcuts.push(KeyHint::new("l", " login"));
+            shortcuts.push(KeyHint::new("a", " accounts"));
         }
         shortcuts.push(hint_esc(" close"));
 
@@ -356,10 +356,10 @@ impl PluginsSettingsView {
             vec![
                 hint_nav(" navigate"),
                 hint_enter(" edit"),
-                KeyHint::new("a", " add repo").with_key_style(Style::new().fg(colors::primary())),
-                KeyHint::new("Del", " remove").with_key_style(Style::new().fg(colors::error())),
-                KeyHint::new("r", " refresh").with_key_style(Style::new().fg(colors::info())),
-                KeyHint::new("R", " sync").with_key_style(Style::new().fg(colors::info())),
+                KeyHint::new("a", " add repo"),
+                KeyHint::new("Del", " remove"),
+                KeyHint::new("r", " refresh"),
+                KeyHint::new("R", " sync"),
                 hint_esc(" back"),
             ],
         )
@@ -479,8 +479,7 @@ impl PluginsSettingsView {
             status,
             &[
                 KeyHint::new(crate::bottom_pane::settings_ui::hints::key_tab(), " next"),
-                KeyHint::new(crate::bottom_pane::settings_ui::hints::key_ctrl("S"), " save")
-                    .with_key_style(Style::new().fg(colors::success())),
+                KeyHint::new(crate::bottom_pane::settings_ui::hints::key_ctrl("S"), " save"),
                 hint_esc(" cancel"),
             ],
         );

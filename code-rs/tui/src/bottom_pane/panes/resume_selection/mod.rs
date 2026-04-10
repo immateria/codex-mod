@@ -244,7 +244,7 @@ impl BottomPaneView<'_> for ResumeSelectionView {
             crate::bottom_pane::settings_ui::hints::KeyHint::new(
                 format!("{ud} PgUp PgDn", ud = crate::icons::nav_up_down()),
                 " navigate",
-            ).with_key_style(crate::colors::style_function()),
+            ),
             crate::bottom_pane::settings_ui::hints::hint_enter(" select"),
             crate::bottom_pane::settings_ui::hints::hint_esc(" cancel"),
         ]);

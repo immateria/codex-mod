@@ -84,10 +84,9 @@ impl ExecLimitsSettingsView {
         vec![shortcut_line(&[
             hint_nav(" navigate"),
             hint_enter(" edit/toggle"),
-            KeyHint::new("a", " auto").with_key_style(Style::new().fg(colors::success())),
-            KeyHint::new("d", " disable").with_key_style(Style::new().fg(colors::success())),
-            KeyHint::new(crate::bottom_pane::settings_ui::hints::key_ctrl("S"), " save")
-                .with_key_style(Style::new().fg(colors::success())),
+            KeyHint::new("a", " auto"),
+            KeyHint::new("d", " disable"),
+            KeyHint::new(crate::bottom_pane::settings_ui::hints::key_ctrl("S"), " save"),
             hint_esc(" close"),
         ])]
     }
@@ -116,8 +115,7 @@ impl ExecLimitsSettingsView {
             field_title,
             vec![
                 crate::bottom_pane::settings_ui::hints::shortcut_line(&[
-                    crate::bottom_pane::settings_ui::hints::KeyHint::new("Enter/Ctrl+S", " save")
-                        .with_key_style(crate::colors::style_success()),
+                    crate::bottom_pane::settings_ui::hints::KeyHint::new("Enter/Ctrl+S", " save"),
                     crate::bottom_pane::settings_ui::hints::hint_esc(" cancel"),
                 ]),
                 Line::from(""),

@@ -108,8 +108,7 @@ impl PromptsSettingsView {
             vec![
                 hint_nav(" navigate"),
                 hint_enter(" edit"),
-                KeyHint::new(crate::bottom_pane::settings_ui::hints::key_ctrl("N"), " new")
-                    .with_key_style(Style::new().fg(colors::info())),
+                KeyHint::new(crate::bottom_pane::settings_ui::hints::key_ctrl("N"), " new"),
                 hint_esc(" close"),
             ],
         )

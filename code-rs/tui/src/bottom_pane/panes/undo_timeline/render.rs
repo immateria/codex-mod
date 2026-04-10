@@ -158,7 +158,6 @@ impl UndoTimelineView {
     }
 
     fn footer_lines(&self, entry: &UndoTimelineEntry) -> Vec<Line<'static>> {
-        let s_success = crate::colors::style_success();
         let c_text_dim = crate::colors::text_dim();
         let c_success = crate::colors::success();
         let files_checked = entry.files_available && self.restore_files;
@@ -181,13 +180,13 @@ impl UndoTimelineView {
                 crate::bottom_pane::settings_ui::hints::KeyHint::new(
                     format!("{ud} PgUp PgDn", ud = crate::icons::nav_up_down()),
                     " navigate",
-                ).with_key_style(crate::colors::style_function()),
+                ),
                 crate::bottom_pane::settings_ui::hints::KeyHint::new(
                     crate::icons::space(), " toggle files",
-                ).with_key_style(s_success),
+                ),
                 crate::bottom_pane::settings_ui::hints::KeyHint::new(
                     "C", " toggle conversation",
-                ).with_key_style(s_success),
+                ),
                 crate::bottom_pane::settings_ui::hints::hint_enter(" restore"),
                 crate::bottom_pane::settings_ui::hints::hint_esc(" close"),
             ]),

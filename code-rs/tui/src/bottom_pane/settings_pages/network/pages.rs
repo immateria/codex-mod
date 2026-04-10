@@ -117,8 +117,7 @@ impl NetworkSettingsView {
     fn render_footer_lines(&self) -> Vec<Line<'static>> {
         vec![crate::bottom_pane::settings_ui::hints::shortcut_line(&[
             crate::bottom_pane::settings_ui::hints::hint_enter(" activate"),
-            crate::bottom_pane::settings_ui::hints::KeyHint::new("Ctrl+S", " save lists")
-                .with_key_style(crate::colors::style_success()),
+            crate::bottom_pane::settings_ui::hints::KeyHint::new("Ctrl+S", " save lists"),
             crate::bottom_pane::settings_ui::hints::hint_esc(" close"),
         ])]
     }

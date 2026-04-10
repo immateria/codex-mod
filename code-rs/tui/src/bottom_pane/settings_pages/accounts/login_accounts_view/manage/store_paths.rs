@@ -220,8 +220,7 @@ impl LoginAccountsState {
             status,
             &[
                 KeyHint::new(crate::bottom_pane::settings_ui::hints::key_tab(), " next"),
-                KeyHint::new("S", " save")
-                    .with_key_style(Style::new().fg(crate::colors::success()).bold()),
+                KeyHint::new("S", " save"),
                 hint_esc(" back"),
             ],
         );
