@@ -87,6 +87,7 @@ fn apps_picker_uninitialized_cache_triggers_fetch() {
     let _ = harness.drain_events();
 
     harness.with_chat(|chat| {
+        chat.config.features_effective.entries.insert("apps".to_string(), true);
         chat.apps_directory_cache = AppsDirectoryCacheState::Uninitialized;
         chat.show_apps_picker();
     });
@@ -120,6 +121,7 @@ fn apps_picker_installed_app_selection_inserts_dollar_slug() {
     let expected_insert = format!("${}", code_connectors::connector_mention_slug(&app));
 
     harness.with_chat(|chat| {
+        chat.config.features_effective.entries.insert("apps".to_string(), true);
         chat.apps_directory_cache = AppsDirectoryCacheState::Ready(vec![app.clone()]);
         chat.show_apps_picker();
         chat.handle_key_event(KeyEvent::new(KeyCode::Down, KeyModifiers::NONE));
@@ -151,6 +153,7 @@ fn apps_picker_uninstalled_app_selection_opens_app_link_view() {
     );
 
     harness.with_chat(|chat| {
+        chat.config.features_effective.entries.insert("apps".to_string(), true);
         chat.apps_directory_cache = AppsDirectoryCacheState::Ready(vec![app.clone()]);
         chat.show_apps_picker();
         chat.handle_key_event(KeyEvent::new(KeyCode::Down, KeyModifiers::NONE));
@@ -172,6 +175,7 @@ fn apps_directory_loaded_refreshes_open_picker_in_place() {
     let _ = harness.drain_events();
 
     harness.with_chat(|chat| {
+        chat.config.features_effective.entries.insert("apps".to_string(), true);
         chat.apps_directory_cache = AppsDirectoryCacheState::Ready(Vec::new());
         chat.show_apps_picker();
         assert!(chat.bottom_pane.is_list_selection_open("apps_picker"));

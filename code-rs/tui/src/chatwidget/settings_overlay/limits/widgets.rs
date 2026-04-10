@@ -1,44 +1,26 @@
-struct LimitsHintRowWidget {
+/// Build a [`ShortcutBar`] for the limits overlay hint row.
+fn limits_shortcut_bar(
     has_tabs: bool,
     layout_mode: LimitsLayoutMode,
     pane_focus: LimitsPaneFocus,
-}
+) -> ShortcutBar {
+    use crate::bottom_pane::settings_ui::hints::{hint_nav, hint_nav_horizontal};
 
-impl Widget for LimitsHintRowWidget {
-    fn render(self, area: Rect, buf: &mut Buffer) {
-        if area.width == 0 || area.height == 0 {
-            return;
-        }
-
-        let hint_style = crate::colors::style_text_dim();
-        let accent_style = crate::colors::style_function();
-        let mut spans = vec![
-            Span::styled(crate::icons::nav_up_down(), accent_style),
-            Span::styled(" scroll  ", hint_style),
-            Span::styled("V", accent_style),
-            Span::styled(format!(" layout:{}  ", self.layout_mode.label()), hint_style),
-            Span::styled("F", accent_style),
-            Span::styled(format!(" focus:{}  ", self.pane_focus.label()), hint_style),
-        ];
-        if self.has_tabs {
-            spans.push(Span::styled(
-                format!("{} {}", crate::icons::arrow_left(), crate::icons::arrow_right()),
-                accent_style,
-            ));
-            spans.push(Span::styled(" tab  ", hint_style));
-            spans.push(Span::styled("S", accent_style));
-            spans.push(Span::styled(" switch  ", hint_style));
-            spans.push(Span::styled("W", accent_style));
-            spans.push(Span::styled(" warm all  ", hint_style));
-            spans.push(Span::styled("R", accent_style));
-            spans.push(Span::styled(" refresh", hint_style));
-        }
-
-        Paragraph::new(Line::from(spans))
-            .alignment(Alignment::Left)
-            .style(crate::colors::style_on_background().fg(crate::colors::text_dim()))
-            .render(area, buf);
+    let mut hints: Vec<KeyHint<'static>> = vec![
+        hint_nav("scroll"),
+        KeyHint::new("V", format!("layout:{}", layout_mode.label())),
+        KeyHint::new("F", format!("focus:{}", pane_focus.label())),
+    ];
+    if has_tabs {
+        hints.extend([
+            hint_nav_horizontal("tab"),
+            KeyHint::new("S", "switch"),
+            KeyHint::new("W", "warm all"),
+            KeyHint::new("R", "refresh"),
+        ]);
     }
+    ShortcutBar::at(ShortcutPlacement::Bottom, hints)
+        .with_overflow(OverflowMode::Wrap)
 }
 
 /// Visible window of tabs after overflow windowing.

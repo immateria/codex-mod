@@ -1,5 +1,3 @@
-use std::fmt::Write as _;
-
 impl LimitsSettingsContent {
     const WIDE_LAYOUT_MIN_WIDTH: u16 = 110;
     const WIDE_GUTTER_WIDTH: u16 = 1;
@@ -274,12 +272,22 @@ impl LimitsSettingsContent {
     }
 
     fn render_hint_row(&self, area: Rect, buf: &mut Buffer, has_tabs: bool) {
-        LimitsHintRowWidget {
-            has_tabs,
-            layout_mode: self.layout_mode,
-            pane_focus: self.effective_focus_mode(),
+        let bar = limits_shortcut_bar(has_tabs, self.layout_mode, self.effective_focus_mode());
+        let lines = bar.lines_for_width(area.width);
+        for (i, line) in lines.into_iter().enumerate() {
+            let y = area.y.saturating_add(i as u16);
+            if y >= area.y.saturating_add(area.height) {
+                break;
+            }
+            let row = Rect::new(area.x, y, area.width, 1);
+            buf.set_line(row.x, row.y, &line, row.width);
         }
-        .render(area, buf);
+    }
+
+    fn limits_hint_height(&self, width: u16) -> u16 {
+        let has_tabs = self.overlay.tab_count() > 1;
+        let bar = limits_shortcut_bar(has_tabs, self.layout_mode, self.effective_focus_mode());
+        clamp_u16(bar.line_count_for_width(width).max(1))
     }
 
     fn wide_lines(
@@ -363,11 +371,11 @@ impl LimitsSettingsContent {
         )
     }
 
-    fn content_areas(area: Rect, has_tabs: bool) -> (Rect, Option<Rect>, Rect) {
+    fn content_areas(area: Rect, has_tabs: bool, hint_height: u16) -> (Rect, Option<Rect>, Rect) {
         let constraints = if has_tabs {
-            vec![Constraint::Length(2), Constraint::Fill(1), Constraint::Length(1)]
+            vec![Constraint::Length(2), Constraint::Fill(1), Constraint::Length(hint_height)]
         } else {
-            vec![Constraint::Fill(1), Constraint::Length(1)]
+            vec![Constraint::Fill(1), Constraint::Length(hint_height)]
         };
 
         let chunks = Layout::default()
@@ -530,16 +538,17 @@ impl LimitsSettingsContent {
     }
 
     fn hint_line_text(&self, has_tabs: bool) -> String {
-        let mut text = format!(
-            "{} scroll  PgUp/PgDn page  Home/End jump  V layout:{}  F focus:{}  ",
-            crate::icons::nav_up_down(),
-            self.layout_mode.label(),
-            self.effective_focus_mode().label()
-        );
-        if has_tabs {
-            let _ = write!(text, "{} {} change tab", crate::icons::tab_prev(), crate::icons::tab_next());
-        }
-        text
+        let bar = limits_shortcut_bar(has_tabs, self.layout_mode, self.effective_focus_mode());
+        bar.lines_for_width(u16::MAX)
+            .into_iter()
+            .next()
+            .map(|line| {
+                line.spans
+                    .iter()
+                    .map(|s| s.content.as_ref())
+                    .collect::<String>()
+            })
+            .unwrap_or_default()
     }
 
     fn token_hit(text: &str, token: &str, relative_col: u16) -> bool {

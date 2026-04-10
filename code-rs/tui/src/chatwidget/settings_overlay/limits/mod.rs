@@ -1,6 +1,6 @@
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind};
 use ratatui::buffer::Buffer;
-use ratatui::layout::{Alignment, Constraint, Direction, Layout, Rect};
+use ratatui::layout::{Constraint, Direction, Layout, Rect};
 use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Paragraph, Widget, Wrap};
@@ -11,6 +11,7 @@ use code_core::config_types::LimitsLayoutMode as ConfigLimitsLayoutMode;
 
 use super::super::limits_overlay::{LimitsOverlay, LimitsOverlayContent, LimitsTab, LimitsTabBody};
 use super::SettingsContent;
+use crate::bottom_pane::settings_ui::hints::{KeyHint, OverflowMode, ShortcutBar, ShortcutPlacement};
 use crate::util::buffer::fill_rect;
 use crate::util::numeric::clamp_u16;
 use unicode_width::UnicodeWidthStr;

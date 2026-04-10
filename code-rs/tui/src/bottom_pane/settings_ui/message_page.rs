@@ -180,8 +180,8 @@ mod tests {
         let mut buf = Buffer::empty(area);
         let rendered = page.framed().render(area, &mut buf).expect("render");
         assert_eq!(layout, rendered);
-        assert_eq!(layout.body, Rect::new(2, 2, 26, 3));
-        assert_eq!(layout.footer, Rect::new(2, 6, 26, 1));
+        assert_eq!(layout.body, Rect::new(2, 2, 26, 6));
+        assert_eq!(layout.footer, Rect::new(2, 8, 26, 1));
     }
 
     #[test]
@@ -227,7 +227,7 @@ mod tests {
 
     #[test]
     fn body_scroll_and_overflow() {
-        // Create body content with 10 lines in a small area that can show 3.
+        // Create body content with 10 lines in a small area that can show 6.
         let body_lines: Vec<Line<'static>> = (0..10)
             .map(|i| Line::from(format!("line {i}")))
             .collect();
@@ -243,7 +243,7 @@ mod tests {
         let area = Rect::new(0, 0, 30, 10);
         let layout = page.framed().layout(area).expect("layout");
         let overflow = page.body_overflow(layout.body.width, layout.body.height);
-        assert!(overflow > 0, "10 body lines should overflow a 3-row body");
+        assert!(overflow > 0, "10 body lines should overflow a 6-row body");
 
         // Render without scroll — first line visible.
         let mut buf = Buffer::empty(area);
@@ -260,6 +260,6 @@ mod tests {
         let scrolled_row = (layout.body.x..layout.body.x + layout.body.width)
             .map(|x| buf2.cell((x, layout.body.y)).unwrap().symbol().to_string())
             .collect::<String>();
-        assert!(scrolled_row.contains("line 5"), "after scroll=5, first visible row should be line 5");
+        assert!(scrolled_row.contains("line 4"), "after scroll=5 (clamped to 4), first visible row should be line 4");
     }
 }

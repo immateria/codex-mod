@@ -15,7 +15,8 @@ impl SettingsContent for LimitsSettingsContent {
         );
 
         let has_tabs = self.overlay.tab_count() > 1;
-        let (hint_area, tabs_area, body_area) = Self::content_areas(area, has_tabs);
+        let hint_h = self.limits_hint_height(area.width);
+        let (hint_area, tabs_area, body_area) = Self::content_areas(area, has_tabs, hint_h);
 
         self.render_hint_row(hint_area, buf, has_tabs);
 
@@ -78,7 +79,8 @@ impl SettingsContent for LimitsSettingsContent {
 
     fn handle_mouse(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
         let has_tabs = self.overlay.tab_count() > 1;
-        let (hint_area, tabs_area, body_area) = Self::content_areas(area, has_tabs);
+        let hint_h = self.limits_hint_height(area.width);
+        let (hint_area, tabs_area, body_area) = Self::content_areas(area, has_tabs, hint_h);
 
         match mouse_event.kind {
             MouseEventKind::Down(MouseButton::Left) => {

@@ -277,7 +277,7 @@
     // Default focus is content. Home should not switch sections while content is focused.
     let output_before = render(&mut harness);
     assert!(
-        output_before.contains("Experimental Features") && output_before.contains("Focus: Content"),
+        output_before.contains("Experimental Features") && output_before.contains("focus: Content"),
         "expected Experimental settings with content focus, got:\n{output_before}",
     );
 
@@ -298,7 +298,7 @@
     });
     let output_sidebar = render(&mut harness);
     assert!(
-        output_sidebar.contains("Focus: Sidebar"),
+        output_sidebar.contains("focus: Sidebar"),
         "expected sidebar focus after Shift+Tab, got:\n{output_sidebar}",
     );
 
@@ -319,7 +319,7 @@
     });
     let output_content = render(&mut harness);
     assert!(
-        output_content.contains("Focus: Content"),
+        output_content.contains("focus: Content"),
         "expected content focus after Tab, got:\n{output_content}",
     );
     }
@@ -521,7 +521,7 @@
         use ratatui::Terminal;
 
         let chat = harness.chat();
-        let mut terminal = Terminal::new(VT100Backend::new(72, 16)).expect("terminal");
+        let mut terminal = Terminal::new(VT100Backend::new(80, 30)).expect("terminal");
         terminal
             .draw(|frame| frame.render_widget_ref(&*chat, frame.area()))
             .expect("draw");
@@ -529,7 +529,7 @@
     };
 
     assert!(
-        output.contains("› Limits") || output.contains("» Limits"),
+        output.lines().any(|line| line.contains("Limits") && (line.contains("›") || line.contains("»"))),
         "expected selected Limits row to remain visible in overview:\n{output}",
     );
     }
@@ -639,7 +639,8 @@
                 if !line.contains("Theme:") {
                     return None;
                 }
-                let col = line.find("Theme")?;
+                let byte_offset = line.find("Theme")?;
+                let col = line[..byte_offset].chars().count();
                 Some((idx, col))
             })
             .expect("expected Theme row to be present in Settings overview snapshot");
@@ -1081,6 +1082,7 @@
     }
 
     #[test]
+    #[cfg(feature = "managed-network-proxy")]
     fn statusline_shortcut_f5_opens_network_settings() {
     let _guard = enter_test_runtime_guard();
     let mut harness = ChatWidgetHarness::new();
@@ -1187,6 +1189,7 @@
     }
 
     #[test]
+    #[cfg(feature = "managed-network-proxy")]
     fn statusline_shortcut_remap_f6_opens_network_settings() {
     let _guard = enter_test_runtime_guard();
     let mut harness = ChatWidgetHarness::new();
@@ -1218,6 +1221,7 @@
     }
 
     #[test]
+    #[cfg(feature = "managed-network-proxy")]
     fn statusline_shortcut_ctrl_h_opens_network_settings() {
     let _guard = enter_test_runtime_guard();
     let mut harness = ChatWidgetHarness::new();

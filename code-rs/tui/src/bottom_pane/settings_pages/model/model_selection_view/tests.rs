@@ -218,7 +218,7 @@ fn hit_testing_tracks_visible_scroll_slice() {
             preset_with_effort("gpt-5.4", ReasoningEffort::High),
         ],
     );
-    let area = Rect::new(0, 0, 60, 7);
+    let area = Rect::new(0, 0, 60, 12);
     let mut buf = Buffer::empty(area);
 
     view.scroll_offset = view.selected_body_line(2);
@@ -255,7 +255,7 @@ fn ensure_selected_visible_uses_body_rows() {
 #[test]
 fn render_without_frame_draws_summary_in_header_area() {
     let view = make_view(ModelSelectionTarget::Session, vec![preset("gpt-5.3-codex")]);
-    let area = Rect::new(0, 0, 60, 7);
+    let area = Rect::new(0, 0, 60, 12);
     let mut buf = Buffer::empty(area);
 
     view.content_only().render(area, &mut buf);

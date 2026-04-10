@@ -377,9 +377,9 @@ mod tests {
             |area| page.framed().layout(area),
             |area, buf| page.framed().render_shell(area, buf),
         );
-        assert_eq!(layout.status, Rect::new(2, 6, 26, 0));
-        assert_eq!(layout.actions, Rect::new(2, 6, 26, 1));
-        assert_eq!(layout.footer, Rect::new(2, 7, 26, 1));
+        assert_eq!(layout.status, Rect::new(2, 7, 26, 0));
+        assert_eq!(layout.actions, Rect::new(2, 7, 26, 1));
+        assert_eq!(layout.footer, Rect::new(2, 8, 26, 1));
     }
 
     #[test]
