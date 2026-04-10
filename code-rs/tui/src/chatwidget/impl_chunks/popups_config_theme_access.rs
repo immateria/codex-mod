@@ -231,11 +231,10 @@ impl ChatWidget<'_> {
 
         // ── Tab 2: Commands ──
         let commands = {
-            let mut lines: Vec<RtLine<'static>> = Vec::new();
-            lines.push(RtLine::from(vec![RtSpan::styled(
+            let mut lines: Vec<RtLine<'static>> = vec![RtLine::from(vec![RtSpan::styled(
                 "Input shortcuts",
                 t_fg.add_modifier(Modifier::BOLD),
-            )]));
+            )])];
             lines.push(kv(":?", "Show this help overlay"));
             lines.push(kv("/command", "Run a slash command"));
             lines.push(kv("$ command", "Run shell command directly"));

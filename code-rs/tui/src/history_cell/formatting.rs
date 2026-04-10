@@ -562,9 +562,9 @@ fn is_title_line(line: &Line) -> bool {
             | "reasoning effort"
             | "error"
     ) || text.starts_with("…")
-        || text.starts_with(&crate::icons::status_ok())
-        || text.starts_with(&crate::icons::status_fail())
-        || text.starts_with(&crate::icons::gutter_patch())
+        || text.starts_with(crate::icons::status_ok())
+        || text.starts_with(crate::icons::status_fail())
+        || text.starts_with(crate::icons::gutter_patch())
         || text.starts_with("proposed patch")
         || text.starts_with("applying patch")
         || text.starts_with("updating")

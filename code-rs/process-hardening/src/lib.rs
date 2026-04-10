@@ -138,7 +138,7 @@ mod tests {
         let previous = std::env::var("TERMUX_VERSION").ok();
         unsafe { std::env::set_var("TERMUX_VERSION", "0.118.0") };
 
-        let err = std::io::Error::new(std::io::ErrorKind::Other, "boom");
+        let err = std::io::Error::other("boom");
         let message = hardening_error_message("prctl(PR_SET_DUMPABLE, 0)", &err);
         assert!(
             message.contains("Termux note: secure mode may be incompatible"),
@@ -157,7 +157,7 @@ mod tests {
         let previous = std::env::var("TERMUX_VERSION").ok();
         unsafe { std::env::remove_var("TERMUX_VERSION") };
 
-        let err = std::io::Error::new(std::io::ErrorKind::Other, "boom");
+        let err = std::io::Error::other("boom");
         let message = hardening_error_message("setrlimit(RLIMIT_CORE)", &err);
         assert!(
             !message.contains("Termux note:"),

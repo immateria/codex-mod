@@ -345,15 +345,14 @@ impl ChatWidget<'_> {
                 // Tab clicks
                 let tab_rects = self.help.tab_rects.borrow();
                 for (i, rect) in tab_rects.iter().enumerate() {
-                    if Self::pos_in_rect(pos, *rect) {
-                        if let Some(&tab) = HelpTab::ALL.get(i) {
+                    if Self::pos_in_rect(pos, *rect)
+                        && let Some(&tab) = HelpTab::ALL.get(i) {
                             drop(tab_rects);
                             if let Some(ref mut overlay) = self.help.overlay {
                                 overlay.active_tab = tab;
                             }
                             self.request_redraw();
                             return;
-                        }
                     }
                 }
             }

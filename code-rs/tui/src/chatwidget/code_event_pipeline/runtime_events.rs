@@ -98,7 +98,7 @@ impl ChatWidget<'_> {
             self.active_agents.push(AgentInfo {
                 id: agent.id.clone(),
                 name: agent.name.clone(),
-                status: parsed_status.clone(),
+                status: parsed_status,
                 source_kind: agent.source_kind.clone(),
                 batch_id: agent.batch_id.clone(),
                 model: agent.model.clone(),

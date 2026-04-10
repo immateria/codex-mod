@@ -119,11 +119,10 @@ impl ChatWidget<'_> {
                 self.history_remove_at(idx);
             }
             ClickableAction::CopyMarkdownAtIndex(idx) => {
-                if let Some(cell) = self.history_cells.get(idx) {
-                    if let Some(md) = cell.copyable_markdown() {
+                if let Some(cell) = self.history_cells.get(idx)
+                    && let Some(md) = cell.copyable_markdown() {
                         crate::clipboard_copy::copy_to_clipboard_osc52(&md);
                         self.bottom_pane.flash_footer_notice("Copied to clipboard");
-                    }
                 }
             }
             ClickableAction::ScrollToTopOfCell(idx) => {

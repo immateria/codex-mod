@@ -552,10 +552,9 @@ fn resolve_syntax_with_set<'a>(primary: &'a SyntaxSet, lang: &str) -> Option<(&'
     if let Some(s) = try_syntax_for_lang(primary, lang) {
         return Some((primary, s));
     }
-    if let Some(ref extra) = *extra_syntax_set() {
-        if let Some(s) = try_syntax_for_lang(extra, lang) {
+    if let Some(ref extra) = *extra_syntax_set()
+        && let Some(s) = try_syntax_for_lang(extra, lang) {
             return Some((extra, s));
-        }
     }
     None
 }
@@ -613,11 +612,10 @@ pub(crate) fn highlight_code_block_with_metrics(content: &str, lang: Option<&str
     } else { ps.find_syntax_plain_text() };
 
     if std::ptr::eq(syntax, ps.find_syntax_plain_text()) {
-        if let Some(dl) = autodetect_lang(content) {
-            if let Some((set, s)) = resolve_syntax_with_set(ps, dl) {
+        if let Some(dl) = autodetect_lang(content)
+            && let Some((set, s)) = resolve_syntax_with_set(ps, dl) {
                 ps = set;
                 syntax = s;
-            }
         }
         if std::ptr::eq(syntax, ps.find_syntax_plain_text())
             && let Some(first) = content.lines().next() {

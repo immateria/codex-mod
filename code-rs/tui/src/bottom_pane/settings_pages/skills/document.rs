@@ -90,7 +90,7 @@ pub(super) fn compose_skill_document(
     let shell_style = shell_style.trim();
     if !shell_style.is_empty() {
         let escaped_style = yaml_escape(shell_style);
-        let _ = write!(header, "shell_style: \"{escaped_style}\"\n");
+        let _ = writeln!(header, "shell_style: \"{escaped_style}\"");
     }
     let extra_frontmatter = extra_frontmatter.trim();
     if !extra_frontmatter.is_empty() {

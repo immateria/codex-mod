@@ -40,13 +40,13 @@ pub(crate) fn apply_commit_scope_to_review_request(
     let short_parent = &parent[..parent.len().min(7)];
 
     let mut prompt = request.prompt.trim_end().to_string();
-    write!(prompt, "\n\nReview scope: changes captured in commit {commit} (parent {parent}).").unwrap();
+    let _ = write!(prompt, "\n\nReview scope: changes captured in commit {commit} (parent {parent}).");
 
     if let Some(paths) = paths
         && !paths.is_empty() {
             prompt.push_str("\nFiles changed in this snapshot:\n");
             for path in paths {
-                write!(prompt, "- {path}\n").unwrap();
+                let _ = writeln!(prompt, "- {path}");
             }
         }
 

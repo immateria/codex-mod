@@ -34,7 +34,7 @@ impl AgentEditorView {
 
     /// Compute the visible portion of a field box within the scrolled viewport.
     /// Returns `None` if the field is entirely outside the visible area.
-    fn scrolled_rect(content: &Rect, offset: u16, height: u16, scroll: u16) -> Option<Rect> {
+    fn scrolled_rect(content: Rect, offset: u16, height: u16, scroll: u16) -> Option<Rect> {
         let v_top = offset as i32 - scroll as i32;
         let v_bot = v_top + height as i32;
         let c_bot = content.height as i32;
@@ -167,7 +167,7 @@ impl AgentEditorView {
                                 title: &str,
                                 focused: bool|
          -> Option<Rect> {
-            let rect = Self::scrolled_rect(&content, offset, height, scroll)?;
+            let rect = Self::scrolled_rect(content, offset, height, scroll)?;
             let border_style = if focused {
                 crate::colors::style_primary_bold()
             } else {
@@ -196,7 +196,7 @@ impl AgentEditorView {
             if self.name_error.is_some() {
                 border_style = border_style.fg(crate::colors::error());
                 // Re-render with error border
-                if let Some(rect) = Self::scrolled_rect(&content, *name_offset, *name_height, scroll) {
+                if let Some(rect) = Self::scrolled_rect(content, *name_offset, *name_height, scroll) {
                     let blk = Block::default()
                         .borders(Borders::ALL)
                         .title(Line::from(" ID "))
@@ -245,7 +245,7 @@ impl AgentEditorView {
             if self.description_error.is_some() {
                 desc_border_style = desc_border_style.fg(crate::colors::error());
             }
-            if let Some(rect) = Self::scrolled_rect(&content, *desc_offset, *desc_height, scroll) {
+            if let Some(rect) = Self::scrolled_rect(content, *desc_offset, *desc_height, scroll) {
                 let blk = Block::default()
                     .borders(Borders::ALL)
                     .title(Line::from(" What is this agent good at? "))

@@ -28,7 +28,7 @@ pub fn summarize_sandbox_policy(sandbox_policy: &SandboxPolicy) -> String {
             );
 
             use std::fmt::Write;
-            write!(summary, " [{}]", writable_entries.join(", ")).unwrap();
+            let _ = write!(summary, " [{}]", writable_entries.join(", "));
             if *network_access {
                 summary.push_str(" (network access enabled)");
             }

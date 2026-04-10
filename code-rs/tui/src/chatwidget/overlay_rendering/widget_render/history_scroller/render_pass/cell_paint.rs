@@ -369,24 +369,22 @@ impl ChatWidget<'_> {
                         } else {
                             crate::colors::success()
                         }
+                    } else if crate::icons::is_user(symbol) {
+                        crate::colors::text()
+                    } else if symbol == "⋮" {
+                        crate::colors::primary()
+                    } else if crate::icons::is_assistant(symbol) {
+                        crate::colors::text_bright()
+                    } else if crate::icons::is_running(symbol) {
+                        crate::colors::info()
+                    } else if crate::icons::is_success(symbol) {
+                        crate::colors::success()
+                    } else if crate::icons::is_failure(symbol) {
+                        crate::colors::error()
+                    } else if crate::icons::is_notice(symbol) {
+                        crate::colors::text_bright()
                     } else {
-                        if crate::icons::is_user(symbol) {
-                            crate::colors::text()
-                        } else if symbol == "⋮" {
-                            crate::colors::primary()
-                        } else if crate::icons::is_assistant(symbol) {
-                            crate::colors::text_bright()
-                        } else if crate::icons::is_running(symbol) {
-                            crate::colors::info()
-                        } else if crate::icons::is_success(symbol) {
-                            crate::colors::success()
-                        } else if crate::icons::is_failure(symbol) {
-                            crate::colors::error()
-                        } else if crate::icons::is_notice(symbol) {
-                            crate::colors::text_bright()
-                        } else {
-                            crate::colors::text_dim()
-                        }
+                        crate::colors::text_dim()
                     }
                 };
 
@@ -548,7 +546,7 @@ impl ChatWidget<'_> {
                     // otherwise fall back to the first visible row.
                     let click_y = fold_icon_y.unwrap_or(item_area.y);
                     let max_y = item_area.y.saturating_add(visible_height);
-                    let fold_click_height = max_y.saturating_sub(click_y).min(2).max(1);
+                    let fold_click_height = max_y.saturating_sub(click_y).clamp(1, 2);
                     regions.push(
                         crate::chatwidget::ClickableRegion {
                             rect: Rect::new(

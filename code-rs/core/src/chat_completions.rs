@@ -99,10 +99,10 @@ pub(crate) async fn stream_chat_completions(
     // Find the last user message index in the input.
     let mut last_user_index: Option<usize> = None;
     for (idx, item) in input.iter().enumerate() {
-        if let ResponseItem::Message { role, .. } = item {
-            if role == "user" {
-                last_user_index = Some(idx);
-            }
+        if let ResponseItem::Message { role, .. } = item
+            && role == "user"
+        {
+            last_user_index = Some(idx);
         }
     }
 
@@ -110,10 +110,10 @@ pub(crate) async fn stream_chat_completions(
     if !matches!(last_emitted_role, Some("user")) {
         for (idx, item) in input.iter().enumerate() {
             // Only consider reasoning that appears after the last user message.
-            if let Some(u_idx) = last_user_index {
-                if idx <= u_idx {
-                    continue;
-                }
+            if let Some(u_idx) = last_user_index
+                && idx <= u_idx
+            {
+                continue;
             }
 
             if let ResponseItem::Reasoning {
@@ -134,16 +134,15 @@ pub(crate) async fn stream_chat_completions(
 
                 // Prefer immediate previous assistant message (stop turns)
                 let mut attached = false;
-                if idx > 0 {
-                    if let ResponseItem::Message { role, .. } = &input[idx - 1] {
-                        if role == "assistant" {
-                            reasoning_by_anchor_index
-                                .entry(idx - 1)
-                                .and_modify(|v| v.push_str(&text))
-                                .or_insert(text.clone());
-                            attached = true;
-                        }
-                    }
+                if idx > 0
+                    && let ResponseItem::Message { role, .. } = &input[idx - 1]
+                    && role == "assistant"
+                {
+                    reasoning_by_anchor_index
+                        .entry(idx - 1)
+                        .and_modify(|v| v.push_str(&text))
+                        .or_insert(text.clone());
+                    attached = true;
                 }
 
                 // Otherwise, attach to immediate next assistant anchor (tool-calls or assistant message)
@@ -342,36 +341,35 @@ pub(crate) async fn stream_chat_completions(
         "tools": tools_json,
     });
 
-    if let Some(openrouter_cfg) = provider.openrouter_config() {
-        if let Some(obj) = payload.as_object_mut() {
-            if let Some(provider_cfg) = &openrouter_cfg.provider {
-                obj.insert(
-                    "provider".to_string(),
-                    serde_json::to_value(provider_cfg)?
-                );
-            }
-            if let Some(route) = &openrouter_cfg.route {
-                obj.insert("route".to_string(), route.clone());
-            }
-            for (key, value) in &openrouter_cfg.extra {
-                obj.entry(key.clone()).or_insert(value.clone());
-            }
+    if let Some(openrouter_cfg) = provider.openrouter_config()
+        && let Some(obj) = payload.as_object_mut()
+    {
+        if let Some(provider_cfg) = &openrouter_cfg.provider {
+            obj.insert(
+                "provider".to_string(),
+                serde_json::to_value(provider_cfg)?
+            );
+        }
+        if let Some(route) = &openrouter_cfg.route {
+            obj.insert("route".to_string(), route.clone());
+        }
+        for (key, value) in &openrouter_cfg.extra {
+            obj.entry(key.clone()).or_insert(value.clone());
         }
     }
 
     // If an Ollama context override is present, propagate it. Some Ollama
     // builds honor `num_ctx` directly in OpenAI-compatible Chat Completions,
     // and others accept it under an `options` object – include both.
-    if let Ok(val) = std::env::var("CODEX_OLLAMA_NUM_CTX") {
-        if let Ok(n) = val.parse::<u64>() {
-            if let Some(obj) = payload.as_object_mut() {
-                obj.insert("num_ctx".to_string(), json!(n));
-                // Also set options.num_ctx for native-style compatibility.
-                let mut options = serde_json::Map::new();
-                options.insert("num_ctx".to_string(), json!(n));
-                obj.entry("options").or_insert(json!(options));
-            }
-        }
+    if let Ok(val) = std::env::var("CODEX_OLLAMA_NUM_CTX")
+        && let Ok(n) = val.parse::<u64>()
+        && let Some(obj) = payload.as_object_mut()
+    {
+        obj.insert("num_ctx".to_string(), json!(n));
+        // Also set options.num_ctx for native-style compatibility.
+        let mut options = serde_json::Map::new();
+        options.insert("num_ctx".to_string(), json!(n));
+        obj.entry("options").or_insert(json!(options));
     }
 
     let endpoint = provider.get_full_url(&None);
@@ -391,12 +389,11 @@ pub(crate) async fn stream_chat_completions(
         let auth = provider.effective_auth(&base_auth).await?;
         let mut req_builder = provider.create_request_builder_with_auth(client, &auth).await?;
 
-        if let Some(auth) = auth.as_ref() {
-            if auth.mode.is_chatgpt() {
-                if let Some(account_id) = auth.get_account_id() {
-                    req_builder = req_builder.header("chatgpt-account-id", account_id);
-                }
-            }
+        if let Some(auth) = auth.as_ref()
+            && auth.mode.is_chatgpt()
+            && let Some(account_id) = auth.get_account_id()
+        {
+            req_builder = req_builder.header("chatgpt-account-id", account_id);
         }
 
         req_builder = req_builder
@@ -439,7 +436,7 @@ pub(crate) async fn stream_chat_completions(
                 }
                 let (tx_event, rx_event) = mpsc::channel::<Result<ResponseEvent>>(1600);
                 let stream = resp.bytes_stream().map_err(CodexErr::Reqwest);
-                let debug_logger_clone = Arc::clone(&debug_logger);
+                let debug_logger_clone = Arc::clone(debug_logger);
                 let request_id_clone = request_id.clone();
                 tokio::spawn(process_chat_sse(
                     stream,
@@ -635,7 +632,7 @@ async fn process_chat_sse<S>(
 
         if !reasoning_text.is_empty() {
             let item = ResponseItem::Reasoning {
-                id: current_item_id.clone().unwrap_or_else(String::new),
+                id: current_item_id.clone().unwrap_or_default(),
                 summary: Vec::new(),
                 content: Some(vec![ReasoningItemContent::ReasoningText {
                     text: std::mem::take(reasoning_text),
@@ -812,18 +809,17 @@ async fn process_chat_sse<S>(
                 .get("delta")
                 .and_then(|d| d.get("content"))
                 .and_then(|c| c.as_str())
+                && !content.is_empty()
             {
-                if !content.is_empty() {
-                    assistant_text.push_str(content);
-                    let _ = tx_event
-                        .send(Ok(ResponseEvent::OutputTextDelta {
-                            delta: content.to_string(),
-                            item_id: current_item_id.clone(),
-                            sequence_number: None,
-                            output_index: None,
-                        }))
-                        .await;
-                }
+                assistant_text.push_str(content);
+                let _ = tx_event
+                    .send(Ok(ResponseEvent::OutputTextDelta {
+                        delta: content.to_string(),
+                        item_id: current_item_id.clone(),
+                        sequence_number: None,
+                        output_index: None,
+                    }))
+                    .await;
             }
 
             // Forward any reasoning/thinking deltas if present.
@@ -883,25 +879,23 @@ async fn process_chat_sse<S>(
                             }))
                             .await;
                     }
-                } else if let Some(obj) = message_reasoning.as_object() {
-                    if let Some(s) = obj
+                } else if let Some(obj) = message_reasoning.as_object()
+                    && let Some(s) = obj
                         .get("text")
                         .and_then(|v| v.as_str())
                         .or_else(|| obj.get("content").and_then(|v| v.as_str()))
-                    {
-                        if !s.is_empty() {
-                            reasoning_text.push_str(s);
-                            let _ = tx_event
-                                .send(Ok(ResponseEvent::ReasoningContentDelta {
-                                    delta: s.to_string(),
-                                    item_id: current_item_id.clone(),
-                                    sequence_number: None,
-                                    output_index: None,
-                                    content_index: None,
-                                }))
-                                .await;
-                        }
-                    }
+                    && !s.is_empty()
+                {
+                    reasoning_text.push_str(s);
+                    let _ = tx_event
+                        .send(Ok(ResponseEvent::ReasoningContentDelta {
+                            delta: s.to_string(),
+                            item_id: current_item_id.clone(),
+                            sequence_number: None,
+                            output_index: None,
+                            content_index: None,
+                        }))
+                        .await;
                 }
             }
 
@@ -910,27 +904,26 @@ async fn process_chat_sse<S>(
                 .get("delta")
                 .and_then(|d| d.get("tool_calls"))
                 .and_then(|tc| tc.as_array())
+                && let Some(tool_call) = tool_calls.first()
             {
-                if let Some(tool_call) = tool_calls.first() {
-                    // Mark that we have an active function call in progress.
-                    fn_call_state.active = true;
+                // Mark that we have an active function call in progress.
+                fn_call_state.active = true;
 
-                    // Extract call_id if present.
-                    if let Some(id) = tool_call.get("id").and_then(|v| v.as_str()) {
-                        fn_call_state.call_id.get_or_insert_with(|| id.to_string());
+                // Extract call_id if present.
+                if let Some(id) = tool_call.get("id").and_then(|v| v.as_str()) {
+                    fn_call_state.call_id.get_or_insert_with(|| id.to_string());
+                }
+
+                // Extract function details if present.
+                if let Some(function) = tool_call.get("function") {
+                    if let Some(name) = function.get("name").and_then(|n| n.as_str()) {
+                        fn_call_state.name.get_or_insert_with(|| name.to_string());
                     }
 
-                    // Extract function details if present.
-                    if let Some(function) = tool_call.get("function") {
-                        if let Some(name) = function.get("name").and_then(|n| n.as_str()) {
-                            fn_call_state.name.get_or_insert_with(|| name.to_string());
-                        }
-
-                        if let Some(args_fragment) =
-                            function.get("arguments").and_then(|a| a.as_str())
-                        {
-                            fn_call_state.arguments.push_str(args_fragment);
-                        }
+                    if let Some(args_fragment) =
+                        function.get("arguments").and_then(|a| a.as_str())
+                    {
+                        fn_call_state.arguments.push_str(args_fragment);
                     }
                 }
             }
@@ -943,7 +936,7 @@ async fn process_chat_sse<S>(
                         // the reasoning stream before any exec/tool events begin.
                         if !reasoning_text.is_empty() {
                             let item = ResponseItem::Reasoning {
-                                id: current_item_id.clone().unwrap_or_else(String::new),
+                                id: current_item_id.clone().unwrap_or_default(),
                                 summary: Vec::new(),
                                 content: Some(vec![ReasoningItemContent::ReasoningText {
                                     text: std::mem::take(&mut reasoning_text),
@@ -956,10 +949,10 @@ async fn process_chat_sse<S>(
                         // Then emit the FunctionCall response item.
                         let item = ResponseItem::FunctionCall {
                             id: current_item_id.clone(),
-                            name: fn_call_state.name.clone().unwrap_or_else(|| String::new()),
+                            name: fn_call_state.name.clone().unwrap_or_default(),
                             namespace: None,
                             arguments: fn_call_state.arguments.clone(),
-                            call_id: fn_call_state.call_id.clone().unwrap_or_else(String::new),
+                            call_id: fn_call_state.call_id.clone().unwrap_or_default(),
                         };
 
                         let _ = tx_event.send(Ok(ResponseEvent::OutputItemDone { item, sequence_number: None, output_index: None })).await;
@@ -979,7 +972,7 @@ async fn process_chat_sse<S>(
                         // Also emit a terminal Reasoning item so UIs can finalize raw reasoning.
                         if !reasoning_text.is_empty() {
                             let item = ResponseItem::Reasoning {
-                                id: current_item_id.clone().unwrap_or_else(String::new),
+                                id: current_item_id.clone().unwrap_or_default(),
                                 summary: Vec::new(),
                                 content: Some(vec![ReasoningItemContent::ReasoningText {
                                     text: std::mem::take(&mut reasoning_text),
@@ -1074,28 +1067,27 @@ where
                         // Only use the final assistant message if we have not
                         // seen any deltas; otherwise, deltas already built the
                         // cumulative text and this would duplicate it.
-                        if this.cumulative.is_empty() {
-                            if let ResponseItem::Message { content, id, .. } = &item
-                            {
-                                // Capture the item_id if present
-                                if let Some(item_id) = id {
-                                    this.cumulative_item_id = Some(item_id.clone());
-                                }
-                                if let Some(text) = content.iter().find_map(|c| match c {
-                                    ContentItem::OutputText { text } => Some(text),
-                                    _ => None,
-                                }) {
-                                    this.cumulative.push_str(text);
-                                }
+                        if this.cumulative.is_empty()
+                            && let ResponseItem::Message { content, id, .. } = &item
+                        {
+                            // Capture the item_id if present
+                            if let Some(item_id) = id {
+                                this.cumulative_item_id = Some(item_id.clone());
+                            }
+                            if let Some(text) = content.iter().find_map(|c| match c {
+                                ContentItem::OutputText { text } => Some(text),
+                                _ => None,
+                            }) {
+                                this.cumulative.push_str(text);
                             }
                         }
                     }
 
                     // Also capture item_id from Reasoning items
-                    if let ResponseItem::Reasoning { id, .. } = &item {
-                        if !id.is_empty() {
-                            this.cumulative_item_id = Some(id.clone());
-                        }
+                    if let ResponseItem::Reasoning { id, .. } = &item
+                        && !id.is_empty()
+                    {
+                        this.cumulative_item_id = Some(id.clone());
                     }
 
                     // Not an assistant message – forward immediately.
@@ -1121,7 +1113,7 @@ where
                         && matches!(this.mode, AggregateMode::AggregatedOnly)
                     {
                         let aggregated_reasoning = ResponseItem::Reasoning {
-                            id: this.cumulative_item_id.clone().unwrap_or_else(String::new),
+                            id: this.cumulative_item_id.clone().unwrap_or_default(),
                             summary: Vec::new(),
                             content: Some(vec![
                                 ReasoningItemContent::ReasoningText {

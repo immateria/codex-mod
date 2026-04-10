@@ -682,7 +682,7 @@ mod tests {
             .stderr(Stdio::null())
             .status()
             .expect("git should run");
-        assert!(status.success(), "git command failed: {:?}", args);
+        assert!(status.success(), "git command failed: {args:?}");
     }
 
     #[test]

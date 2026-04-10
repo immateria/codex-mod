@@ -95,7 +95,7 @@ impl ExecServerHarness {
 
     pub(crate) async fn send_raw_text(&mut self, text: &str) -> anyhow::Result<()> {
         self.websocket
-            .send(Message::Text(text.to_string().into()))
+            .send(Message::Text(text.to_string()))
             .await?;
         Ok(())
     }
@@ -134,7 +134,7 @@ impl ExecServerHarness {
 
     async fn send_message(&mut self, message: JSONRPCMessage) -> anyhow::Result<()> {
         let encoded = serde_json::to_string(&message)?;
-        self.websocket.send(Message::Text(encoded.into())).await?;
+        self.websocket.send(Message::Text(encoded)).await?;
         Ok(())
     }
 

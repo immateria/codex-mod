@@ -20,6 +20,7 @@ use std::path::PathBuf;
 use std::process::Stdio;
 use std::sync::Mutex;
 use std::sync::OnceLock;
+use std::sync::PoisonError;
 use std::time::Duration;
 use std::time::Instant;
 use tokio::process::Command;
@@ -198,31 +199,21 @@ pub struct OpenRouterProviderConfig {
     pub extra: BTreeMap<String, Value>,
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
+#[derive(Debug, Clone, Default, Deserialize, Serialize, PartialEq)]
 #[serde(rename_all = "lowercase")]
 pub enum OpenRouterDataCollectionPolicy {
+    #[default]
     Allow,
     Deny,
 }
 
-impl Default for OpenRouterDataCollectionPolicy {
-    fn default() -> Self {
-        OpenRouterDataCollectionPolicy::Allow
-    }
-}
-
-#[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
+#[derive(Debug, Clone, Default, Deserialize, Serialize, PartialEq)]
 #[serde(rename_all = "lowercase")]
 pub enum OpenRouterProviderSort {
+    #[default]
     Price,
     Throughput,
     Latency,
-}
-
-impl Default for OpenRouterProviderSort {
-    fn default() -> Self {
-        OpenRouterProviderSort::Price
-    }
 }
 
 /// `max_price` envelope for OpenRouter provider routing controls.
@@ -280,7 +271,7 @@ impl ModelProviderInfo {
         if let Some(auth) = self.auth.as_ref() {
             provider_auth_cache()
                 .lock()
-                .unwrap()
+                .unwrap_or_else(PoisonError::into_inner)
                 .remove(&ProviderAuthCacheKey::from(auth));
         }
     }
@@ -497,7 +488,7 @@ impl ModelProviderInfo {
 
         self.base_url
             .as_ref()
-            .map_or(false, |base| base.contains("/backend-api"))
+            .is_some_and(|base| base.contains("/backend-api"))
     }
 
     pub(crate) fn is_public_openai_responses_endpoint(&self) -> bool {
@@ -527,10 +518,10 @@ impl ModelProviderInfo {
 
         if let Some(env_headers) = &self.env_http_headers {
             for (header, env_var) in env_headers {
-                if let Ok(val) = std::env::var(env_var) {
-                    if !val.trim().is_empty() {
-                        builder = builder.header(header, val);
-                    }
+                if let Ok(val) = std::env::var(env_var)
+                    && !val.trim().is_empty()
+                {
+                    builder = builder.header(header, val);
                 }
             }
         }
@@ -599,7 +590,7 @@ impl ModelProviderInfo {
 
 async fn resolve_provider_auth_token(config: &ModelProviderAuthInfo) -> io::Result<String> {
     let cache_key = ProviderAuthCacheKey::from(config);
-    if let Some(cached_token) = provider_auth_cache().lock().unwrap().get(&cache_key).cloned() {
+    if let Some(cached_token) = provider_auth_cache().lock().unwrap_or_else(PoisonError::into_inner).get(&cache_key).cloned() {
         let should_use_cached_token = match config.refresh_interval() {
             Some(refresh_interval) => cached_token.fetched_at.elapsed() < refresh_interval,
             None => true,
@@ -610,7 +601,7 @@ async fn resolve_provider_auth_token(config: &ModelProviderAuthInfo) -> io::Resu
     }
 
     let access_token = run_provider_auth_command(config).await?;
-    provider_auth_cache().lock().unwrap().insert(
+    provider_auth_cache().lock().unwrap_or_else(PoisonError::into_inner).insert(
         cache_key,
         CachedProviderAuthToken {
             access_token: access_token.clone(),

@@ -38,13 +38,12 @@ impl<'a> RenderRequest<'a> {
     /// back to semantic lines derived from the record state.
     fn build_lines(&self, history_state: &HistoryState, collapsed_ctx: Option<&CollapsedContext>) -> Vec<Line<'static>> {
         // If the cell is collapsed, use collapsed_display_lines with context.
-        if let Some(cell) = self.cell {
-            if cell.is_collapsed() {
+        if let Some(cell) = self.cell
+            && cell.is_collapsed() {
                 if let Some(ctx) = collapsed_ctx {
                     return cell.collapsed_display_lines(ctx);
                 }
                 return cell.display_lines_trimmed();
-            }
         }
 
         if let RenderRequestKind::Exec { id } = self.kind

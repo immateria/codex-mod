@@ -222,7 +222,7 @@ impl PatchSummaryCell {
     fn build_lines(&self, width: u16) -> Vec<Line<'static>> {
         let effective_width = width.max(1);
         let mut lines: Vec<Line<'static>> = create_diff_summary_with_width(
-            &self.title,
+            self.title,
             &self.record.changes,
             self.ui_event_type(),
             Some(effective_width as usize),

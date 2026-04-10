@@ -102,7 +102,7 @@ impl FileSearchManager {
 
             // Update latest query.
             st.latest_query.clear();
-            st.latest_query.push_str(&query);
+            st.latest_query.push_str(query);
 
             // If there is an in-flight search that is definitely obsolete,
             // cancel it now.

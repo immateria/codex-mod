@@ -622,10 +622,10 @@ async fn _ensure_origin_remote(git_root: &Path) -> Result<(), String> {
     let remotes_lossy = String::from_utf8_lossy(&remotes_out.stdout);
     let remotes: Vec<&str> = remotes_lossy
         .lines()
-        .map(|s| s.trim())
+        .map(str::trim)
         .filter(|s| !s.is_empty())
         .collect();
-    if remotes.iter().any(|&r| r == "origin") {
+    if remotes.contains(&"origin") {
         // Make sure origin/HEAD is set; ignore errors
         let _ = Command::new("git")
             .current_dir(git_root)

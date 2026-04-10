@@ -149,9 +149,9 @@ fn dynamic_network_policy(
             policy.push_str("(allow network-outbound (remote ip \"localhost:*\"))\n");
         }
         for port in ports {
-            let _ = write!(
+            let _ = writeln!(
                 policy,
-                "(allow network-outbound (remote ip \"localhost:{port}\"))\n"
+                "(allow network-outbound (remote ip \"localhost:{port}\"))"
             );
         }
         return format!("{policy}{MACOS_SEATBELT_NETWORK_POLICY}");

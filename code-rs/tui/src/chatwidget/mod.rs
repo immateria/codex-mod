@@ -398,7 +398,7 @@ impl ChatWidget<'_> {
         }
 
         let spans: Vec<Span> = vec![
-            Span::styled(prefix.to_string(), crate::colors::style_text()),
+            Span::styled(prefix, crate::colors::style_text()),
             Span::styled(
                 slider,
                 crate::colors::style_primary_bold(),

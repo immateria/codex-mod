@@ -172,6 +172,7 @@ pub(crate) struct BorderGradient {
 }
 
 /// Pure white used for celebration/glow effects in Auto Drive animations.
+#[allow(clippy::disallowed_methods, reason = "animation effect needs exact color")]
 pub(crate) const EFFECT_WHITE: Color = Color::Rgb(255, 255, 255);
 
 /// Title label shared across all Auto Drive style variants.

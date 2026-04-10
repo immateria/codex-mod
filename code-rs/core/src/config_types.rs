@@ -2199,19 +2199,16 @@ impl Default for SettingsMenuConfig {
 // ── Icon mode & per-icon override types ─────────────────────────────
 
 /// Icon display mode controlling which glyph tier is rendered.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Deserialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum IconMode {
     /// NerdFont PUA glyphs (requires a NerdFont-patched terminal font).
     NerdFonts,
     /// Standard Unicode symbols (the default — works in any modern terminal).
+    #[default]
     Unicode,
     /// Pure ASCII fallbacks (for minimal/legacy terminals).
     Ascii,
-}
-
-impl Default for IconMode {
-    fn default() -> Self { Self::Unicode }
 }
 
 impl IconMode {

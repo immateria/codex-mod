@@ -249,7 +249,7 @@ pub(crate) fn pad_icon(icon: &str, width: usize) -> String {
     let current = UnicodeWidthStr::width(trimmed.as_str());
     if current < width {
         let mut result = trimmed;
-        result.extend(std::iter::repeat(' ').take(width - current));
+        result.extend(std::iter::repeat_n(' ', width - current));
         return result;
     }
     trimmed

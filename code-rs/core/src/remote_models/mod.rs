@@ -449,6 +449,62 @@ fn apply_model_info_overrides_with_personality(
     family
 }
 
+fn map_web_search_tool_type(tool_type: WebSearchToolType) -> WebSearchToolType {
+    tool_type
+}
+
+fn map_personality(personality: ConfigPersonality) -> ProtocolPersonality {
+    match personality {
+        ConfigPersonality::None => ProtocolPersonality::None,
+        ConfigPersonality::Friendly => ProtocolPersonality::Friendly,
+        ConfigPersonality::Pragmatic => ProtocolPersonality::Pragmatic,
+    }
+}
+
+fn map_apply_patch_tool_type(tool_type: &ProtocolApplyPatchToolType) -> ApplyPatchToolType {
+    match tool_type {
+        ProtocolApplyPatchToolType::Freeform => ApplyPatchToolType::Freeform,
+        ProtocolApplyPatchToolType::Function => ApplyPatchToolType::Function,
+    }
+}
+
+fn map_reasoning_effort(effort: ProtocolReasoningEffort) -> crate::config_types::ReasoningEffort {
+    use crate::config_types::ReasoningEffort as LocalEffort;
+
+    match effort {
+        ProtocolReasoningEffort::None => LocalEffort::None,
+        ProtocolReasoningEffort::Minimal => LocalEffort::Minimal,
+        ProtocolReasoningEffort::Low => LocalEffort::Low,
+        ProtocolReasoningEffort::Medium => LocalEffort::Medium,
+        ProtocolReasoningEffort::High => LocalEffort::High,
+        ProtocolReasoningEffort::XHigh => LocalEffort::XHigh,
+    }
+}
+
+fn map_reasoning_summary(summary: ProtocolReasoningSummary) -> ConfigReasoningSummary {
+    match summary {
+        ProtocolReasoningSummary::Auto => ConfigReasoningSummary::Auto,
+        ProtocolReasoningSummary::Concise => ConfigReasoningSummary::Concise,
+        ProtocolReasoningSummary::Detailed => ConfigReasoningSummary::Detailed,
+        ProtocolReasoningSummary::None => ConfigReasoningSummary::None,
+    }
+}
+
+fn map_truncation_policy(
+    policy: &code_protocol::openai_models::TruncationPolicyConfig,
+) -> code_protocol::protocol::TruncationPolicy {
+    let limit = usize::try_from(policy.limit).unwrap_or(usize::MAX);
+    match policy.mode {
+        ProtocolTruncationMode::Bytes => code_protocol::protocol::TruncationPolicy::Bytes(limit),
+        ProtocolTruncationMode::Tokens => code_protocol::protocol::TruncationPolicy::Tokens(limit),
+    }
+}
+
+/// Build a client version string that remains wire-compatible with hosted models.
+fn format_client_version_to_whole() -> String {
+    code_version::wire_compatible_version().to_string()
+}
+
 #[cfg(test)]
 mod tests {
     use super::find_remote_model_info;
@@ -510,60 +566,4 @@ mod tests {
 
         assert!(find_remote_model_info(&models, "foo/bar/gpt-5.3-codex").is_none());
     }
-}
-
-fn map_web_search_tool_type(tool_type: WebSearchToolType) -> WebSearchToolType {
-    tool_type
-}
-
-fn map_personality(personality: ConfigPersonality) -> ProtocolPersonality {
-    match personality {
-        ConfigPersonality::None => ProtocolPersonality::None,
-        ConfigPersonality::Friendly => ProtocolPersonality::Friendly,
-        ConfigPersonality::Pragmatic => ProtocolPersonality::Pragmatic,
-    }
-}
-
-fn map_apply_patch_tool_type(tool_type: &ProtocolApplyPatchToolType) -> ApplyPatchToolType {
-    match tool_type {
-        ProtocolApplyPatchToolType::Freeform => ApplyPatchToolType::Freeform,
-        ProtocolApplyPatchToolType::Function => ApplyPatchToolType::Function,
-    }
-}
-
-fn map_reasoning_effort(effort: ProtocolReasoningEffort) -> crate::config_types::ReasoningEffort {
-    use crate::config_types::ReasoningEffort as LocalEffort;
-
-    match effort {
-        ProtocolReasoningEffort::None => LocalEffort::None,
-        ProtocolReasoningEffort::Minimal => LocalEffort::Minimal,
-        ProtocolReasoningEffort::Low => LocalEffort::Low,
-        ProtocolReasoningEffort::Medium => LocalEffort::Medium,
-        ProtocolReasoningEffort::High => LocalEffort::High,
-        ProtocolReasoningEffort::XHigh => LocalEffort::XHigh,
-    }
-}
-
-fn map_reasoning_summary(summary: ProtocolReasoningSummary) -> ConfigReasoningSummary {
-    match summary {
-        ProtocolReasoningSummary::Auto => ConfigReasoningSummary::Auto,
-        ProtocolReasoningSummary::Concise => ConfigReasoningSummary::Concise,
-        ProtocolReasoningSummary::Detailed => ConfigReasoningSummary::Detailed,
-        ProtocolReasoningSummary::None => ConfigReasoningSummary::None,
-    }
-}
-
-fn map_truncation_policy(
-    policy: &code_protocol::openai_models::TruncationPolicyConfig,
-) -> code_protocol::protocol::TruncationPolicy {
-    let limit = usize::try_from(policy.limit).unwrap_or(usize::MAX);
-    match policy.mode {
-        ProtocolTruncationMode::Bytes => code_protocol::protocol::TruncationPolicy::Bytes(limit),
-        ProtocolTruncationMode::Tokens => code_protocol::protocol::TruncationPolicy::Tokens(limit),
-    }
-}
-
-/// Build a client version string that remains wire-compatible with hosted models.
-fn format_client_version_to_whole() -> String {
-    code_version::wire_compatible_version().to_string()
 }

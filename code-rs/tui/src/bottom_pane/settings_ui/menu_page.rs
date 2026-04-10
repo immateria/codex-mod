@@ -197,10 +197,10 @@ impl<'a> SettingsMenuPage<'a> {
         let extra = self.shortcut_line_count_in_header(width);
         let mut lines = Vec::with_capacity(self.header_lines.len() + extra);
         lines.extend_from_slice(&self.header_lines);
-        if extra > 0 {
-            if let Some(bar) = self.shortcut_bar.as_ref() {
-                lines.extend(bar.lines_for_width(width));
-            }
+        if extra > 0
+            && let Some(bar) = self.shortcut_bar.as_ref()
+        {
+            lines.extend(bar.lines_for_width(width));
         }
         lines
     }
@@ -209,10 +209,8 @@ impl<'a> SettingsMenuPage<'a> {
         let extra = self.shortcut_line_count_in_footer(width);
         let mut lines = Vec::with_capacity(self.footer_lines.len() + extra);
         lines.extend_from_slice(&self.footer_lines);
-        if extra > 0 {
-            if let Some(bar) = self.shortcut_bar.as_ref() {
-                lines.extend(bar.lines_for_width(width));
-            }
+        if extra > 0 && let Some(bar) = self.shortcut_bar.as_ref() {
+            lines.extend(bar.lines_for_width(width));
         }
         lines
     }

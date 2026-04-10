@@ -268,7 +268,7 @@ fn format_entry_line(entry: &DirEntry) -> String {
         DirEntryKind::File => "",
     };
     let mut out = String::with_capacity(pad + entry.display_name.len() + suffix.len());
-    out.extend(std::iter::repeat(' ').take(pad));
+    out.extend(std::iter::repeat_n(' ', pad));
     out.push_str(&entry.display_name);
     out.push_str(suffix);
     out

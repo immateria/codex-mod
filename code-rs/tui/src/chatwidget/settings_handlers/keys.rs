@@ -149,14 +149,12 @@ pub(super) fn handle_settings_key(chat: &mut ChatWidget<'_>, key_event: KeyEvent
     // Ctrl+B toggles the sidebar in section view (like VS Code / many editors).
     if key_event.modifiers.contains(KeyModifiers::CONTROL)
         && matches!(key_event.code, KeyCode::Char('b'))
+        && let Some(overlay) = chat.settings.overlay.as_mut()
+        && !overlay.is_menu_active()
     {
-        if let Some(overlay) = chat.settings.overlay.as_mut() {
-            if !overlay.is_menu_active() {
-                overlay.toggle_sidebar_collapsed();
-                chat.request_redraw();
-                return true;
-            }
-        }
+        overlay.toggle_sidebar_collapsed();
+        chat.request_redraw();
+        return true;
     }
 
     let sidebar_focused = chat

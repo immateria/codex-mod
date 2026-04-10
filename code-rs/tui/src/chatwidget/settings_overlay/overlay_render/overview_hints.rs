@@ -134,7 +134,7 @@ impl SettingsOverlayView {
         ]);
 
         // On narrow screens, drop the less-critical hints.
-        let full_width: usize = spans.iter().map(|s| s.width()).sum();
+        let full_width: usize = spans.iter().map(Span::width).sum();
         if full_width > area.width as usize {
             spans = join_groups(vec![
                 hint_group(crate::icons::ctrl_combo("B"), sidebar_action),

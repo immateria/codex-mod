@@ -1538,7 +1538,7 @@ async fn persist_overrides_with_behavior(
         Err(e) => return Err(e.into()),
     };
 
-    let effective_profile = profile.map(|p| p.to_owned()).or_else(|| doc.get("profile").and_then(|i| i.as_str()).map(ToString::to_string));
+    let effective_profile = profile.map(str::to_owned).or_else(|| doc.get("profile").and_then(|i| i.as_str()).map(ToString::to_string));
 
     let mut mutated = false;
     for (segments, value) in overrides.iter().copied() {
@@ -1811,7 +1811,7 @@ model = "gpt-5.4"
         assert_eq!(
             features
                 .get("shell_zsh_fork")
-                .and_then(|item| item.as_bool()),
+                .and_then(toml_edit::Item::as_bool),
             Some(true)
         );
 
@@ -1846,7 +1846,7 @@ model = "gpt-5.4"
         assert_eq!(
             features
                 .get("shell_zsh_fork")
-                .and_then(|item| item.as_bool()),
+                .and_then(toml_edit::Item::as_bool),
             Some(false)
         );
 
@@ -1938,7 +1938,7 @@ model_reasoning_effort = "minimal"
                 .get("features")
                 .and_then(|value| value.as_table())
                 .and_then(|t| t.get("apps"))
-                .and_then(|value| value.as_bool()),
+                .and_then(toml::Value::as_bool),
             Some(false)
         );
     }
@@ -1964,7 +1964,7 @@ model_reasoning_effort = "minimal"
             .and_then(|t| t.get("features"))
             .and_then(|value| value.as_table())
             .and_then(|t| t.get("apps"))
-            .and_then(|value| value.as_bool());
+            .and_then(toml::Value::as_bool);
         assert_eq!(apps_flag, Some(false));
     }
 
@@ -1997,7 +1997,7 @@ program = "/bin/zsh"
                 .get("features")
                 .and_then(|value| value.as_table())
                 .and_then(|t| t.get("other"))
-                .and_then(|value| value.as_bool()),
+                .and_then(toml::Value::as_bool),
             Some(true)
         );
         assert_eq!(
@@ -2623,7 +2623,7 @@ model_reasoning_effort = "high"
             entry.get("path").and_then(|value| value.as_str()),
             Some(normalized_path.as_str())
         );
-        assert_eq!(entry.get("enabled").and_then(|value| value.as_bool()), Some(false));
+        assert_eq!(entry.get("enabled").and_then(toml::Value::as_bool), Some(false));
 
         let mutated = set_skill_config(code_home, &skill_path, true)
             .await

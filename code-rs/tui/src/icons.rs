@@ -111,13 +111,11 @@ impl Icon {
             return true;
         }
         if let Some(ovr) = OVERRIDES.get() {
-            if let Some(&s) = ovr.all.get(self.key) {
-                if symbol == s { return true; }
-            }
+            if let Some(&s) = ovr.all.get(self.key)
+                && symbol == s { return true; }
             for tier in [&ovr.nerd, &ovr.unicode, &ovr.ascii] {
-                if let Some(&s) = tier.get(self.key) {
-                    if symbol == s { return true; }
-                }
+                if let Some(&s) = tier.get(self.key)
+                    && symbol == s { return true; }
             }
         }
         false

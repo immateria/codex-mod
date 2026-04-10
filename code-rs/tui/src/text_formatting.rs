@@ -165,7 +165,7 @@ pub(crate) fn pad_to_display_width(text: &str, width: usize) -> String {
     }
 
     let mut out = truncated;
-    out.extend(std::iter::repeat(' ').take(width - current));
+    out.extend(std::iter::repeat_n(' ', width - current));
     out
 }
 

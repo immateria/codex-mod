@@ -278,7 +278,7 @@ impl SettingsOverlayView {
 
             let icon_prefix = crate::icons::section_icon(row.section.label());
             let label_raw = format!("{}{}", icon_prefix, row.section.label());
-            let label_text = format!("{:<width$}", label_raw, width = LABEL_COLUMN_WIDTH);
+            let label_text = format!("{label_raw:<LABEL_COLUMN_WIDTH$}");
 
             let summary_src = row.summary.as_deref().unwrap_or("—");
             let base_width = 1 + 1 + LABEL_COLUMN_WIDTH;

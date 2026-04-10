@@ -126,7 +126,7 @@ pub(crate) fn render_intro_animation_with_size_and_alpha_offset(
             for line in &mut lines {
                 let len = line.chars().count();
                 if len < full_width {
-                    line.extend(std::iter::repeat(' ').take(full_width - len));
+                    line.extend(std::iter::repeat_n(' ', full_width - len));
                 }
             }
         }

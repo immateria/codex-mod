@@ -146,10 +146,10 @@ impl LimitsTabsRowWidget<'_> {
         }
 
         // Individual tab regions
-        for idx in window.start..window.end {
-            let w = UnicodeWidthStr::width(tabs[idx].title.as_str()) as u16 + 2;
+        for (i, tab) in tabs[window.start..window.end].iter().enumerate() {
+            let w = UnicodeWidthStr::width(tab.title.as_str()) as u16 + 2;
             if col >= x && col < x.saturating_add(w) {
-                return Some(TabHit::Tab(idx));
+                return Some(TabHit::Tab(window.start + i));
             }
             x = x.saturating_add(w).saturating_add(1);
         }
@@ -181,14 +181,15 @@ impl Widget for LimitsTabsRowWidget<'_> {
             ));
         }
 
-        for idx in window.start..window.end {
+        for (i, tab) in self.tabs[window.start..window.end].iter().enumerate() {
+            let idx = window.start + i;
             let is_selected = idx == self.selected_tab;
             let style = if is_selected {
                 crate::colors::style_text_bold()
             } else {
                 crate::colors::style_text_dim()
             };
-            spans.push(Span::styled(format!(" {} ", self.tabs[idx].title), style));
+            spans.push(Span::styled(format!(" {} ", tab.title), style));
             spans.push(Span::raw(" "));
         }
 
