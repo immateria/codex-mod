@@ -51,7 +51,7 @@ impl PlanUpdateCell {
 
         let bar = progress_meter(progress, 10);
         spans.push(Span::raw(" ["));
-        spans.push(Span::styled(bar.filled, Style::default().fg(crate::colors::success())));
+        spans.push(Span::styled(bar.filled, crate::colors::style_success()));
         spans.push(Span::styled(bar.empty, Style::default().add_modifier(Modifier::DIM)));
         spans.push(Span::raw("] "));
         spans.push(Span::raw(format!("{}/{}", progress.completed, progress.total)));
@@ -70,7 +70,7 @@ impl PlanUpdateCell {
             StepStatus::Completed => {
                 spans.push(Span::styled(
                     crate::icons::status_ok(),
-                    Style::default().fg(crate::colors::success()),
+                    crate::colors::style_success(),
                 ));
                 spans.push(Span::raw(" "));
                 spans.push(Span::styled(
@@ -93,7 +93,7 @@ impl PlanUpdateCell {
                 spans.push(Span::raw(" "));
                 spans.push(Span::styled(
                     step.description.clone(),
-                    Style::default().fg(crate::colors::text_dim()),
+                    crate::colors::style_text_dim(),
                 ));
             }
         }

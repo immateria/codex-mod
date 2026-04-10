@@ -2,7 +2,6 @@ use crossterm::event::KeyCode;
 use crossterm::event::KeyEvent;
 use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
-use ratatui::style::Style;
 use ratatui::text::Line;
 use ratatui::widgets::Paragraph;
 use ratatui::widgets::Widget;
@@ -194,7 +193,7 @@ impl BottomPaneView<'_> for AppLinkView {
             height: inner.height.saturating_sub(3), // leave room for spacer + actions
         };
         Paragraph::new(content)
-            .style(Style::default().fg(crate::colors::text()))
+            .style(crate::colors::style_text())
             .wrap(Wrap { trim: true })
             .render(content_area, buf);
 
@@ -205,9 +204,9 @@ impl BottomPaneView<'_> for AppLinkView {
             let prefix = if selected { crate::icons::pointer_active() } else { " " };
             let line = Line::from(format!("{prefix} {label}"));
             let style = if selected {
-                Style::default().fg(crate::colors::primary())
+                crate::colors::style_primary()
             } else {
-                Style::default().fg(crate::colors::text_dim())
+                crate::colors::style_text_dim()
             };
             Paragraph::new(line)
                 .style(style)

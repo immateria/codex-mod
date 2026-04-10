@@ -35,16 +35,16 @@ impl JsReplSettingsView {
                 .fg(crate::colors::success())
                 .add_modifier(Modifier::BOLD)
         } else {
-            Style::default().fg(crate::colors::text_dim())
+            crate::colors::style_text_dim()
         };
 
         let enabled_word = if enabled { "ON " } else { "OFF " };
         let mut lines = vec![Line::from(vec![
             Span::styled(enabled_word, status_style),
             Span::styled("js_repl", Style::default().fg(crate::colors::text_mid())),
-            Span::styled("  |  runtime: ", Style::default().fg(crate::colors::text_dim())),
+            Span::styled("  |  runtime: ", crate::colors::style_text_dim()),
             Span::styled(runtime, runtime_style),
-            Span::styled("  |  mediation: ", Style::default().fg(crate::colors::text_dim())),
+            Span::styled("  |  mediation: ", crate::colors::style_text_dim()),
             Span::styled(mediation, mediation_style),
         ])];
 
@@ -54,13 +54,13 @@ impl JsReplSettingsView {
         if node_blocked {
             lines.push(Line::from(vec![Span::styled(
                 "Note: Node is not enforceable with mediation on this platform; prefer Deno.",
-                Style::default().fg(crate::colors::warning()),
+                crate::colors::style_warning(),
             )]));
         } else {
             lines.push(crate::bottom_pane::settings_ui::hints::shortcut_line(&[
                 crate::bottom_pane::settings_ui::hints::hint_enter(" edits"),
                 crate::bottom_pane::settings_ui::hints::KeyHint::new("Ctrl+S", " saves in editors")
-                    .with_key_style(Style::default().fg(crate::colors::success())),
+                    .with_key_style(crate::colors::style_success()),
                 crate::bottom_pane::settings_ui::hints::hint_esc(" closes"),
             ]));
         }
@@ -91,7 +91,7 @@ impl JsReplSettingsView {
             vec![
                 Line::from(vec![Span::styled(
                     "Ctrl+S to save. Esc to cancel.",
-                    Style::default().fg(crate::colors::text_dim()),
+                    crate::colors::style_text_dim(),
                 )]),
                 Line::from(""),
             ],
@@ -111,7 +111,7 @@ impl JsReplSettingsView {
             vec![
                 Line::from(vec![Span::styled(
                     "One entry per line. Ctrl+S to save. Esc to cancel.",
-                    Style::default().fg(crate::colors::text_dim()),
+                    crate::colors::style_text_dim(),
                 )]),
                 Line::from(""),
             ],

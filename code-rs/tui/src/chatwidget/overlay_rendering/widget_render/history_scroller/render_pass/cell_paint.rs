@@ -690,7 +690,7 @@ impl ChatWidget<'_> {
                         text.push_str(" | ");
                         text.push_str(&snap);
                     }
-                    let style = Style::default().fg(crate::colors::text_dim());
+                    let style = crate::colors::style_text_dim();
                     let below_y = item_area.y.saturating_add(visible_height);
                     let bottom_y = viewport_bottom;
                     let maxw = item_area.width as usize;

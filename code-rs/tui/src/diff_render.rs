@@ -211,12 +211,12 @@ pub(super) fn create_diff_summary_with_width(
         header_spans.push(RtSpan::raw("("));
         header_spans.push(RtSpan::styled(
             format!("+{total_added}"),
-            Style::default().fg(crate::colors::success()),
+            crate::colors::style_success(),
         ));
         header_spans.push(RtSpan::raw(" "));
         header_spans.push(RtSpan::styled(
             format!("-{total_removed}"),
-            Style::default().fg(crate::colors::error()),
+            crate::colors::style_error(),
         ));
         header_spans.push(RtSpan::raw(")"));
     }
@@ -230,7 +230,7 @@ pub(super) fn create_diff_summary_with_width(
             prefix,
             Style::default().add_modifier(Modifier::DIM),
         ));
-        let dim_style = Style::default().fg(crate::colors::text_dim());
+        let dim_style = crate::colors::style_text_dim();
 
         if let FileSummaryKind::Update {
             rename_only: true,
@@ -242,7 +242,7 @@ pub(super) fn create_diff_summary_with_width(
                 spans.push(RtSpan::styled(" to ", dim_style));
                 spans.push(RtSpan::styled(
                     rename_target.clone(),
-                    Style::default().fg(crate::colors::text()),
+                    crate::colors::style_text(),
                 ));
             } else {
                 spans.push(RtSpan::styled(f.original_path.clone(), dim_style));
@@ -309,7 +309,7 @@ pub(super) fn create_diff_summary_with_width(
             spans.push(RtSpan::styled(" (", dim_style));
             spans.push(RtSpan::styled(
                 format!("-{}", f.removed),
-                Style::default().fg(crate::colors::error()),
+                crate::colors::style_error(),
             ));
             spans.push(RtSpan::styled(")", dim_style));
         } else if matches!(
@@ -319,12 +319,12 @@ pub(super) fn create_diff_summary_with_width(
             spans.push(RtSpan::styled(" (", dim_style));
             spans.push(RtSpan::styled(
                 format!("+{}", f.added),
-                Style::default().fg(crate::colors::success()),
+                crate::colors::style_success(),
             ));
             spans.push(RtSpan::raw(" "));
             spans.push(RtSpan::styled(
                 format!("-{}", f.removed),
-                Style::default().fg(crate::colors::error()),
+                crate::colors::style_error(),
             ));
             spans.push(RtSpan::styled(")", dim_style));
         }
@@ -613,12 +613,12 @@ fn style_dim() -> Style {
 
 fn style_add() -> Style {
     // Use theme success color for additions so it adapts to light/dark themes
-    Style::default().fg(crate::colors::success())
+    crate::colors::style_success()
 }
 
 fn style_del() -> Style {
     // Use theme error color for deletions so it adapts to light/dark themes
-    Style::default().fg(crate::colors::error())
+    crate::colors::style_error()
 }
 
 // --- Very light tinted backgrounds for insert/delete lines ------------------

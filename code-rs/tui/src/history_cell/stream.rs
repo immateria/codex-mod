@@ -148,7 +148,7 @@ fn ellipsis_line() -> Line<'static> {
         % FRAMES.len();
     Line::styled(
         FRAMES[idx].to_string(),
-        Style::default().fg(crate::colors::text_dim()),
+        crate::colors::style_text_dim(),
     )
 }
 

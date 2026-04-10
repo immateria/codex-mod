@@ -20,10 +20,10 @@ impl McpSettingsView {
             .fg(crate::colors::text())
             .add_modifier(Modifier::BOLD);
         let key_style = Style::default().fg(crate::colors::secondary());
-        let value_style = Style::default().fg(crate::colors::text());
-        let dim_style = Style::default().fg(crate::colors::text_dim());
-        let ok_style = Style::default().fg(crate::colors::success());
-        let err_style = Style::default().fg(crate::colors::error());
+        let value_style = crate::colors::style_text();
+        let dim_style = crate::colors::style_text_dim();
+        let ok_style = crate::colors::style_success();
+        let err_style = crate::colors::style_error();
 
         match self.selected_server() {
             Some(row) => {
@@ -183,7 +183,7 @@ impl McpSettingsView {
                         Span::styled(
                             if expanded { "[expanded]" } else { "[collapsed]" },
                             if expanded {
-                                Style::default().fg(crate::colors::primary())
+                                crate::colors::style_primary()
                             } else {
                                 dim_style
                             },

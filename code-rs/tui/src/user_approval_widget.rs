@@ -224,15 +224,15 @@ impl UserApprovalWidget<'_> {
                         "Network access blocked".bold(),
                     ]),
                     Line::from(vec![
-                        Span::styled("Host: ", Style::default().fg(crate::colors::text_dim())),
+                        Span::styled("Host: ", crate::colors::style_text_dim()),
                         Span::raw(host.clone()),
                     ]),
                     Line::from(vec![
-                        Span::styled("Protocol: ", Style::default().fg(crate::colors::text_dim())),
+                        Span::styled("Protocol: ", crate::colors::style_text_dim()),
                         Span::raw(protocol_label),
                     ]),
                     Line::from(vec![
-                        Span::styled("Command: ", Style::default().fg(crate::colors::text_dim())),
+                        Span::styled("Command: ", crate::colors::style_text_dim()),
                         cmd_span,
                     ]),
                 ];

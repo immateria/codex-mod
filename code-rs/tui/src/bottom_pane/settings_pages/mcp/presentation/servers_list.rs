@@ -12,15 +12,15 @@ impl McpSettingsView {
         let selected_style = Style::default()
             .bg(crate::colors::selection())
             .add_modifier(Modifier::BOLD);
-        let dim_style = Style::default().fg(crate::colors::text_dim());
-        let accent_style = Style::default().fg(crate::colors::primary());
+        let dim_style = crate::colors::style_text_dim();
+        let accent_style = crate::colors::style_primary();
 
         let content_width = width.saturating_sub(2);
         let label_width = content_width.saturating_sub(3);
         let hovered_style = Style::default().fg(crate::colors::function());
 
         if let Some(err) = &self.startup_error {
-            let error_style = Style::default().fg(crate::colors::error());
+            let error_style = crate::colors::style_error();
             let header = " ⚠ MCP Startup Error";
             lines.push(Line::from(vec![Span::styled(
                 crate::text_formatting::truncate_to_display_width_with_suffix(

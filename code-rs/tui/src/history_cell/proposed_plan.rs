@@ -45,7 +45,7 @@ impl ProposedPlanCell {
         out.push(Line::from(Span::styled("Proposed plan", title_style)));
         out.push(Line::from(Span::styled(
             "Extracted from assistant plan output",
-            Style::default().fg(crate::colors::text_dim()),
+            crate::colors::style_text_dim(),
         )));
         out.push(Line::from(""));
 
@@ -53,7 +53,7 @@ impl ProposedPlanCell {
         if is_empty {
             out.push(Line::from(Span::styled(
                 "(empty)",
-                Style::default().fg(crate::colors::text_dim()),
+                crate::colors::style_text_dim(),
             )));
         } else {
             crate::markdown::append_markdown_with_opener_and_cwd_and_bold(

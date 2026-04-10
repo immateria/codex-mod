@@ -84,13 +84,13 @@ fn snapshot_summary_lines(snapshot: &RateLimitSnapshotEvent) -> Vec<Line<'static
     );
     lines.push(Line::from(vec![Span::styled(
         hourly_line,
-        Style::default().fg(crate::colors::text()),
+        crate::colors::style_text(),
     )]));
 
     if let Some(seconds) = snapshot.primary_reset_after_seconds {
         lines.push(Line::from(vec![Span::styled(
             format_reset_line(seconds),
-            Style::default().fg(crate::colors::text_dim()),
+            crate::colors::style_text_dim(),
         )]));
     }
 
@@ -101,13 +101,13 @@ fn snapshot_summary_lines(snapshot: &RateLimitSnapshotEvent) -> Vec<Line<'static
     );
     lines.push(Line::from(vec![Span::styled(
         weekly_line,
-        Style::default().fg(crate::colors::text()),
+        crate::colors::style_text(),
     )]));
 
     if let Some(seconds) = snapshot.secondary_reset_after_seconds {
         lines.push(Line::from(vec![Span::styled(
             format_reset_line(seconds),
-            Style::default().fg(crate::colors::text_dim()),
+            crate::colors::style_text_dim(),
         )]));
     }
 
@@ -176,7 +176,7 @@ fn legend_lines(entry: &RateLimitLegendEntry) -> Vec<Line<'static>> {
     if !entry.description.is_empty() {
         lines.push(Line::from(vec![Span::styled(
             format!("    {}", entry.description),
-            Style::default().fg(crate::colors::text()),
+            crate::colors::style_text(),
         )]));
     }
 

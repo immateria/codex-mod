@@ -104,7 +104,7 @@ fn parse_blockquotes(lines: &[&str]) -> Option<(usize, Vec<Line<'static>>)> {
         let bar_style = if callout_kind.is_some() {
             Style::default().fg(callout_color)
         } else {
-            Style::default().fg(crate::colors::text_dim())
+            crate::colors::style_text_dim()
         };
         let content_fg = if callout_kind.is_some() {
             crate::colors::text()

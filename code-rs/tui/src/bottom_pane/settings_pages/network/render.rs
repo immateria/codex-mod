@@ -50,20 +50,20 @@ impl NetworkSettingsView {
                 RowKind::AllowedDomains => {
                     KeyValueRow::new("Allowed domains").with_value(StyledText::new(
                         allowed_summary.clone(),
-                        Style::default().fg(crate::colors::text_dim()),
+                        crate::colors::style_text_dim(),
                     ))
                 }
                 RowKind::DeniedDomains => {
                     KeyValueRow::new("Denied domains").with_value(StyledText::new(
                         denied_summary.clone(),
-                        Style::default().fg(crate::colors::text_dim()),
+                        crate::colors::style_text_dim(),
                     ))
                 }
                 RowKind::AllowLocalBinding => KeyValueRow::new("Allow local binding")
                     .with_value(toggle::on_off_word(self.settings.allow_local_binding)),
                 RowKind::AdvancedToggle => KeyValueRow::new("Advanced").with_value(StyledText::new(
                     advanced_label,
-                    Style::default().fg(crate::colors::text_dim()),
+                    crate::colors::style_text_dim(),
                 )),
                 RowKind::Socks5Enabled => {
                     KeyValueRow::new("SOCKS5").with_value(toggle::on_off_word(self.settings.enable_socks5))
@@ -73,11 +73,11 @@ impl NetworkSettingsView {
                 RowKind::AllowUpstreamProxyEnv => KeyValueRow::new("Allow upstream proxy env")
                     .with_value(toggle::on_off_word(self.settings.allow_upstream_proxy)),
                 RowKind::AllowUnixSockets => KeyValueRow::new("Allow unix sockets").with_value(
-                    StyledText::new(unix_summary.clone(), Style::default().fg(crate::colors::text_dim())),
+                    StyledText::new(unix_summary.clone(), crate::colors::style_text_dim()),
                 ),
                 RowKind::Apply => KeyValueRow::new("Apply changes").with_value(StyledText::new(
                     apply_suffix,
-                    Style::default().fg(crate::colors::warning()),
+                    crate::colors::style_warning(),
                 )),
                 RowKind::Close => KeyValueRow::new("Close"),
             })

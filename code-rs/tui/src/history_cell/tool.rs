@@ -82,7 +82,7 @@ impl ToolCallCell {
         if let Some(duration) = self.state.duration {
             spans.push(Span::styled(
                 format!(", duration: {}", format_duration(duration)),
-                Style::default().fg(crate::colors::text_dim()),
+                crate::colors::style_text_dim(),
             ));
         }
 
@@ -91,7 +91,7 @@ impl ToolCallCell {
             if let Some(hint) = self.compact_invocation_hint() {
                 spans.push(Span::styled(
                     format!(" ({hint})"),
-                    Style::default().fg(crate::colors::text_dim()),
+                    crate::colors::style_text_dim(),
                 ));
             }
             let args_count = self.state.arguments.len();
@@ -154,7 +154,7 @@ impl ToolCallCell {
         if result.lines.is_empty() {
             return Vec::new();
         }
-        let dim = Style::default().fg(crate::colors::text_dim());
+        let dim = crate::colors::style_text_dim();
         let mut lines = result
             .lines
             .iter()
@@ -178,7 +178,7 @@ impl ToolCallCell {
         }
         vec![Line::styled(
             error.clone(),
-            Style::default().fg(crate::colors::error()),
+            crate::colors::style_error(),
         )]
     }
 
@@ -397,8 +397,8 @@ impl RunningToolCallCell {
         ));
 
         let border = super::formatting::left_border_span();
-        let dim = Style::default().fg(crate::colors::text_dim());
-        let text = Style::default().fg(crate::colors::text());
+        let dim = crate::colors::style_text_dim();
+        let text = crate::colors::style_text();
         if let Some(url) = self.tool_argument_text("url") {
             lines.push(Line::from(vec![
                 border.clone(),
@@ -610,7 +610,7 @@ impl HistoryCell for RunningToolCallCell {
             };
             spans.push(Span::styled(
                 suffix,
-                Style::default().fg(crate::colors::text_dim()),
+                crate::colors::style_text_dim(),
             ));
             lines.push(Line::from(spans));
         } else if self.is_gh_run_wait() {
@@ -638,19 +638,19 @@ fn render_arguments(arguments: &[ToolArgument]) -> Vec<Line<'static>> {
 }
 
 fn render_argument(arg: &ToolArgument) -> Line<'static> {
-    let dim_style = Style::default().fg(crate::colors::text_dim());
+    let dim_style = crate::colors::style_text_dim();
     let mut spans = vec![Span::styled("└ ", dim_style)];
     spans.push(Span::styled(
         format!("{}: ", arg.name),
         dim_style,
     ));
     let value_span = match &arg.value {
-        ArgumentValue::Text(text) => Span::styled(text.clone(), Style::default().fg(crate::colors::text())),
+        ArgumentValue::Text(text) => Span::styled(text.clone(), crate::colors::style_text()),
         ArgumentValue::Json(json) => {
             let compact = format_json_compact(&json.to_string()).unwrap_or_else(|| json.to_string());
-            Span::styled(compact, Style::default().fg(crate::colors::text()))
+            Span::styled(compact, crate::colors::style_text())
         }
-        ArgumentValue::Secret => Span::styled("(secret)", Style::default().fg(crate::colors::text_dim())),
+        ArgumentValue::Secret => Span::styled("(secret)", crate::colors::style_text_dim()),
     };
     spans.push(value_span);
     Line::from(spans)

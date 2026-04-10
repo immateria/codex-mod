@@ -96,11 +96,11 @@ pub(super) fn render(state: &LoginAddAccountState, area: Rect, buf: &mut Buffer)
                 Line::from(vec![
                     Span::styled(
                         "Not seeing a browser? ",
-                        Style::default().fg(crate::colors::text_dim()),
+                        crate::colors::style_text_dim(),
                     ),
                     Span::styled(
                         "Press C to switch to code authentication.",
-                        Style::default().fg(crate::colors::primary()),
+                        crate::colors::style_primary(),
                     ),
                 ]),
             ];
@@ -108,7 +108,7 @@ pub(super) fn render(state: &LoginAddAccountState, area: Rect, buf: &mut Buffer)
                 for chunk in wrap_url_segments(url, content_width) {
                     body_lines.push(Line::from(vec![Span::styled(
                         chunk,
-                        Style::default().fg(crate::colors::primary()),
+                        crate::colors::style_primary(),
                     )]));
                 }
             }
@@ -127,7 +127,7 @@ pub(super) fn render(state: &LoginAddAccountState, area: Rect, buf: &mut Buffer)
                 }
                 DeviceCodeStep::WaitingForApproval { authorize_url, user_code } => {
                     body_lines.push(Line::from(vec![
-                        Span::styled("Code: ", Style::default().fg(crate::colors::text_dim())),
+                        Span::styled("Code: ", crate::colors::style_text_dim()),
                         Span::styled(
                             user_code.clone(),
                             Style::new().fg(crate::colors::primary()).bold(),

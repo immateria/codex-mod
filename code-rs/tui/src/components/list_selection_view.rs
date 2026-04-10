@@ -258,7 +258,7 @@ impl BottomPaneView<'_> for ListSelectionView {
             if sub_h > 0 {
                 let subtitle_area = Rect { x: inner.x.saturating_add(1), y: next_y, width: content_width, height: sub_h };
                 Paragraph::new(sub.as_str())
-                    .style(Style::default().fg(crate::colors::text_dim()))
+                    .style(crate::colors::style_text_dim())
                     .render(subtitle_area, buf);
                 next_y = next_y.saturating_add(sub_h);
             }

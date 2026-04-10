@@ -57,15 +57,15 @@ pub(crate) fn exec_render_parts_parsed_with_meta(
             None => match action {
                 ExecAction::Read => pre.push(Line::styled(
                     "Read",
-                    Style::default().fg(crate::colors::text()),
+                    crate::colors::style_text(),
                 )),
                 ExecAction::Search => pre.push(Line::styled(
                     "Search",
-                    Style::default().fg(crate::colors::text_dim()),
+                    crate::colors::style_text_dim(),
                 )),
                 ExecAction::List => pre.push(Line::styled(
                     "List",
-                    Style::default().fg(crate::colors::text()),
+                    crate::colors::style_text(),
                 )),
                 ExecAction::Run => {
                     let mut message = match &ctx_path {
@@ -94,7 +94,7 @@ pub(crate) fn exec_render_parts_parsed_with_meta(
                 ) {
                     pre.push(Line::styled(
                         done,
-                        Style::default().fg(crate::colors::text_dim()),
+                        crate::colors::style_text_dim(),
                     ));
                 } else {
                     pre.push(Line::styled(
@@ -183,40 +183,40 @@ pub(crate) fn exec_render_parts_parsed_with_meta(
                         if i > 0 {
                             spans.push(Span::styled(
                                 ", ",
-                                Style::default().fg(crate::colors::text_dim()),
+                                crate::colors::style_text_dim(),
                             ));
                         }
                         if let Some((left, right)) = chunk.rsplit_once(" and ") {
                             if !left.is_empty() {
                                 spans.push(Span::styled(
                                     left.to_string(),
-                                    Style::default().fg(crate::colors::text()),
+                                    crate::colors::style_text(),
                                 ));
                                 spans.push(Span::styled(
                                     " and ",
-                                    Style::default().fg(crate::colors::text_dim()),
+                                    crate::colors::style_text_dim(),
                                 ));
                                 spans.push(Span::styled(
                                     right.to_string(),
-                                    Style::default().fg(crate::colors::text()),
+                                    crate::colors::style_text(),
                                 ));
                             } else {
                                 spans.push(Span::styled(
                                     chunk.to_string(),
-                                    Style::default().fg(crate::colors::text()),
+                                    crate::colors::style_text(),
                                 ));
                             }
                         } else {
                             spans.push(Span::styled(
                                 chunk.to_string(),
-                                Style::default().fg(crate::colors::text()),
+                                crate::colors::style_text(),
                             ));
                         }
                     }
                     if let Some(p) = path_part {
                         spans.push(Span::styled(
                             p.to_string(),
-                            Style::default().fg(crate::colors::text_dim()),
+                            crate::colors::style_text_dim(),
                         ));
                     }
                 }
@@ -225,23 +225,23 @@ pub(crate) fn exec_render_parts_parsed_with_meta(
                         let (fname, rest) = line_text.split_at(idx);
                         spans.push(Span::styled(
                             fname.to_string(),
-                            Style::default().fg(crate::colors::text()),
+                            crate::colors::style_text(),
                         ));
                         spans.push(Span::styled(
                             rest.to_string(),
-                            Style::default().fg(crate::colors::text_dim()),
+                            crate::colors::style_text_dim(),
                         ));
                     } else {
                         spans.push(Span::styled(
                             line_text.to_string(),
-                            Style::default().fg(crate::colors::text()),
+                            crate::colors::style_text(),
                         ));
                     }
                 }
                 "List" => {
                     spans.push(Span::styled(
                         line_text.to_string(),
-                        Style::default().fg(crate::colors::text()),
+                        crate::colors::style_text(),
                     ));
                 }
                 _ => {
@@ -257,7 +257,7 @@ pub(crate) fn exec_render_parts_parsed_with_meta(
                     } else {
                         spans.push(Span::styled(
                             display_line,
-                            Style::default().fg(crate::colors::text()),
+                            crate::colors::style_text(),
                         ));
                     }
                 }
@@ -284,7 +284,7 @@ pub(crate) fn exec_render_parts_parsed_with_meta(
             Span::styled("└ ", Style::default().add_modifier(Modifier::DIM)),
             Span::styled(
                 display_p,
-                Style::default().fg(crate::colors::text()),
+                crate::colors::style_text(),
             ),
         ]));
     }
@@ -335,7 +335,7 @@ pub(crate) fn exec_render_parts_parsed(
 pub(crate) fn running_status_line(message: String) -> Line<'static> {
     Line::from(vec![
         Span::styled("└ ", Style::default().fg(crate::colors::border_dim())),
-        Span::styled(message, Style::default().fg(crate::colors::text_dim())),
+        Span::styled(message, crate::colors::style_text_dim()),
     ])
 }
 
@@ -363,7 +363,7 @@ fn new_parsed_command(
                     };
                     lines.push(Line::styled(
                         format!("{label}{duration_suffix}"),
-                        Style::default().fg(crate::colors::text_dim()),
+                        crate::colors::style_text_dim(),
                     ));
                 } else {
                     let mut message = match &ctx_path {
@@ -381,7 +381,7 @@ fn new_parsed_command(
                 if let Some(label) = action.tool_label() {
                     lines.push(Line::styled(
                         label,
-                        Style::default().fg(crate::colors::text()),
+                        crate::colors::style_text(),
                     ));
                 } else {
                     let done = match ctx_path {
@@ -486,7 +486,7 @@ fn new_parsed_command(
                             // Add comma separator between items (dim)
                             spans.push(Span::styled(
                                 ", ",
-                                Style::default().fg(crate::colors::text_dim()),
+                                crate::colors::style_text_dim(),
                             ));
                         }
                         // Within each chunk, if it contains " and ", split into left and right with dimmed " and "
@@ -494,26 +494,26 @@ fn new_parsed_command(
                             if !left.is_empty() {
                                 spans.push(Span::styled(
                                     left.to_string(),
-                                    Style::default().fg(crate::colors::text()),
+                                    crate::colors::style_text(),
                                 ));
                                 spans.push(Span::styled(
                                     " and ",
-                                    Style::default().fg(crate::colors::text_dim()),
+                                    crate::colors::style_text_dim(),
                                 ));
                                 spans.push(Span::styled(
                                     right.to_string(),
-                                    Style::default().fg(crate::colors::text()),
+                                    crate::colors::style_text(),
                                 ));
                             } else {
                                 spans.push(Span::styled(
                                     chunk.to_string(),
-                                    Style::default().fg(crate::colors::text()),
+                                    crate::colors::style_text(),
                                 ));
                             }
                         } else {
                             spans.push(Span::styled(
                                 chunk.to_string(),
-                                Style::default().fg(crate::colors::text()),
+                                crate::colors::style_text(),
                             ));
                         }
                     }
@@ -521,7 +521,7 @@ fn new_parsed_command(
                         // Dim the entire path portion including the " in " or " (in " prefix
                         spans.push(Span::styled(
                             p.to_string(),
-                            Style::default().fg(crate::colors::text_dim()),
+                            crate::colors::style_text_dim(),
                         ));
                     }
                 }
@@ -531,16 +531,16 @@ fn new_parsed_command(
                         let (fname, rest) = line_text.split_at(idx);
                         spans.push(Span::styled(
                             fname.to_string(),
-                            Style::default().fg(crate::colors::text()),
+                            crate::colors::style_text(),
                         ));
                         spans.push(Span::styled(
                             rest.to_string(),
-                            Style::default().fg(crate::colors::text_dim()),
+                            crate::colors::style_text_dim(),
                         ));
                     } else {
                         spans.push(Span::styled(
                             line_text.to_string(),
-                            Style::default().fg(crate::colors::text()),
+                            crate::colors::style_text(),
                         ));
                     }
                 }
@@ -548,7 +548,7 @@ fn new_parsed_command(
                 "List" => {
                     spans.push(Span::styled(
                         line_text.to_string(),
-                        Style::default().fg(crate::colors::text()),
+                        crate::colors::style_text(),
                     ));
                 }
                 _ => {
@@ -563,7 +563,7 @@ fn new_parsed_command(
                     } else {
                         spans.push(Span::styled(
                             display_line,
-                            Style::default().fg(crate::colors::text()),
+                            crate::colors::style_text(),
                         ));
                     }
                 }
@@ -592,7 +592,7 @@ fn new_parsed_command(
             Span::styled("└ ", Style::default().add_modifier(Modifier::DIM)),
             Span::styled(
                 display_p,
-                Style::default().fg(crate::colors::text()),
+                crate::colors::style_text(),
             ),
         ]));
         // no-op: avoid unused assignment warning; the variable's value is not consumed later
@@ -757,7 +757,7 @@ fn new_exec_command_generic(
         if idx > 0 {
             line.spans.insert(
                 0,
-                Span::styled("  ", Style::default().fg(crate::colors::text())),
+                Span::styled("  ", crate::colors::style_text()),
             );
         }
     }

@@ -323,7 +323,7 @@ impl HistoryCell for CollapsibleReasoningCell {
                 if let Some(mut last) = titles.pop() {
                     last.spans.push(Span::styled(
                         "…",
-                        Style::default().fg(crate::colors::text_dim()),
+                        crate::colors::style_text_dim(),
                     ));
                     return vec![last];
                 }

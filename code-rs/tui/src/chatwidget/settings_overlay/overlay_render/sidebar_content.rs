@@ -68,11 +68,11 @@ impl SettingsOverlayView {
             let mut spans: Vec<Span<'static>> = Vec::new();
             spans.push(Span::styled(
                 selection_indicator.to_string(),
-                Style::default().fg(crate::colors::text()),
+                crate::colors::style_text(),
             ));
             spans.push(Span::styled(
                 overflow_indicator.to_string(),
-                Style::default().fg(crate::colors::text_dim()),
+                crate::colors::style_text_dim(),
             ));
             spans.push(Span::raw(" "));
             let icon_prefix = crate::icons::section_icon(section.label());
@@ -88,7 +88,7 @@ impl SettingsOverlayView {
                         .fg(crate::colors::text_bright())
                         .add_modifier(Modifier::BOLD | Modifier::UNDERLINED)
                 } else {
-                    Style::default().fg(crate::colors::text_dim())
+                    crate::colors::style_text_dim()
                 },
             ));
 
@@ -325,7 +325,7 @@ impl SettingsOverlayView {
     fn render_placeholder(&self, area: Rect, buf: &mut Buffer, text: &'static str) {
         let paragraph = Paragraph::new(text)
             .wrap(ratatui::widgets::Wrap { trim: true })
-            .style(Style::default().fg(crate::colors::text_dim()));
+            .style(crate::colors::style_text_dim());
         paragraph.render(area, buf);
     }
 }

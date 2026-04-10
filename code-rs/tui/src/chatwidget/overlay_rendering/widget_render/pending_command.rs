@@ -72,7 +72,7 @@ pub(super) fn pending_command_box_lines(
     const INSTRUCTION_TEXT: &str =
         "Press Enter to run this command. Press Esc to cancel.";
     let instruction_segments = wrap(INSTRUCTION_TEXT, padded_width);
-    let instruction_style = Style::default().fg(crate::colors::text_dim());
+    let instruction_style = crate::colors::style_text_dim();
     let mut lines: Vec<RtLine<'static>> = instruction_segments
         .into_iter()
         .map(|segment| {
@@ -86,8 +86,8 @@ pub(super) fn pending_command_box_lines(
 
     let command_lines = wrap_pending_command_lines(pending.input(), command_width);
     let cursor_line_idx = command_line_index_for_cursor(&command_lines, pending.cursor());
-    let prefix_style = Style::default().fg(crate::colors::primary());
-    let text_style = Style::default().fg(crate::colors::text());
+    let prefix_style = crate::colors::style_primary();
+    let text_style = crate::colors::style_text();
     let cursor_style = Style::default()
         .bg(crate::colors::primary())
         .fg(crate::colors::background());

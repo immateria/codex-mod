@@ -10,7 +10,7 @@ impl Widget for LimitsHintRowWidget {
             return;
         }
 
-        let hint_style = Style::default().fg(crate::colors::text_dim());
+        let hint_style = crate::colors::style_text_dim();
         let accent_style = Style::default().fg(crate::colors::function());
         let mut spans = vec![
             Span::styled(crate::icons::nav_up_down(), accent_style),
@@ -170,7 +170,7 @@ impl Widget for LimitsTabsRowWidget<'_> {
         }
 
         let window = compute_tab_window(self.tabs, self.selected_tab, area.width as usize);
-        let indicator_style = Style::default().fg(crate::colors::text_dim());
+        let indicator_style = crate::colors::style_text_dim();
 
         let mut spans = Vec::new();
 
@@ -188,7 +188,7 @@ impl Widget for LimitsTabsRowWidget<'_> {
                     .fg(crate::colors::text())
                     .add_modifier(Modifier::BOLD)
             } else {
-                Style::default().fg(crate::colors::text_dim())
+                crate::colors::style_text_dim()
             };
             spans.push(Span::styled(format!(" {} ", self.tabs[idx].title), style));
             spans.push(Span::raw(" "));
@@ -251,7 +251,7 @@ impl Widget for LimitsPaneWidget {
 
         Paragraph::new(Line::from(vec![
             Span::styled(self.title.to_string(), title_style),
-            Span::styled(" ─", Style::default().fg(crate::colors::text_dim())),
+            Span::styled(" ─", crate::colors::style_text_dim()),
         ]))
         .style(Style::default().bg(crate::colors::background()))
         .render(title_area, buf);

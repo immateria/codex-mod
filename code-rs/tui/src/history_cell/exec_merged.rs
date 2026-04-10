@@ -181,7 +181,7 @@ impl MergedExecCell {
                     if !(has_corner || has_spaced_corner) {
                         first.spans.insert(
                             0,
-                            Span::styled("└ ", Style::default().fg(crate::colors::text_dim())),
+                            Span::styled("└ ", crate::colors::style_text_dim()),
                         );
                     }
                     added_corner = true;
@@ -287,7 +287,7 @@ impl MergedExecCell {
             if !has_connector {
                 first.spans.insert(
                     0,
-                    Span::styled("└ ", Style::default().fg(crate::colors::text_dim())),
+                    Span::styled("└ ", crate::colors::style_text_dim()),
                 );
             }
         }
@@ -361,15 +361,15 @@ impl HistoryCell for MergedExecCell {
         let header_line = match self.kind {
             ExecKind::Read => Some(Line::styled(
                 "Read",
-                Style::default().fg(crate::colors::text()),
+                crate::colors::style_text(),
             )),
             ExecKind::Search => Some(Line::styled(
                 "Search",
-                Style::default().fg(crate::colors::text_dim()),
+                crate::colors::style_text_dim(),
             )),
             ExecKind::List => Some(Line::styled(
                 "List",
-                Style::default().fg(crate::colors::text()),
+                crate::colors::style_text(),
             )),
             ExecKind::Run => None,
         };

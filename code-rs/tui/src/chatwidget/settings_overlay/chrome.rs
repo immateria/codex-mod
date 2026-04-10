@@ -142,11 +142,11 @@ mod imp {
                 } else {
                     lines.push(Line::from(vec![Span::styled(
                         format!("  {label}"),
-                        Style::default().fg(crate::colors::text()),
+                        crate::colors::style_text(),
                     )]));
                     lines.push(Line::from(vec![Span::styled(
                         format!("  {description}"),
-                        Style::default().fg(crate::colors::text_dim()),
+                        crate::colors::style_text_dim(),
                     )]));
                 }
                 lines.push(Line::from(""));
@@ -161,7 +161,7 @@ mod imp {
                 crate::bottom_pane::settings_ui::hints::KeyHint::new(
                     format!("{}/q", crate::icons::escape()),
                     " cancel",
-                ).with_key_style(Style::default().fg(crate::colors::error())),
+                ).with_key_style(crate::colors::style_error()),
             ]));
 
             let content_area = inner.inner(crate::ui_consts::UNIFORM_PAD);
@@ -298,10 +298,10 @@ mod android_stub {
                 Line::from("Use the internal browser tooling on desktop builds instead."),
                 Line::from(""),
                 Line::from(vec![
-                    Span::styled("Enter", Style::default().fg(crate::colors::success())),
-                    Span::styled("/", Style::default().fg(crate::colors::text_dim())),
-                    Span::styled(crate::icons::escape(), Style::default().fg(crate::colors::error())),
-                    Span::styled(" Close", Style::default().fg(crate::colors::text_dim())),
+                    Span::styled("Enter", crate::colors::style_success()),
+                    Span::styled("/", crate::colors::style_text_dim()),
+                    Span::styled(crate::icons::escape(), crate::colors::style_error()),
+                    Span::styled(" Close", crate::colors::style_text_dim()),
                 ]),
             ];
 

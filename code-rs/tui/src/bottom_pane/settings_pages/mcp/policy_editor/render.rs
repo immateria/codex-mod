@@ -57,7 +57,7 @@ impl McpSettingsView {
         let block = Block::default()
             .borders(Borders::ALL)
             .title(format!(" MCP Scheduling: {} ", editor.server))
-            .border_style(Style::default().fg(crate::colors::primary()))
+            .border_style(crate::colors::style_primary())
             .style(
                 Style::default()
                     .bg(crate::colors::background())
@@ -66,13 +66,13 @@ impl McpSettingsView {
         let inner = block.inner(area);
         block.render(area, buf);
 
-        let dim = Style::default().fg(crate::colors::text_dim());
+        let dim = crate::colors::style_text_dim();
         let key_style = Style::default().fg(crate::colors::secondary());
-        let value_style = Style::default().fg(crate::colors::text());
+        let value_style = crate::colors::style_text();
         let selected_style = Style::default()
             .bg(crate::colors::selection())
             .add_modifier(Modifier::BOLD);
-        let err_style = Style::default().fg(crate::colors::error());
+        let err_style = crate::colors::style_error();
 
         let help =
             "Up/Down move · Enter edit/toggle · Del clear optional · Ctrl+S save · Esc cancel";
@@ -209,7 +209,7 @@ impl McpSettingsView {
                 " MCP Tool Scheduling: {}/{} ",
                 editor.server, editor.tool
             ))
-            .border_style(Style::default().fg(crate::colors::primary()))
+            .border_style(crate::colors::style_primary())
             .style(
                 Style::default()
                     .bg(crate::colors::background())
@@ -218,13 +218,13 @@ impl McpSettingsView {
         let inner = block.inner(area);
         block.render(area, buf);
 
-        let dim = Style::default().fg(crate::colors::text_dim());
+        let dim = crate::colors::style_text_dim();
         let key_style = Style::default().fg(crate::colors::secondary());
-        let value_style = Style::default().fg(crate::colors::text());
+        let value_style = crate::colors::style_text();
         let selected_style = Style::default()
             .bg(crate::colors::selection())
             .add_modifier(Modifier::BOLD);
-        let err_style = Style::default().fg(crate::colors::error());
+        let err_style = crate::colors::style_error();
 
         let help = "Enter toggle override · Del clear · Ctrl+S save · Esc cancel";
         Paragraph::new(Line::from(vec![Span::styled(help, dim)]))

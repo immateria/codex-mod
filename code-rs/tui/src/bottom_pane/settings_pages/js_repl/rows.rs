@@ -101,7 +101,7 @@ impl JsReplSettingsView {
                 RowKind::RuntimePath => KeyValueRow::new("Runtime path").with_value(
                     StyledText::new(
                         runtime_path.clone(),
-                        Style::default().fg(crate::colors::text_dim()),
+                        crate::colors::style_text_dim(),
                     ),
                 ),
                 RowKind::PickRuntimePath => KeyValueRow::new("Pick runtime path (file picker)"),
@@ -109,13 +109,13 @@ impl JsReplSettingsView {
                 RowKind::RuntimeArgs => KeyValueRow::new("Runtime args").with_value(
                     StyledText::new(
                         runtime_args.clone(),
-                        Style::default().fg(crate::colors::text_dim()),
+                        crate::colors::style_text_dim(),
                     ),
                 ),
                 RowKind::NodeModuleDirs => KeyValueRow::new("Node module dirs").with_value(
                     StyledText::new(
                         module_dirs.clone(),
-                        Style::default().fg(crate::colors::text_dim()),
+                        crate::colors::style_text_dim(),
                     ),
                 ),
                 RowKind::AddNodeModuleDir => {
@@ -123,7 +123,7 @@ impl JsReplSettingsView {
                 }
                 RowKind::Apply => KeyValueRow::new("Apply changes").with_value(StyledText::new(
                     apply_suffix,
-                    Style::default().fg(crate::colors::warning()),
+                    crate::colors::style_warning(),
                 )),
                 RowKind::Close => KeyValueRow::new("Close"),
             })

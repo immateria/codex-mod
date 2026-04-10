@@ -205,7 +205,7 @@ impl ChatWidget<'_> {
                 ratatui::text::Span::raw("   "),
                 ratatui::text::Span::styled(
                     content.to_string(),
-                    ratatui::style::Style::default().fg(crate::colors::text()),
+                    crate::colors::style_text(),
                 ),
             ]));
         }
@@ -271,9 +271,9 @@ impl ChatWidget<'_> {
 
                 if has_findings || matches!(entry.status, AgentStatus::Completed) {
                     let color = if has_findings {
-                        ratatui::style::Style::default().fg(crate::colors::warning())
+                        crate::colors::style_warning()
                     } else {
-                        ratatui::style::Style::default().fg(crate::colors::success())
+                        crate::colors::style_success()
                     };
                     bullets.push((label, color));
                 }
@@ -286,7 +286,7 @@ impl ChatWidget<'_> {
                         }
                         bullets.push((
                             self.truncate_overlay_text(trimmed, 280),
-                            ratatui::style::Style::default().fg(crate::colors::text_dim()),
+                            crate::colors::style_text_dim(),
                         ));
                     }
                 }
@@ -298,7 +298,7 @@ impl ChatWidget<'_> {
             if !text.is_empty() {
                 bullets.push((
                     format!("Final: {text}"),
-                    ratatui::style::Style::default().fg(crate::colors::text_dim()),
+                    crate::colors::style_text_dim(),
                 ));
             }
         }
@@ -308,7 +308,7 @@ impl ChatWidget<'_> {
                 if entry.error.is_none() {
                     bullets.push((
                         "Failed".to_string(),
-                        ratatui::style::Style::default().fg(crate::colors::error()),
+                        crate::colors::style_error(),
                     ));
                 }
             }
@@ -316,7 +316,7 @@ impl ChatWidget<'_> {
                 if entry.error.is_none() {
                     bullets.push((
                         "Cancelled".to_string(),
-                        ratatui::style::Style::default().fg(crate::colors::warning()),
+                        crate::colors::style_warning(),
                     ));
                 }
             }
@@ -390,7 +390,7 @@ impl ChatWidget<'_> {
                         ratatui::text::Span::raw(prefix),
                         ratatui::text::Span::styled(
                             wrapped.to_string(),
-                            ratatui::style::Style::default().fg(crate::colors::error()),
+                            crate::colors::style_error(),
                         ),
                     ]));
                 }
@@ -415,14 +415,14 @@ impl ChatWidget<'_> {
         use ratatui::text::{Line, Span};
 
         let time_text = log.timestamp.format("%H:%M").to_string();
-        let time_style = Style::default().fg(crate::colors::text_dim());
+        let time_style = crate::colors::style_text_dim();
         let kind_style = Style::default()
             .fg(agent_log_color(log.kind))
             .add_modifier(Modifier::BOLD);
         let message_base_style = if matches!(log.kind, AgentLogKind::Error) {
-            Style::default().fg(crate::colors::error())
+            crate::colors::style_error()
         } else {
-            Style::default().fg(crate::colors::text())
+            crate::colors::style_text()
         };
 
         // Insert a section header when the log kind changes (TYPE column removed).

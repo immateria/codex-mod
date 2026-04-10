@@ -362,7 +362,7 @@ impl ChatWidget<'_> {
         // Then render the text inside with padding, centered
         let effect_enabled = wave_enabled;
         let status_style = if effect_enabled {
-            Style::default().fg(crate::colors::text())
+            crate::colors::style_text()
         } else {
             Style::default()
                 .bg(crate::colors::background())
@@ -576,7 +576,6 @@ impl ChatWidget<'_> {
         hover_style: code_core::config_types::HeaderHoverStyle,
         max_width: usize,
     ) -> super::terminal_surface_header::HeaderTemplateRender {
-        use ratatui::style::Style;
         use ratatui::text::{Line, Span};
 
         let mut spans: Vec<Span<'static>> = Vec::new();
@@ -598,7 +597,7 @@ impl ChatWidget<'_> {
             if added_any {
                 spans.push(Span::styled(
                     " • ".to_string(),
-                    Style::default().fg(crate::colors::text_dim()),
+                    crate::colors::style_text_dim(),
                 ));
                 width += 3;
             }
@@ -638,7 +637,7 @@ impl ChatWidget<'_> {
             };
 
             let segment_width = display_value.width();
-            let mut style = Style::default().fg(crate::colors::text());
+            let mut style = crate::colors::style_text();
             if let Some(action) = click_action {
                 style = super::terminal_surface_header::apply_hover_style(
                     style,
@@ -656,7 +655,7 @@ impl ChatWidget<'_> {
             width = fallback.width();
             spans.push(Span::styled(
                 fallback,
-                Style::default().fg(crate::colors::text_dim()),
+                crate::colors::style_text_dim(),
             ));
         }
 
@@ -670,7 +669,6 @@ impl ChatWidget<'_> {
     // (startup model migration notice removed)
 
     pub(super) fn render_bottom_status_line(&self, bottom_pane_area: Rect, buf: &mut Buffer) {
-        use ratatui::style::Style;
         use ratatui::widgets::Paragraph;
 
         if self.standard_terminal_mode
@@ -744,7 +742,7 @@ impl ChatWidget<'_> {
             }
         }
 
-        let base_style = Style::default().fg(crate::colors::text_dim());
+        let base_style = crate::colors::style_text_dim();
         let widget = Paragraph::new(vec![rendered.line])
             .alignment(alignment)
             .scroll((0, scroll_cols))

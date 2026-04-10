@@ -24,7 +24,7 @@ const MCP_SETTINGS_DESIRED_HEIGHT: u16 = 16;
 impl McpSettingsView {
     fn pane_border_style(&self, focused_pane: McpSettingsFocus, pane_hit: McpPaneHit) -> Style {
         if self.focus == focused_pane {
-            Style::default().fg(crate::colors::primary())
+            crate::colors::style_primary()
         } else if self.hovered_pane == pane_hit {
             Style::default().fg(crate::colors::function())
         } else {
@@ -228,7 +228,7 @@ impl McpSettingsView {
             McpSettingsMode::Main => Paragraph::new(shortcut_line(&[
                 hint_nav(" move"),
                 KeyHint::new(crate::icons::space(), " toggle tool")
-                    .with_key_style(Style::default().fg(crate::colors::success())),
+                    .with_key_style(crate::colors::style_success()),
                 hint_enter(" expand tool"),
                 KeyHint::new(
                     format!("{}/Click", crate::icons::tab()),

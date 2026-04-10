@@ -147,7 +147,7 @@ impl AuthModeWidget {
                 );
                 lines.push(
                     Line::from(msg)
-                        .style(Style::default().fg(crate::colors::text_dim())),
+                        .style(crate::colors::style_text_dim()),
                 );
                 lines.push(Line::from(""));
             }
@@ -170,7 +170,7 @@ impl AuthModeWidget {
                 ])
             } else {
                 Line::from(format!("  {}. {text}", idx + 1))
-                    .style(Style::default().fg(crate::colors::text()))
+                    .style(crate::colors::style_text())
             };
 
             let line2 = if is_selected {
@@ -179,7 +179,7 @@ impl AuthModeWidget {
                     .add_modifier(Modifier::DIM)
             } else {
                 Line::from(format!("     {description}"))
-                    .style(Style::default().fg(crate::colors::text_dim()))
+                    .style(crate::colors::style_text_dim())
             };
 
             vec![line1, line2]
@@ -216,13 +216,13 @@ impl AuthModeWidget {
             // AE: Following styles.md, this should probably be Cyan because it's a user input tip.
             //     But leaving this for a future cleanup.
             Line::from("  Press Enter to continue")
-                .style(Style::default().fg(crate::colors::text_dim())),
+                .style(crate::colors::style_text_dim()),
         );
         if let Some(err) = &self.error {
             lines.push(Line::from(""));
             lines.push(Line::from(Span::styled(
                 err.as_str(),
-                Style::default().fg(crate::colors::error()),
+                crate::colors::style_error(),
             )));
         }
 

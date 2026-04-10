@@ -18,7 +18,7 @@ impl UndoTimelineView {
             let mut title_spans = vec![
                 Span::styled(
                     format!("{marker} "),
-                    Style::default().fg(crate::colors::primary()),
+                    crate::colors::style_primary(),
                 ),
                 Span::styled(
                     entry.label.clone(),
@@ -28,7 +28,7 @@ impl UndoTimelineView {
                             .add_modifier(Modifier::BOLD)
                             .bg(crate::colors::selection())
                     } else {
-                        Style::default().fg(crate::colors::text())
+                        crate::colors::style_text()
                     },
                 ),
             ];
@@ -41,7 +41,7 @@ impl UndoTimelineView {
                             .fg(crate::colors::text_dim())
                             .bg(crate::colors::selection())
                     } else {
-                        Style::default().fg(crate::colors::text_dim())
+                        crate::colors::style_text_dim()
                     },
                 ));
             }
@@ -53,7 +53,7 @@ impl UndoTimelineView {
                         .fg(crate::colors::text_dim())
                         .bg(crate::colors::selection())
                 } else {
-                    Style::default().fg(crate::colors::text_dim())
+                    crate::colors::style_text_dim()
                 };
                 lines.push(Line::from(Span::styled(format!("  {summary}"), style)));
             }
@@ -71,7 +71,7 @@ impl UndoTimelineView {
                         .fg(crate::colors::text_dim())
                         .bg(crate::colors::selection())
                 } else {
-                    Style::default().fg(crate::colors::text_dim())
+                    crate::colors::style_text_dim()
                 };
                 lines.push(Line::from(Span::styled(
                     format!("  {}", parts.join(" • ")),
@@ -85,7 +85,7 @@ impl UndoTimelineView {
                         .fg(crate::colors::text_dim())
                         .bg(crate::colors::selection())
                 } else {
-                    Style::default().fg(crate::colors::text_dim())
+                    crate::colors::style_text_dim()
                 };
                 lines.push(Line::from(Span::styled(format!("  {stats}"), style)));
             }
@@ -142,7 +142,7 @@ impl UndoTimelineView {
         let file_lines = if entry.file_lines.is_empty() {
             vec![Line::from(Span::styled(
                 "No file changes captured for this snapshot.",
-                Style::default().fg(crate::colors::text_dim()),
+                crate::colors::style_text_dim(),
             ))]
         } else {
             entry.file_lines.clone()
@@ -184,10 +184,10 @@ impl UndoTimelineView {
                 ).with_key_style(Style::default().fg(crate::colors::function())),
                 crate::bottom_pane::settings_ui::hints::KeyHint::new(
                     crate::icons::space(), " Toggle files",
-                ).with_key_style(Style::default().fg(crate::colors::success())),
+                ).with_key_style(crate::colors::style_success()),
                 crate::bottom_pane::settings_ui::hints::KeyHint::new(
                     "C", " Toggle conversation",
-                ).with_key_style(Style::default().fg(crate::colors::success())),
+                ).with_key_style(crate::colors::style_success()),
                 crate::bottom_pane::settings_ui::hints::hint_enter(" Restore"),
                 crate::bottom_pane::settings_ui::hints::hint_esc(" Close"),
             ]),

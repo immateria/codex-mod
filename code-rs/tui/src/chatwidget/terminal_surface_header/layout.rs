@@ -40,7 +40,7 @@ pub(super) fn render_dynamic_header_line(input: &DynamicHeaderLayoutInput<'_>) -
                 spans,
                 width,
                 "  •  ",
-                Style::default().fg(crate::colors::text_dim()),
+                crate::colors::style_text_dim(),
             );
         };
 
@@ -61,7 +61,7 @@ pub(super) fn render_dynamic_header_line(input: &DynamicHeaderLayoutInput<'_>) -
                 width,
                 label,
                 apply_hover_style(
-                    Style::default().fg(crate::colors::text_dim()),
+                    crate::colors::style_text_dim(),
                     input.hover_style,
                     is_hovered,
                 ),
@@ -191,7 +191,7 @@ pub(super) fn render_dynamic_header_line(input: &DynamicHeaderLayoutInput<'_>) -
                         &mut spans,
                         &mut width,
                         "Directory: ",
-                        Style::default().fg(crate::colors::text_dim()),
+                        crate::colors::style_text_dim(),
                     );
                 }
                 push_text(
@@ -212,7 +212,7 @@ pub(super) fn render_dynamic_header_line(input: &DynamicHeaderLayoutInput<'_>) -
                     &mut spans,
                     &mut width,
                     "Branch: ",
-                    Style::default().fg(crate::colors::text_dim()),
+                    crate::colors::style_text_dim(),
                 );
             }
             push_text(

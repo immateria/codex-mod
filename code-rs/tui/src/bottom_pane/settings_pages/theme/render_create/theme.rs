@@ -190,7 +190,7 @@ pub(super) fn render_create_theme_mode_inner(
     {
         form_lines.push(Line::from(Span::styled(
             last,
-            Style::default().fg(crate::colors::error()),
+            crate::colors::style_error(),
         )));
         if let Some(raw) = s.last_raw_output.borrow().as_ref() {
             form_lines.push(Line::from(Span::styled(

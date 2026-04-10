@@ -148,10 +148,10 @@ impl BottomPaneView<'_> for CloudTasksView {
             height: 1,
         };
         let header_spans = vec![
-            Span::styled("▌ ", Style::default().fg(crate::colors::text_dim())),
+            Span::styled("▌ ", crate::colors::style_text_dim()),
             Span::styled(
                 format!("Environment: {}", self.env_label),
-                Style::default().fg(crate::colors::text()),
+                crate::colors::style_text(),
             ),
         ];
         Paragraph::new(Line::from(header_spans)).render(header_area, buf);

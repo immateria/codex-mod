@@ -3,7 +3,6 @@
 use super::*;
 use crate::history::state::{BackgroundEventRecord, HistoryId};
 use code_ansi_escape::ansi_escape_line;
-use ratatui::style::Style;
 use ratatui::text::{Line, Span};
 
 pub(crate) struct BackgroundEventCell {
@@ -25,7 +24,7 @@ impl BackgroundEventCell {
 
     fn lines(&self) -> Vec<Line<'static>> {
         let mut lines: Vec<Line<'static>> = Vec::new();
-        let dim_style = Style::default().fg(crate::colors::text_dim());
+        let dim_style = crate::colors::style_text_dim();
 
         if !self.state.title.trim().is_empty() {
             lines.push(Line::from(Span::styled(

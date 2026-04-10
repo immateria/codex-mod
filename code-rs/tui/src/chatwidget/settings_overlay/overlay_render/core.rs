@@ -178,8 +178,8 @@ impl SettingsOverlayView {
     }
 
     fn block_title_line(&self) -> Line<'static> {
-        let sep_style = Style::default().fg(crate::colors::text_dim());
-        let title_style = Style::default().fg(crate::colors::text());
+        let sep_style = crate::colors::style_text_dim();
+        let title_style = crate::colors::style_text();
         let mut spans: Vec<Span<'static>> = Vec::with_capacity(5);
         spans.push(Span::styled("Settings", title_style));
         spans.push(Span::raw(" "));
@@ -229,7 +229,7 @@ impl SettingsOverlayView {
             *self.last_overview_scroll.borrow_mut() = 0;
             let line = Line::from(vec![Span::styled(
                 "No settings available.",
-                Style::default().fg(crate::colors::text_dim()),
+                crate::colors::style_text_dim(),
             )]);
             Paragraph::new(line)
                 .style(bg_style)
@@ -239,7 +239,7 @@ impl SettingsOverlayView {
 
         let active_section = self.active_section();
         let content_width = area.width as usize;
-        let title_style = Style::default().fg(crate::colors::text());
+        let title_style = crate::colors::style_text();
         let mut lines: Vec<Line<'static>> =
             Vec::with_capacity(self.overview_rows.len().saturating_mul(4).saturating_add(8));
         let mut line_sections: Vec<Option<SettingsSection>> =
@@ -346,7 +346,7 @@ impl SettingsOverlayView {
             let info_text = row.section.help_line();
             let info_trimmed = self.trim_with_ellipsis(info_text, content_width.saturating_sub(8));
             let info_trimmed_width = UnicodeWidthStr::width(info_trimmed.as_str());
-            let info_style = Style::default().fg(crate::colors::text_dim());
+            let info_style = crate::colors::style_text_dim();
             let mut info_line = Line::from(vec![
                 Span::raw("  "),
                 Span::styled("└ ", info_style),

@@ -314,7 +314,7 @@ pub(crate) fn build_output_lines(text: &str) -> Vec<Line<'static>> {
     if clipped {
         out.push(Line::styled(
             format!("… output truncated to last {EXEC_PREVIEW_MAX_CHARS} chars"),
-            Style::default().fg(crate::colors::text_dim()),
+            crate::colors::style_text_dim(),
         ));
     }
     out.extend(processed.lines().map(ansi_line_with_theme_bg));
@@ -384,7 +384,7 @@ fn build_preview_lines_windowed(
     if clipped {
         out.push(Line::styled(
             format!("… output truncated to last {max_chars} chars"),
-            Style::default().fg(crate::colors::text_dim()),
+            crate::colors::style_text_dim(),
         ));
     }
     for seg in segments {
@@ -444,7 +444,7 @@ pub(crate) fn output_lines(
             } else {
                 format!("Error (exit {exit_code}: {description})")
             };
-            lines.push(Line::styled(msg, Style::default().fg(crate::colors::error())));
+            lines.push(Line::styled(msg, crate::colors::style_error()));
         }
         let stderr_norm = sanitize_for_tui(
             &normalize_overwrite_sequences(stderr),
@@ -452,7 +452,7 @@ pub(crate) fn output_lines(
             SanitizeOptions::default(),
         );
         for line in stderr_norm.lines().filter(|line| !line.is_empty()) {
-            lines.push(ansi_escape_line(line).style(Style::default().fg(crate::colors::error())));
+            lines.push(ansi_escape_line(line).style(crate::colors::style_error()));
         }
     }
 

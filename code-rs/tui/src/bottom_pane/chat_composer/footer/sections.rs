@@ -114,7 +114,7 @@ impl ChatComposer {
         agent_hint_label: AgentHintLabel,
     ) -> (Vec<Span<'static>>, Vec<Span<'static>>) {
         let key_hint_style = Style::default().fg(crate::colors::function());
-        let label_style = Style::default().fg(crate::colors::text_dim());
+        let label_style = crate::colors::style_text_dim();
 
         let agent_hint_label_text = match agent_hint_label {
             AgentHintLabel::Review => " show review",
@@ -151,7 +151,7 @@ impl ChatComposer {
                 ]
             }
             AutoReviewIndicatorStatus::Fixed => {
-                let icon_style = Style::default().fg(crate::colors::success());
+                let icon_style = crate::colors::style_success();
                 let text = if let Some(count) = status.findings {
                     let plural = if count == 1 { "Issue" } else { "Issues" };
                     format!("{count} {plural} Fixed")
@@ -166,7 +166,7 @@ impl ChatComposer {
                 ]
             }
             AutoReviewIndicatorStatus::Failed => {
-                let icon_style = Style::default().fg(crate::colors::error());
+                let icon_style = crate::colors::style_error();
                 vec![
                     Span::styled("Auto Review: ", label_style),
                     Span::styled(crate::icons::status_fail(), icon_style),

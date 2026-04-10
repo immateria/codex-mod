@@ -531,7 +531,7 @@ impl ExecCell {
                 let text = format!("Ran for {}", format_duration(run_duration));
                 return Some(Line::styled(
                     text,
-                    Style::default().fg(crate::colors::text_dim()),
+                    crate::colors::style_text_dim(),
                 ));
             }
         let total = state.total_wait?;
@@ -541,7 +541,7 @@ impl ExecCell {
         let text = format!("Waited {}", format_duration(total));
         Some(Line::styled(
             text,
-            Style::default().fg(crate::colors::text_dim()),
+            crate::colors::style_text_dim(),
         ))
     }
 
@@ -703,7 +703,7 @@ impl ExecCell {
                     0,
                     Span::styled(
                         "┌ ",
-                        Style::default().fg(crate::colors::text_dim()),
+                        crate::colors::style_text_dim(),
                     ),
                 );
             }
@@ -742,7 +742,7 @@ impl ExecCell {
                     0,
                     Span::styled(
                         "  ",
-                        Style::default().fg(crate::colors::text()),
+                        crate::colors::style_text(),
                     ),
                 );
             }

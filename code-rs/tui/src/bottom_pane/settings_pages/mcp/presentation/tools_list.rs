@@ -19,7 +19,7 @@ impl McpSettingsView {
         let selected_style = Style::default()
             .bg(crate::colors::selection())
             .add_modifier(Modifier::BOLD);
-        let dim_style = Style::default().fg(crate::colors::text_dim());
+        let dim_style = crate::colors::style_text_dim();
         let overrides = self.selected_server().map(|row| &row.tool_scheduling);
 
         if entries.is_empty() {

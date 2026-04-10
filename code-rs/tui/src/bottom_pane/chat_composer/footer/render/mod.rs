@@ -90,7 +90,7 @@ impl ChatComposer {
         let now = Instant::now();
 
         let key_hint_style = Style::default().fg(crate::colors::function());
-        let label_style = Style::default().fg(crate::colors::text_dim());
+        let label_style = crate::colors::style_text_dim();
 
         if override_hint::render_footer_hint_override(self, area, buf, key_hint_style, label_style) {
             return;

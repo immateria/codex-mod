@@ -233,7 +233,7 @@ impl ChatWidget<'_> {
         if messages.is_empty() {
             return vec![Line::from(Span::styled(
                 "No conversation captured in this snapshot.",
-                Style::default().fg(crate::colors::text_dim()),
+                crate::colors::style_text_dim(),
             ))];
         }
 
@@ -254,7 +254,7 @@ impl ChatWidget<'_> {
             format!("{label}: "),
             Style::default().fg(color).add_modifier(Modifier::BOLD),
         );
-        let content_span = Span::styled(text.to_string(), Style::default().fg(crate::colors::text()));
+        let content_span = Span::styled(text.to_string(), crate::colors::style_text());
         Line::from(vec![label_span, content_span])
     }
 
@@ -315,7 +315,7 @@ impl ChatWidget<'_> {
             Ok(entries) => Self::file_change_lines(entries),
             Err(err) => vec![Line::from(Span::styled(
                 err,
-                Style::default().fg(crate::colors::error()),
+                crate::colors::style_error(),
             ))],
         }
     }
@@ -326,7 +326,7 @@ impl ChatWidget<'_> {
                 if entries.is_empty() {
                     vec![Line::from(Span::styled(
                         "Working tree clean",
-                        Style::default().fg(crate::colors::text_dim()),
+                        crate::colors::style_text_dim(),
                     ))]
                 } else {
                     Self::file_change_lines(entries)
@@ -334,7 +334,7 @@ impl ChatWidget<'_> {
             }
             Err(err) => vec![Line::from(Span::styled(
                 err,
-                Style::default().fg(crate::colors::error()),
+                crate::colors::style_error(),
             ))],
         }
     }
@@ -417,7 +417,7 @@ impl ChatWidget<'_> {
         if entries.is_empty() {
             return vec![Line::from(Span::styled(
                 "No file changes recorded for this snapshot.",
-                Style::default().fg(crate::colors::text_dim()),
+                crate::colors::style_text_dim(),
             ))];
         }
 
@@ -429,7 +429,7 @@ impl ChatWidget<'_> {
             }
             lines.push(Line::from(Span::styled(
                 path.clone(),
-                Style::default().fg(crate::colors::text()),
+                crate::colors::style_text(),
             )));
 
             let added_text = added.map_or("-".to_string(), |v| v.to_string());
@@ -438,12 +438,12 @@ impl ChatWidget<'_> {
                 Span::raw("    "),
                 Span::styled(
                     format!("+{added_text}"),
-                    Style::default().fg(crate::colors::success()),
+                    crate::colors::style_success(),
                 ),
                 Span::raw("  "),
                 Span::styled(
                     format!("-{removed_text}"),
-                    Style::default().fg(crate::colors::error()),
+                    crate::colors::style_error(),
                 ),
             ]));
         }
@@ -452,7 +452,7 @@ impl ChatWidget<'_> {
             let remaining = entries.len() - max_entries;
             lines.push(Line::from(Span::styled(
                 format!("… and {remaining} more file{}", if remaining == 1 { "" } else { "s" }),
-                Style::default().fg(crate::colors::text_dim()),
+                crate::colors::style_text_dim(),
             )));
         }
 

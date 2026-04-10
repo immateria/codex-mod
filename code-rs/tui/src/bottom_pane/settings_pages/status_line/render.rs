@@ -37,7 +37,7 @@ impl StatusLineSetupView {
                 KeyHint::new("p", " primary")
                     .with_key_style(Style::default().fg(crate::colors::function())),
                 KeyHint::new(crate::icons::space(), " toggle")
-                    .with_key_style(Style::default().fg(crate::colors::success())),
+                    .with_key_style(crate::colors::style_success()),
                 hint_nav_horizontal(" reorder"),
                 hint_enter(" apply"),
                 hint_esc(" cancel"),
@@ -78,7 +78,7 @@ impl StatusLineSetupView {
                 } else {
                     top_preview
                 },
-                Style::default().fg(crate::colors::text_dim()),
+                crate::colors::style_text_dim(),
             ),
         ]));
 
@@ -93,7 +93,7 @@ impl StatusLineSetupView {
                 } else {
                     bottom_preview
                 },
-                Style::default().fg(crate::colors::text_dim()),
+                crate::colors::style_text_dim(),
             ),
         ]));
 
@@ -110,13 +110,13 @@ impl StatusLineSetupView {
             let mut line = Line::from(vec![
                 Span::styled(pointer, Style::default().fg(crate::colors::light_blue())),
                 Span::raw(" "),
-                Span::styled(marker, Style::default().fg(crate::colors::success())),
+                Span::styled(marker, crate::colors::style_success()),
                 Span::raw(" "),
                 Span::styled(choice.item.label(), Style::default().add_modifier(Modifier::BOLD)),
                 Span::raw("  "),
                 Span::styled(
                     choice.item.description(),
-                    Style::default().fg(crate::colors::text_dim()),
+                    crate::colors::style_text_dim(),
                 ),
             ]);
             if selected {

@@ -616,7 +616,7 @@ fn compute_assistant_layout_from_rendered_lines(
             let blk = if let Some(lang) = lang_label.as_deref() {
                 blk.title(Span::styled(
                     format!(" {lang} "),
-                    Style::default().fg(crate::colors::text_dim()),
+                    crate::colors::style_text_dim(),
                 ))
             } else {
                 blk

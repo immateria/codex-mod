@@ -19,7 +19,7 @@ impl ChatWidget<'_> {
     pub(in super::super) fn dim_line(text: impl Into<String>) -> RtLine<'static> {
         RtLine::from(vec![RtSpan::styled(
             text.into(),
-            Style::default().fg(crate::colors::text_dim()),
+            crate::colors::style_text_dim(),
         )])
     }
 

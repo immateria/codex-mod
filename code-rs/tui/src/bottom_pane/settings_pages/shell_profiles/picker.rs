@@ -338,9 +338,9 @@ impl ShellProfilesSettingsView {
         vec![shortcut_line(&[
             hint_nav(" move"),
             KeyHint::new("Space/Enter", " toggle")
-                .with_key_style(Style::default().fg(crate::colors::success())),
+                .with_key_style(crate::colors::style_success()),
             KeyHint::new("Ctrl+S", " save")
-                .with_key_style(Style::default().fg(crate::colors::success())),
+                .with_key_style(crate::colors::style_success()),
             hint_esc(" cancel"),
         ])]
     }

@@ -89,12 +89,12 @@ impl ChatWidget<'_> {
                 spans.push(RtSpan::raw(" "));
                 spans.push(RtSpan::styled(
                     format!("+{total_added}"),
-                    Style::default().fg(crate::colors::success()),
+                    crate::colors::style_success(),
                 ));
                 spans.push(RtSpan::raw(" "));
                 spans.push(RtSpan::styled(
                     format!("-{total_removed}"),
-                    Style::default().fg(crate::colors::error()),
+                    crate::colors::style_error(),
                 ));
                 RtLine::from(spans)
             };
@@ -137,8 +137,8 @@ impl ChatWidget<'_> {
         use ratatui::text::Line as RtLine;
         use ratatui::text::Span as RtSpan;
 
-        let t_dim = Style::default().fg(crate::colors::text_dim());
-        let t_fg = Style::default().fg(crate::colors::text());
+        let t_dim = crate::colors::style_text_dim();
+        let t_fg = crate::colors::style_text();
 
         let kv = |k: &str, v: &str| -> RtLine<'static> {
             RtLine::from(vec![

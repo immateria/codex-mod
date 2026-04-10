@@ -101,7 +101,7 @@ impl LoginAccountsState {
                 Style::default().add_modifier(Modifier::BOLD),
             ),
             Span::styled("  ", Style::default()),
-            Span::styled(status, Style::default().fg(crate::colors::text_dim())),
+            Span::styled(status, crate::colors::style_text_dim()),
         ]));
         lines
     }
@@ -113,7 +113,7 @@ impl LoginAccountsState {
             hint_nav(" Navigate"),
             hint_enter(" Select"),
             KeyHint::new("d", " Disconnect")
-                .with_key_style(Style::default().fg(crate::colors::warning()).add_modifier(Modifier::BOLD)),
+                .with_key_style(crate::colors::style_warning().add_modifier(Modifier::BOLD)),
             KeyHint::new("p", " Paths")
                 .with_key_style(Style::default().fg(crate::colors::info()).add_modifier(Modifier::BOLD)),
             hint_esc(" Close"),
@@ -129,7 +129,7 @@ impl LoginAccountsState {
                 ),
                 Span::styled(
                     "  Enter confirms, Esc cancels.",
-                    Style::default().fg(crate::colors::text_dim()),
+                    crate::colors::style_text_dim(),
                 ),
             ]));
         }
@@ -150,15 +150,15 @@ impl LoginAccountsState {
         if self.accounts.is_empty() {
             lines.push(Line::from(Span::styled(
                 "No accounts connected yet.",
-                Style::default().fg(crate::colors::text_dim()),
+                crate::colors::style_text_dim(),
             )));
         } else {
             for (idx, account) in self.accounts.iter().enumerate() {
                 let selected = idx == self.selected;
                 let arrow_style = if selected {
-                    Style::default().fg(crate::colors::primary())
+                    crate::colors::style_primary()
                 } else {
-                    Style::default().fg(crate::colors::text_dim())
+                    crate::colors::style_text_dim()
                 };
                 let label_style = if selected {
                     Style::default()
@@ -169,7 +169,7 @@ impl LoginAccountsState {
                         .fg(crate::colors::success())
                         .add_modifier(Modifier::BOLD)
                 } else {
-                    Style::default().fg(crate::colors::text())
+                    crate::colors::style_text()
                 };
 
                 let mut spans = vec![
@@ -177,7 +177,7 @@ impl LoginAccountsState {
                     Span::styled(account.label.clone(), label_style),
                     Span::styled(
                         format!("  [{}]", Self::account_mode_badge(account.mode)),
-                        Style::default().fg(crate::colors::text_dim()),
+                        crate::colors::style_text_dim(),
                     ),
                 ];
 
@@ -204,9 +204,9 @@ impl LoginAccountsState {
             Span::styled(
                 crate::icons::selection_prefix(add_selected),
                 if add_selected {
-                    Style::default().fg(crate::colors::primary())
+                    crate::colors::style_primary()
                 } else {
-                    Style::default().fg(crate::colors::text_dim())
+                    crate::colors::style_text_dim()
                 },
             ),
             Span::styled(
@@ -216,7 +216,7 @@ impl LoginAccountsState {
                         .fg(crate::colors::primary())
                         .add_modifier(Modifier::BOLD)
                 } else {
-                    Style::default().fg(crate::colors::text())
+                    crate::colors::style_text()
                 },
             ),
         ]));
@@ -226,9 +226,9 @@ impl LoginAccountsState {
             Span::styled(
                 crate::icons::selection_prefix(store_selected),
                 if store_selected {
-                    Style::default().fg(crate::colors::primary())
+                    crate::colors::style_primary()
                 } else {
-                    Style::default().fg(crate::colors::text_dim())
+                    crate::colors::style_text_dim()
                 },
             ),
             Span::styled(
@@ -238,7 +238,7 @@ impl LoginAccountsState {
                         .fg(crate::colors::primary())
                         .add_modifier(Modifier::BOLD)
                 } else {
-                    Style::default().fg(crate::colors::text())
+                    crate::colors::style_text()
                 },
             ),
         ]));
@@ -263,7 +263,7 @@ impl LoginAccountsState {
                 ),
                 Span::styled(
                     format!("  [{}]", Self::account_mode_badge(account.mode)),
-                    Style::default().fg(crate::colors::text_dim()),
+                    crate::colors::style_text_dim(),
                 ),
                 Span::styled(
                     if account.is_active { "  (current)" } else { "" },
@@ -277,13 +277,13 @@ impl LoginAccountsState {
             if account.detail_items.is_empty() {
                 lines.push(Line::from(Span::styled(
                     "No metadata available for this account.",
-                    Style::default().fg(crate::colors::text_dim()),
+                    crate::colors::style_text_dim(),
                 )));
             } else {
                 for item in &account.detail_items {
                     lines.push(Line::from(vec![
-                        Span::styled("• ", Style::default().fg(crate::colors::text_dim())),
-                        Span::styled(item.clone(), Style::default().fg(crate::colors::text_dim())),
+                        Span::styled("• ", crate::colors::style_text_dim()),
+                        Span::styled(item.clone(), crate::colors::style_text_dim()),
                     ]));
                 }
             }
@@ -294,11 +294,11 @@ impl LoginAccountsState {
             )]));
             lines.push(Line::from(Span::styled(
                 "Connect another ChatGPT or API-key account.",
-                Style::default().fg(crate::colors::text_dim()),
+                crate::colors::style_text_dim(),
             )));
             lines.push(Line::from(Span::styled(
                 "Useful when your current account is near usage limits.",
-                Style::default().fg(crate::colors::text_dim()),
+                crate::colors::style_text_dim(),
             )));
         } else {
             lines.push(Line::from(vec![Span::styled(
@@ -307,11 +307,11 @@ impl LoginAccountsState {
             )]));
             lines.push(Line::from(Span::styled(
                 "Control where account records are loaded from and saved to.",
-                Style::default().fg(crate::colors::text_dim()),
+                crate::colors::style_text_dim(),
             )));
             lines.push(Line::from(Span::styled(
                 "Supports multiple read paths with a dedicated write target.",
-                Style::default().fg(crate::colors::text_dim()),
+                crate::colors::style_text_dim(),
             )));
         }
 

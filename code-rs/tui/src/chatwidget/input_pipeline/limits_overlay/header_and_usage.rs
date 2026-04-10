@@ -18,7 +18,7 @@ impl ChatWidget<'_> {
             .or_else(|| usage.and_then(|u| u.plan.as_deref()))
             .unwrap_or("Unknown");
 
-        let value_style = Style::default().fg(crate::colors::text_dim());
+        let value_style = crate::colors::style_text_dim();
         let is_api_key = matches!(account.map(|acc| acc.mode), Some(AuthMode::ApiKey));
         let totals = usage
             .map(|u| u.totals.clone())
@@ -134,7 +134,7 @@ impl ChatWidget<'_> {
             .unwrap_or(0);
         let column_divider = RtSpan::styled(
             " │ ",
-            Style::default().fg(crate::colors::text_dim()),
+            crate::colors::style_text_dim(),
         );
         for (dt, totals) in series.iter() {
             let label = Self::format_hour_label(*dt);
@@ -168,15 +168,15 @@ impl ChatWidget<'_> {
                 RtSpan::raw(prefix.clone()),
                 RtSpan::styled(
                     format!("{label} "),
-                    Style::default().fg(crate::colors::text_dim()),
+                    crate::colors::style_text_dim(),
                 ),
-                RtSpan::styled("│ ", Style::default().fg(crate::colors::text_dim())),
-                RtSpan::styled(bar, Style::default().fg(crate::colors::primary())),
+                RtSpan::styled("│ ", crate::colors::style_text_dim()),
+                RtSpan::styled(bar, crate::colors::style_primary()),
                 RtSpan::raw(format!(" {formatted_tokens} tokens")),
                 column_divider.clone(),
                 RtSpan::styled(
                     format!("{cached_display} cached"),
-                    Style::default().fg(crate::colors::text_dim()),
+                    crate::colors::style_text_dim(),
                 ),
                 column_divider.clone(),
                 RtSpan::styled(
@@ -184,7 +184,7 @@ impl ChatWidget<'_> {
                         "{cost_display} {}",
                         if is_api_key_account { "cost" } else { "saved" }
                     ),
-                    Style::default().fg(crate::colors::text_dim()),
+                    crate::colors::style_text_dim(),
                 ),
             ]));
         }
@@ -235,7 +235,7 @@ impl ChatWidget<'_> {
             .unwrap_or(0);
         let column_divider = RtSpan::styled(
             " │ ",
-            Style::default().fg(crate::colors::text_dim()),
+            crate::colors::style_text_dim(),
         );
         for (day, totals) in daily.iter() {
             let label = Self::format_daily_label(*day);
@@ -270,15 +270,15 @@ impl ChatWidget<'_> {
                 RtSpan::raw(prefix.clone()),
                 RtSpan::styled(
                     format!("{label} "),
-                    Style::default().fg(crate::colors::text_dim()),
+                    crate::colors::style_text_dim(),
                 ),
-                RtSpan::styled("│ ", Style::default().fg(crate::colors::text_dim())),
-                RtSpan::styled(bar, Style::default().fg(crate::colors::primary())),
+                RtSpan::styled("│ ", crate::colors::style_text_dim()),
+                RtSpan::styled(bar, crate::colors::style_primary()),
                 RtSpan::raw(format!(" {formatted_tokens} tokens")),
                 column_divider.clone(),
                 RtSpan::styled(
                     format!("{cached_display} cached"),
-                    Style::default().fg(crate::colors::text_dim()),
+                    crate::colors::style_text_dim(),
                 ),
                 column_divider.clone(),
                 RtSpan::styled(
@@ -286,7 +286,7 @@ impl ChatWidget<'_> {
                         "{cost_display} {}",
                         if is_api_key_account { "cost" } else { "saved" }
                     ),
-                    Style::default().fg(crate::colors::text_dim()),
+                    crate::colors::style_text_dim(),
                 ),
             ]));
         }
@@ -388,7 +388,7 @@ impl ChatWidget<'_> {
             .unwrap_or(0);
         let column_divider = RtSpan::styled(
             " │ ",
-            Style::default().fg(crate::colors::text_dim()),
+            crate::colors::style_text_dim(),
         );
         for (start, totals) in months.iter() {
             let label = start.format("%b %Y").to_string();
@@ -422,15 +422,15 @@ impl ChatWidget<'_> {
                 RtSpan::raw(prefix.clone()),
                 RtSpan::styled(
                     format!("{label} "),
-                    Style::default().fg(crate::colors::text_dim()),
+                    crate::colors::style_text_dim(),
                 ),
-                RtSpan::styled("│ ", Style::default().fg(crate::colors::text_dim())),
-                RtSpan::styled(bar, Style::default().fg(crate::colors::primary())),
+                RtSpan::styled("│ ", crate::colors::style_text_dim()),
+                RtSpan::styled(bar, crate::colors::style_primary()),
                 RtSpan::raw(format!(" {formatted_tokens} tokens")),
                 column_divider.clone(),
                 RtSpan::styled(
                     format!("{cached_display} cached"),
-                    Style::default().fg(crate::colors::text_dim()),
+                    crate::colors::style_text_dim(),
                 ),
                 column_divider.clone(),
                 RtSpan::styled(
@@ -438,7 +438,7 @@ impl ChatWidget<'_> {
                         "{cost_display} {}",
                         if is_api_key_account { "cost" } else { "saved" }
                     ),
-                    Style::default().fg(crate::colors::text_dim()),
+                    crate::colors::style_text_dim(),
                 ),
             ]));
         }

@@ -398,14 +398,14 @@ impl ChatWidget<'_> {
         }
 
         let spans: Vec<Span> = vec![
-            Span::styled(prefix.to_string(), Style::default().fg(crate::colors::text())),
+            Span::styled(prefix.to_string(), crate::colors::style_text()),
             Span::styled(
                 slider,
                 Style::default()
                     .fg(crate::colors::primary())
                     .add_modifier(Modifier::BOLD),
             ),
-            Span::styled(suffix, Style::default().fg(crate::colors::text())),
+            Span::styled(suffix, crate::colors::style_text()),
         ];
 
         Line::from(spans)

@@ -94,7 +94,7 @@ impl SettingsHelpOverlay {
         let title = Style::default()
             .fg(crate::colors::text())
             .add_modifier(Modifier::BOLD);
-        let hint = Style::default().fg(crate::colors::text_dim());
+        let hint = crate::colors::style_text_dim();
         let mut lines = vec![Line::from(vec![Span::styled("Settings Overview", title)]), Line::default()];
         let nav = crate::icons::nav_up_down();
         let items: &[String] = &[
@@ -110,7 +110,7 @@ impl SettingsHelpOverlay {
         lines.push(Line::default());
         lines.push(Line::from(vec![Span::styled(
             "Press Esc to close",
-            Style::default().fg(crate::colors::text_dim()),
+            crate::colors::style_text_dim(),
         )]));
         Self { lines }
     }
@@ -119,7 +119,7 @@ impl SettingsHelpOverlay {
         let title = Style::default()
             .fg(crate::colors::text())
             .add_modifier(Modifier::BOLD);
-        let hint = Style::default().fg(crate::colors::text_dim());
+        let hint = crate::colors::style_text_dim();
         let mut lines = vec![
             Line::from(vec![Span::styled(
                 format!("{} Shortcuts", section.label()),
@@ -174,7 +174,7 @@ impl SettingsHelpOverlay {
         lines.push(Line::default());
         lines.push(Line::from(vec![Span::styled(
             "Press Esc twice to close",
-            Style::default().fg(crate::colors::text_dim()),
+            crate::colors::style_text_dim(),
         )]));
         Self { lines }
     }

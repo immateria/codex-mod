@@ -441,12 +441,12 @@ pub(crate) fn new_completed_web_fetch_tool_call(
     let status_str = if success { "Complete" } else { "Error" };
     let title_line = if success {
         Line::from(vec![
-            Span::styled(status_str, Style::default().fg(crate::colors::success())),
+            Span::styled(status_str, crate::colors::style_success()),
             format!(", duration: {duration}").dim(),
         ])
     } else {
         Line::from(vec![
-            Span::styled(status_str, Style::default().fg(crate::colors::error())),
+            Span::styled(status_str, crate::colors::style_error()),
             format!(", duration: {duration}").dim(),
         ])
     };
@@ -902,7 +902,7 @@ fn format_browser_args_humanized(
     args: &serde_json::Value,
 ) -> Option<Vec<Line<'static>>> {
     use serde_json::Value;
-    let text = |s: String| Span::styled(s, Style::default().fg(crate::colors::text()));
+    let text = |s: String| Span::styled(s, crate::colors::style_text());
 
     // Helper: format coordinate pair as integers (pixels)
     let fmt_xy = |x: f64, y: f64| -> String {

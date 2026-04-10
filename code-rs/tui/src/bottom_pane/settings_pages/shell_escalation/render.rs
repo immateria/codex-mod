@@ -2,7 +2,7 @@ use super::*;
 
 use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
-use ratatui::style::{Style, Stylize};
+use ratatui::style::Stylize;
 
 use crate::bottom_pane::chrome::ChromeMode;
 use crate::bottom_pane::settings_ui::rows::{KeyValueRow, StyledText};
@@ -37,14 +37,14 @@ impl ShellEscalationSettingsView {
                 RowKind::Enabled => KeyValueRow::new("Enabled").with_value(enabled_status.clone()),
                 RowKind::ZshPath => KeyValueRow::new("Zsh path").with_value(StyledText::new(
                     zsh_path.clone(),
-                    Style::default().fg(crate::colors::text_dim()),
+                    crate::colors::style_text_dim(),
                 )),
                 RowKind::WrapperOverride => KeyValueRow::new("Wrapper override").with_value(
-                    StyledText::new(wrapper_override.clone(), Style::default().fg(crate::colors::text_dim())),
+                    StyledText::new(wrapper_override.clone(), crate::colors::style_text_dim()),
                 ),
                 RowKind::Apply => KeyValueRow::new("Apply changes").with_value(StyledText::new(
                     apply_suffix,
-                    Style::default().fg(crate::colors::warning()),
+                    crate::colors::style_warning(),
                 )),
                 RowKind::Close => KeyValueRow::new("Close"),
             })

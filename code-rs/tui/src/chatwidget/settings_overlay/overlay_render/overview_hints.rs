@@ -18,7 +18,7 @@ impl SettingsOverlayView {
 
     fn push_summary_spans(&self, line: &mut Line<'static>, summary: &str) {
         let label_style = Style::default().fg(crate::colors::text_mid());
-        let dim_style = Style::default().fg(crate::colors::text_dim());
+        let dim_style = crate::colors::style_text_dim();
         let mut first = true;
         for raw_segment in summary.split(SEP_DOT) {
             let segment = raw_segment.trim();
@@ -55,9 +55,9 @@ impl SettingsOverlayView {
             .trim_end_matches(['.', '!', ','])
             .to_ascii_lowercase();
         if matches!(normalized.as_str(), "on" | "enabled" | "yes") {
-            Style::default().fg(crate::colors::success())
+            crate::colors::style_success()
         } else if matches!(normalized.as_str(), "off" | "disabled" | "no") {
-            Style::default().fg(crate::colors::error())
+            crate::colors::style_error()
         } else {
             Style::default().fg(crate::colors::info())
         }
@@ -87,8 +87,8 @@ impl SettingsOverlayView {
             return;
         }
 
-        let key = Style::default().fg(crate::colors::text());
-        let hint = Style::default().fg(crate::colors::text_dim());
+        let key = crate::colors::style_text();
+        let hint = crate::colors::style_text_dim();
         let separator = Style::default().fg(crate::colors::text_mid());
         let focus = Style::default()
             .fg(crate::colors::primary())

@@ -648,13 +648,12 @@ pub(crate) fn new_user_prompt(message: String) -> PlainMessageState {
 /// Visually identical to a normal user cell, but the header shows a
 /// small "(queued)" suffix so it’s clear it hasn’t been executed yet.
 pub(crate) fn new_queued_user_prompt(message: String) -> PlainMessageState {
-    use ratatui::style::Style;
     use ratatui::text::Span;
     let mut lines: Vec<Line<'static>> = Vec::new();
     // Header: "user (queued)"
     lines.push(Line::from(vec![
         Span::from("user "),
-        Span::from("(queued)").style(Style::default().fg(crate::colors::text_dim())),
+        Span::from("(queued)").style(crate::colors::style_text_dim()),
     ]));
     // Normalize and render body like normal user messages
     let normalized = normalize_overwrite_sequences(&message);
@@ -681,7 +680,7 @@ pub(crate) fn new_error_event(message: String) -> PlainMessageState {
     lines.extend(
         msg_norm
             .lines()
-            .map(|line| ansi_escape_line(line).style(Style::default().fg(crate::colors::error()))),
+            .map(|line| ansi_escape_line(line).style(crate::colors::style_error())),
     );
     // No empty line at end - trimming and spacing handled by renderer
     plain_message_state_from_lines(lines, HistoryCellType::Error)
@@ -1003,7 +1002,7 @@ pub(crate) fn new_status_output(
 }
 
 pub(crate) fn new_warning_event(message: String) -> PlainMessageState {
-    let warn_style = Style::default().fg(crate::colors::warning());
+    let warn_style = crate::colors::style_warning();
     let mut lines: Vec<Line<'static>> = Vec::new();
     lines.push(Line::from("notice"));
 

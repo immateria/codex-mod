@@ -226,13 +226,13 @@ impl ShellProfilesSettingsView {
             format!("active: {active_style}  •  editing: {selected_style}")
         };
         let mut spans = vec![
-            Span::styled("shell: ", Style::default().fg(crate::colors::text_dim())),
+            Span::styled("shell: ", crate::colors::style_text_dim()),
             Span::styled(
                 shell.to_string(),
-                Style::default().fg(crate::colors::text()),
+                crate::colors::style_text(),
             ),
-            Span::styled("  •  ", Style::default().fg(crate::colors::text_dim())),
-            Span::styled(styles_summary, Style::default().fg(crate::colors::text_dim())),
+            Span::styled("  •  ", crate::colors::style_text_dim()),
+            Span::styled(styles_summary, crate::colors::style_text_dim()),
         ];
         if self.dirty {
             spans.push(Span::styled(
@@ -269,7 +269,7 @@ impl ShellProfilesSettingsView {
         };
         vec![Line::from(Span::styled(
             footer_text,
-            Style::default().fg(crate::colors::text_dim()),
+            crate::colors::style_text_dim(),
         ))]
     }
 
@@ -290,7 +290,7 @@ impl ShellProfilesSettingsView {
                 if let Some(value) = self.row_value(row) {
                     spec = spec.with_value(StyledText::new(
                         value,
-                        Style::default().fg(crate::colors::text_dim()),
+                        crate::colors::style_text_dim(),
                     ));
                 }
                 if let Some(hint) = Self::selected_hint(row) {

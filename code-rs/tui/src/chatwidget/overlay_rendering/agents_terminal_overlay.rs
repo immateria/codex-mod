@@ -37,8 +37,8 @@ impl ChatWidget<'_> {
         Clear.render(window_area, buf);
 
         let title_spans = vec![
-            Span::styled(" Agents ", Style::default().fg(crate::colors::text())),
-            Span::styled("— Ctrl+A to close", Style::default().fg(crate::colors::text_dim())),
+            Span::styled(" Agents ", crate::colors::style_text()),
+            Span::styled("— Ctrl+A to close", crate::colors::style_text_dim()),
         ];
 
         let block = Block::default()
@@ -94,7 +94,7 @@ impl ChatWidget<'_> {
         } else {
             crate::colors::border()
         };
-        let filter_title_style = Style::default().fg(crate::colors::text_dim());
+        let filter_title_style = crate::colors::style_text_dim();
 
         if tab_height > 0 {
             let filter_row = tabs_area;
@@ -112,7 +112,7 @@ impl ChatWidget<'_> {
                 if idx > 0 {
                     spans.push(Span::styled(
                         " - ",
-                        Style::default().fg(crate::colors::text_dim()),
+                        crate::colors::style_text_dim(),
                     ));
                 }
                 let active = *tab == self.agents_terminal.active_tab;
@@ -121,7 +121,7 @@ impl ChatWidget<'_> {
                         .fg(crate::colors::primary())
                         .add_modifier(Modifier::BOLD)
                 } else {
-                    Style::default().fg(crate::colors::text_dim())
+                    crate::colors::style_text_dim()
                 };
                 spans.push(Span::styled(format!("{number} {label}"), style));
             }
@@ -131,7 +131,7 @@ impl ChatWidget<'_> {
                 AgentsSortMode::Name => "Name",
             };
             let sort_spans = vec![
-                Span::styled("Sort: ", Style::default().fg(crate::colors::text_dim())),
+                Span::styled("Sort: ", crate::colors::style_text_dim()),
                 Span::raw("( "),
                 Span::styled(
                     format!("{sort_label} {}", crate::icons::sort_desc()),
@@ -239,7 +239,7 @@ impl ChatWidget<'_> {
                     let prefix_span = if is_selected {
                         Span::styled(
                             crate::icons::selection_prefix(true),
-                            Style::default().fg(crate::colors::primary()),
+                            crate::colors::style_primary(),
                         )
                     } else {
                         Span::raw("  ")
@@ -249,7 +249,7 @@ impl ChatWidget<'_> {
                         prefix_span,
                         Span::styled(
                             display_name,
-                            Style::default().fg(crate::colors::text()),
+                            crate::colors::style_text(),
                         ),
                         Span::raw(" "),
                         Span::styled(status_icon, Style::default().fg(color)),
@@ -273,7 +273,7 @@ impl ChatWidget<'_> {
             };
             items.push(ListItem::new(Line::from(vec![Span::styled(
                 empty_text,
-                Style::default().fg(crate::colors::text_dim()),
+                crate::colors::style_text_dim(),
             )])));
             row_entries.push(None);
         }
@@ -357,26 +357,26 @@ impl ChatWidget<'_> {
                         .unwrap_or_else(|| display_name.clone());
                     let mut meta_line: Vec<Span> = vec![
                         Span::raw(" "),
-                        Span::styled("Status:", Style::default().fg(crate::colors::text_dim())),
+                        Span::styled("Status:", crate::colors::style_text_dim()),
                         Span::raw(" "),
                         Span::styled(status_chip, Style::default().fg(status_color).add_modifier(Modifier::BOLD)),
                         Span::raw("   "),
-                        Span::styled("Model:", Style::default().fg(crate::colors::text_dim())),
+                        Span::styled("Model:", crate::colors::style_text_dim()),
                         Span::raw(" "),
                         Span::styled(
                             model_meta,
-                            Style::default().fg(crate::colors::text()),
+                            crate::colors::style_text(),
                         ),
                         Span::raw("   "),
-                        Span::styled("ID:", Style::default().fg(crate::colors::text_dim())),
+                        Span::styled("ID:", crate::colors::style_text_dim()),
                         Span::raw(" "),
-                        Span::styled(id_short, Style::default().fg(crate::colors::text_dim())),
+                        Span::styled(id_short, crate::colors::style_text_dim()),
                     ];
                     if let Some(batch_id) = entry.batch_id.as_ref() {
                         meta_line.push(Span::raw("   "));
                         meta_line.push(Span::styled(
                             format!("Batch: {}", short_batch_label(batch_id)),
-                            Style::default().fg(crate::colors::text_dim()),
+                            crate::colors::style_text_dim(),
                         ));
                     }
                     lines.push(Line::from(meta_line));
@@ -433,7 +433,7 @@ impl ChatWidget<'_> {
                             Span::raw("│   "),
                             Span::styled(
                                 "No updates yet",
-                                Style::default().fg(crate::colors::text_dim()),
+                                crate::colors::style_text_dim(),
                             ),
                         ]));
                         let mut footer = String::from("╰");
@@ -468,7 +468,7 @@ impl ChatWidget<'_> {
                         Span::raw(" "),
                         Span::styled(
                             "No data for selected agent",
-                            Style::default().fg(crate::colors::text_dim()),
+                            crate::colors::style_text_dim(),
                         ),
                     ]));
                 }
@@ -478,7 +478,7 @@ impl ChatWidget<'_> {
                     Span::raw(" "),
                     Span::styled(
                         "No agents available",
-                        Style::default().fg(crate::colors::text_dim()),
+                        crate::colors::style_text_dim(),
                     ),
                 ]));
             }
@@ -536,31 +536,31 @@ impl ChatWidget<'_> {
                     ),
                     Span::styled(
                         pending.agent_name.clone(),
-                        Style::default().fg(crate::colors::text()),
+                        crate::colors::style_text(),
                     ),
                     Span::styled(
                         " — Enter/Y stop  ",
-                        Style::default().fg(crate::colors::text_dim()),
+                        crate::colors::style_text_dim(),
                     ),
                     Span::styled(
                         "Esc/N cancel",
-                        Style::default().fg(crate::colors::text_dim()),
+                        crate::colors::style_text_dim(),
                     ),
                 ])
             } else {
                 Line::from(vec![
                     Span::styled(format!("[{ud}/{lr}]", ud = crate::icons::nav_up_down(), lr = crate::icons::nav_left_right()), Style::default().fg(crate::colors::function())),
-                    Span::styled(" Navigate   ", Style::default().fg(crate::colors::text_dim())),
+                    Span::styled(" Navigate   ", crate::colors::style_text_dim()),
                     Span::styled("[1-5]", Style::default().fg(crate::colors::function())),
-                    Span::styled(" Filter   ", Style::default().fg(crate::colors::text_dim())),
+                    Span::styled(" Filter   ", crate::colors::style_text_dim()),
                     Span::styled("[S]", Style::default().fg(crate::colors::function())),
-                    Span::styled(" Sort   ", Style::default().fg(crate::colors::text_dim())),
+                    Span::styled(" Sort   ", crate::colors::style_text_dim()),
                     Span::styled("[H/A]", Style::default().fg(crate::colors::function())),
-                    Span::styled(" Toggle Details   ", Style::default().fg(crate::colors::text_dim())),
+                    Span::styled(" Toggle Details   ", crate::colors::style_text_dim()),
                     Span::styled("[X]", Style::default().fg(crate::colors::function())),
-                    Span::styled(" Stop   ", Style::default().fg(crate::colors::text_dim())),
+                    Span::styled(" Stop   ", crate::colors::style_text_dim()),
                     Span::styled("[Ctrl+A]", Style::default().fg(crate::colors::function())),
-                    Span::styled(" Exit", Style::default().fg(crate::colors::text_dim())),
+                    Span::styled(" Exit", crate::colors::style_text_dim()),
                 ])
             };
             Paragraph::new(hint_line)

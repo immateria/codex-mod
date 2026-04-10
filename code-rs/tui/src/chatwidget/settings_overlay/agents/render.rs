@@ -52,7 +52,7 @@ impl AgentsSettingsContent {
             spans.push(Span::styled(
                 crate::icons::selection_prefix(selected),
                 if selected {
-                    Style::default().fg(crate::colors::primary())
+                    crate::colors::style_primary()
                 } else {
                     Style::default()
                 },
@@ -93,7 +93,7 @@ impl AgentsSettingsContent {
                             spans.push(Span::raw("  "));
                             spans.push(Span::styled(
                                 truncated,
-                                Style::default().fg(crate::colors::text_dim()),
+                                crate::colors::style_text_dim(),
                             ));
                             showed_desc = true;
                         }
@@ -108,7 +108,7 @@ impl AgentsSettingsContent {
                 } else {
                     "Enter to configure"
                 };
-                spans.push(Span::styled(hint, Style::default().fg(crate::colors::text_dim())));
+                spans.push(Span::styled(hint, crate::colors::style_text_dim()));
             }
 
             lines.push(Line::from(spans));
@@ -122,7 +122,7 @@ impl AgentsSettingsContent {
         add_spans.push(Span::styled(
             crate::icons::selection_prefix(add_agent_selected),
             if add_agent_selected {
-                Style::default().fg(crate::colors::primary())
+                crate::colors::style_primary()
             } else {
                 Style::default()
             },
@@ -141,7 +141,7 @@ impl AgentsSettingsContent {
             add_spans.push(Span::raw("  "));
             add_spans.push(Span::styled(
                 "Enter to configure",
-                Style::default().fg(crate::colors::text_dim()),
+                crate::colors::style_text_dim(),
             ));
         }
         lines.push(Line::from(add_spans));
@@ -159,7 +159,7 @@ impl AgentsSettingsContent {
             spans.push(Span::styled(
                 crate::icons::selection_prefix(selected),
                 if selected {
-                    Style::default().fg(crate::colors::primary())
+                    crate::colors::style_primary()
                 } else {
                     Style::default()
                 },
@@ -178,7 +178,7 @@ impl AgentsSettingsContent {
                 spans.push(Span::raw("  "));
                 spans.push(Span::styled(
                     "Enter to configure",
-                    Style::default().fg(crate::colors::text_dim()),
+                    crate::colors::style_text_dim(),
                 ));
             }
             lines.push(Line::from(spans));
@@ -190,7 +190,7 @@ impl AgentsSettingsContent {
         add_spans.push(Span::styled(
             crate::icons::selection_prefix(add_selected),
             if add_selected {
-                Style::default().fg(crate::colors::primary())
+                crate::colors::style_primary()
             } else {
                 Style::default()
             },
@@ -209,7 +209,7 @@ impl AgentsSettingsContent {
             add_spans.push(Span::raw("  "));
             add_spans.push(Span::styled(
                 "Enter to create",
-                Style::default().fg(crate::colors::text_dim()),
+                crate::colors::style_text_dim(),
             ));
         }
         lines.push(Line::from(add_spans));

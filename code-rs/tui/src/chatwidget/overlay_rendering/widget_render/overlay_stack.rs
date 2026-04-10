@@ -75,8 +75,8 @@ impl ChatWidget<'_> {
                 }
 
                 // Build a styled title: keys/icons in normal text color; descriptors and dividers dim
-                let t_dim = Style::default().fg(crate::colors::text_dim());
-                let t_fg = Style::default().fg(crate::colors::text());
+                let t_dim = crate::colors::style_text_dim();
+                let t_fg = crate::colors::style_text();
                 let has_tabs = overlay.tabs.len() > 1;
                 let mut title_spans: Vec<ratatui::text::Span<'static>> = vec![
                     ratatui::text::Span::styled(" ", t_dim),
@@ -196,7 +196,7 @@ impl ChatWidget<'_> {
                                 .fg(crate::colors::text())
                                 .add_modifier(Modifier::BOLD)
                         } else {
-                            Style::default().fg(crate::colors::text_dim())
+                            crate::colors::style_text_dim()
                         };
                         let line = ratatui::text::Line::from(ratatui::text::Span::styled(
                             labels[i].clone(),
@@ -385,23 +385,23 @@ impl ChatWidget<'_> {
                         .title(ratatui::text::Line::from(vec![
                             ratatui::text::Span::styled(
                                 " ",
-                                Style::default().fg(crate::colors::text_dim()),
+                                crate::colors::style_text_dim(),
                             ),
                             ratatui::text::Span::styled(
                                 "Guide",
-                                Style::default().fg(crate::colors::text()),
+                                crate::colors::style_text(),
                             ),
                             ratatui::text::Span::styled(
                                 crate::ui_consts::SEP_EM,
-                                Style::default().fg(crate::colors::text_dim()),
+                                crate::colors::style_text_dim(),
                             ),
                             ratatui::text::Span::styled(
                                 crate::icons::escape(),
-                                Style::default().fg(crate::colors::text()),
+                                crate::colors::style_text(),
                             ),
                             ratatui::text::Span::styled(
                                 " close",
-                                Style::default().fg(crate::colors::text_dim()),
+                                crate::colors::style_text_dim(),
                             ),
                         ]))
                         .style(Style::default().bg(crate::colors::background()))
@@ -585,7 +585,7 @@ impl ChatWidget<'_> {
                         use crate::chatwidget::internals::state::HelpFocus;
                         let focus = self.help.focus.get();
 
-                        let arrow_normal = Style::default().fg(crate::colors::text_dim());
+                        let arrow_normal = crate::colors::style_text_dim();
                         let arrow_highlight = Style::default()
                             .fg(crate::colors::text_bright())
                             .add_modifier(ratatui::style::Modifier::BOLD);

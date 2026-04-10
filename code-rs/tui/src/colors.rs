@@ -1,4 +1,4 @@
-use ratatui::style::Color;
+use ratatui::style::{Color, Style};
 use crate::theme::{current_theme, palette_mode, quantize_color_for_palette, PaletteMode};
 
 #[allow(clippy::disallowed_methods)]
@@ -359,3 +359,14 @@ pub(crate) fn assistant_hr() -> Color {
         }
     }
 }
+
+// ── Common style helpers ─────────────────────────────────────────────
+// These eliminate `Style::default().fg(crate::colors::…())` boilerplate
+// that appears 300+ times across the TUI.
+
+pub(crate) fn style_text() -> Style { Style::default().fg(text()) }
+pub(crate) fn style_text_dim() -> Style { Style::default().fg(text_dim()) }
+pub(crate) fn style_primary() -> Style { Style::default().fg(primary()) }
+pub(crate) fn style_success() -> Style { Style::default().fg(success()) }
+pub(crate) fn style_warning() -> Style { Style::default().fg(warning()) }
+pub(crate) fn style_error() -> Style { Style::default().fg(error()) }

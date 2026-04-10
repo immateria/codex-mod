@@ -305,7 +305,7 @@ fn explore_lines_with_truncation(
     let mut lines: Vec<Line<'static>> = Vec::new();
     lines.push(Line::styled(
         header,
-        Style::default().fg(crate::colors::text()),
+        crate::colors::style_text(),
     ));
 
     if record.entries.is_empty() {
@@ -354,17 +354,17 @@ fn explore_lines_with_truncation(
         padded_label.extend(std::iter::repeat_n(' ', padding));
         spans.push(Span::styled(
             padded_label,
-            Style::default().fg(crate::colors::text_dim()),
+            crate::colors::style_text_dim(),
         ));
         spans.extend(entry_summary_spans(entry));
         match entry.status {
             ExploreEntryStatus::Running => spans.push(Span::styled(
                 "…",
-                Style::default().fg(crate::colors::text_dim()),
+                crate::colors::style_text_dim(),
             )),
             ExploreEntryStatus::NotFound => spans.push(Span::styled(
                 " (not found)",
-                Style::default().fg(crate::colors::text_dim()),
+                crate::colors::style_text_dim(),
             )),
             ExploreEntryStatus::Error { exit_code } => {
                 let msg = match (entry.action, exit_code) {
@@ -378,7 +378,7 @@ fn explore_lines_with_truncation(
                 };
                 spans.push(Span::styled(
                     msg,
-                    Style::default().fg(crate::colors::error()),
+                    crate::colors::style_error(),
                 ));
             }
             ExploreEntryStatus::Success => {}
@@ -424,19 +424,19 @@ fn entry_summary_spans(entry: &ExploreEntry) -> Vec<Span<'static>> {
                 && !q.is_empty() {
                     spans.push(Span::styled(
                         q.clone(),
-                        Style::default().fg(crate::colors::text()),
+                        crate::colors::style_text(),
                     ));
                 }
             if let Some(p) = path {
                 spans.push(Span::styled(
                     format!(" in {p}"),
-                    Style::default().fg(crate::colors::text_dim()),
+                    crate::colors::style_text_dim(),
                 ));
             }
             if spans.is_empty() {
                 spans.push(Span::styled(
                     "search".to_string(),
-                    Style::default().fg(crate::colors::text()),
+                    crate::colors::style_text(),
                 ));
             }
             spans
@@ -445,7 +445,7 @@ fn entry_summary_spans(entry: &ExploreEntry) -> Vec<Span<'static>> {
             let target = path.clone().unwrap_or_else(|| "./".to_string());
             vec![Span::styled(
                 target,
-                Style::default().fg(crate::colors::text_dim()),
+                crate::colors::style_text_dim(),
             )]
         }
         ExploreSummary::Read {
@@ -455,12 +455,12 @@ fn entry_summary_spans(entry: &ExploreEntry) -> Vec<Span<'static>> {
         } => {
             let mut spans = vec![Span::styled(
                 display_path.clone(),
-                Style::default().fg(crate::colors::text()),
+                crate::colors::style_text(),
             )];
             if let Some(ann) = annotation {
                 spans.push(Span::styled(
                     format!(" {ann}"),
-                    Style::default().fg(crate::colors::text_dim()),
+                    crate::colors::style_text_dim(),
                 ));
             }
             spans
@@ -470,27 +470,27 @@ fn entry_summary_spans(entry: &ExploreEntry) -> Vec<Span<'static>> {
             if let Some(annotation) = annotation {
                 spans.push(Span::styled(
                     format!(" {annotation}"),
-                    Style::default().fg(crate::colors::text_dim()),
+                    crate::colors::style_text_dim(),
                 ));
             }
             spans
         }
         ExploreSummary::Fallback { text } => vec![Span::styled(
             text.clone(),
-            Style::default().fg(crate::colors::text()),
+            crate::colors::style_text(),
         )],
         ExploreSummary::Count { target, annotation } => {
             let mut spans = Vec::new();
             if let Some(target) = target {
                 spans.push(Span::styled(
                     target.clone(),
-                    Style::default().fg(crate::colors::text()),
+                    crate::colors::style_text(),
                 ));
             }
             if let Some(annotation) = annotation {
                 spans.push(Span::styled(
                     format!(" {annotation}"),
-                    Style::default().fg(crate::colors::text_dim()),
+                    crate::colors::style_text_dim(),
                 ));
             }
             spans
@@ -977,7 +977,7 @@ fn highlight_command_summary(command: &str) -> Vec<Span<'static>> {
     } else {
         vec![Span::styled(
             display_line,
-            Style::default().fg(crate::colors::text()),
+            crate::colors::style_text(),
         )]
     }
 }

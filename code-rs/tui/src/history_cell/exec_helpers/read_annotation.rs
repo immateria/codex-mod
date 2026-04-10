@@ -139,8 +139,8 @@ pub(crate) fn coalesce_read_ranges_in_lines_local(lines: &mut Vec<Line<'static>>
 
         let spans: Vec<Span<'static>> = vec![
             Span::styled(fr.prefix, Style::default().add_modifier(Modifier::DIM)),
-            Span::styled(name, Style::default().fg(crate::colors::text())),
-            Span::styled(ann, Style::default().fg(crate::colors::text_dim())),
+            Span::styled(name, crate::colors::style_text()),
+            Span::styled(ann, crate::colors::style_text_dim()),
         ];
         rebuilt.push(Line::from(spans));
     }

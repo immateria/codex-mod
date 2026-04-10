@@ -35,7 +35,7 @@ impl AgentEditorView {
         let desc_box_h = self.description_field.desired_height(inner_width).min(6).saturating_add(2);
 
         let title_block: u16 = 2;
-        let desc_style = Style::default().fg(crate::colors::text_dim());
+        let desc_style = crate::colors::style_text_dim();
         let name_box_h: u16 = 3;
         let command_box_h: u16 = 3;
         let enabled_block: u16 = 2;
@@ -78,7 +78,7 @@ impl AgentEditorView {
             )));
             lines.push(Line::from(Span::styled(
                 self.install_hint.clone(),
-                Style::default().fg(crate::colors::text_dim()),
+                crate::colors::style_text_dim(),
             )));
             lines.push(Line::from(""));
         }
@@ -90,7 +90,7 @@ impl AgentEditorView {
         if let Some(err) = &self.name_error {
             lines.push(Line::from(Span::styled(
                 err.clone(),
-                Style::default().fg(crate::colors::error()),
+                crate::colors::style_error(),
             )));
         } else {
             lines.push(Line::from(""));
@@ -107,10 +107,10 @@ impl AgentEditorView {
                 .fg(crate::colors::success())
                 .add_modifier(Modifier::BOLD)
         } else {
-            Style::default().fg(crate::colors::text_dim())
+            crate::colors::style_text_dim()
         };
         let disabled_style = if self.enabled {
-            Style::default().fg(crate::colors::text_dim())
+            crate::colors::style_text_dim()
         } else {
             Style::default()
                 .fg(crate::colors::error())
@@ -121,7 +121,7 @@ impl AgentEditorView {
                 .fg(crate::colors::primary())
                 .add_modifier(Modifier::BOLD)
         } else {
-            Style::default().fg(crate::colors::text())
+            crate::colors::style_text()
         };
         let enabled_marker = if self.enabled {
             crate::icons::checkbox_on()
@@ -161,7 +161,7 @@ impl AgentEditorView {
         let desc_message = if let Some(err) = &self.description_error {
             Line::from(Span::styled(
                 err.clone(),
-                Style::default().fg(crate::colors::error()),
+                crate::colors::style_error(),
             ))
         } else {
             Line::from(Span::styled(

@@ -29,7 +29,7 @@ pub(super) fn render_styled_header_template(
     let mut clickable_ranges: Vec<(std::ops::Range<usize>, ClickableAction)> = Vec::new();
     let mut width = 0usize;
     let mut index = 0usize;
-    let dim_style = Style::default().fg(crate::colors::text_dim());
+    let dim_style = crate::colors::style_text_dim();
 
     let push_literal = |spans: &mut Vec<Span<'static>>,
                         span_starts: &mut Vec<usize>,
@@ -43,7 +43,7 @@ pub(super) fn render_styled_header_template(
         span_starts.push(start);
         spans.push(Span::styled(
             value.to_string(),
-            Style::default().fg(crate::colors::text_dim()),
+            crate::colors::style_text_dim(),
         ));
     };
 
@@ -65,7 +65,7 @@ pub(super) fn render_styled_header_template(
         let replacement_and_action: Option<(&str, Style, Option<ClickableAction>)> = match key {
             "title" => Some((
                 context.title,
-                Style::default().fg(crate::colors::text()).add_modifier(ratatui::style::Modifier::BOLD),
+                crate::colors::style_text().add_modifier(ratatui::style::Modifier::BOLD),
                 Some(ClickableAction::OpenSettings),
             )),
             "model" => Some((

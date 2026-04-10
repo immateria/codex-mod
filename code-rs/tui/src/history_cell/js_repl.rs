@@ -238,7 +238,7 @@ impl JsReplCell {
             };
             spans.push(Span::styled(
                 msg,
-                Style::default().fg(crate::colors::error()),
+                crate::colors::style_error(),
             ));
         }
 

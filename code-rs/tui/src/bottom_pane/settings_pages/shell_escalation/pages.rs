@@ -35,16 +35,16 @@ impl ShellEscalationSettingsView {
         vec![
             Line::from(Span::styled(
                 "Configure zsh-fork escalation for sandboxed shell tool calls.",
-                Style::default().fg(crate::colors::text_dim()),
+                crate::colors::style_text_dim(),
             )),
             Line::from(Span::styled(
                 profile,
-                Style::default().fg(crate::colors::text_dim()),
+                crate::colors::style_text_dim(),
             )),
             crate::bottom_pane::settings_ui::hints::shortcut_line(&[
                 crate::bottom_pane::settings_ui::hints::hint_enter(" activate"),
                 crate::bottom_pane::settings_ui::hints::KeyHint::new("Ctrl+S", " apply")
-                    .with_key_style(Style::default().fg(crate::colors::success())),
+                    .with_key_style(crate::colors::style_success()),
                 crate::bottom_pane::settings_ui::hints::hint_esc(" close"),
             ]),
             Line::from(""),
@@ -232,16 +232,16 @@ impl ShellEscalationSettingsView {
                 ),
                 Span::styled(
                     "  Status",
-                    Style::default().fg(crate::colors::text_dim()),
+                    crate::colors::style_text_dim(),
                 ),
             ]),
             Line::from(Span::styled(
                 self.shell_label(),
-                Style::default().fg(crate::colors::text_dim()),
+                crate::colors::style_text_dim(),
             )),
             Line::from(Span::styled(
                 wrapper_line,
-                Style::default().fg(crate::colors::text_dim()),
+                crate::colors::style_text_dim(),
             )),
         ];
 
@@ -250,7 +250,7 @@ impl ShellEscalationSettingsView {
             for reason in reasons.into_iter().take(4) {
                 lines.push(Line::from(Span::styled(
                     format!("- {reason}"),
-                    Style::default().fg(crate::colors::text_dim()),
+                    crate::colors::style_text_dim(),
                 )));
             }
         }
@@ -259,7 +259,7 @@ impl ShellEscalationSettingsView {
             Line::from(""),
             Line::from(Span::styled(
                 "Triggers only for sandboxed `shell` tool calls that invoke `zsh -lc/-c`.",
-                Style::default().fg(crate::colors::text_dim()),
+                crate::colors::style_text_dim(),
             )),
         ]);
 
@@ -280,7 +280,7 @@ impl ShellEscalationSettingsView {
         if let Some(notice) = self.editor_notice.as_ref() {
             post.push(Line::from(vec![Span::styled(
                 notice.clone(),
-                Style::default().fg(crate::colors::warning()),
+                crate::colors::style_warning(),
             )]));
         }
 
@@ -295,11 +295,11 @@ impl ShellEscalationSettingsView {
                     } else {
                         "Enter accept · Ctrl+S accept+apply · Esc cancel"
                     },
-                    Style::default().fg(crate::colors::text_dim()),
+                    crate::colors::style_text_dim(),
                 )]),
                 Line::from(vec![Span::styled(
                     "Empty clears the value.",
-                    Style::default().fg(crate::colors::text_dim()),
+                    crate::colors::style_text_dim(),
                 )]),
                 Line::from(""),
             ],

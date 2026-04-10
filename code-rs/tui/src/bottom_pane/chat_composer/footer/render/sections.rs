@@ -90,7 +90,7 @@ pub(super) fn build_sections(
                 None => (hint.trim().to_string(), None),
             };
 
-            let auto_label_style = Style::default().fg(crate::colors::text_dim());
+            let auto_label_style = crate::colors::style_text_dim();
             let auto_key_style = Style::default().fg(crate::colors::info());
 
             if !left_hint.is_empty() {

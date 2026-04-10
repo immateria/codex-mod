@@ -62,8 +62,8 @@ impl ThemeSelectionView {
         }
 
         // Build a styled title with concise hints.
-        let t_dim = Style::default().fg(crate::colors::text_dim());
-        let t_fg = Style::default().fg(crate::colors::text());
+        let t_dim = crate::colors::style_text_dim();
+        let t_fg = crate::colors::style_text();
         let mut title_spans = vec![Span::styled(" ", t_dim), Span::styled("/theme", t_fg)];
         title_spans.extend_from_slice(&[
             Span::styled(crate::ui_consts::SEP_EM, t_dim),

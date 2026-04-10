@@ -48,8 +48,8 @@ fn clamp_record(mut record: ContextRecord) -> ContextRecord {
 
 fn build_lines(record: &ContextRecord) -> Vec<Line<'static>> {
     let mut lines: Vec<Line<'static>> = Vec::new();
-    let dim = Style::default().fg(crate::colors::text_dim());
-    let primary = Style::default().fg(crate::colors::text());
+    let dim = crate::colors::style_text_dim();
+    let primary = crate::colors::style_text();
     let accent = Style::default()
         .fg(crate::colors::primary())
         .add_modifier(Modifier::BOLD);

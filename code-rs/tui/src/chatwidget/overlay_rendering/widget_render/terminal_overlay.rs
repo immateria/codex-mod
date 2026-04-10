@@ -46,7 +46,7 @@ impl ChatWidget<'_> {
                 .title(ratatui::text::Line::from(vec![
                     ratatui::text::Span::styled(
                         format!(" Terminal - {} ", overlay.title),
-                        Style::default().fg(crate::colors::text()),
+                        crate::colors::style_text(),
                     ),
                 ]))
                 .style(Style::default().bg(crate::colors::background()))
@@ -121,7 +121,7 @@ impl ChatWidget<'_> {
                             .saturating_add(UnicodeWidthStr::width(status_text.as_str()));
                         header_spans.push(ratatui::text::Span::styled(
                             status_text,
-                            Style::default().fg(crate::colors::text_dim()),
+                            crate::colors::style_text_dim(),
                         ));
 
                         let interval = crate::spinner::current_spinner().interval_ms.max(50);
@@ -165,7 +165,7 @@ impl ChatWidget<'_> {
                             .saturating_add(UnicodeWidthStr::width(status_text.as_str()));
                         header_spans.push(ratatui::text::Span::styled(
                             status_text,
-                            Style::default().fg(crate::colors::text_dim()),
+                            crate::colors::style_text_dim(),
                         ));
                     }
 
@@ -179,11 +179,11 @@ impl ChatWidget<'_> {
                             if !truncated.is_empty() {
                                 header_spans.push(ratatui::text::Span::styled(
                                     "  •  ",
-                                    Style::default().fg(crate::colors::text_dim()),
+                                    crate::colors::style_text_dim(),
                                 ));
                                 header_spans.push(ratatui::text::Span::styled(
                                     truncated,
-                                    Style::default().fg(crate::colors::text()),
+                                    crate::colors::style_text(),
                                 ));
                             }
                         }
@@ -254,7 +254,7 @@ impl ChatWidget<'_> {
                                 window_lines.push(ratatui::text::Line::from(vec![
                                     ratatui::text::Span::styled(
                                         "… output truncated (showing last 10,000 lines)",
-                                        Style::default().fg(crate::colors::text_dim()),
+                                        crate::colors::style_text_dim(),
                                     ),
                                 ]));
                             } else {
@@ -288,34 +288,34 @@ impl ChatWidget<'_> {
                     ),
                     ratatui::text::Span::styled(
                         " Scroll  ",
-                        Style::default().fg(crate::colors::text_dim()),
+                        crate::colors::style_text_dim(),
                     ),
                     ratatui::text::Span::styled(
                         crate::icons::escape(),
-                        Style::default().fg(crate::colors::error()),
+                        crate::colors::style_error(),
                     ),
                     ratatui::text::Span::styled(
                         if overlay.running { " Cancel  " } else { " Close  " },
-                        Style::default().fg(crate::colors::text_dim()),
+                        crate::colors::style_text_dim(),
                     ),
                 ];
                 if overlay.running {
                     footer_spans.push(ratatui::text::Span::styled(
                         crate::icons::ctrl_combo("C"),
-                        Style::default().fg(crate::colors::warning()),
+                        crate::colors::style_warning(),
                     ));
                     footer_spans.push(ratatui::text::Span::styled(
                         " Cancel",
-                        Style::default().fg(crate::colors::text_dim()),
+                        crate::colors::style_text_dim(),
                     ));
                 } else if pending_visible {
                     footer_spans.push(ratatui::text::Span::styled(
                         crate::icons::enter(),
-                        Style::default().fg(crate::colors::primary()),
+                        crate::colors::style_primary(),
                     ));
                     footer_spans.push(ratatui::text::Span::styled(
                         " Run",
-                        Style::default().fg(crate::colors::text_dim()),
+                        crate::colors::style_text_dim(),
                     ));
                 }
                 if footer_height > 1 {

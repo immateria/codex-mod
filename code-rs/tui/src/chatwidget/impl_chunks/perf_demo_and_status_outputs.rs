@@ -201,7 +201,7 @@ impl ChatWidget<'_> {
                 .collect();
             reasoning_lines.push(
                 Line::from(format!("Scenario summary: {label}"))
-                    .style(RtStyle::default().fg(crate::colors::text_dim())),
+                    .style(crate::colors::style_text_dim()),
             );
             let reasoning_cell = history_cell::CollapsibleReasoningCell::new_with_id(
                 reasoning_lines,

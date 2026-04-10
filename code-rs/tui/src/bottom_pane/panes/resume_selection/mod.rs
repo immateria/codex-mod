@@ -173,7 +173,7 @@ impl BottomPaneView<'_> for ResumeSelectionView {
         if !self.subtitle.is_empty() {
             Paragraph::new(Line::from(Span::styled(
                 &self.subtitle,
-                Style::default().fg(crate::colors::text_dim()),
+                crate::colors::style_text_dim(),
             )))
             .render(Rect { x: inner.x.saturating_add(1), y: next_y, width: inner.width.saturating_sub(1), height: 1 }, buf);
             next_y = next_y.saturating_add(1);

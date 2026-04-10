@@ -240,7 +240,7 @@ impl MarkdownRenderer {
                 content = rest.trim_start();
                 checkbox_spans.push(Span::styled(
                     format!("{} ", crate::icons::task_done()),
-                    Style::default().fg(crate::colors::success()),
+                    crate::colors::style_success(),
                 ));
             }
 
@@ -413,7 +413,7 @@ impl MarkdownRenderer {
                     spans.push(Span::styled(lbl, st));
                     // Append visible URL in parens (dimmed)
                     spans.push(Span::raw(" ("));
-                    spans.push(Span::styled(target.clone(), Style::default().fg(crate::colors::text_dim())));
+                    spans.push(Span::styled(target.clone(), crate::colors::style_text_dim()));
                     spans.push(Span::raw(")"));
                     i += consumed;
                     continue;
