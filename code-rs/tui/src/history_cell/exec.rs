@@ -221,7 +221,7 @@ impl HistoryCell for ExecCell {
         } else {
             None
         };
-        let status_height = if status_line_to_render.is_some() { 1 } else { 0 };
+        let status_height = u16::from(status_line_to_render.is_some());
 
         let mut cur_y = area.y;
 

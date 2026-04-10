@@ -2,7 +2,7 @@
 // fenced code block using triple backticks. The check is tolerant of
 // leading whitespace before fences and optional language identifiers
 // on the opening fence line.
-pub fn is_inside_unclosed_fence(source: &str) -> bool {
+pub(crate) fn is_inside_unclosed_fence(source: &str) -> bool {
     let mut open = false;
     for line in source.lines() {
         let trimmed = line.trim_start();
@@ -18,7 +18,7 @@ pub fn is_inside_unclosed_fence(source: &str) -> bool {
 // blank lines inside). Preserves a single blank line in place so that
 // subsequent headings or content start on a new line, matching the
 // expectations of the streaming renderer.
-pub fn strip_empty_fenced_code_blocks<'a>(source: &'a str) -> std::borrow::Cow<'a, str> {
+pub(crate) fn strip_empty_fenced_code_blocks<'a>(source: &'a str) -> std::borrow::Cow<'a, str> {
     // Fast path: if there's no fence, borrow without allocating.
     if !source.contains("```") {
         return std::borrow::Cow::Borrowed(source);

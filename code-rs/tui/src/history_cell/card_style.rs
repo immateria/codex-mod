@@ -71,7 +71,7 @@ pub(crate) fn card_body_width(total_width: u16) -> Option<usize> {
     }
     let accent = CARD_ACCENT_WIDTH.min(total_width as usize);
     let body = total_width.saturating_sub(accent as u16).saturating_sub(1) as usize;
-    if body == 0 { None } else { Some(body) }
+    (body != 0).then_some(body)
 }
 
 pub(crate) const BORDER_TOP: &str = "╭─";

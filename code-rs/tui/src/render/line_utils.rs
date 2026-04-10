@@ -6,7 +6,7 @@ use ratatui::text::Line;
 /// `ratatui::text::Line`.  Prefer this over ad-hoc `String::new()` +
 /// `for span in &line.spans { text.push_str(...) }` loops scattered
 /// throughout the codebase.
-pub fn line_text(line: &Line<'_>) -> String {
+pub(crate) fn line_text(line: &Line<'_>) -> String {
     let len: usize = line.spans.iter().map(|s| s.content.len()).sum();
     let mut out = String::with_capacity(len);
     for s in &line.spans {
@@ -17,7 +17,7 @@ pub fn line_text(line: &Line<'_>) -> String {
 
 /// Consider a line blank if it has no spans or only spans whose contents are
 /// empty or consist solely of spaces (no tabs/newlines).
-pub fn is_blank_line_spaces_only(line: &Line<'_>) -> bool {
+pub(crate) fn is_blank_line_spaces_only(line: &Line<'_>) -> bool {
     if line.spans.is_empty() {
         return true;
     }
@@ -28,7 +28,7 @@ pub fn is_blank_line_spaces_only(line: &Line<'_>) -> bool {
 
 /// Consider a line blank if its spans are empty or all span contents are
 /// whitespace when trimmed.
-pub fn is_blank_line_trim(line: &Line<'_>) -> bool {
+pub(crate) fn is_blank_line_trim(line: &Line<'_>) -> bool {
     if line.spans.is_empty() {
         return true;
     }
@@ -39,7 +39,7 @@ pub fn is_blank_line_trim(line: &Line<'_>) -> bool {
 /// Used to distinguish a truly blank paragraph separator (no background)
 /// from a blank line that is part of a code block (should not be dropped
 /// during streaming commit logic).
-pub fn is_code_block_painted(line: &Line<'_>) -> bool {
+pub(crate) fn is_code_block_painted(line: &Line<'_>) -> bool {
     let code_bg = crate::colors::code_block_bg();
     if line.style.bg == Some(code_bg) {
         return true;

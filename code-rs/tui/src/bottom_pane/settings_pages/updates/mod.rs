@@ -14,10 +14,10 @@ mod render;
 mod tests;
 
 #[derive(Debug, Clone, Default)]
-pub struct UpdateSharedState {
-    pub checking: bool,
-    pub latest_version: Option<String>,
-    pub error: Option<String>,
+pub(crate) struct UpdateSharedState {
+    pub(crate) checking: bool,
+    pub(crate) latest_version: Option<String>,
+    pub(crate) error: Option<String>,
 }
 
 pub(crate) struct UpdateSettingsView {

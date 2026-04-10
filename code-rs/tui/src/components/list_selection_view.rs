@@ -83,10 +83,10 @@ impl ListSelectionView {
         let spacer_top_rows: u16 = 1;
 
         // Footer: single line of hints when present
-        let footer_rows: u16 = if self.footer_hint.is_some() { 1 } else { 0 };
+        let footer_rows: u16 = u16::from(self.footer_hint.is_some());
 
         // A visual spacer between the last list row and the footer
-        let bottom_spacer_rows: u16 = if footer_rows > 0 { 1 } else { 0 };
+        let bottom_spacer_rows: u16 = u16::from(footer_rows > 0);
 
         // Content rows budget equals the rows we want to show
         let rows_visible = target_rows;

@@ -1,8 +1,8 @@
-pub use code_core::history::*;
+pub(crate) use code_core::history::*;
 
 #[cfg(feature = "code-fork")]
-pub mod compat;
+pub(crate) mod compat;
 
-pub mod state {
-    pub use code_core::history::*;
+pub(crate) mod state {
+    pub(crate) use code_core::history::*;
 }

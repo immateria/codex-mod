@@ -19,7 +19,7 @@ pub(super) enum Focus {
 }
 
 #[derive(Debug)]
-pub struct SubagentEditorView {
+pub(crate) struct SubagentEditorView {
     pub(super) name_field: FormTextField,
     pub(super) read_only: bool,
     pub(super) selected_agent_indices: Vec<usize>,

@@ -62,8 +62,8 @@ impl ChatWidget<'_> {
             return;
         }
 
-        let tab_height = if content.height >= 3 { 1 } else { 0 };
-        let hint_height = if content.height >= 2 { 1 } else { 0 };
+        let tab_height = u16::from(content.height >= 3);
+        let hint_height = u16::from(content.height >= 2);
         let body_height = content
             .height
             .saturating_sub(hint_height + tab_height);

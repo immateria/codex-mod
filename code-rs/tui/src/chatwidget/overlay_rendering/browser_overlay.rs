@@ -125,7 +125,7 @@ impl ChatWidget<'_> {
             crate::colors::style_text_dim()
         };
 
-        let header_height = if content.height >= 3 { 1 } else { 0 };
+        let header_height = u16::from(content.height >= 3);
         if header_height > 0 {
             let header_area = Rect {
                 x: content.x,
@@ -200,7 +200,7 @@ impl ChatWidget<'_> {
         let screenshot_column = columns[0];
         let info_column = if columns.len() > 1 { columns[1] } else { columns[0] };
 
-        let progress_height = if screenshot_column.height > 3 { 1 } else { 0 };
+        let progress_height = u16::from(screenshot_column.height > 3);
         let screenshot_display_height = screenshot_column.height.saturating_sub(progress_height);
         let screenshot_display_area = Rect {
             x: screenshot_column.x,

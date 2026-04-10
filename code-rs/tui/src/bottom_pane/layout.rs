@@ -38,7 +38,7 @@ impl<'a> BottomPane<'a> {
             (base_height, pad)
         } else {
             // Optionally add 1 for the empty line above the composer
-            let spacer: u16 = if self.top_spacer_enabled { 1 } else { 0 };
+            let spacer: u16 = u16::from(self.top_spacer_enabled);
             (
                 spacer.saturating_add(self.composer.desired_height(width)),
                 Self::BOTTOM_PAD_LINES,

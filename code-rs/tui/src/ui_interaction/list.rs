@@ -113,7 +113,7 @@ impl ListWindow {
             return None;
         }
         let idx = self.start + rel_y;
-        if idx < self.end { Some(idx) } else { None }
+        (idx < self.end).then_some(idx)
     }
 }
 

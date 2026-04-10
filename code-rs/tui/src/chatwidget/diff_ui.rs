@@ -4,25 +4,25 @@
 
 use ratatui::text::Line;
 
-pub struct DiffOverlay {
-    pub tabs: Vec<(String, Vec<DiffBlock>)>,
-    pub selected: usize,
-    pub scroll_offsets: Vec<u16>,
+pub(crate) struct DiffOverlay {
+    pub(crate) tabs: Vec<(String, Vec<DiffBlock>)>,
+    pub(crate) selected: usize,
+    pub(crate) scroll_offsets: Vec<u16>,
 }
 
 impl DiffOverlay {
-    pub fn new(tabs: Vec<(String, Vec<DiffBlock>)>) -> Self {
+    pub(crate) fn new(tabs: Vec<(String, Vec<DiffBlock>)>) -> Self {
         let n = tabs.len();
         Self { tabs, selected: 0, scroll_offsets: vec![0; n] }
     }
 }
 
 #[derive(Clone)]
-pub struct DiffBlock {
-    pub lines: Vec<Line<'static>>,
+pub(crate) struct DiffBlock {
+    pub(crate) lines: Vec<Line<'static>>,
 }
 
-pub struct DiffConfirm {
-    pub text_to_submit: String,
+pub(crate) struct DiffConfirm {
+    pub(crate) text_to_submit: String,
 }
 

@@ -26,7 +26,7 @@ fn format_python_dash_c(command_escaped: &str) -> Option<String> {
         .iter()
         .enumerate()
         .skip(python_idx + 1)
-        .find_map(|(idx, token)| if token == "-c" { Some(idx) } else { None })?;
+        .find_map(|(idx, token)| (token == "-c").then_some(idx))?;
 
     let script_idx = c_idx + 1;
     if script_idx >= tokens.len() {

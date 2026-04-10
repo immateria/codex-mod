@@ -308,7 +308,7 @@ impl HistoryRenderState {
         self.last_history_count.set(new_history_count);
         self.last_prefix_width.set(width);
         self.prefix_valid.set(true);
-        if spacing > 0 { Some((spacing_start, spacing_end)) } else { None }
+        (spacing > 0).then_some((spacing_start, spacing_end))
     }
 
     pub(crate) fn append_spacing_range(&self, range: (u16, u16)) {

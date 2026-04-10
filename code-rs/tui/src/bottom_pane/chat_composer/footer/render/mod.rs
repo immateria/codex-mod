@@ -46,7 +46,7 @@ impl ChatComposer {
         if self.render_mode == ComposerRenderMode::FooterOnly {
             // Footer-only mode is used for terminal mode/status-only rendering.
             // Suppress popups defensively even if they're still marked active.
-            return if self.standard_terminal_hint.is_some() { 1 } else { 0 };
+            return u16::from(self.standard_terminal_hint.is_some());
         }
 
         match (&self.active_popup, self.embedded_mode) {

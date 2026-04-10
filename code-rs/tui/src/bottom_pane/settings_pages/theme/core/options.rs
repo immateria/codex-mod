@@ -59,7 +59,7 @@ impl ThemeSelectionView {
     }
 
     pub(in crate::bottom_pane::settings_pages::theme) fn theme_option_count() -> usize {
-        Self::builtin_theme_options().len() + if Self::has_custom_theme_option() { 1 } else { 0 }
+        Self::builtin_theme_options().len() + usize::from(Self::has_custom_theme_option())
     }
 
     pub(in crate::bottom_pane::settings_pages::theme) fn theme_index_for(theme_name: ThemeName) -> usize {
@@ -95,7 +95,7 @@ impl ThemeSelectionView {
     }
 
     pub(in crate::bottom_pane::settings_pages::theme) fn theme_list_count(options_len: usize) -> usize {
-        options_len + if Self::allow_custom_theme_generation() { 1 } else { 0 }
+        options_len + usize::from(Self::allow_custom_theme_generation())
     }
 
     pub(in crate::bottom_pane::settings_pages::theme) fn visible_theme_rows(list_height: u16) -> usize {
@@ -170,7 +170,7 @@ impl ThemeSelectionView {
         )));
 
         let allow_custom = Self::allow_custom_theme_generation();
-        let count = options.len() + if allow_custom { 1 } else { 0 };
+        let count = options.len() + usize::from(allow_custom);
         if count == 0 {
             return lines;
         }

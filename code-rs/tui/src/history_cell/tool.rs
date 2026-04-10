@@ -185,7 +185,7 @@ impl ToolCallCell {
     fn expanded_detail_lines(&self) -> Vec<Line<'static>> {
         let arg_count = self.state.arguments.len();
         let result_count = self.state.result_preview.as_ref().map_or(0, |r| r.lines.len());
-        let error_count = if self.state.error_message.is_some() { 1 } else { 0 };
+        let error_count = usize::from(self.state.error_message.is_some());
         let mut lines: Vec<Line<'static>> = Vec::with_capacity(arg_count + result_count + error_count + 4);
         lines.extend(render_arguments(&self.state.arguments));
 

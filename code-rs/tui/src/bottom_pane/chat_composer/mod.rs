@@ -87,7 +87,7 @@ struct TokenCursorContext<'a> {
 
 /// Result returned when the user interacts with the text area.
 #[derive(Debug, PartialEq)]
-pub enum InputResult {
+pub(crate) enum InputResult {
     Submitted(String),
     Command(SlashCommand),
     ScrollUp,

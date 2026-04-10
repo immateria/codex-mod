@@ -348,7 +348,7 @@ fn is_short_preview_of_url(label: &str, target: &str) -> bool {
         // Drop leading www.
         let host = host.trim().trim_matches('.').to_ascii_lowercase();
         let host = host.strip_prefix("www.").unwrap_or(&host).to_string();
-        if host.contains('.') { Some(host) } else { None }
+        host.contains('.').then_some(host)
     }
 
     // Lightweight TLD guard for labels that aren't URLs

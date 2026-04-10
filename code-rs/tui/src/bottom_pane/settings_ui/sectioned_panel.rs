@@ -75,7 +75,7 @@ impl<'a> SettingsSectionedPanel<'a> {
 
         // When the body is already forcing a larger minimum height, keep a
         // spacer above the footer if we can afford it.
-        let desired_gap = if footer_h > 0 && min_body > 1 { 1 } else { 0 };
+        let desired_gap = u16::from(footer_h > 0 && min_body > 1);
 
         let mut gap = desired_gap;
         let mut max_reserved_bottom = content

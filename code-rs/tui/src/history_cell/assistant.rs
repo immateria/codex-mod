@@ -444,7 +444,7 @@ impl HistoryCell for AssistantMarkdownCell {
 
     fn copyable_markdown(&self) -> Option<String> {
         let md = &self.state.markdown;
-        if md.is_empty() { None } else { Some(md.clone()) }
+        (!md.is_empty()).then(|| md.clone())
     }
 }
 

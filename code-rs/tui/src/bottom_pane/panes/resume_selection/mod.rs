@@ -22,16 +22,16 @@ const EFFECTIVE_MAX_ROWS: usize = if RESUME_POPUP_ROWS < MAX_POPUP_ROWS {
     MAX_POPUP_ROWS
 };
 
-pub struct ResumeRow {
-    pub modified: String,
-    pub created: String,
-    pub user_msgs: String,
-    pub branch: String,
-    pub last_user_message: String,
-    pub path: std::path::PathBuf,
+pub(crate) struct ResumeRow {
+    pub(crate) modified: String,
+    pub(crate) created: String,
+    pub(crate) user_msgs: String,
+    pub(crate) branch: String,
+    pub(crate) last_user_message: String,
+    pub(crate) path: std::path::PathBuf,
 }
 
-pub struct ResumeSelectionView {
+pub(crate) struct ResumeSelectionView {
     title: String,
     subtitle: String,
     rows: Vec<ResumeRow>,
@@ -45,7 +45,7 @@ pub struct ResumeSelectionView {
 }
 
 impl ResumeSelectionView {
-    pub fn new(
+    pub(crate) fn new(
         title: String,
         subtitle: String,
         rows: Vec<ResumeRow>,

@@ -505,7 +505,7 @@ pub(crate) fn select_preview_from_lines(
     let non_empty_idx: Vec<usize> = lines
         .iter()
         .enumerate()
-        .filter_map(|(i, l)| if is_non_empty(l) { Some(i) } else { None })
+        .filter_map(|(i, l)| is_non_empty(l).then_some(i))
         .collect();
     if non_empty_idx.len() <= head + tail {
         return lines.to_vec();

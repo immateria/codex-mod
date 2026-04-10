@@ -131,7 +131,7 @@ impl BottomPaneView<'_> for CustomPromptView {
     }
 
     fn desired_height(&self, width: u16) -> u16 {
-        let extra_top: u16 = if self.context_label.is_some() { 1 } else { 0 };
+        let extra_top: u16 = u16::from(self.context_label.is_some());
         1u16 + extra_top + self.input_height(width) + 3u16
     }
 
