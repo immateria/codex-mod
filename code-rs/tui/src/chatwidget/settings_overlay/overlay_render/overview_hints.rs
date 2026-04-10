@@ -65,15 +65,24 @@ impl SettingsOverlayView {
 
     fn render_footer_hints_overview(&self, area: Rect, buf: &mut Buffer) {
         if area.width == 0 || area.height == 0 {
+            self.last_hint_hit_areas.borrow_mut().clear();
             return;
         }
 
-        let line = crate::bottom_pane::settings_ui::hints::shortcut_line(&[
+        use crate::bottom_pane::settings_ui::hints::{
+            ShortcutAction, hit_areas_for_hints,
+        };
+
+        let hints = [
             crate::bottom_pane::settings_ui::hints::hint_nav(" navigate"),
             crate::bottom_pane::settings_ui::hints::hint_enter(" open"),
             crate::bottom_pane::settings_ui::hints::hint_esc(" close"),
-            crate::bottom_pane::settings_ui::hints::KeyHint::new("?", " help"),
-        ]);
+            crate::bottom_pane::settings_ui::hints::KeyHint::new("?", " help")
+                .with_action(ShortcutAction::Help),
+        ];
+
+        let line = crate::bottom_pane::settings_ui::hints::shortcut_line(&hints);
+        *self.last_hint_hit_areas.borrow_mut() = hit_areas_for_hints(&hints, area.x, area.y);
 
         Paragraph::new(line)
             .style(crate::colors::style_on_background())
@@ -83,8 +92,12 @@ impl SettingsOverlayView {
 
     fn render_footer_hints_section(&self, area: Rect, buf: &mut Buffer) {
         if area.width == 0 || area.height == 0 {
+            self.last_hint_hit_areas.borrow_mut().clear();
             return;
         }
+
+        use crate::bottom_pane::settings_ui::hints::{HintHitArea, ShortcutAction};
+        use unicode_width::UnicodeWidthStr;
 
         let key = crate::colors::style_text();
         let hint = crate::colors::style_text_dim();
@@ -101,50 +114,86 @@ impl SettingsOverlayView {
             " hide"
         };
 
-        let hint_group = |key_label: String, description: &'static str| -> Vec<Span<'static>> {
-            vec![
-                Span::styled(key_label, key),
-                Span::styled(description, hint),
-            ]
+        // Each group: (spans, optional action)
+        type SpanGroup = (Vec<Span<'static>>, Option<ShortcutAction>);
+        let hint_group = |key_label: String, description: &'static str, action: Option<ShortcutAction>| -> SpanGroup {
+            (
+                vec![
+                    Span::styled(key_label, key),
+                    Span::styled(description, hint),
+                ],
+                action,
+            )
         };
 
-        let join_groups = |groups: Vec<Vec<Span<'static>>>| -> Vec<Span<'static>> {
+        let join_groups_with_hits = |groups: Vec<SpanGroup>, origin_x: u16, y: u16| -> (Vec<Span<'static>>, Vec<HintHitArea>) {
             let mut spans = Vec::new();
-            for (idx, group) in groups.into_iter().enumerate() {
+            let mut hit_areas = Vec::new();
+            let mut cursor = origin_x;
+            for (idx, (group_spans, action)) in groups.into_iter().enumerate() {
                 if idx > 0 {
-                    spans.push(Span::styled("  •  ", separator));
+                    let sep = Span::styled("  •  ", separator);
+                    cursor = cursor.saturating_add(UnicodeWidthStr::width(sep.content.as_ref()) as u16);
+                    spans.push(sep);
                 }
-                spans.extend(group);
+                let group_start = cursor;
+                let group_width: u16 = group_spans
+                    .iter()
+                    .map(|s| UnicodeWidthStr::width(s.content.as_ref()) as u16)
+                    .sum();
+                spans.extend(group_spans);
+                if let Some(action) = action {
+                    hit_areas.push(HintHitArea {
+                        action,
+                        x_start: group_start,
+                        x_end: group_start.saturating_add(group_width),
+                        y,
+                    });
+                }
+                cursor = group_start.saturating_add(group_width);
             }
-            spans
+            (spans, hit_areas)
         };
 
-        let mut spans = join_groups(vec![
-            hint_group(crate::icons::tab().to_string(), " content"),
-            hint_group(crate::icons::reverse_tab().to_string(), " sidebar"),
-            hint_group(crate::icons::ctrl_combo("B"), sidebar_action),
-            hint_group(crate::icons::escape().to_string(), " overview"),
-            hint_group("?".to_string(), " help"),
-            vec![
-                Span::styled("focus", hint),
-                Span::styled(": ", separator),
-                Span::styled(focus_label, focus),
-            ],
-        ]);
-
-        // On narrow screens, drop the less-critical hints.
-        let full_width: usize = spans.iter().map(Span::width).sum();
-        if full_width > area.width as usize {
-            spans = join_groups(vec![
-                hint_group(crate::icons::ctrl_combo("B"), sidebar_action),
-                hint_group(crate::icons::escape().to_string(), " back"),
+        let groups: Vec<SpanGroup> = vec![
+            hint_group(crate::icons::tab().to_string(), " content", Some(ShortcutAction::FocusContent)),
+            hint_group(crate::icons::reverse_tab().to_string(), " sidebar", Some(ShortcutAction::FocusSidebar)),
+            hint_group(crate::icons::ctrl_combo("B"), sidebar_action, Some(ShortcutAction::ToggleSidebar)),
+            hint_group(crate::icons::escape().to_string(), " overview", Some(ShortcutAction::Back)),
+            hint_group("?".to_string(), " help", Some(ShortcutAction::Help)),
+            (
                 vec![
                     Span::styled("focus", hint),
                     Span::styled(": ", separator),
                     Span::styled(focus_label, focus),
                 ],
-            ]);
+                None,
+            ),
+        ];
+
+        let (mut spans, mut hit_areas) = join_groups_with_hits(groups, area.x, area.y);
+
+        // On narrow screens, drop the less-critical hints.
+        let full_width: usize = spans.iter().map(Span::width).sum();
+        if full_width > area.width as usize {
+            let narrow_groups: Vec<SpanGroup> = vec![
+                hint_group(crate::icons::ctrl_combo("B"), sidebar_action, Some(ShortcutAction::ToggleSidebar)),
+                hint_group(crate::icons::escape().to_string(), " back", Some(ShortcutAction::Back)),
+                (
+                    vec![
+                        Span::styled("focus", hint),
+                        Span::styled(": ", separator),
+                        Span::styled(focus_label, focus),
+                    ],
+                    None,
+                ),
+            ];
+            let (narrow_spans, narrow_hits) = join_groups_with_hits(narrow_groups, area.x, area.y);
+            spans = narrow_spans;
+            hit_areas = narrow_hits;
         }
+
+        *self.last_hint_hit_areas.borrow_mut() = hit_areas;
 
         Paragraph::new(Line::from(spans))
             .style(crate::colors::style_on_background())

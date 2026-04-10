@@ -8,6 +8,28 @@ use crate::icons;
 
 use super::rows::StyledText;
 
+/// Semantic action that a clickable shortcut hint triggers.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum ShortcutAction {
+    Close,
+    Back,
+    Open,
+    Navigate,
+    Help,
+    FocusContent,
+    FocusSidebar,
+    ToggleSidebar,
+}
+
+/// A rendered hint's hit region (terminal-cell x range on a given row).
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct HintHitArea {
+    pub(crate) action: ShortcutAction,
+    pub(crate) x_start: u16,
+    pub(crate) x_end: u16,
+    pub(crate) y: u16,
+}
+
 #[derive(Clone, Debug)]
 pub(crate) struct KeyHint<'a> {
     key: Cow<'a, str>,
@@ -18,6 +40,8 @@ pub(crate) struct KeyHint<'a> {
     /// `shortcut_line()`, allowing multi-colored key glyphs (e.g. bi-color
     /// nav arrows).
     key_spans: Option<Vec<Span<'static>>>,
+    /// Semantic action for mouse click handling.
+    pub(crate) action: Option<ShortcutAction>,
 }
 
 impl<'a> KeyHint<'a> {
@@ -31,11 +55,17 @@ impl<'a> KeyHint<'a> {
             key_style: Style::new().fg(colors::hint_key()),
             description_style: Style::new().fg(colors::text_dim()),
             key_spans: None,
+            action: None,
         }
     }
 
     pub(crate) fn with_key_spans(mut self, spans: Vec<Span<'static>>) -> Self {
         self.key_spans = Some(spans);
+        self
+    }
+
+    pub(crate) fn with_action(mut self, action: ShortcutAction) -> Self {
+        self.action = Some(action);
         self
     }
 }
@@ -141,6 +171,32 @@ pub(crate) fn shortcut_line(hints: &[KeyHint<'_>]) -> Line<'static> {
     Line::from(spans)
 }
 
+/// Compute clickable hit areas for hints rendered at a given position.
+/// Returns one [`HintHitArea`] per hint that carries an action.  The x
+/// range covers the entire hint (key + description) so the user doesn't
+/// have to click only the key glyph.
+pub(crate) fn hit_areas_for_hints(hints: &[KeyHint<'_>], origin_x: u16, y: u16) -> Vec<HintHitArea> {
+    let mut areas = Vec::new();
+    let mut cursor: u16 = origin_x;
+
+    for (idx, hint) in hints.iter().enumerate() {
+        if idx > 0 {
+            cursor = cursor.saturating_add(HINT_SEPARATOR_WIDTH);
+        }
+        let hw = hint_display_width(hint);
+        if let Some(action) = hint.action {
+            areas.push(HintHitArea {
+                action,
+                x_start: cursor,
+                x_end: cursor.saturating_add(hw),
+                y,
+            });
+        }
+        cursor = cursor.saturating_add(hw);
+    }
+    areas
+}
+
 const HINT_SEPARATOR_WIDTH: u16 = 3; // "   "
 
 /// Approximate display width of a single hint (key + description).
@@ -230,6 +286,7 @@ pub(crate) fn hint_nav(description: &'static str) -> KeyHint<'static> {
             Span::raw(" "),
             Span::styled(icons::arrow_down(), Style::new().fg(c)),
         ])
+        .with_action(ShortcutAction::Navigate)
 }
 
 /// Horizontal (◂ ▸) hint with theme `hint_nav` color.
@@ -241,6 +298,7 @@ pub(crate) fn hint_nav_horizontal(description: &'static str) -> KeyHint<'static>
             Span::raw(" "),
             Span::styled(icons::arrow_right(), Style::new().fg(c)),
         ])
+        .with_action(ShortcutAction::Navigate)
 }
 
 pub(crate) fn key_tab() -> &'static str {
@@ -263,6 +321,7 @@ pub(crate) fn key_ctrl(key: &str) -> String {
 pub(crate) fn hint_esc(description: &'static str) -> KeyHint<'static> {
     let mut h = KeyHint::new(icons::escape(), description);
     h.key_style = Style::new().fg(colors::hint_dismiss());
+    h.action = Some(ShortcutAction::Close);
     h
 }
 
@@ -270,6 +329,7 @@ pub(crate) fn hint_esc(description: &'static str) -> KeyHint<'static> {
 pub(crate) fn hint_enter(description: &'static str) -> KeyHint<'static> {
     let mut h = KeyHint::new(icons::enter(), description);
     h.key_style = Style::new().fg(colors::hint_confirm());
+    h.action = Some(ShortcutAction::Open);
     h
 }
 

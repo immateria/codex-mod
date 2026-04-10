@@ -54,6 +54,11 @@ impl SettingsOverlayView {
                 self.close_requested.set(true);
                 return true;
             }
+
+            // Check clickable shortcut hints in the footer bar.
+            if let Some(action) = self.hit_test_hint(mouse_event.column, mouse_event.row) {
+                return self.dispatch_hint_action(action);
+            }
         }
 
         if self.is_menu_active() {
@@ -338,6 +343,85 @@ impl SettingsOverlayView {
             self.overview_rows
                 .iter()
                 .position(|row| row.section == self.active_section())
+        }
+    }
+
+    /// Hit-test the footer shortcut hint areas.
+    fn hit_test_hint(
+        &self,
+        x: u16,
+        y: u16,
+    ) -> Option<crate::bottom_pane::settings_ui::hints::ShortcutAction> {
+        let areas = self.last_hint_hit_areas.borrow();
+        for area in areas.iter() {
+            if y == area.y && x >= area.x_start && x < area.x_end {
+                return Some(area.action);
+            }
+        }
+        None
+    }
+
+    /// Execute a shortcut action triggered by a mouse click on a hint.
+    fn dispatch_hint_action(
+        &mut self,
+        action: crate::bottom_pane::settings_ui::hints::ShortcutAction,
+    ) -> bool {
+        use crate::bottom_pane::settings_ui::hints::ShortcutAction;
+        match action {
+            ShortcutAction::Close => {
+                self.close_requested.set(true);
+                true
+            }
+            ShortcutAction::Back => {
+                if self.is_menu_active() {
+                    // Already in overview — close entirely.
+                    self.close_requested.set(true);
+                } else {
+                    // In section view — go back to overview.
+                    self.set_mode_menu(None);
+                }
+                true
+            }
+            ShortcutAction::Open => {
+                if self.is_menu_active() {
+                    let section = self.active_section();
+                    self.set_mode_section(section);
+                } else {
+                    self.set_focus_content();
+                }
+                true
+            }
+            ShortcutAction::Navigate => {
+                // Navigate is directional; a click can't choose a direction,
+                // so treat it as a focus request — put focus on the relevant
+                // scrollable area.
+                if self.is_menu_active() {
+                    // Already in overview mode; no-op.
+                    false
+                } else {
+                    self.set_focus_sidebar();
+                    true
+                }
+            }
+            ShortcutAction::Help => {
+                self.show_help(self.is_menu_active());
+                true
+            }
+            ShortcutAction::FocusContent => {
+                self.set_focus_content();
+                true
+            }
+            ShortcutAction::FocusSidebar => {
+                if self.is_sidebar_collapsed() {
+                    self.toggle_sidebar_collapsed();
+                }
+                self.set_focus_sidebar();
+                true
+            }
+            ShortcutAction::ToggleSidebar => {
+                self.toggle_sidebar_collapsed();
+                true
+            }
         }
     }
 }

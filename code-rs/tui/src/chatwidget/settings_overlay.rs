@@ -119,6 +119,8 @@ pub(crate) struct SettingsOverlayView {
     close_button_hovered: Cell<bool>,
     /// Set when the user clicks the close button; the parent reads and clears.
     pub(crate) close_requested: Cell<bool>,
+    /// Hit areas for clickable shortcut hints in the footer bar.
+    last_hint_hit_areas: RefCell<Vec<crate::bottom_pane::settings_ui::hints::HintHitArea>>,
 }
 
 impl SettingsOverlayView {
@@ -172,6 +174,7 @@ impl SettingsOverlayView {
             last_close_button_area: RefCell::new(Rect::default()),
             close_button_hovered: Cell::new(false),
             close_requested: Cell::new(false),
+            last_hint_hit_areas: RefCell::new(Vec::new()),
         }
     }
 
