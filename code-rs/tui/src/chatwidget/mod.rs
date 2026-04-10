@@ -401,9 +401,7 @@ impl ChatWidget<'_> {
             Span::styled(prefix.to_string(), crate::colors::style_text()),
             Span::styled(
                 slider,
-                Style::default()
-                    .fg(crate::colors::primary())
-                    .add_modifier(Modifier::BOLD),
+                crate::colors::style_primary_bold(),
             ),
             Span::styled(suffix, crate::colors::style_text()),
         ];

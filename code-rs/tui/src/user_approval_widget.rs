@@ -669,9 +669,7 @@ impl WidgetRef for &UserApprovalWidget<'_> {
             let selected = idx == self.selected_option;
             let indicator = crate::icons::selection_prefix(selected);
             let line_style = if selected {
-                Style::default()
-                    .fg(crate::colors::primary())
-                    .add_modifier(Modifier::BOLD)
+                crate::colors::style_primary_bold()
             } else {
                 Style::default()
             };

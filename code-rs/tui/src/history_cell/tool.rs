@@ -596,9 +596,7 @@ impl HistoryCell for RunningToolCallCell {
             spans.push(
                 Span::styled(
                     "Waiting...",
-                    Style::default()
-                        .fg(crate::colors::text())
-                        .add_modifier(Modifier::BOLD),
+                    crate::colors::style_text_bold(),
                 ),
             );
             let cap_ms = self.state.wait_cap_ms.unwrap_or(600_000);

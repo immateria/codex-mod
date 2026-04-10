@@ -80,9 +80,7 @@ impl SettingsOverlayView {
             spans.push(Span::styled(
                 label_text,
                 if is_active {
-                    Style::default()
-                        .fg(crate::colors::text())
-                        .add_modifier(Modifier::BOLD)
+                    crate::colors::style_text_bold()
                 } else if is_hovered {
                     Style::default()
                         .fg(crate::colors::text_bright())

@@ -1,6 +1,6 @@
 use ratatui::buffer::Buffer;
 use ratatui::layout::{Alignment, Constraint, Layout, Rect};
-use ratatui::style::{Modifier, Style};
+use ratatui::style::Style;
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Clear, Paragraph, Widget};
 
@@ -23,9 +23,7 @@ impl UndoTimelineView {
                 Span::styled(
                     entry.label.clone(),
                     if selected {
-                        Style::default()
-                            .fg(crate::colors::text())
-                            .add_modifier(Modifier::BOLD)
+                        crate::colors::style_text_bold()
                             .bg(crate::colors::selection())
                     } else {
                         crate::colors::style_text()

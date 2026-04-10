@@ -90,9 +90,7 @@ impl SettingsOverlayView {
         let key = crate::colors::style_text();
         let hint = crate::colors::style_text_dim();
         let separator = crate::colors::style_text_mid();
-        let focus = Style::default()
-            .fg(crate::colors::primary())
-            .add_modifier(Modifier::BOLD);
+        let focus = crate::colors::style_primary_bold();
         let focus_label = if self.is_sidebar_focused() {
             "Sidebar"
         } else {

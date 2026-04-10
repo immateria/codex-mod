@@ -60,9 +60,7 @@ impl AgentsSettingsContent {
             spans.push(Span::styled(
                 format!("{:<width$}", row.name, width = max_name_chars),
                 if selected {
-                    Style::default()
-                        .fg(crate::colors::primary())
-                        .add_modifier(Modifier::BOLD)
+                    crate::colors::style_primary_bold()
                 } else {
                     Style::default()
                 },
@@ -130,9 +128,7 @@ impl AgentsSettingsContent {
         add_spans.push(Span::styled(
             "Add new agent…",
             if add_agent_selected {
-                Style::default()
-                    .fg(crate::colors::primary())
-                    .add_modifier(Modifier::BOLD)
+                crate::colors::style_primary_bold()
             } else {
                 Style::default()
             },
@@ -167,9 +163,7 @@ impl AgentsSettingsContent {
             spans.push(Span::styled(
                 format!("/{cmd}"),
                 if selected {
-                    Style::default()
-                        .fg(crate::colors::primary())
-                        .add_modifier(Modifier::BOLD)
+                    crate::colors::style_primary_bold()
                 } else {
                     Style::default()
                 },
@@ -198,9 +192,7 @@ impl AgentsSettingsContent {
         add_spans.push(Span::styled(
             "Add new…",
             if add_selected {
-                Style::default()
-                    .fg(crate::colors::primary())
-                    .add_modifier(Modifier::BOLD)
+                crate::colors::style_primary_bold()
             } else {
                 Style::default()
             },

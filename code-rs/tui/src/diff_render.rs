@@ -196,12 +196,8 @@ pub(super) fn create_diff_summary_with_width(
         PatchEventType::ApplyBegin { .. } | PatchEventType::ApplySuccess => Style::default()
             .fg(crate::colors::success())
             .add_modifier(Modifier::BOLD),
-        PatchEventType::ApplyFailure => Style::default()
-            .fg(crate::colors::error())
-            .add_modifier(Modifier::BOLD),
-        PatchEventType::ApprovalRequest => Style::default()
-            .fg(crate::colors::primary())
-            .add_modifier(Modifier::BOLD),
+        PatchEventType::ApplyFailure => crate::colors::style_error_bold(),
+        PatchEventType::ApprovalRequest => crate::colors::style_primary_bold(),
     };
     header_spans.push(RtSpan::styled(title.to_owned(), title_style));
     // Only include aggregate counts in header for approval requests; omit for apply/updated.

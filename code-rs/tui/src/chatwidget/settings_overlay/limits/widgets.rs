@@ -184,9 +184,7 @@ impl Widget for LimitsTabsRowWidget<'_> {
         for idx in window.start..window.end {
             let is_selected = idx == self.selected_tab;
             let style = if is_selected {
-                Style::default()
-                    .fg(crate::colors::text())
-                    .add_modifier(Modifier::BOLD)
+                crate::colors::style_text_bold()
             } else {
                 crate::colors::style_text_dim()
             };
@@ -244,9 +242,7 @@ impl Widget for LimitsPaneWidget {
                 .fg(crate::colors::function())
                 .add_modifier(Modifier::BOLD)
         } else {
-            Style::default()
-                .fg(crate::colors::text())
-                .add_modifier(Modifier::BOLD)
+            crate::colors::style_text_bold()
         };
 
         Paragraph::new(Line::from(vec![

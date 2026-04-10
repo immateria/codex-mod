@@ -71,9 +71,7 @@ impl LoginAccountsState {
         let mut lines = Vec::new();
         if let Some(feedback) = &self.feedback {
             let style = if feedback.is_error {
-                Style::default()
-                    .fg(crate::colors::error())
-                    .add_modifier(Modifier::BOLD)
+                crate::colors::style_error_bold()
             } else {
                 Style::default()
                     .fg(crate::colors::success())
@@ -161,9 +159,7 @@ impl LoginAccountsState {
                     crate::colors::style_text_dim()
                 };
                 let label_style = if selected {
-                    Style::default()
-                        .fg(crate::colors::primary())
-                        .add_modifier(Modifier::BOLD)
+                    crate::colors::style_primary_bold()
                 } else if account.is_active {
                     Style::default()
                         .fg(crate::colors::success())
@@ -212,9 +208,7 @@ impl LoginAccountsState {
             Span::styled(
                 "Add account…",
                 if add_selected {
-                    Style::default()
-                        .fg(crate::colors::primary())
-                        .add_modifier(Modifier::BOLD)
+                    crate::colors::style_primary_bold()
                 } else {
                     crate::colors::style_text()
                 },
@@ -234,9 +228,7 @@ impl LoginAccountsState {
             Span::styled(
                 "Account store paths…",
                 if store_selected {
-                    Style::default()
-                        .fg(crate::colors::primary())
-                        .add_modifier(Modifier::BOLD)
+                    crate::colors::style_primary_bold()
                 } else {
                     crate::colors::style_text()
                 },
@@ -257,9 +249,7 @@ impl LoginAccountsState {
             lines.push(Line::from(vec![
                 Span::styled(
                     account.label.clone(),
-                    Style::default()
-                        .fg(crate::colors::primary())
-                        .add_modifier(Modifier::BOLD),
+                    crate::colors::style_primary_bold(),
                 ),
                 Span::styled(
                     format!("  [{}]", Self::account_mode_badge(account.mode)),

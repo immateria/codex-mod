@@ -115,9 +115,7 @@ impl ChatWidget<'_> {
                 }
                 let active = *tab == self.agents_terminal.active_tab;
                 let style = if active {
-                    Style::default()
-                        .fg(crate::colors::primary())
-                        .add_modifier(Modifier::BOLD)
+                    crate::colors::style_primary_bold()
                 } else {
                     crate::colors::style_text_dim()
                 };
@@ -133,9 +131,7 @@ impl ChatWidget<'_> {
                 Span::raw("( "),
                 Span::styled(
                     format!("{sort_label} {}", crate::icons::sort_desc()),
-                    Style::default()
-                        .fg(crate::colors::primary())
-                        .add_modifier(Modifier::BOLD),
+                    crate::colors::style_primary_bold(),
                 ),
                 Span::raw(" )"),
             ];
@@ -201,9 +197,7 @@ impl ChatWidget<'_> {
             items.push(ListItem::new(Line::from(vec![
                 Span::styled(
                     group.label.clone(),
-                    Style::default()
-                        .fg(crate::colors::text())
-                        .add_modifier(Modifier::BOLD),
+                    crate::colors::style_text_bold(),
                 ),
             ])));
             row_entries.push(None);
@@ -287,9 +281,7 @@ impl ChatWidget<'_> {
 
         // Keep the selected agent vivid even when detail pane holds focus so users
         // don’t lose their place while reading logs.
-        let highlight_style = Style::default()
-            .fg(crate::colors::primary())
-            .add_modifier(Modifier::BOLD);
+        let highlight_style = crate::colors::style_primary_bold();
         let sidebar = List::new(items)
             .highlight_style(highlight_style)
             .highlight_spacing(HighlightSpacing::Never);
@@ -340,9 +332,7 @@ impl ChatWidget<'_> {
                         Span::raw(" "),
                         Span::styled(
                             title_text,
-                            Style::default()
-                                .fg(crate::colors::text())
-                                .add_modifier(Modifier::BOLD),
+                            crate::colors::style_text_bold(),
                         ),
                     ]));
 
@@ -400,9 +390,7 @@ impl ChatWidget<'_> {
                     self.ensure_trailing_blank_line(&mut lines);
 
                     // Action log box
-                    let action_header_style = Style::default()
-                        .fg(crate::colors::text())
-                        .add_modifier(Modifier::BOLD);
+                    let action_header_style = crate::colors::style_text_bold();
                     let chevron = if self.agents_terminal.actions_collapsed {
                         crate::icons::collapse_closed()
                     } else {
@@ -528,9 +516,7 @@ impl ChatWidget<'_> {
                 Line::from(vec![
                     Span::styled(
                         "Stop agent? ",
-                        Style::default()
-                            .fg(crate::colors::error())
-                            .add_modifier(Modifier::BOLD),
+                        crate::colors::style_error_bold(),
                     ),
                     Span::styled(
                         pending.agent_name.clone(),

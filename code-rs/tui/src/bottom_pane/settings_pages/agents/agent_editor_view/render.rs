@@ -1,6 +1,5 @@
 use ratatui::buffer::Buffer;
 use ratatui::layout::{Alignment, Rect};
-use ratatui::style::{Modifier, Style};
 use ratatui::text::Line;
 use ratatui::widgets::{Block, Borders, Clear, Paragraph, Widget};
 
@@ -170,9 +169,7 @@ impl AgentEditorView {
          -> Option<Rect> {
             let rect = Self::scrolled_rect(&content, offset, height, scroll)?;
             let border_style = if focused {
-                Style::default()
-                    .fg(crate::colors::primary())
-                    .add_modifier(Modifier::BOLD)
+                crate::colors::style_primary_bold()
             } else {
                 crate::colors::style_border()
             };
@@ -192,9 +189,7 @@ impl AgentEditorView {
             buf, *name_offset, *name_height, "ID", self.field == FIELD_NAME,
         ) {
             let mut border_style = if self.field == FIELD_NAME {
-                Style::default()
-                    .fg(crate::colors::primary())
-                    .add_modifier(Modifier::BOLD)
+                crate::colors::style_primary_bold()
             } else {
                 crate::colors::style_border()
             };
@@ -243,9 +238,7 @@ impl AgentEditorView {
         // Description
         {
             let mut desc_border_style = if self.field == FIELD_DESCRIPTION {
-                Style::default()
-                    .fg(crate::colors::primary())
-                    .add_modifier(Modifier::BOLD)
+                crate::colors::style_primary_bold()
             } else {
                 crate::colors::style_border()
             };

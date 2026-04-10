@@ -859,9 +859,7 @@ fn sections_to_ratatui_lines(
         if let Some(heading) = &section.heading {
             out.push(Line::from(vec![Span::styled(
                 heading.clone(),
-                Style::default()
-                    .fg(crate::colors::text())
-                    .add_modifier(Modifier::BOLD),
+                crate::colors::style_text_bold(),
             )]));
         }
         for block in &section.blocks {
@@ -934,9 +932,7 @@ fn collect_section_summaries(
         } else if let Some(heading) = &section.heading {
             out.push(Line::from(vec![Span::styled(
                 heading.clone(),
-                Style::default()
-                    .fg(crate::colors::text())
-                    .add_modifier(Modifier::BOLD),
+                crate::colors::style_text_bold(),
             )]));
         }
     }

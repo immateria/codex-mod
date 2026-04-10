@@ -9,7 +9,7 @@ impl ChatWidget<'_> {
         buf: &mut Buffer,
     ) {
         use ratatui::layout::{Alignment, Constraint, Direction, Layout, Rect as RtRect};
-        use ratatui::style::{Modifier, Style};
+        use ratatui::style::Style;
         use ratatui::text::{Line as RLine, Span};
         use ratatui::widgets::{Block, Borders, Clear, Paragraph, Wrap};
         use ratatui::widgets::Widget;
@@ -263,9 +263,7 @@ impl ChatWidget<'_> {
             return;
         }
 
-        let header_style = Style::default()
-            .fg(crate::colors::text())
-            .add_modifier(Modifier::BOLD);
+        let header_style = crate::colors::style_text_bold();
         let secondary_style = crate::colors::style_text_dim();
         let primary_style = crate::colors::style_text();
 

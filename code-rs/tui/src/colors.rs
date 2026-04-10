@@ -1,4 +1,4 @@
-use ratatui::style::{Color, Style};
+use ratatui::style::{Color, Modifier, Style};
 use crate::theme::{current_theme, palette_mode, quantize_color_for_palette, PaletteMode};
 
 #[allow(clippy::disallowed_methods)]
@@ -389,3 +389,8 @@ pub(crate) fn style_on_selection() -> Style { Style::default().bg(selection()) }
 pub(crate) fn style_text_on_bg() -> Style { Style::default().fg(text()).bg(background()) }
 pub(crate) fn style_border_on_bg() -> Style { Style::default().fg(border()).bg(background()) }
 pub(crate) fn style_border_dim_on_bg() -> Style { Style::default().fg(border_dim()).bg(background()) }
+
+// Bold helpers for the most common bold+color combinations.
+pub(crate) fn style_text_bold() -> Style { Style::default().fg(text()).add_modifier(Modifier::BOLD) }
+pub(crate) fn style_primary_bold() -> Style { Style::default().fg(primary()).add_modifier(Modifier::BOLD) }
+pub(crate) fn style_error_bold() -> Style { Style::default().fg(error()).add_modifier(Modifier::BOLD) }

@@ -1,7 +1,6 @@
 use crossterm::event::{KeyEvent, MouseEvent};
 use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
-use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
 
 use crate::bottom_pane::SettingsSection;
@@ -91,9 +90,7 @@ pub(super) struct SettingsHelpOverlay {
 
 impl SettingsHelpOverlay {
     pub(super) fn overview() -> Self {
-        let title = Style::default()
-            .fg(crate::colors::text())
-            .add_modifier(Modifier::BOLD);
+        let title = crate::colors::style_text_bold();
         let hint = crate::colors::style_text_dim();
         let mut lines = vec![Line::from(vec![Span::styled("Settings Overview", title)]), Line::default()];
         let nav = crate::icons::nav_up_down();
@@ -116,9 +113,7 @@ impl SettingsHelpOverlay {
     }
 
     pub(super) fn section(section: SettingsSection) -> Self {
-        let title = Style::default()
-            .fg(crate::colors::text())
-            .add_modifier(Modifier::BOLD);
+        let title = crate::colors::style_text_bold();
         let hint = crate::colors::style_text_dim();
         let mut lines = vec![
             Line::from(vec![Span::styled(

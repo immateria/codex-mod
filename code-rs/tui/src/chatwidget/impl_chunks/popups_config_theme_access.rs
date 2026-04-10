@@ -75,16 +75,12 @@ impl ChatWidget<'_> {
             }
             // Prepend a header block with the full path and counts
             let header_line = {
-                use ratatui::style::Modifier;
-                use ratatui::style::Style;
                 use ratatui::text::Line as RtLine;
                 use ratatui::text::Span as RtSpan;
                 let mut spans: Vec<RtSpan<'static>> = Vec::new();
                 spans.push(RtSpan::styled(
                     path.display().to_string(),
-                    Style::default()
-                        .fg(crate::colors::text())
-                        .add_modifier(Modifier::BOLD),
+                    crate::colors::style_text_bold(),
                 ));
                 spans.push(RtSpan::raw(" "));
                 spans.push(RtSpan::styled(

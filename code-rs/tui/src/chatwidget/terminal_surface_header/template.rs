@@ -104,9 +104,7 @@ pub(super) fn render_styled_header_template(
                     Some(McpHeaderIndicatorKind::Connecting) => {
                         crate::colors::style_info()
                     }
-                    Some(McpHeaderIndicatorKind::Error) => Style::default()
-                        .fg(crate::colors::error())
-                        .add_modifier(Modifier::BOLD),
+                    Some(McpHeaderIndicatorKind::Error) => crate::colors::style_error_bold(),
                     None => crate::colors::style_success_green(),
                 };
                 Some((context.mcp, mcp_style, None))

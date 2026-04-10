@@ -1,4 +1,4 @@
-use ratatui::style::{Modifier, Style};
+use ratatui::style::Modifier;
 use ratatui::text::{Line, Span};
 
 use code_core::protocol::McpAuthStatus;
@@ -16,9 +16,7 @@ impl McpSettingsView {
         &self,
     ) -> Vec<Line<'static>> {
         let mut lines = Vec::new();
-        let heading_style = Style::default()
-            .fg(crate::colors::text())
-            .add_modifier(Modifier::BOLD);
+        let heading_style = crate::colors::style_text_bold();
         let key_style = crate::colors::style_secondary();
         let value_style = crate::colors::style_text();
         let dim_style = crate::colors::style_text_dim();

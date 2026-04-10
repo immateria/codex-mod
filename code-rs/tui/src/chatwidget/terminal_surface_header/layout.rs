@@ -1,5 +1,4 @@
 use super::*;
-use ratatui::style::Modifier;
 use ratatui::style::Style;
 use ratatui::text::Line;
 use ratatui::text::Span;
@@ -89,9 +88,7 @@ pub(super) fn render_dynamic_header_line(input: &DynamicHeaderLayoutInput<'_>) -
             &mut width,
             input.title,
             apply_hover_style(
-                Style::default()
-                    .fg(crate::colors::text())
-                    .add_modifier(Modifier::BOLD),
+                crate::colors::style_text_bold(),
                 input.hover_style,
                 title_is_hovered,
             ),
@@ -145,9 +142,7 @@ pub(super) fn render_dynamic_header_line(input: &DynamicHeaderLayoutInput<'_>) -
             push_separator(&mut spans, &mut width);
             let value_style = match kind {
                 McpHeaderIndicatorKind::Connecting => crate::colors::style_info(),
-                McpHeaderIndicatorKind::Error => Style::default()
-                    .fg(crate::colors::error())
-                    .add_modifier(Modifier::BOLD),
+                McpHeaderIndicatorKind::Error => crate::colors::style_error_bold(),
             };
             push_clickable_labeled_segment(
                 &mut spans,

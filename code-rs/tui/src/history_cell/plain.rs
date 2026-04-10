@@ -673,9 +673,7 @@ pub(crate) fn new_error_event(message: String) -> PlainMessageState {
     let mut lines: Vec<Line<'static>> = Vec::new();
     lines.push(Line::styled(
         "error",
-        Style::default()
-            .fg(crate::colors::error())
-            .add_modifier(Modifier::BOLD),
+        crate::colors::style_error_bold(),
     ));
     let msg_norm = normalize_overwrite_sequences(&message);
     lines.extend(

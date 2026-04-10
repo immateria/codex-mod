@@ -50,9 +50,7 @@ fn build_lines(record: &ContextRecord) -> Vec<Line<'static>> {
     let mut lines: Vec<Line<'static>> = Vec::new();
     let dim = crate::colors::style_text_dim();
     let primary = crate::colors::style_text();
-    let accent = Style::default()
-        .fg(crate::colors::primary())
-        .add_modifier(Modifier::BOLD);
+    let accent = crate::colors::style_primary_bold();
     let badge_style = Style::default()
         .fg(crate::colors::text())
         .bg(crate::colors::selection())

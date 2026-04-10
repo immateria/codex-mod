@@ -190,9 +190,7 @@ impl ChatWidget<'_> {
                             height: 1,
                         };
                         let label_style = if selected {
-                            Style::default()
-                                .fg(crate::colors::text())
-                                .add_modifier(Modifier::BOLD)
+                            crate::colors::style_text_bold()
                         } else {
                             crate::colors::style_text_dim()
                         };
@@ -224,9 +222,7 @@ impl ChatWidget<'_> {
                     if let Some((label, _)) = overlay.tabs.get(overlay.selected) {
                         let header_line = ratatui::text::Line::from(ratatui::text::Span::styled(
                             label.clone(),
-                            Style::default()
-                                .fg(crate::colors::text())
-                                .add_modifier(Modifier::BOLD),
+                            crate::colors::style_text_bold(),
                         ));
                         let para = Paragraph::new(RtText::from(vec![header_line]))
                             .wrap(ratatui::widgets::Wrap { trim: true });

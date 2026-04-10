@@ -112,14 +112,10 @@ impl AgentEditorView {
         let disabled_style = if self.enabled {
             crate::colors::style_text_dim()
         } else {
-            Style::default()
-                .fg(crate::colors::error())
-                .add_modifier(Modifier::BOLD)
+            crate::colors::style_error_bold()
         };
         let label_style = if self.field == FIELD_TOGGLE {
-            Style::default()
-                .fg(crate::colors::primary())
-                .add_modifier(Modifier::BOLD)
+            crate::colors::style_primary_bold()
         } else {
             crate::colors::style_text()
         };
