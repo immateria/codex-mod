@@ -1,7 +1,7 @@
 use crossterm::event::{KeyCode, KeyEvent};
 use ratatui::buffer::Buffer;
 use ratatui::layout::{Constraint, Rect};
-use ratatui::style::{Modifier, Style};
+use ratatui::style::Modifier;
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Paragraph, Row, Table};
 use ratatui::widgets::Widget;
@@ -214,7 +214,7 @@ impl BottomPaneView<'_> for ResumeSelectionView {
             .map(ratatui::widgets::Cell::from);
             let mut row = Row::new(cells).height(1);
             if i == self.selected {
-                row = row.style(Style::default().bg(crate::colors::selection()).add_modifier(Modifier::BOLD));
+                row = row.style(crate::colors::style_on_selection().add_modifier(Modifier::BOLD));
             }
             row
         });
@@ -249,7 +249,7 @@ impl BottomPaneView<'_> for ResumeSelectionView {
             crate::bottom_pane::settings_ui::hints::hint_esc(" Cancel"),
         ]);
         Paragraph::new(footer_line)
-            .style(Style::default().bg(crate::colors::background()).fg(crate::colors::text()))
+            .style(crate::colors::style_on_background().fg(crate::colors::text()))
             .render(footer, buf);
     }
 }

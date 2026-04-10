@@ -25,7 +25,7 @@ impl ChatWidget<'_> {
 
         Clear.render(overlay_area, buf);
 
-        let bg_style = Style::default().bg(crate::colors::overlay_scrim());
+        let bg_style = crate::colors::style_on_overlay_scrim();
         fill_rect(buf, overlay_area, None, bg_style);
 
         overlay.render(overlay_area, buf);

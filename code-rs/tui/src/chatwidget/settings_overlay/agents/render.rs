@@ -11,7 +11,7 @@ impl AgentsSettingsContent {
     pub(super) fn render_overview(&self, area: Rect, buf: &mut Buffer, state: &AgentsOverviewState) {
         let lines = Self::build_overview_lines(state, Some(area.width as usize));
         Paragraph::new(lines)
-            .style(Style::default().bg(crate::colors::background()).fg(crate::colors::text()))
+            .style(crate::colors::style_on_background().fg(crate::colors::text()))
             .render(area, buf);
     }
 

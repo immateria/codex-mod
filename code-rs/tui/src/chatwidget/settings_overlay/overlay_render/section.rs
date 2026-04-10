@@ -69,7 +69,7 @@ impl SettingsOverlayView {
             buf,
             area,
             Some(' '),
-            Style::default().bg(crate::colors::background()),
+            crate::colors::style_on_background(),
         );
 
         let symbol = if collapsed { crate::icons::sidebar_show() } else { crate::icons::sidebar_hide() };
@@ -258,7 +258,7 @@ impl SettingsOverlayView {
             buf,
             area,
             None,
-            Style::default().bg(crate::colors::overlay_scrim()),
+            crate::colors::style_on_overlay_scrim(),
         );
 
         let content_width = help.lines.iter().map(Line::width).max().unwrap_or(0);
@@ -291,13 +291,13 @@ impl SettingsOverlayView {
             buf,
             box_area,
             Some(' '),
-            Style::default().bg(crate::colors::background()),
+            crate::colors::style_on_background(),
         );
 
         Block::default()
             .borders(Borders::ALL)
             .border_style(crate::colors::style_border())
-            .style(Style::default().bg(crate::colors::background()))
+            .style(crate::colors::style_on_background())
             .render(box_area, buf);
 
         let inner = box_area.inner(crate::ui_consts::UNIFORM_PAD);
@@ -307,7 +307,7 @@ impl SettingsOverlayView {
 
         Paragraph::new(help.lines.clone())
             .alignment(Alignment::Left)
-            .style(Style::default().bg(crate::colors::background()).fg(crate::colors::text()))
+            .style(crate::colors::style_on_background().fg(crate::colors::text()))
             .wrap(Wrap { trim: true })
             .render(inner, buf);
     }

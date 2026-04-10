@@ -315,7 +315,7 @@ impl ChatWidget<'_> {
         let status_block = Block::default()
             .borders(Borders::ALL)
             .border_style(crate::colors::style_border())
-            .style(Style::default().bg(crate::colors::background()));
+            .style(crate::colors::style_on_background());
         let inner_area = status_block.inner(padded_area);
         let padded_inner = inner_area.inner(crate::ui_consts::HORIZONTAL_PAD);
         let inner_width = padded_inner.width as usize;

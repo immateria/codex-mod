@@ -403,7 +403,7 @@ impl ShellProfilesSettingsView {
                 buf,
                 area,
                 Some(' '),
-                Style::default().bg(crate::colors::background()),
+                crate::colors::style_on_background(),
             );
             write_line(
                 buf,
@@ -416,7 +416,7 @@ impl ShellProfilesSettingsView {
                         .fg(crate::colors::text_dim())
                         .add_modifier(Modifier::ITALIC),
                 )]),
-                Style::default().bg(crate::colors::background()),
+                crate::colors::style_on_background(),
             );
             return;
         }
@@ -436,7 +436,7 @@ impl ShellProfilesSettingsView {
                     buf,
                     row_area,
                     Some(' '),
-                    Style::default().bg(crate::colors::background()),
+                    crate::colors::style_on_background(),
                 );
                 continue;
             }
@@ -448,7 +448,7 @@ impl ShellProfilesSettingsView {
                     .bg(crate::colors::selection())
                     .fg(crate::colors::text_bright())
             } else {
-                Style::default().bg(crate::colors::background()).fg(crate::colors::text())
+                crate::colors::style_on_background().fg(crate::colors::text())
             };
             fill_rect(buf, row_area, Some(' '), base);
 

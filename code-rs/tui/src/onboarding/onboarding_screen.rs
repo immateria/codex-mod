@@ -195,7 +195,7 @@ impl WidgetRef for &OnboardingScreen {
         // Fill the onboarding surface with the themed background so the picker
         // screen matches the active light/dark theme across terminals.
         let bg = ratatui::widgets::Block::default()
-            .style(ratatui::style::Style::default().bg(crate::colors::background()));
+            .style(crate::colors::style_on_background());
         bg.render(area, buf);
         // Render steps top-to-bottom, measuring each step's height dynamically.
         let mut y = area.y;

@@ -17,7 +17,7 @@ impl StatusLineSetupView {
         let block = Block::default()
             .borders(Borders::ALL)
             .border_style(crate::colors::style_border())
-            .style(Style::default().bg(crate::colors::background()).fg(crate::colors::text()))
+            .style(crate::colors::style_on_background().fg(crate::colors::text()))
             .title(" Status Line ")
             .title_alignment(Alignment::Center);
         let inner = block.inner(area);

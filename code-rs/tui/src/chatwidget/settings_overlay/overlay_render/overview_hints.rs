@@ -77,7 +77,7 @@ impl SettingsOverlayView {
         ]);
 
         Paragraph::new(line)
-            .style(Style::default().bg(crate::colors::background()))
+            .style(crate::colors::style_on_background())
             .alignment(Alignment::Left)
             .render(area, buf);
     }
@@ -150,7 +150,7 @@ impl SettingsOverlayView {
         }
 
         Paragraph::new(Line::from(spans))
-            .style(Style::default().bg(crate::colors::background()))
+            .style(crate::colors::style_on_background())
             .alignment(Alignment::Left)
             .render(area, buf);
     }

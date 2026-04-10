@@ -110,7 +110,7 @@ impl WidgetRef for ChatComposer {
             input_block = input_block
                 .border_style(crate::colors::style_border())
                 .border_type(BorderType::Plain)
-                .style(Style::default().bg(crate::colors::background()));
+                .style(crate::colors::style_on_background());
         }
 
         if self.is_task_running && !self.embedded_mode {

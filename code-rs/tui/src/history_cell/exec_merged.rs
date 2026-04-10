@@ -447,7 +447,7 @@ impl HistoryCell for MergedExecCell {
                             .fg(crate::colors::border_dim())
                             .bg(crate::colors::background()),
                     )
-                    .style(Style::default().bg(crate::colors::background()))
+                    .style(crate::colors::style_on_background())
                     .padding(Padding {
                         left: 1,
                         right: 0,
@@ -537,7 +537,7 @@ impl HistoryCell for MergedExecCell {
                             .fg(crate::colors::border_dim())
                             .bg(crate::colors::background()),
                     )
-                    .style(Style::default().bg(crate::colors::background()))
+                    .style(crate::colors::style_on_background())
                     .padding(Padding {
                         left: 1,
                         right: 0,

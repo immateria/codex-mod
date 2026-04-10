@@ -175,7 +175,7 @@ pub(super) fn render_text_box(
 ) {
     let block = Block::default()
         .borders(Borders::ALL)
-        .style(Style::default().bg(crate::colors::background()))
+        .style(crate::colors::style_on_background())
         .border_style(Style::default().fg(border_color))
         .title(ratatui::text::Span::styled(
             title.to_string(),
@@ -188,7 +188,7 @@ pub(super) fn render_text_box(
         return;
     }
 
-    let inner_bg = Style::default().bg(crate::colors::background());
+    let inner_bg = crate::colors::style_on_background();
     for y in inner.y..inner.y + inner.height {
         for x in inner.x..inner.x + inner.width {
             buf[(x, y)].set_style(inner_bg);

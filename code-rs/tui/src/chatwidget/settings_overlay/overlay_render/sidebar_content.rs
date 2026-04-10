@@ -14,7 +14,7 @@ impl SettingsOverlayView {
             buf,
             area,
             Some(' '),
-            Style::default().bg(crate::colors::background()),
+            crate::colors::style_on_background(),
         );
 
         if sections.is_empty() {
@@ -116,7 +116,7 @@ impl SettingsOverlayView {
 
         Paragraph::new(lines)
             .alignment(Alignment::Left)
-            .style(Style::default().bg(crate::colors::background()))
+            .style(crate::colors::style_on_background())
             .render(area, buf);
     }
 

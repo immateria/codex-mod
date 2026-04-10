@@ -36,7 +36,7 @@ impl Widget for LimitsHintRowWidget {
 
         Paragraph::new(Line::from(spans))
             .alignment(Alignment::Left)
-            .style(Style::default().bg(crate::colors::background()).fg(crate::colors::text_dim()))
+            .style(crate::colors::style_on_background().fg(crate::colors::text_dim()))
             .render(area, buf);
     }
 }
@@ -202,7 +202,7 @@ impl Widget for LimitsTabsRowWidget<'_> {
         }
 
         Paragraph::new(Line::from(spans))
-            .style(Style::default().bg(crate::colors::background()))
+            .style(crate::colors::style_on_background())
             .render(area, buf);
     }
 }
@@ -215,7 +215,7 @@ impl Widget for LimitsSingleBodyWidget {
     fn render(self, area: Rect, buf: &mut Buffer) {
         Paragraph::new(self.lines)
             .wrap(Wrap { trim: false })
-            .style(Style::default().bg(crate::colors::background()).fg(crate::colors::text()))
+            .style(crate::colors::style_on_background().fg(crate::colors::text()))
             .render(area, buf);
     }
 }
@@ -253,12 +253,12 @@ impl Widget for LimitsPaneWidget {
             Span::styled(self.title.to_string(), title_style),
             Span::styled(" ─", crate::colors::style_text_dim()),
         ]))
-        .style(Style::default().bg(crate::colors::background()))
+        .style(crate::colors::style_on_background())
         .render(title_area, buf);
 
         Paragraph::new(self.lines)
             .wrap(Wrap { trim: false })
-            .style(Style::default().bg(crate::colors::background()).fg(crate::colors::text()))
+            .style(crate::colors::style_on_background().fg(crate::colors::text()))
             .render(body_area, buf);
     }
 }

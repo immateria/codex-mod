@@ -4,7 +4,6 @@ use crossterm::event::KeyEvent;
 use crossterm::event::KeyModifiers;
 use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
-use ratatui::style::Style;
 use ratatui::text::Line;
 use ratatui::widgets::Paragraph;
 use ratatui::widgets::Widget;
@@ -316,7 +315,7 @@ impl BottomPaneView<'_> for ListSelectionView {
                 let spacer_y = inner.y + inner.height - footer_rows - bottom_spacer_rows;
                 let spacer_area = Rect { x: inner.x.saturating_add(1), y: spacer_y, width: content_width, height: bottom_spacer_rows };
                 Paragraph::new(Line::from(""))
-                    .style(Style::default().bg(crate::colors::background()).fg(crate::colors::text()))
+                    .style(crate::colors::style_on_background().fg(crate::colors::text()))
                     .render(spacer_area, buf);
             }
             // Render footer on the last inner line
@@ -327,7 +326,7 @@ impl BottomPaneView<'_> for ListSelectionView {
                 crate::bottom_pane::settings_ui::hints::hint_esc(" Cancel"),
             ]);
             Paragraph::new(line)
-                .style(Style::default().bg(crate::colors::background()).fg(crate::colors::text()))
+                .style(crate::colors::style_on_background().fg(crate::colors::text()))
                 .render(footer_area, buf);
         }
     }

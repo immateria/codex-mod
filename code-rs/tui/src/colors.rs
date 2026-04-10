@@ -379,3 +379,8 @@ pub(crate) fn style_function() -> Style { Style::default().fg(function()) }
 pub(crate) fn style_border() -> Style { Style::default().fg(border()) }
 pub(crate) fn style_border_dim() -> Style { Style::default().fg(border_dim()) }
 pub(crate) fn style_light_blue() -> Style { Style::default().fg(light_blue()) }
+
+// Background-based helpers — chain .fg() for combined styles.
+pub(crate) fn style_on_background() -> Style { Style::default().bg(background()) }
+pub(crate) fn style_on_overlay_scrim() -> Style { Style::default().bg(overlay_scrim()) }
+pub(crate) fn style_on_selection() -> Style { Style::default().bg(selection()) }

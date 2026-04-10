@@ -59,7 +59,7 @@ impl ChatWidget<'_> {
 
                 // Clear and repaint the overlay area with theme scrim background
                 Clear.render(area, buf);
-                let bg_style = Style::default().bg(crate::colors::overlay_scrim());
+                let bg_style = crate::colors::style_on_overlay_scrim();
                 let _perf_overlay_area_bg_start = if self.perf_state.enabled {
                     Some(std::time::Instant::now())
                 } else {
@@ -105,7 +105,7 @@ impl ChatWidget<'_> {
                     .title(ratatui::text::Line::from(title_spans))
                     // Use normal background for the window itself so it contrasts against the
                     // dimmed scrim behind
-                    .style(Style::default().bg(crate::colors::background()))
+                    .style(crate::colors::style_on_background())
                     .border_style(
                         Style::default()
                             .fg(crate::colors::border())
@@ -115,7 +115,7 @@ impl ChatWidget<'_> {
                 block.render(area, buf);
 
                 // Paint inner content background as the normal theme background
-                let inner_bg = Style::default().bg(crate::colors::background());
+                let inner_bg = crate::colors::style_on_background();
                 let _perf_overlay_inner_bg_start = if self.perf_state.enabled {
                     Some(std::time::Instant::now())
                 } else {
@@ -328,7 +328,7 @@ impl ChatWidget<'_> {
                         let dlg_inner = dlg_block.inner(dialog);
                         dlg_block.render(dialog, buf);
                         // Fill dialog inner area with theme background for consistent look
-                        let dlg_bg = Style::default().bg(crate::colors::background());
+                        let dlg_bg = crate::colors::style_on_background();
                         for y in dlg_inner.y..dlg_inner.y + dlg_inner.height {
                             for x in dlg_inner.x..dlg_inner.x + dlg_inner.width {
                                 buf[(x, y)].set_style(dlg_bg);
@@ -404,7 +404,7 @@ impl ChatWidget<'_> {
                                 crate::colors::style_text_dim(),
                             ),
                         ]))
-                        .style(Style::default().bg(crate::colors::background()))
+                        .style(crate::colors::style_on_background())
                         .border_style(border_style);
                     let inner = block.inner(window_area);
                     block.render(window_area, buf);
@@ -490,7 +490,7 @@ impl ChatWidget<'_> {
                     }
 
                     // Paint inner bg
-                    let inner_bg = Style::default().bg(crate::colors::background());
+                    let inner_bg = crate::colors::style_on_background();
                     for y in inner.y..inner.y + inner.height {
                         for x in inner.x..inner.x + inner.width {
                             buf[(x, y)].set_style(inner_bg);

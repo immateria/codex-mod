@@ -44,7 +44,7 @@ impl ChatWidget<'_> {
         let block = Block::default()
             .borders(Borders::ALL)
             .title(Line::from(title_spans))
-            .style(Style::default().bg(crate::colors::background()))
+            .style(crate::colors::style_on_background())
             .border_style(
                 Style::default()
                     .fg(crate::colors::border())
@@ -53,7 +53,7 @@ impl ChatWidget<'_> {
         let inner = block.inner(window_area);
         block.render(window_area, buf);
 
-        fill_rect(buf, inner, None, Style::default().bg(crate::colors::background()));
+        fill_rect(buf, inner, None, crate::colors::style_on_background());
 
         // Remove vertical padding so the filter row sits directly below the title.
         let content = inner.inner(Margin {
@@ -298,7 +298,7 @@ impl ChatWidget<'_> {
 
         let sidebar_block = Block::default()
             .borders(Borders::ALL)
-            .style(Style::default().bg(crate::colors::background()))
+            .style(crate::colors::style_on_background())
             .border_style(Style::default().fg(sidebar_border_color));
 
         let sidebar_area = chunks[0];
@@ -309,7 +309,7 @@ impl ChatWidget<'_> {
             buf,
             sidebar_inner,
             None,
-            Style::default().bg(crate::colors::background()),
+            crate::colors::style_on_background(),
         );
 
         ratatui::widgets::StatefulWidget::render(sidebar, sidebar_inner, buf, &mut list_state);
@@ -564,7 +564,7 @@ impl ChatWidget<'_> {
                 ])
             };
             Paragraph::new(hint_line)
-                .style(Style::default().bg(crate::colors::background()))
+                .style(crate::colors::style_on_background())
                 .alignment(ratatui::layout::Alignment::Center)
                 .render(hint_area, buf);
         }

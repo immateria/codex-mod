@@ -11,7 +11,7 @@ impl SettingsContent for LimitsSettingsContent {
             buf,
             area,
             Some(' '),
-            Style::default().bg(crate::colors::background()),
+            crate::colors::style_on_background(),
         );
 
         let has_tabs = self.overlay.tab_count() > 1;

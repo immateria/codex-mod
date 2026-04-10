@@ -110,7 +110,7 @@ pub(crate) fn render_rows(
 
     let table = Table::new(rows, vec![Constraint::Percentage(100)])
         .widths([Constraint::Percentage(100)])
-        .style(Style::default().bg(crate::colors::background()).fg(crate::colors::text()));
+        .style(crate::colors::style_on_background().fg(crate::colors::text()));
 
     table.render(area, buf);
 }

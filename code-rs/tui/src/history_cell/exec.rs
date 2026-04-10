@@ -270,7 +270,7 @@ impl HistoryCell for ExecCell {
                         .fg(crate::colors::border_dim())
                         .bg(crate::colors::background()),
                 )
-                .style(Style::default().bg(crate::colors::background()))
+                .style(crate::colors::style_on_background())
                 .padding(Padding {
                     left: 1,
                     right: 0,
@@ -306,7 +306,7 @@ impl HistoryCell for ExecCell {
                     width: area.width,
                     height: status_height,
                 };
-                let bg_style = Style::default().bg(crate::colors::background());
+                let bg_style = crate::colors::style_on_background();
                 fill_rect(buf, status_area, Some(' '), bg_style);
                 write_line(buf, status_area.x, status_area.y, status_area.width, &line, bg_style);
             }

@@ -322,7 +322,7 @@ impl LoginAccountsState {
         let list_lines = self.render_account_list_lines();
         let list_height = u16::try_from(list_lines.len().min(area.height as usize))
             .unwrap_or(area.height);
-        let base = Style::default().bg(crate::colors::background()).fg(crate::colors::text());
+        let base = crate::colors::style_on_background().fg(crate::colors::text());
 
         Paragraph::new(list_lines)
             .alignment(Alignment::Left)

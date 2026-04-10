@@ -47,7 +47,7 @@ impl ChatWidget<'_> {
                     crate::colors::style_text_dim(),
                 ),
             ]))
-            .style(Style::default().bg(crate::colors::background()))
+            .style(crate::colors::style_on_background())
             .border_style(
                 Style::default()
                     .fg(crate::colors::border())
@@ -56,7 +56,7 @@ impl ChatWidget<'_> {
         let inner = block.inner(window_area);
         block.render(window_area, buf);
 
-        let inner_bg = Style::default().bg(crate::colors::background());
+        let inner_bg = crate::colors::style_on_background();
         fill_rect(buf, inner, None, inner_bg);
 
         let content = inner.inner(crate::ui_consts::HORIZONTAL_PAD);

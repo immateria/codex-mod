@@ -8,7 +8,7 @@ impl SettingsOverlayView {
             .title(self.block_title_line())
             .title_alignment(Alignment::Left)
             .borders(Borders::ALL)
-            .style(Style::default().bg(crate::colors::background()))
+            .style(crate::colors::style_on_background())
             .border_style(
                 Style::default()
                     .fg(crate::colors::border())
@@ -23,7 +23,7 @@ impl SettingsOverlayView {
             buf,
             inner,
             Some(' '),
-            Style::default().bg(crate::colors::background()),
+            crate::colors::style_on_background(),
         );
 
         // Render a close button as an inset box in the top-right corner:
@@ -219,7 +219,7 @@ impl SettingsOverlayView {
             return;
         }
 
-        let bg_style = Style::default().bg(crate::colors::background());
+        let bg_style = crate::colors::style_on_background();
         fill_rect(buf, area, Some(' '), bg_style);
 
         if self.overview_rows.is_empty() {

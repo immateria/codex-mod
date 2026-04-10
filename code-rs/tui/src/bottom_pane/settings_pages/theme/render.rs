@@ -57,7 +57,7 @@ impl ThemeSelectionView {
                 height: 1,
             };
             Clear.render(pad, buf);
-            let pad_bg = Block::default().style(Style::default().bg(crate::colors::background()));
+            let pad_bg = Block::default().style(crate::colors::style_on_background());
             pad_bg.render(pad, buf);
         }
 
@@ -84,7 +84,7 @@ impl ThemeSelectionView {
         let outer = Block::default()
             .borders(Borders::ALL)
             .title(Line::from(title_spans))
-            .style(Style::default().bg(crate::colors::background()))
+            .style(crate::colors::style_on_background())
             .border_style(
                 Style::default()
                     .fg(crate::colors::border())
@@ -94,7 +94,7 @@ impl ThemeSelectionView {
         outer.render(render_area, buf);
 
         // Paint inner content background as the normal theme background.
-        let inner_bg_style = Style::default().bg(crate::colors::background());
+        let inner_bg_style = crate::colors::style_on_background();
         for y in inner.y..inner.y + inner.height {
             for x in inner.x..inner.x + inner.width {
                 buf[(x, y)].set_style(inner_bg_style);

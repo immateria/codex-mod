@@ -1,7 +1,7 @@
 use crossterm::event::{KeyEvent, KeyEventKind};
 use ratatui::buffer::Buffer;
 use ratatui::layout::{Alignment, Rect};
-use ratatui::style::{Style, Stylize};
+use ratatui::style::Stylize;
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Clear, Paragraph, Widget, Wrap};
 
@@ -53,7 +53,7 @@ impl RequestUserInputView {
         let block = Block::default()
             .borders(Borders::ALL)
             .border_style(crate::colors::style_border())
-            .style(Style::default().bg(crate::colors::background()).fg(crate::colors::text()))
+            .style(crate::colors::style_on_background().fg(crate::colors::text()))
             .title("User input")
             .title_alignment(Alignment::Center);
         let inner = block.inner(area);

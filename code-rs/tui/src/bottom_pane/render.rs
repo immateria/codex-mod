@@ -27,7 +27,7 @@ impl WidgetRef for &BottomPane<'_> {
             if is_auto {
                 if let Some(view_rect) = self.compute_active_view_rect(area, view.as_ref()) {
                     let view_bg =
-                        ratatui::style::Style::default().bg(crate::colors::background());
+                        crate::colors::style_on_background();
                     fill_rect(buf, view_rect, None, view_bg);
                     view.render(view_rect, buf);
                     let remaining_height = area.height.saturating_sub(view_rect.height);
@@ -44,7 +44,7 @@ impl WidgetRef for &BottomPane<'_> {
                     composer_rect = compute_composer_rect(area, self.top_spacer_enabled);
                 }
             } else if let Some(view_rect) = self.compute_active_view_rect(area, view.as_ref()) {
-                let view_bg = ratatui::style::Style::default().bg(crate::colors::background());
+                let view_bg = crate::colors::style_on_background();
                 fill_rect(buf, view_rect, None, view_bg);
                 view.render_with_composer(view_rect, buf, &self.composer);
                 composer_needs_render = false;
@@ -52,7 +52,7 @@ impl WidgetRef for &BottomPane<'_> {
         }
 
         if composer_needs_render && composer_rect.width > 0 && composer_rect.height > 0 {
-            let comp_bg = ratatui::style::Style::default().bg(crate::colors::background());
+            let comp_bg = crate::colors::style_on_background();
             fill_rect(buf, composer_rect, None, comp_bg);
             self.composer.render_ref(composer_rect, buf);
         }

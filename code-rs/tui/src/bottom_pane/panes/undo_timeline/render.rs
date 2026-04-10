@@ -93,7 +93,7 @@ impl UndoTimelineView {
             if selected {
                 lines.push(Line::from(Span::styled(
                     String::new(),
-                    Style::default().bg(crate::colors::selection()),
+                    crate::colors::style_on_selection(),
                 )));
             } else {
                 lines.push(Line::from(""));
@@ -102,7 +102,7 @@ impl UndoTimelineView {
 
         let paragraph = Paragraph::new(lines)
             .alignment(Alignment::Left)
-            .style(Style::default().bg(crate::colors::background()).fg(crate::colors::text()))
+            .style(crate::colors::style_on_background().fg(crate::colors::text()))
             .wrap(ratatui::widgets::Wrap { trim: false });
         paragraph.render(area, buf);
     }
@@ -123,12 +123,12 @@ impl UndoTimelineView {
             .borders(Borders::ALL)
             .title(" Conversation preview ")
             .border_style(crate::colors::style_border())
-            .style(Style::default().bg(crate::colors::background()).fg(crate::colors::text()));
+            .style(crate::colors::style_on_background().fg(crate::colors::text()));
         let conversation_inner = conversation_block.inner(conversation_area);
         conversation_block.render(conversation_area, buf);
         let conversation = Paragraph::new(entry.conversation_lines.clone())
             .wrap(ratatui::widgets::Wrap { trim: true })
-            .style(Style::default().bg(crate::colors::background()))
+            .style(crate::colors::style_on_background())
             .alignment(Alignment::Left);
         conversation.render(conversation_inner, buf);
 
@@ -136,7 +136,7 @@ impl UndoTimelineView {
             .borders(Borders::ALL)
             .title(" File changes ")
             .border_style(crate::colors::style_border())
-            .style(Style::default().bg(crate::colors::background()).fg(crate::colors::text()));
+            .style(crate::colors::style_on_background().fg(crate::colors::text()));
         let files_inner = files_block.inner(files_area);
         files_block.render(files_area, buf);
         let file_lines = if entry.file_lines.is_empty() {
@@ -149,13 +149,13 @@ impl UndoTimelineView {
         };
         let file_summary = Paragraph::new(file_lines)
             .wrap(ratatui::widgets::Wrap { trim: true })
-            .style(Style::default().bg(crate::colors::background()))
+            .style(crate::colors::style_on_background())
             .alignment(Alignment::Left);
         file_summary.render(files_inner, buf);
 
         let footer_lines = self.footer_lines(entry);
         Paragraph::new(footer_lines)
-            .style(Style::default().bg(crate::colors::background()).fg(crate::colors::text()))
+            .style(crate::colors::style_on_background().fg(crate::colors::text()))
             .wrap(ratatui::widgets::Wrap { trim: true })
             .render(footer_area, buf);
     }
@@ -204,7 +204,7 @@ impl UndoTimelineView {
             .borders(Borders::ALL)
             .title(" Restore workspace snapshot ")
             .border_style(crate::colors::style_border())
-            .style(Style::default().bg(crate::colors::background()).fg(crate::colors::text()))
+            .style(crate::colors::style_on_background().fg(crate::colors::text()))
             .title_alignment(Alignment::Center);
         let inner = block.inner(area);
         block.render(area, buf);
@@ -218,7 +218,7 @@ impl UndoTimelineView {
             .borders(Borders::ALL)
             .title(" Snapshots ")
             .border_style(crate::colors::style_border())
-            .style(Style::default().bg(crate::colors::background()).fg(crate::colors::text()));
+            .style(crate::colors::style_on_background().fg(crate::colors::text()));
         let list_inner = list_block.inner(list_area);
         list_block.render(list_area, buf);
         self.render_list(list_inner, buf);

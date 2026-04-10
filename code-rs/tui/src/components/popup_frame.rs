@@ -1,6 +1,5 @@
 use ratatui::buffer::Buffer;
 use ratatui::layout::{Alignment, Rect};
-use ratatui::style::Style;
 use ratatui::widgets::{Block, Borders, Clear, Widget};
 
 pub(crate) fn render_popup_frame(area: Rect, buf: &mut Buffer, title: &str) -> Option<Rect> {
@@ -13,7 +12,7 @@ pub(crate) fn render_popup_frame(area: Rect, buf: &mut Buffer, title: &str) -> O
     let block = Block::default()
         .borders(Borders::ALL)
         .border_style(crate::colors::style_border())
-        .style(Style::default().bg(crate::colors::background()).fg(crate::colors::text()))
+        .style(crate::colors::style_on_background().fg(crate::colors::text()))
         .title(title)
         .title_alignment(Alignment::Center);
 

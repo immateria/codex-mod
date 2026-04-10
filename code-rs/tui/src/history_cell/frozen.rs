@@ -1,6 +1,5 @@
 use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
-use ratatui::style::Style;
 use ratatui::text::Line;
 
 use crate::history::state::HistoryId;
@@ -82,7 +81,7 @@ impl HistoryCell for FrozenHistoryCell {
     }
 
     fn custom_render_with_skip(&self, area: Rect, buf: &mut Buffer, _skip_rows: u16) {
-        let bg_style = Style::default().bg(crate::colors::background());
+        let bg_style = crate::colors::style_on_background();
         fill_rect(buf, area, Some(' '), bg_style);
     }
 }
