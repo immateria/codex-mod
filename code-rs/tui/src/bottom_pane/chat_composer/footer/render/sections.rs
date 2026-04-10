@@ -91,7 +91,7 @@ pub(super) fn build_sections(
             };
 
             let auto_label_style = crate::colors::style_text_dim();
-            let auto_key_style = Style::default().fg(crate::colors::info());
+            let auto_key_style = crate::colors::style_info();
 
             if !left_hint.is_empty() {
                 if !left_misc_after_ctrlc.is_empty() {

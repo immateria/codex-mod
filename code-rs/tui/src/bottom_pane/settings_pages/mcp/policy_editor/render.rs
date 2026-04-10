@@ -67,7 +67,7 @@ impl McpSettingsView {
         block.render(area, buf);
 
         let dim = crate::colors::style_text_dim();
-        let key_style = Style::default().fg(crate::colors::secondary());
+        let key_style = crate::colors::style_secondary();
         let value_style = crate::colors::style_text();
         let selected_style = Style::default()
             .bg(crate::colors::selection())
@@ -219,7 +219,7 @@ impl McpSettingsView {
         block.render(area, buf);
 
         let dim = crate::colors::style_text_dim();
-        let key_style = Style::default().fg(crate::colors::secondary());
+        let key_style = crate::colors::style_secondary();
         let value_style = crate::colors::style_text();
         let selected_style = Style::default()
             .bg(crate::colors::selection())

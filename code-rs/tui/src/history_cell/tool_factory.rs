@@ -681,7 +681,7 @@ impl HistoryCell for WebFetchToolCell {
 
             let block = Block::default()
                 .borders(Borders::LEFT)
-                .border_style(Style::default().fg(crate::colors::border_dim()).bg(bg))
+                .border_style(crate::colors::style_border_dim().bg(bg))
                 .style(Style::default().bg(bg))
                 .padding(Padding {
                     left: 1,

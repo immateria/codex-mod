@@ -16,7 +16,7 @@ pub(super) fn render_image_placeholder(path: &Path, area: Rect, buf: &mut Buffer
         .block(
             Block::default()
                 .borders(Borders::ALL)
-                .border_style(Style::default().fg(crate::colors::info()))
+                .border_style(crate::colors::style_info())
                 .title(title),
         )
         .style(

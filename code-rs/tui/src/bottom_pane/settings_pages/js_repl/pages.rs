@@ -41,7 +41,7 @@ impl JsReplSettingsView {
         let enabled_word = if enabled { "ON " } else { "OFF " };
         let mut lines = vec![Line::from(vec![
             Span::styled(enabled_word, status_style),
-            Span::styled("js_repl", Style::default().fg(crate::colors::text_mid())),
+            Span::styled("js_repl", crate::colors::style_text_mid()),
             Span::styled("  |  runtime: ", crate::colors::style_text_dim()),
             Span::styled(runtime, runtime_style),
             Span::styled("  |  mediation: ", crate::colors::style_text_dim()),

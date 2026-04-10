@@ -549,17 +549,17 @@ impl ChatWidget<'_> {
                 ])
             } else {
                 Line::from(vec![
-                    Span::styled(format!("[{ud}/{lr}]", ud = crate::icons::nav_up_down(), lr = crate::icons::nav_left_right()), Style::default().fg(crate::colors::function())),
+                    Span::styled(format!("[{ud}/{lr}]", ud = crate::icons::nav_up_down(), lr = crate::icons::nav_left_right()), crate::colors::style_function()),
                     Span::styled(" Navigate   ", crate::colors::style_text_dim()),
-                    Span::styled("[1-5]", Style::default().fg(crate::colors::function())),
+                    Span::styled("[1-5]", crate::colors::style_function()),
                     Span::styled(" Filter   ", crate::colors::style_text_dim()),
-                    Span::styled("[S]", Style::default().fg(crate::colors::function())),
+                    Span::styled("[S]", crate::colors::style_function()),
                     Span::styled(" Sort   ", crate::colors::style_text_dim()),
-                    Span::styled("[H/A]", Style::default().fg(crate::colors::function())),
+                    Span::styled("[H/A]", crate::colors::style_function()),
                     Span::styled(" Toggle Details   ", crate::colors::style_text_dim()),
-                    Span::styled("[X]", Style::default().fg(crate::colors::function())),
+                    Span::styled("[X]", crate::colors::style_function()),
                     Span::styled(" Stop   ", crate::colors::style_text_dim()),
-                    Span::styled("[Ctrl+A]", Style::default().fg(crate::colors::function())),
+                    Span::styled("[Ctrl+A]", crate::colors::style_function()),
                     Span::styled(" Exit", crate::colors::style_text_dim()),
                 ])
             };

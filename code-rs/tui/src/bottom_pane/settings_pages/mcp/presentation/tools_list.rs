@@ -47,7 +47,7 @@ impl McpSettingsView {
             let row_style = if focused {
                 selected_style
             } else if hovered_row {
-                Style::default().fg(crate::colors::function())
+                crate::colors::style_function()
             } else {
                 Style::default()
             };

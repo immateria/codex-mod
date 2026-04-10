@@ -284,7 +284,7 @@ impl ChatWidget<'_> {
                 let mut footer_spans = vec![
                     ratatui::text::Span::styled(
                         crate::icons::nav_up_down(),
-                        Style::default().fg(crate::colors::function()),
+                        crate::colors::style_function(),
                     ),
                     ratatui::text::Span::styled(
                         " Scroll  ",

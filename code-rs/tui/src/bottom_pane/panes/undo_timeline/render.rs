@@ -122,7 +122,7 @@ impl UndoTimelineView {
         let conversation_block = Block::default()
             .borders(Borders::ALL)
             .title(" Conversation preview ")
-            .border_style(Style::default().fg(crate::colors::border()))
+            .border_style(crate::colors::style_border())
             .style(Style::default().bg(crate::colors::background()).fg(crate::colors::text()));
         let conversation_inner = conversation_block.inner(conversation_area);
         conversation_block.render(conversation_area, buf);
@@ -135,7 +135,7 @@ impl UndoTimelineView {
         let files_block = Block::default()
             .borders(Borders::ALL)
             .title(" File changes ")
-            .border_style(Style::default().fg(crate::colors::border()))
+            .border_style(crate::colors::style_border())
             .style(Style::default().bg(crate::colors::background()).fg(crate::colors::text()));
         let files_inner = files_block.inner(files_area);
         files_block.render(files_area, buf);
@@ -181,7 +181,7 @@ impl UndoTimelineView {
                 crate::bottom_pane::settings_ui::hints::KeyHint::new(
                     format!("{ud} PgUp PgDn", ud = crate::icons::nav_up_down()),
                     " Navigate",
-                ).with_key_style(Style::default().fg(crate::colors::function())),
+                ).with_key_style(crate::colors::style_function()),
                 crate::bottom_pane::settings_ui::hints::KeyHint::new(
                     crate::icons::space(), " Toggle files",
                 ).with_key_style(crate::colors::style_success()),
@@ -203,7 +203,7 @@ impl UndoTimelineView {
         let block = Block::default()
             .borders(Borders::ALL)
             .title(" Restore workspace snapshot ")
-            .border_style(Style::default().fg(crate::colors::border()))
+            .border_style(crate::colors::style_border())
             .style(Style::default().bg(crate::colors::background()).fg(crate::colors::text()))
             .title_alignment(Alignment::Center);
         let inner = block.inner(area);
@@ -217,7 +217,7 @@ impl UndoTimelineView {
         let list_block = Block::default()
             .borders(Borders::ALL)
             .title(" Snapshots ")
-            .border_style(Style::default().fg(crate::colors::border()))
+            .border_style(crate::colors::style_border())
             .style(Style::default().bg(crate::colors::background()).fg(crate::colors::text()));
         let list_inner = list_block.inner(list_area);
         list_block.render(list_area, buf);

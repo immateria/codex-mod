@@ -229,7 +229,7 @@ impl BottomPaneView<'_> for ResumeSelectionView {
         ];
 
         let header = Row::new(vec!["Modified", "Created", "User Msgs", "Branch", "Session"]).height(1)
-            .style(Style::default().fg(crate::colors::text_bright()));
+            .style(crate::colors::style_text_bright());
 
         let table = Table::new(rows_iter, widths)
             .header(header)
@@ -244,7 +244,7 @@ impl BottomPaneView<'_> for ResumeSelectionView {
             crate::bottom_pane::settings_ui::hints::KeyHint::new(
                 format!("{ud} PgUp PgDn", ud = crate::icons::nav_up_down()),
                 " Navigate",
-            ).with_key_style(Style::default().fg(crate::colors::function())),
+            ).with_key_style(crate::colors::style_function()),
             crate::bottom_pane::settings_ui::hints::hint_enter(" Select"),
             crate::bottom_pane::settings_ui::hints::hint_esc(" Cancel"),
         ]);

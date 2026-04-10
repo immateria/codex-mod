@@ -539,7 +539,7 @@ impl MarkdownRenderer {
                     // applied at line flush or by list/blockquote handlers.
                     spans.push(Span::styled(
                         code_content,
-                        Style::default().fg(crate::colors::function()),
+                        crate::colors::style_function(),
                     ));
                     i = j + 1;
                 } else {

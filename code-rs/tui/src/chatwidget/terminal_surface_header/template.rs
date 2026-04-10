@@ -70,44 +70,44 @@ pub(super) fn render_styled_header_template(
             )),
             "model" => Some((
                 context.model,
-                Style::default().fg(crate::colors::info()),
+                crate::colors::style_info(),
                 Some(ClickableAction::ShowModelSelector),
             )),
             "speed" | "service_tier" => Some((
                 context.service_tier,
-                Style::default().fg(crate::colors::info()),
+                crate::colors::style_info(),
                 Some(ClickableAction::ToggleServiceTier),
             )),
             "shell" => Some((
                 context.shell,
-                Style::default().fg(crate::colors::info()),
+                crate::colors::style_info(),
                 Some(ClickableAction::ShowShellSelector),
             )),
             "reasoning" => Some((
                 context.reasoning,
-                Style::default().fg(crate::colors::info()),
+                crate::colors::style_info(),
                 Some(ClickableAction::ShowReasoningSelector),
             )),
             "directory" => Some((
                 context.directory,
-                Style::default().fg(crate::colors::info()),
+                crate::colors::style_info(),
                 crate::platform_caps::supports_native_picker()
                     .then_some(ClickableAction::ShowDirectoryPicker),
             )),
             "branch" => Some((
                 context.branch,
-                Style::default().fg(crate::colors::success_green()),
+                crate::colors::style_success_green(),
                 None,
             )),
             "mcp" => {
                 let mcp_style = match context.mcp_kind {
                     Some(McpHeaderIndicatorKind::Connecting) => {
-                        Style::default().fg(crate::colors::info())
+                        crate::colors::style_info()
                     }
                     Some(McpHeaderIndicatorKind::Error) => Style::default()
                         .fg(crate::colors::error())
                         .add_modifier(Modifier::BOLD),
-                    None => Style::default().fg(crate::colors::success_green()),
+                    None => crate::colors::style_success_green(),
                 };
                 Some((context.mcp, mcp_style, None))
             }

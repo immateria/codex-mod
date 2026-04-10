@@ -96,7 +96,7 @@ impl AgentEditorView {
         Clear.render(area, buf);
         let block = Block::default()
             .borders(Borders::ALL)
-            .border_style(Style::default().fg(crate::colors::border()))
+            .border_style(crate::colors::style_border())
             .style(Style::default().bg(crate::colors::background()).fg(crate::colors::text()))
             .title(" Configure Agent ")
             .title_alignment(Alignment::Center);
@@ -151,7 +151,7 @@ impl AgentEditorView {
                     indicator_x,
                     content.y,
                     crate::icons::arrow_up(),
-                    Style::default().fg(crate::colors::light_blue()),
+                    crate::colors::style_light_blue(),
                 );
             }
             if scroll < max_scroll {
@@ -160,7 +160,7 @@ impl AgentEditorView {
                     indicator_x,
                     bottom_y,
                     crate::icons::arrow_down(),
-                    Style::default().fg(crate::colors::light_blue()),
+                    crate::colors::style_light_blue(),
                 );
             }
         }
@@ -179,7 +179,7 @@ impl AgentEditorView {
                     .fg(crate::colors::primary())
                     .add_modifier(Modifier::BOLD)
             } else {
-                Style::default().fg(crate::colors::border())
+                crate::colors::style_border()
             };
             let blk = Block::default()
                 .borders(Borders::ALL)
@@ -201,7 +201,7 @@ impl AgentEditorView {
                     .fg(crate::colors::primary())
                     .add_modifier(Modifier::BOLD)
             } else {
-                Style::default().fg(crate::colors::border())
+                crate::colors::style_border()
             };
             if self.name_error.is_some() {
                 border_style = border_style.fg(crate::colors::error());
@@ -252,7 +252,7 @@ impl AgentEditorView {
                     .fg(crate::colors::primary())
                     .add_modifier(Modifier::BOLD)
             } else {
-                Style::default().fg(crate::colors::border())
+                crate::colors::style_border()
             };
             if self.description_error.is_some() {
                 desc_border_style = desc_border_style.fg(crate::colors::error());

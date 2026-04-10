@@ -96,7 +96,7 @@ pub(super) fn render_create_spinner_mode_inner(
         let frame = frames[((now_ms / 120) as usize) % frames.len()].to_string();
 
         form_lines.push(Line::from(vec![
-            Span::styled(frame, Style::default().fg(crate::colors::info())),
+            Span::styled(frame, crate::colors::style_info()),
             Span::styled(
                 " Generating spinner with AI…",
                 Style::default().fg(theme.text_bright),
@@ -152,8 +152,8 @@ pub(super) fn render_create_spinner_mode_inner(
             let preview = frames.get(idx).cloned().unwrap_or_default();
 
             let max_frame_len = u16::try_from(preview.as_str().width()).unwrap_or(u16::MAX);
-            let border = Style::default().fg(crate::colors::border());
-            let fg = Style::default().fg(crate::colors::info());
+            let border = crate::colors::style_border();
+            let fg = crate::colors::style_info();
             let x: u16 = max_frame_len.saturating_add(8);
             let border_len = x.saturating_sub(max_frame_len);
             let spans: Vec<Span> = vec![
@@ -253,7 +253,7 @@ pub(super) fn render_create_spinner_mode_inner(
 
     form_lines.push(Line::from(Span::styled(
         "─".repeat((body_area.width.saturating_sub(4)) as usize),
-        Style::default().fg(crate::colors::border()),
+        crate::colors::style_border(),
     )));
 
     let mut buttons: Vec<Span> = Vec::new();

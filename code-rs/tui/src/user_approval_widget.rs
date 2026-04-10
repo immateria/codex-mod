@@ -699,7 +699,7 @@ impl WidgetRef for &UserApprovalWidget<'_> {
 
         Block::bordered()
             .border_type(BorderType::QuadrantOutside)
-            .border_style(Style::default().fg(crate::colors::light_blue()))
+            .border_style(crate::colors::style_light_blue())
             .borders(Borders::LEFT)
             .render_ref(Rect::new(0, options_chunk.y, 1, options_chunk.height), buf);
     }

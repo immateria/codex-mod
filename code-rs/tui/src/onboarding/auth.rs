@@ -321,7 +321,7 @@ impl AuthModeWidget {
             Line::from(
                 "  To use Code with the OpenAI API, set OPENAI_API_KEY in your environment",
             )
-            .style(Style::default().fg(crate::colors::info())),
+            .style(crate::colors::style_info()),
             Line::from(""),
             Line::from("  Press Enter to return")
                 .style(Style::default().add_modifier(Modifier::DIM)),

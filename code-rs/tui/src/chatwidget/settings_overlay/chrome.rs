@@ -106,7 +106,7 @@ mod imp {
                 .title(Line::from(" Chrome Launch Options "))
                 .title_alignment(Alignment::Center)
                 .style(Style::default().bg(crate::colors::background()).fg(crate::colors::text()))
-                .border_style(Style::default().fg(crate::colors::border()));
+                .border_style(crate::colors::style_border());
             let inner = block.inner(area);
             block.render(area, buf);
 
@@ -137,7 +137,7 @@ mod imp {
                     )]));
                     lines.push(Line::from(vec![Span::styled(
                         format!("  {description}"),
-                        Style::default().fg(crate::colors::secondary()),
+                        crate::colors::style_secondary(),
                     )]));
                 } else {
                     lines.push(Line::from(vec![Span::styled(
@@ -156,7 +156,7 @@ mod imp {
                 crate::bottom_pane::settings_ui::hints::KeyHint::new(
                     format!("{ud}/jk", ud = crate::icons::nav_up_down()),
                     " move",
-                ).with_key_style(Style::default().fg(crate::colors::function())),
+                ).with_key_style(crate::colors::style_function()),
                 crate::bottom_pane::settings_ui::hints::hint_enter(" select"),
                 crate::bottom_pane::settings_ui::hints::KeyHint::new(
                     format!("{}/q", crate::icons::escape()),
@@ -274,7 +274,7 @@ mod android_stub {
                 .title(Line::from(" Chrome Launch Options "))
                 .title_alignment(Alignment::Center)
                 .style(Style::default().bg(crate::colors::background()).fg(crate::colors::text()))
-                .border_style(Style::default().fg(crate::colors::border()));
+                .border_style(crate::colors::style_border());
             let inner = block.inner(area);
             block.render(area, buf);
 

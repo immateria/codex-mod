@@ -108,7 +108,7 @@ impl WidgetRef for ChatComposer {
                 .style(style.background_style);
         } else {
             input_block = input_block
-                .border_style(Style::default().fg(crate::colors::border()))
+                .border_style(crate::colors::style_border())
                 .border_type(BorderType::Plain)
                 .style(Style::default().bg(crate::colors::background()));
         }
@@ -136,10 +136,10 @@ impl WidgetRef for ChatComposer {
 
                 let title_line = Line::from(vec![
                     Span::raw(" "),
-                    Span::styled(spinner_str, Style::default().fg(crate::colors::info())),
+                    Span::styled(spinner_str, crate::colors::style_info()),
                     Span::styled(
                         format!(" {}... ", self.status_message),
-                        Style::default().fg(crate::colors::info()),
+                        crate::colors::style_info(),
                     ),
                 ])
                 .centered();

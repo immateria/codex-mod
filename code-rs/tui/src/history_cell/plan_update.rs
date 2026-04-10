@@ -85,7 +85,7 @@ impl PlanUpdateCell {
                 spans.push(Span::raw(" "));
                 spans.push(Span::styled(
                     step.description.clone(),
-                    Style::default().fg(crate::colors::info()),
+                    crate::colors::style_info(),
                 ));
             }
             StepStatus::Pending => {

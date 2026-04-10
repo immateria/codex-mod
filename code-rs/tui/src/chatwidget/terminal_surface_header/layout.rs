@@ -108,7 +108,7 @@ pub(super) fn render_dynamic_header_line(input: &DynamicHeaderLayoutInput<'_>) -
                 &mut width,
                 if compact { "" } else { "Model: " },
                 input.model,
-                Style::default().fg(crate::colors::info()),
+                crate::colors::style_info(),
                 ClickableAction::ShowModelSelector,
             );
         }
@@ -121,7 +121,7 @@ pub(super) fn render_dynamic_header_line(input: &DynamicHeaderLayoutInput<'_>) -
                 &mut width,
                 if compact { "" } else { "Speed: " },
                 input.service_tier,
-                Style::default().fg(crate::colors::info()),
+                crate::colors::style_info(),
                 ClickableAction::ToggleServiceTier,
             );
         }
@@ -134,7 +134,7 @@ pub(super) fn render_dynamic_header_line(input: &DynamicHeaderLayoutInput<'_>) -
                 &mut width,
                 if compact { "" } else { "Shell: " },
                 input.shell,
-                Style::default().fg(crate::colors::info()),
+                crate::colors::style_info(),
                 ClickableAction::ShowShellSelector,
             );
         }
@@ -144,7 +144,7 @@ pub(super) fn render_dynamic_header_line(input: &DynamicHeaderLayoutInput<'_>) -
         {
             push_separator(&mut spans, &mut width);
             let value_style = match kind {
-                McpHeaderIndicatorKind::Connecting => Style::default().fg(crate::colors::info()),
+                McpHeaderIndicatorKind::Connecting => crate::colors::style_info(),
                 McpHeaderIndicatorKind::Error => Style::default()
                     .fg(crate::colors::error())
                     .add_modifier(Modifier::BOLD),
@@ -168,7 +168,7 @@ pub(super) fn render_dynamic_header_line(input: &DynamicHeaderLayoutInput<'_>) -
                 &mut width,
                 if compact { "" } else { "Reasoning: " },
                 input.reasoning,
-                Style::default().fg(crate::colors::info()),
+                crate::colors::style_info(),
                 ClickableAction::ShowReasoningSelector,
             );
         }
@@ -182,7 +182,7 @@ pub(super) fn render_dynamic_header_line(input: &DynamicHeaderLayoutInput<'_>) -
                     &mut width,
                     if compact { "" } else { "Directory: " },
                     dir_display,
-                    Style::default().fg(crate::colors::info()),
+                    crate::colors::style_info(),
                     ClickableAction::ShowDirectoryPicker,
                 );
             } else {
@@ -198,7 +198,7 @@ pub(super) fn render_dynamic_header_line(input: &DynamicHeaderLayoutInput<'_>) -
                     &mut spans,
                     &mut width,
                     dir_display,
-                    Style::default().fg(crate::colors::info()),
+                    crate::colors::style_info(),
                 );
             }
         }
@@ -219,7 +219,7 @@ pub(super) fn render_dynamic_header_line(input: &DynamicHeaderLayoutInput<'_>) -
                 &mut spans,
                 &mut width,
                 branch,
-                Style::default().fg(crate::colors::success_green()),
+                crate::colors::style_success_green(),
             );
         }
 

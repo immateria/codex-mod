@@ -244,7 +244,7 @@ impl TerminalOverlay {
             0,
             ratatui::text::Span::styled(
                 "• ",
-                ratatui::style::Style::default().fg(colors::text()),
+                colors::style_text(),
             ),
         );
         if emphasize {

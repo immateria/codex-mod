@@ -137,7 +137,7 @@ pub(super) fn render(state: &LoginAddAccountState, area: Rect, buf: &mut Buffer)
                     for chunk in wrap_url_segments(authorize_url, content_width) {
                         body_lines.push(Line::from(vec![Span::styled(
                             chunk,
-                            Style::default().fg(crate::colors::info()),
+                            crate::colors::style_info(),
                         )]));
                     }
                     body_lines.push(Line::from(

@@ -30,7 +30,7 @@ impl HistoryCell for LoadingCell {
         vec![
             Line::from(""),
             Line::from(vec![
-                Span::styled("⟳ ", Style::default().fg(crate::colors::info())),
+                Span::styled("⟳ ", crate::colors::style_info()),
                 Span::from(self.state.message.clone()),
             ]),
             Line::from(""),

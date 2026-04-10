@@ -19,7 +19,7 @@ impl McpSettingsView {
         let heading_style = Style::default()
             .fg(crate::colors::text())
             .add_modifier(Modifier::BOLD);
-        let key_style = Style::default().fg(crate::colors::secondary());
+        let key_style = crate::colors::style_secondary();
         let value_style = crate::colors::style_text();
         let dim_style = crate::colors::style_text_dim();
         let ok_style = crate::colors::style_success();

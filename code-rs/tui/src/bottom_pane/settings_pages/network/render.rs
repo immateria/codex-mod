@@ -45,7 +45,7 @@ impl NetworkSettingsView {
                 RowKind::Enabled => KeyValueRow::new("Enabled").with_value(enabled_status.clone()),
                 RowKind::Mode => KeyValueRow::new("Mode").with_value(StyledText::new(
                     mode,
-                    Style::default().fg(crate::colors::info()),
+                    crate::colors::style_info(),
                 )),
                 RowKind::AllowedDomains => {
                     KeyValueRow::new("Allowed domains").with_value(StyledText::new(

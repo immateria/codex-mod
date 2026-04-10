@@ -119,10 +119,10 @@ impl ChatWidget<'_> {
         };
 
         let is_active = screenshot_path.is_some();
-        let key_hint_style = Style::default().fg(crate::colors::function());
+        let key_hint_style = crate::colors::style_function();
         let label_style = crate::colors::style_text_dim();
         let dot_style = if is_active {
-            Style::default().fg(crate::colors::success_green())
+            crate::colors::style_success_green()
         } else {
             crate::colors::style_text_dim()
         };

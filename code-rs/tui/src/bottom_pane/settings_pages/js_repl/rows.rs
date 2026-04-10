@@ -1,6 +1,6 @@
 use super::*;
 
-use ratatui::style::{Modifier, Style};
+use ratatui::style::Modifier;
 
 use crate::bottom_pane::settings_ui::rows::{KeyValueRow, StyledText};
 use crate::bottom_pane::settings_ui::toggle;
@@ -96,7 +96,7 @@ impl JsReplSettingsView {
                     .with_value(Self::enabled_value(self.settings.enabled)),
                 RowKind::RuntimeKind => KeyValueRow::new("Runtime").with_value(StyledText::new(
                     runtime_label,
-                    Style::default().fg(crate::colors::info()),
+                    crate::colors::style_info(),
                 )),
                 RowKind::RuntimePath => KeyValueRow::new("Runtime path").with_value(
                     StyledText::new(

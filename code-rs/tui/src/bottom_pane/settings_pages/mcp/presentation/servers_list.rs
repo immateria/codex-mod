@@ -17,7 +17,7 @@ impl McpSettingsView {
 
         let content_width = width.saturating_sub(2);
         let label_width = content_width.saturating_sub(3);
-        let hovered_style = Style::default().fg(crate::colors::function());
+        let hovered_style = crate::colors::style_function();
 
         if let Some(err) = &self.startup_error {
             let error_style = crate::colors::style_error();

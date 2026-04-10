@@ -106,14 +106,14 @@ impl ThemeSelectionView {
             // Aligned columns:
             // selector (2) | left_rule | space | spinner | space | label | right_rule
             let border = if is_selected {
-                Style::default().fg(crate::colors::border())
+                crate::colors::style_border()
             } else {
                 Style::default()
                     .fg(theme.text_dim)
                     .add_modifier(Modifier::DIM)
             };
             let fg = if is_selected {
-                Style::default().fg(crate::colors::info())
+                crate::colors::style_info()
             } else {
                 Style::default()
                     .fg(theme.text_dim)

@@ -26,9 +26,9 @@ impl McpSettingsView {
         if self.focus == focused_pane {
             crate::colors::style_primary()
         } else if self.hovered_pane == pane_hit {
-            Style::default().fg(crate::colors::function())
+            crate::colors::style_function()
         } else {
-            Style::default().fg(crate::colors::border())
+            crate::colors::style_border()
         }
     }
 
@@ -42,7 +42,7 @@ impl McpSettingsView {
 
         let block = Block::default()
             .borders(Borders::ALL)
-            .border_style(Style::default().fg(crate::colors::border()))
+            .border_style(crate::colors::style_border())
             .style(
                 Style::default()
                     .bg(crate::colors::background())
@@ -233,11 +233,11 @@ impl McpSettingsView {
                 KeyHint::new(
                     format!("{}/Click", crate::icons::tab()),
                     " focus pane",
-                ).with_key_style(Style::default().fg(crate::colors::function())),
+                ).with_key_style(crate::colors::style_function()),
                 KeyHint::new("E", " edit scheduling")
-                    .with_key_style(Style::default().fg(crate::colors::function())),
+                    .with_key_style(crate::colors::style_function()),
                 KeyHint::new("W", " wrap")
-                    .with_key_style(Style::default().fg(crate::colors::function())),
+                    .with_key_style(crate::colors::style_function()),
                 hint_esc(" close"),
             ]))
             .render(hint_area, buf),
@@ -246,7 +246,7 @@ impl McpSettingsView {
                     hint_nav(" move"),
                     hint_enter(" edit/toggle"),
                     KeyHint::new(crate::icons::ctrl_combo("S"), " save")
-                        .with_key_style(Style::default().fg(crate::colors::function())),
+                        .with_key_style(crate::colors::style_function()),
                     hint_esc(" cancel"),
                 ]))
                 .render(hint_area, buf)

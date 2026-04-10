@@ -366,7 +366,16 @@ pub(crate) fn assistant_hr() -> Color {
 
 pub(crate) fn style_text() -> Style { Style::default().fg(text()) }
 pub(crate) fn style_text_dim() -> Style { Style::default().fg(text_dim()) }
+pub(crate) fn style_text_bright() -> Style { Style::default().fg(text_bright()) }
+pub(crate) fn style_text_mid() -> Style { Style::default().fg(text_mid()) }
 pub(crate) fn style_primary() -> Style { Style::default().fg(primary()) }
+pub(crate) fn style_secondary() -> Style { Style::default().fg(secondary()) }
 pub(crate) fn style_success() -> Style { Style::default().fg(success()) }
+pub(crate) fn style_success_green() -> Style { Style::default().fg(success_green()) }
 pub(crate) fn style_warning() -> Style { Style::default().fg(warning()) }
 pub(crate) fn style_error() -> Style { Style::default().fg(error()) }
+pub(crate) fn style_info() -> Style { Style::default().fg(info()) }
+pub(crate) fn style_function() -> Style { Style::default().fg(function()) }
+pub(crate) fn style_border() -> Style { Style::default().fg(border()) }
+pub(crate) fn style_border_dim() -> Style { Style::default().fg(border_dim()) }
+pub(crate) fn style_light_blue() -> Style { Style::default().fg(light_blue()) }

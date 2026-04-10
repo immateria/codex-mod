@@ -113,7 +113,7 @@ impl ChatComposer {
         status: AutoReviewFooterStatus,
         agent_hint_label: AgentHintLabel,
     ) -> (Vec<Span<'static>>, Vec<Span<'static>>) {
-        let key_hint_style = Style::default().fg(crate::colors::function());
+        let key_hint_style = crate::colors::style_function();
         let label_style = crate::colors::style_text_dim();
 
         let agent_hint_label_text = match agent_hint_label {

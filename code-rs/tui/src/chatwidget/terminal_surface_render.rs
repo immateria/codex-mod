@@ -314,7 +314,7 @@ impl ChatWidget<'_> {
         // "caps" at the edges. Match the app background for consistency.
         let status_block = Block::default()
             .borders(Borders::ALL)
-            .border_style(Style::default().fg(crate::colors::border()))
+            .border_style(crate::colors::style_border())
             .style(Style::default().bg(crate::colors::background()));
         let inner_area = status_block.inner(padded_area);
         let padded_inner = inner_area.inner(crate::ui_consts::HORIZONTAL_PAD);

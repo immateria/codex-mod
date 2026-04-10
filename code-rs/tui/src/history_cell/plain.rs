@@ -987,12 +987,12 @@ pub(crate) fn new_status_output(
                             "  • {} tokens before overflow",
                             format_with_separators_u64(remaining)
                         )));
-                        lines.push(Line::from("  • Auto-compaction runs after overflow errors".to_string()));
+                        lines.push(Line::from("  • Auto-compaction runs after overflow errors"));
                     } else {
-                        lines.push(Line::from("  • Auto-compaction runs after overflow errors".to_string()));
+                        lines.push(Line::from("  • Auto-compaction runs after overflow errors"));
                     }
                 } else {
-                    lines.push(Line::from("  • Auto-compaction runs after overflow errors".to_string()));
+                    lines.push(Line::from("  • Auto-compaction runs after overflow errors"));
                 }
             }
         }

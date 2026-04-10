@@ -334,7 +334,7 @@ pub(crate) fn exec_render_parts_parsed(
 
 pub(crate) fn running_status_line(message: String) -> Line<'static> {
     Line::from(vec![
-        Span::styled("└ ", Style::default().fg(crate::colors::border_dim())),
+        Span::styled("└ ", crate::colors::style_border_dim()),
         Span::styled(message, crate::colors::style_text_dim()),
     ])
 }

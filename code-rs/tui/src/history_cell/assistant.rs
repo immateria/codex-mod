@@ -605,7 +605,7 @@ fn compute_assistant_layout_from_rendered_lines(
 
             let blk = Block::default()
                 .borders(Borders::ALL)
-                .border_style(Style::default().fg(crate::colors::border()))
+                .border_style(crate::colors::style_border())
                 .style(Style::default().bg(code_bg))
                 .padding(Padding {
                     left: 2,

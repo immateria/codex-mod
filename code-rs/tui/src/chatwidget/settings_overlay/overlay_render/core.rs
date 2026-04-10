@@ -260,7 +260,7 @@ impl SettingsOverlayView {
                 if dash_count > 0 {
                     lines.push(Line::from(vec![Span::styled(
                         format!("  {}", "─".repeat(dash_count)),
-                        Style::default().fg(crate::colors::border_dim()),
+                        crate::colors::style_border_dim(),
                     )]));
                     line_sections.push(None);
                     line_hit_ranges.push([None, None]);
@@ -277,7 +277,7 @@ impl SettingsOverlayView {
                     .fg(crate::colors::text_bright())
                     .add_modifier(Modifier::BOLD)
             } else {
-                Style::default().fg(crate::colors::text_mid())
+                crate::colors::style_text_mid()
             };
 
             let icon_prefix = crate::icons::section_icon(row.section.label());
@@ -387,7 +387,7 @@ impl SettingsOverlayView {
                     if dash_count > 0 {
                         lines.push(Line::from(vec![Span::styled(
                             format!("  {}", "─".repeat(dash_count)),
-                            Style::default().fg(crate::colors::border_dim()),
+                            crate::colors::style_border_dim(),
                         )]));
                         line_sections.push(None);
                         line_hit_ranges.push([None, None]);

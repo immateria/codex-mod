@@ -96,7 +96,7 @@ pub(super) fn render_create_theme_mode_inner(
         let frames = ["◌", "◔", "◑", "◕", "●", "◕", "◑", "◔"];
         let frame = frames[((now_ms / 100) as usize) % frames.len()].to_string();
         form_lines.push(Line::from(vec![
-            Span::styled(frame, Style::default().fg(crate::colors::info())),
+            Span::styled(frame, crate::colors::style_info()),
             Span::styled(
                 " Generating theme with AI…",
                 Style::default().fg(theme.text_bright),
@@ -234,7 +234,7 @@ pub(super) fn render_create_theme_mode_inner(
 
     form_lines.push(Line::from(Span::styled(
         "─".repeat((body_area.width.saturating_sub(4)) as usize),
-        Style::default().fg(crate::colors::border()),
+        crate::colors::style_border(),
     )));
 
     let mut buttons: Vec<Span> = Vec::new();

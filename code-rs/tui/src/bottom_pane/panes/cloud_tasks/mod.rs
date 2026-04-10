@@ -13,7 +13,6 @@ use crate::components::selection_popup_common::{render_rows, GenericDisplayRow};
 
 use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
-use ratatui::style::Style;
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Paragraph, Widget};
 
@@ -54,11 +53,11 @@ impl CloudTasksView {
                     hint_nav(" select"),
                     crate::bottom_pane::settings_ui::hints::hint_enter(" actions"),
                     KeyHint::new("r", " refresh")
-                        .with_key_style(Style::default().fg(crate::colors::info())),
+                        .with_key_style(crate::colors::style_info()),
                     KeyHint::new("n", " new")
-                        .with_key_style(Style::default().fg(crate::colors::function())),
+                        .with_key_style(crate::colors::style_function()),
                     KeyHint::new("e", " environments")
-                        .with_key_style(Style::default().fg(crate::colors::function())),
+                        .with_key_style(crate::colors::style_function()),
                     hint_esc(" close"),
                 ])
             },

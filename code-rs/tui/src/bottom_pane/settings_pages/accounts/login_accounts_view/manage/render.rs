@@ -115,7 +115,7 @@ impl LoginAccountsState {
             KeyHint::new("d", " Disconnect")
                 .with_key_style(crate::colors::style_warning().add_modifier(Modifier::BOLD)),
             KeyHint::new("p", " Paths")
-                .with_key_style(Style::default().fg(crate::colors::info()).add_modifier(Modifier::BOLD)),
+                .with_key_style(crate::colors::style_info().add_modifier(Modifier::BOLD)),
             hint_esc(" Close"),
         ]));
 

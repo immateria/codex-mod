@@ -166,7 +166,7 @@ impl ChatWidget<'_> {
                     // Draw a light bottom border across the entire tabs strip
                     let tabs_bottom_rule = Block::default()
                         .borders(Borders::BOTTOM)
-                        .border_style(Style::default().fg(crate::colors::border()));
+                        .border_style(crate::colors::style_border());
                     tabs_bottom_rule.render(tabs_area, buf);
                     for i in 0..labels.len() {
                         // last chunk is filler; guard below
@@ -217,7 +217,7 @@ impl ChatWidget<'_> {
                             };
                             let underline = Block::default()
                                 .borders(Borders::BOTTOM)
-                                .border_style(Style::default().fg(crate::colors::text_bright()));
+                                .border_style(crate::colors::style_text_bright());
                             underline.render(accent_rect, buf);
                         }
                     }
@@ -324,7 +324,7 @@ impl ChatWidget<'_> {
                                     .bg(crate::colors::background())
                                     .fg(crate::colors::text()),
                             )
-                            .border_style(Style::default().fg(crate::colors::border()));
+                            .border_style(crate::colors::style_border());
                         let dlg_inner = dlg_block.inner(dialog);
                         dlg_block.render(dialog, buf);
                         // Fill dialog inner area with theme background for consistent look

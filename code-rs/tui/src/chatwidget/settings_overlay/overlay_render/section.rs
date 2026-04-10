@@ -296,7 +296,7 @@ impl SettingsOverlayView {
 
         Block::default()
             .borders(Borders::ALL)
-            .border_style(Style::default().fg(crate::colors::border()))
+            .border_style(crate::colors::style_border())
             .style(Style::default().bg(crate::colors::background()))
             .render(box_area, buf);
 
