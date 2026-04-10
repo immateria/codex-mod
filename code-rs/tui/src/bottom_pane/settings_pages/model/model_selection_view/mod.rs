@@ -17,8 +17,8 @@ use crate::components::form_text_field::FormTextField;
 use super::model_selection_state::{ModelSelectionData, ModelSelectionViewParams};
 
 pub(super) const SUMMARY_LINE_COUNT: usize = 3;
-pub(super) const FOOTER_LINE_COUNT: usize = 2;
-// 2 summary rows + 1 summary spacer + 1 footer spacer + 1 footer hint row.
+// Shortcut bar only (blank footer line was removed).
+pub(super) const FOOTER_LINE_COUNT: usize = 1;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) enum EditTarget {
     ContextWindow,

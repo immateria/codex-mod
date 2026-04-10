@@ -92,7 +92,10 @@ impl SettingsOverlayView {
         }
 
         let title = Self::section_panel_title(self.active_section());
-        let mut style = SettingsPanelStyle::overlay().with_margin(crate::ui_consts::UNIFORM_PAD);
+        // Use horizontal-only margin so the shortcut bar sits flush against
+        // the bottom border.  A 1-row top inset is applied manually below
+        // to keep content from touching the title bar.
+        let mut style = SettingsPanelStyle::overlay().with_margin(Margin::new(1, 0));
         style.border_style = Style::default()
             .fg(if self.is_content_focused() {
                 crate::colors::border_focused()
@@ -104,8 +107,19 @@ impl SettingsOverlayView {
         let Some(layout) = panel.render(area, buf) else {
             return;
         };
-        self.render_content(layout.content, buf);
-        self.strip_child_border(layout.content, buf);
+        // Inset 1 row from the top so content doesn't touch the title border,
+        // but leave the bottom flush for the shortcut bar.
+        let content = if layout.content.height > 1 {
+            Rect {
+                y: layout.content.y.saturating_add(1),
+                height: layout.content.height.saturating_sub(1),
+                ..layout.content
+            }
+        } else {
+            layout.content
+        };
+        self.render_content(content, buf);
+        self.strip_child_border(content, buf);
     }
 
     fn section_panel_title(section: SettingsSection) -> &'static str {

@@ -388,7 +388,7 @@ impl ModelSelectionView {
     }
 
     fn footer_lines(&self) -> Vec<Line<'static>> {
-        vec![Line::from("")]
+        Vec::new()
     }
 
     pub(super) fn edit_page(target: EditTarget, error: Option<&str>) -> SettingsEditorPage<'static> {
