@@ -243,10 +243,10 @@ impl BottomPaneView<'_> for ResumeSelectionView {
         let footer_line = crate::bottom_pane::settings_ui::hints::shortcut_line(&[
             crate::bottom_pane::settings_ui::hints::KeyHint::new(
                 format!("{ud} PgUp PgDn", ud = crate::icons::nav_up_down()),
-                " Navigate",
+                " navigate",
             ).with_key_style(crate::colors::style_function()),
-            crate::bottom_pane::settings_ui::hints::hint_enter(" Select"),
-            crate::bottom_pane::settings_ui::hints::hint_esc(" Cancel"),
+            crate::bottom_pane::settings_ui::hints::hint_enter(" select"),
+            crate::bottom_pane::settings_ui::hints::hint_esc(" cancel"),
         ]);
         Paragraph::new(footer_line)
             .style(crate::colors::style_text_on_bg())

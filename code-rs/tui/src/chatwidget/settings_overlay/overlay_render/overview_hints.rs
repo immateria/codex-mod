@@ -69,10 +69,10 @@ impl SettingsOverlayView {
         }
 
         let line = crate::bottom_pane::settings_ui::hints::shortcut_line(&[
-            crate::bottom_pane::settings_ui::hints::hint_nav(" Move"),
-            crate::bottom_pane::settings_ui::hints::hint_enter(" Open"),
-            crate::bottom_pane::settings_ui::hints::hint_esc(" Close"),
-            crate::bottom_pane::settings_ui::hints::KeyHint::new("?", " Help")
+            crate::bottom_pane::settings_ui::hints::hint_nav(" navigate"),
+            crate::bottom_pane::settings_ui::hints::hint_enter(" open"),
+            crate::bottom_pane::settings_ui::hints::hint_esc(" close"),
+            crate::bottom_pane::settings_ui::hints::KeyHint::new("?", " help")
                 .with_key_style(crate::colors::style_info()),
         ]);
 
@@ -97,9 +97,9 @@ impl SettingsOverlayView {
             "Content"
         };
         let sidebar_action = if self.sidebar_collapsed.get() {
-            " Show"
+            " show"
         } else {
-            " Hide"
+            " hide"
         };
 
         let hint_group = |key_label: String, description: &'static str| -> Vec<Span<'static>> {
@@ -121,13 +121,13 @@ impl SettingsOverlayView {
         };
 
         let mut spans = join_groups(vec![
-            hint_group(crate::icons::tab().to_string(), " Content"),
-            hint_group(crate::icons::reverse_tab().to_string(), " Sidebar"),
+            hint_group(crate::icons::tab().to_string(), " content"),
+            hint_group(crate::icons::reverse_tab().to_string(), " sidebar"),
             hint_group(crate::icons::ctrl_combo("B"), sidebar_action),
-            hint_group(crate::icons::escape().to_string(), " Overview"),
-            hint_group("?".to_string(), " Help"),
+            hint_group(crate::icons::escape().to_string(), " overview"),
+            hint_group("?".to_string(), " help"),
             vec![
-                Span::styled("Focus", hint),
+                Span::styled("focus", hint),
                 Span::styled(": ", separator),
                 Span::styled(focus_label.to_string(), focus),
             ],
@@ -138,9 +138,9 @@ impl SettingsOverlayView {
         if full_width > area.width as usize {
             spans = join_groups(vec![
                 hint_group(crate::icons::ctrl_combo("B"), sidebar_action),
-                hint_group(crate::icons::escape().to_string(), " Back"),
+                hint_group(crate::icons::escape().to_string(), " back"),
                 vec![
-                    Span::styled("Focus", hint),
+                    Span::styled("focus", hint),
                     Span::styled(": ", separator),
                     Span::styled(focus_label.to_string(), focus),
                 ],

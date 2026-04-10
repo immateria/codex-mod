@@ -58,10 +58,10 @@ impl JsReplSettingsView {
             )]));
         } else {
             lines.push(crate::bottom_pane::settings_ui::hints::shortcut_line(&[
-                crate::bottom_pane::settings_ui::hints::hint_enter(" edits"),
-                crate::bottom_pane::settings_ui::hints::KeyHint::new("Ctrl+S", " saves in editors")
+                crate::bottom_pane::settings_ui::hints::hint_enter(" edit"),
+                crate::bottom_pane::settings_ui::hints::KeyHint::new("Ctrl+S", " save")
                     .with_key_style(crate::colors::style_success()),
-                crate::bottom_pane::settings_ui::hints::hint_esc(" closes"),
+                crate::bottom_pane::settings_ui::hints::hint_esc(" close"),
             ]));
         }
 

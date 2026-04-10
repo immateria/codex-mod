@@ -172,16 +172,16 @@ impl UndoTimelineView {
             crate::bottom_pane::settings_ui::hints::shortcut_line(&[
                 crate::bottom_pane::settings_ui::hints::KeyHint::new(
                     format!("{ud} PgUp PgDn", ud = crate::icons::nav_up_down()),
-                    " Navigate",
+                    " navigate",
                 ).with_key_style(crate::colors::style_function()),
                 crate::bottom_pane::settings_ui::hints::KeyHint::new(
-                    crate::icons::space(), " Toggle files",
+                    crate::icons::space(), " toggle files",
                 ).with_key_style(crate::colors::style_success()),
                 crate::bottom_pane::settings_ui::hints::KeyHint::new(
-                    "C", " Toggle conversation",
+                    "C", " toggle conversation",
                 ).with_key_style(crate::colors::style_success()),
-                crate::bottom_pane::settings_ui::hints::hint_enter(" Restore"),
-                crate::bottom_pane::settings_ui::hints::hint_esc(" Close"),
+                crate::bottom_pane::settings_ui::hints::hint_enter(" restore"),
+                crate::bottom_pane::settings_ui::hints::hint_esc(" close"),
             ]),
         ]
     }

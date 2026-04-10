@@ -208,9 +208,9 @@ impl AgentsSettingsContent {
 
         lines.push(Line::from(""));
         lines.push(crate::bottom_pane::settings_ui::hints::shortcut_line(&[
-            crate::bottom_pane::settings_ui::hints::hint_nav(" Navigate"),
-            crate::bottom_pane::settings_ui::hints::hint_enter(" Open"),
-            crate::bottom_pane::settings_ui::hints::hint_esc(" Close"),
+            crate::bottom_pane::settings_ui::hints::hint_nav(" navigate"),
+            crate::bottom_pane::settings_ui::hints::hint_enter(" open"),
+            crate::bottom_pane::settings_ui::hints::hint_esc(" close"),
         ]));
 
         lines

@@ -108,13 +108,13 @@ impl LoginAccountsState {
         use crate::bottom_pane::settings_ui::hints::{hint_enter, hint_esc, hint_nav, shortcut_line, KeyHint};
         let mut lines = Vec::new();
         lines.push(shortcut_line(&[
-            hint_nav(" Navigate"),
-            hint_enter(" Select"),
-            KeyHint::new("d", " Disconnect")
+            hint_nav(" navigate"),
+            hint_enter(" select"),
+            KeyHint::new("d", " disconnect")
                 .with_key_style(crate::colors::style_warning().add_modifier(Modifier::BOLD)),
-            KeyHint::new("p", " Paths")
+            KeyHint::new("p", " paths")
                 .with_key_style(crate::colors::style_info().add_modifier(Modifier::BOLD)),
-            hint_esc(" Close"),
+            hint_esc(" close"),
         ]));
 
         if self.is_confirm_remove_mode() {

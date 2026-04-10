@@ -374,17 +374,17 @@ impl ModelSelectionView {
 
     fn shortcuts(&self) -> Vec<KeyHint<'static>> {
         let mut hints = vec![
-            KeyHint::new(crate::icons::nav_up_down(), " Navigate").with_key_style(Style::new().fg(colors::function())),
-            KeyHint::new(format!("{lr} +/-", lr = crate::icons::nav_left_right()), " Adjust").with_key_style(Style::new().fg(colors::warning())),
-            hint_enter(" Select/Edit"),
+            KeyHint::new(crate::icons::nav_up_down(), " navigate").with_key_style(Style::new().fg(colors::function())),
+            KeyHint::new(format!("{lr} +/-", lr = crate::icons::nav_left_right()), " adjust").with_key_style(Style::new().fg(colors::warning())),
+            hint_enter(" select/edit"),
         ];
         if self.data.target.supports_context_mode() {
             hints.push(
-                KeyHint::new(crate::bottom_pane::settings_ui::hints::key_ctrl("S"), " Save default")
+                KeyHint::new(crate::bottom_pane::settings_ui::hints::key_ctrl("S"), " save default")
                     .with_key_style(Style::new().fg(colors::primary())),
             );
         }
-        hints.push(hint_esc(" Cancel"));
+        hints.push(hint_esc(" cancel"));
         hints
     }
 

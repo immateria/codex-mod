@@ -534,17 +534,17 @@ impl ChatWidget<'_> {
             } else {
                 Line::from(vec![
                     Span::styled(format!("[{ud}/{lr}]", ud = crate::icons::nav_up_down(), lr = crate::icons::nav_left_right()), crate::colors::style_function()),
-                    Span::styled(" Navigate   ", crate::colors::style_text_dim()),
+                    Span::styled(" navigate   ", crate::colors::style_text_dim()),
                     Span::styled("[1-5]", crate::colors::style_function()),
-                    Span::styled(" Filter   ", crate::colors::style_text_dim()),
+                    Span::styled(" filter   ", crate::colors::style_text_dim()),
                     Span::styled("[S]", crate::colors::style_function()),
-                    Span::styled(" Sort   ", crate::colors::style_text_dim()),
+                    Span::styled(" sort   ", crate::colors::style_text_dim()),
                     Span::styled("[H/A]", crate::colors::style_function()),
-                    Span::styled(" Toggle Details   ", crate::colors::style_text_dim()),
+                    Span::styled(" toggle details   ", crate::colors::style_text_dim()),
                     Span::styled("[X]", crate::colors::style_function()),
-                    Span::styled(" Stop   ", crate::colors::style_text_dim()),
+                    Span::styled(" stop   ", crate::colors::style_text_dim()),
                     Span::styled("[Ctrl+A]", crate::colors::style_function()),
-                    Span::styled(" Exit", crate::colors::style_text_dim()),
+                    Span::styled(" exit", crate::colors::style_text_dim()),
                 ])
             };
             Paragraph::new(hint_line)

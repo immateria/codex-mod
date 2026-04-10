@@ -295,7 +295,7 @@ mod android_stub {
                     Span::styled("Enter", crate::colors::style_success()),
                     Span::styled("/", crate::colors::style_text_dim()),
                     Span::styled(crate::icons::escape(), crate::colors::style_error()),
-                    Span::styled(" Close", crate::colors::style_text_dim()),
+                    Span::styled(" close", crate::colors::style_text_dim()),
                 ]),
             ];
 

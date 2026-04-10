@@ -82,7 +82,7 @@ impl ExecLimitsSettingsView {
 
     pub(super) fn render_footer_lines(&self) -> Vec<Line<'static>> {
         vec![shortcut_line(&[
-            hint_nav(" move"),
+            hint_nav(" navigate"),
             hint_enter(" edit/toggle"),
             KeyHint::new("a", " auto").with_key_style(Style::new().fg(colors::success())),
             KeyHint::new("d", " disable").with_key_style(Style::new().fg(colors::success())),

@@ -79,7 +79,7 @@ impl ThemeSelectionView {
             } else {
                 Style::default().fg(theme.text)
             };
-            spans.push(Span::styled("[ Close ]", style));
+            spans.push(Span::styled("Close", style));
             lines.push(Line::from(spans));
         }
 

@@ -303,7 +303,7 @@ impl ChatWidget<'_> {
                         crate::colors::style_warning(),
                     ));
                     footer_spans.push(ratatui::text::Span::styled(
-                        " Cancel",
+                        " cancel",
                         crate::colors::style_text_dim(),
                     ));
                 } else if pending_visible {
@@ -312,7 +312,7 @@ impl ChatWidget<'_> {
                         crate::colors::style_primary(),
                     ));
                     footer_spans.push(ratatui::text::Span::styled(
-                        " Run",
+                        " run",
                         crate::colors::style_text_dim(),
                     ));
                 }

@@ -211,7 +211,7 @@ impl McpSettingsView {
         use crate::bottom_pane::settings_ui::hints::{hint_enter, hint_esc, hint_nav, shortcut_line, KeyHint};
         match self.mode {
             McpSettingsMode::Main => Paragraph::new(shortcut_line(&[
-                hint_nav(" move"),
+                hint_nav(" navigate"),
                 KeyHint::new(crate::icons::space(), " toggle tool")
                     .with_key_style(crate::colors::style_success()),
                 hint_enter(" expand tool"),
@@ -228,7 +228,7 @@ impl McpSettingsView {
             .render(hint_area, buf),
             McpSettingsMode::EditServerScheduling(_) | McpSettingsMode::EditToolScheduling(_) => {
                 Paragraph::new(shortcut_line(&[
-                    hint_nav(" move"),
+                    hint_nav(" navigate"),
                     hint_enter(" edit/toggle"),
                     KeyHint::new(crate::icons::ctrl_combo("S"), " save")
                         .with_key_style(crate::colors::style_function()),

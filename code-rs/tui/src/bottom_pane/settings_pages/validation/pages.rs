@@ -21,10 +21,10 @@ impl ValidationSettingsView {
 
     fn shortcuts(&self) -> Vec<KeyHint<'static>> {
         vec![
-            hint_nav(" Navigate"),
-            KeyHint::new("Enter/Space", " Toggle")
+            hint_nav(" navigate"),
+            KeyHint::new("Enter/Space", " toggle")
                 .with_key_style(Style::new().fg(colors::success())),
-            hint_esc(" Close"),
+            hint_esc(" close"),
         ]
     }
 
