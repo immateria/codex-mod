@@ -48,10 +48,17 @@ impl McpViewLayout {
         }
 
         let show_hint_row = content.height >= 16 && content.width >= 50;
-        let vertical = if show_hint_row {
+        let hint_rows: u16 = if !show_hint_row {
+            0
+        } else if content.width < 100 {
+            2
+        } else {
+            1
+        };
+        let vertical = if hint_rows > 0 {
             Layout::default()
                 .direction(Direction::Vertical)
-                .constraints([Constraint::Min(1), Constraint::Length(1)])
+                .constraints([Constraint::Min(1), Constraint::Length(hint_rows)])
                 .split(content)
         } else {
             Layout::default()

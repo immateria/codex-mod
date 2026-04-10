@@ -246,11 +246,23 @@ impl ShellProfilesSettingsView {
     }
 
     fn main_footer_lines(&self) -> Vec<Line<'static>> {
-        let default_help = "Enter: edit/cycle/apply  •  Ctrl+P: shell  •  Esc: close";
-        let footer_text = if let Some(status) = self.status.as_deref()
+        use crate::bottom_pane::settings_ui::hints::{hint_enter, hint_esc, shortcut_line, KeyHint};
+
+        let shortcut = shortcut_line(&[
+            hint_enter(" edit/cycle/apply"),
+            KeyHint::new(crate::icons::ctrl_combo("P"), " shell"),
+            hint_esc(" close"),
+        ]);
+
+        let mut lines = Vec::with_capacity(2);
+
+        if let Some(status) = self.status.as_deref()
             && !status.trim().is_empty()
         {
-            status.trim().replace(['\r', '\n'], " ")
+            lines.push(Line::from(Span::styled(
+                status.trim().replace(['\r', '\n'], " "),
+                crate::colors::style_text_dim(),
+            )));
         } else if self.selected_row() == RowKind::Style {
             let summary = self
                 .shell_style_profiles
@@ -259,18 +271,21 @@ impl ShellProfilesSettingsView {
                 .unwrap_or("")
                 .trim();
             if summary.is_empty() {
-                format!("Summary: unset  •  {default_help}")
+                lines.push(Line::from(Span::styled(
+                    "Summary: unset",
+                    crate::colors::style_text_dim(),
+                )));
             } else {
                 let first_line = summary.lines().next().unwrap_or(summary).trim();
-                format!("Summary: {first_line}  •  {default_help}")
+                lines.push(Line::from(Span::styled(
+                    format!("Summary: {first_line}"),
+                    crate::colors::style_text_dim(),
+                )));
             }
-        } else {
-            default_help.to_string()
-        };
-        vec![Line::from(Span::styled(
-            footer_text,
-            crate::colors::style_text_dim(),
-        ))]
+        }
+
+        lines.push(shortcut);
+        lines
     }
 
     fn main_page(&self) -> SettingsRowPage<'static> {

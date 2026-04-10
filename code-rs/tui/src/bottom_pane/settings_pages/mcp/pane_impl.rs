@@ -208,9 +208,11 @@ impl McpSettingsView {
     }
 
     fn render_hints(&self, hint_area: Rect, buf: &mut Buffer) {
-        use crate::bottom_pane::settings_ui::hints::{hint_enter, hint_esc, hint_nav, shortcut_line, KeyHint};
-        match self.mode {
-            McpSettingsMode::Main => Paragraph::new(shortcut_line(&[
+        use crate::bottom_pane::settings_ui::hints::{
+            hint_enter, hint_esc, hint_nav, KeyHint, OverflowMode, ShortcutBar, ShortcutPlacement,
+        };
+        let hints: Vec<KeyHint<'static>> = match self.mode {
+            McpSettingsMode::Main => vec![
                 hint_nav(" navigate"),
                 KeyHint::new(crate::icons::space(), " toggle tool")
                     .with_key_style(crate::colors::style_success()),
@@ -224,19 +226,22 @@ impl McpSettingsView {
                 KeyHint::new("W", " wrap")
                     .with_key_style(crate::colors::style_function()),
                 hint_esc(" close"),
-            ]))
-            .render(hint_area, buf),
+            ],
             McpSettingsMode::EditServerScheduling(_) | McpSettingsMode::EditToolScheduling(_) => {
-                Paragraph::new(shortcut_line(&[
+                vec![
                     hint_nav(" navigate"),
                     hint_enter(" edit/toggle"),
                     KeyHint::new(crate::icons::ctrl_combo("S"), " save")
                         .with_key_style(crate::colors::style_function()),
                     hint_esc(" cancel"),
-                ]))
-                .render(hint_area, buf)
+                ]
             }
         };
+        let bar = ShortcutBar::at(ShortcutPlacement::Bottom, hints)
+            .with_overflow(OverflowMode::Wrap);
+        let lines = bar.lines_for_width(hint_area.width);
+        let text = ratatui::text::Text::from(lines);
+        Paragraph::new(text).render(hint_area, buf);
     }
 }
 

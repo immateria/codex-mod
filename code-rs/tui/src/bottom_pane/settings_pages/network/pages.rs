@@ -11,7 +11,7 @@ use crate::bottom_pane::settings_ui::panel::SettingsPanelStyle;
 use crate::bottom_pane::settings_ui::row_page::SettingsRowPage;
 
 impl NetworkSettingsView {
-    pub(super) const HEADER_LINE_COUNT: usize = 6;
+    pub(super) const HEADER_LINE_COUNT: usize = 5;
 
     pub(super) fn mode_label(mode: NetworkModeToml) -> &'static str {
         match mode {
@@ -110,18 +110,21 @@ impl NetworkSettingsView {
                 enforcement,
                 crate::colors::style_text_dim(),
             )),
-            crate::bottom_pane::settings_ui::hints::shortcut_line(&[
-                crate::bottom_pane::settings_ui::hints::hint_enter(" activate"),
-                crate::bottom_pane::settings_ui::hints::KeyHint::new("Ctrl+S", " save lists")
-                    .with_key_style(crate::colors::style_success()),
-                crate::bottom_pane::settings_ui::hints::hint_esc(" close"),
-            ]),
             Line::from(""),
         ]
     }
 
+    fn render_footer_lines(&self) -> Vec<Line<'static>> {
+        vec![crate::bottom_pane::settings_ui::hints::shortcut_line(&[
+            crate::bottom_pane::settings_ui::hints::hint_enter(" activate"),
+            crate::bottom_pane::settings_ui::hints::KeyHint::new("Ctrl+S", " save lists")
+                .with_key_style(crate::colors::style_success()),
+            crate::bottom_pane::settings_ui::hints::hint_esc(" close"),
+        ])]
+    }
+
     pub(super) fn main_page(&self) -> SettingsRowPage<'static> {
-        SettingsRowPage::new(" Network ", self.render_header_lines(), vec![])
+        SettingsRowPage::new(" Network ", self.render_header_lines(), self.render_footer_lines())
     }
 
     fn sandbox_policy_compact(policy: &SandboxPolicy) -> String {

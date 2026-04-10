@@ -38,6 +38,16 @@ impl ThemeSelectionView {
         }
     }
 
+    fn theme_shortcut_line(&self) -> Line<'static> {
+        use crate::bottom_pane::settings_ui::hints::{hint_esc, hint_nav, shortcut_line, KeyHint};
+        let esc_label = if matches!(self.mode, Mode::Overview) { " close" } else { " back" };
+        shortcut_line(&[
+            hint_nav(" navigate"),
+            KeyHint::new(crate::icons::enter(), " choose"),
+            hint_esc(esc_label),
+        ])
+    }
+
     fn render_shell(&self, area: Rect, buf: &mut Buffer) -> Rect {
         // Use full width and draw an outer window styled like the Diff overlay.
         let render_area = Rect {
@@ -61,25 +71,9 @@ impl ThemeSelectionView {
             pad_bg.render(pad, buf);
         }
 
-        // Build a styled title with concise hints.
         let t_dim = crate::colors::style_text_dim();
         let t_fg = crate::colors::style_text();
-        let mut title_spans = vec![Span::styled(" ", t_dim), Span::styled("/theme", t_fg)];
-        title_spans.extend_from_slice(&[
-            Span::styled(crate::ui_consts::SEP_EM, t_dim),
-            Span::styled("▲ ▼ ◀ ▶", t_fg),
-            Span::styled(" select ", t_dim),
-            Span::styled(crate::ui_consts::SEP_EM_CONT, t_dim),
-            Span::styled(crate::icons::enter(), t_fg),
-            Span::styled(" choose ", t_dim),
-            Span::styled(crate::ui_consts::SEP_EM_CONT, t_dim),
-            Span::styled(crate::icons::escape(), t_fg),
-        ]);
-        if matches!(self.mode, Mode::Overview) {
-            title_spans.push(Span::styled(" close ", t_dim));
-        } else {
-            title_spans.push(Span::styled(" back ", t_dim));
-        }
+        let title_spans = vec![Span::styled(" ", t_dim), Span::styled("/theme", t_fg)];
 
         let outer = Block::default()
             .borders(Borders::ALL)
@@ -99,8 +93,25 @@ impl ThemeSelectionView {
             }
         }
 
-        // Add one cell padding around the inside; body occupies full padded area.
-        inner.inner(crate::ui_consts::UNIFORM_PAD)
+        // Reserve the last inner row for shortcut hints.
+        let padded = inner.inner(crate::ui_consts::UNIFORM_PAD);
+        if padded.height >= 2 {
+            let hint_rect = Rect {
+                x: padded.x,
+                y: padded.y.saturating_add(padded.height.saturating_sub(1)),
+                width: padded.width,
+                height: 1,
+            };
+            Paragraph::new(self.theme_shortcut_line()).render(hint_rect, buf);
+            Rect {
+                x: padded.x,
+                y: padded.y,
+                width: padded.width,
+                height: padded.height.saturating_sub(1),
+            }
+        } else {
+            padded
+        }
     }
 
     fn render_content_only_shell(&self, area: Rect, buf: &mut Buffer) -> Rect {
@@ -125,32 +136,39 @@ impl ThemeSelectionView {
         let t_dim = Style::new().fg(crate::colors::text_dim());
         let t_fg = Style::new().fg(crate::colors::text());
 
-        let mut spans = vec![Span::styled(" ", t_dim), Span::styled("/theme", t_fg)];
-        spans.extend_from_slice(&[
-            Span::styled(crate::ui_consts::SEP_EM, t_dim),
-            Span::styled("▲ ▼ ◀ ▶", t_fg),
-            Span::styled(" select ", t_dim),
-            Span::styled(crate::ui_consts::SEP_EM_CONT, t_dim),
-            Span::styled(crate::icons::enter(), t_fg),
-            Span::styled(" choose ", t_dim),
-            Span::styled(crate::ui_consts::SEP_EM_CONT, t_dim),
-            Span::styled(crate::icons::escape(), t_fg),
-        ]);
-        if matches!(self.mode, Mode::Overview) {
-            spans.push(Span::styled(" close ", t_dim));
-        } else {
-            spans.push(Span::styled(" back ", t_dim));
-        }
+        let spans = vec![Span::styled(" ", t_dim), Span::styled("/theme", t_fg)];
 
         Paragraph::new(Line::from(spans))
             .style(Style::new().bg(crate::colors::background()))
             .render(header_rect, buf);
 
-        Rect {
-            x: area.x,
-            y: area.y.saturating_add(1),
-            width: area.width,
-            height: area.height.saturating_sub(1),
+        // Reserve the last row for shortcut hints.
+        let content_y = area.y.saturating_add(1);
+        let remaining = area.height.saturating_sub(1);
+        if remaining >= 2 {
+            let hint_rect = Rect {
+                x: area.x,
+                y: content_y.saturating_add(remaining.saturating_sub(1)),
+                width: area.width,
+                height: 1,
+            };
+            Paragraph::new(self.theme_shortcut_line())
+                .style(Style::new().bg(crate::colors::background()))
+                .render(hint_rect, buf);
+
+            Rect {
+                x: area.x,
+                y: content_y,
+                width: area.width,
+                height: remaining.saturating_sub(1),
+            }
+        } else {
+            Rect {
+                x: area.x,
+                y: content_y,
+                width: area.width,
+                height: remaining,
+            }
         }
     }
 }

@@ -9,7 +9,26 @@ use crate::bottom_pane::settings_ui::row_page::SettingsRowPage;
 
 impl JsReplSettingsView {
     pub(super) fn main_page(&self) -> SettingsRowPage<'static> {
-        SettingsRowPage::new(" JS REPL ", self.render_header_lines(), vec![])
+        SettingsRowPage::new(" JS REPL ", self.render_header_lines(), self.render_footer_lines())
+    }
+
+    pub(super) fn render_footer_lines(&self) -> Vec<Line<'static>> {
+        let node_blocked = self.network_enabled
+            && matches!(self.settings.runtime, JsReplRuntimeKindToml::Node)
+            && !cfg!(target_os = "macos");
+        if node_blocked {
+            vec![Line::from(vec![Span::styled(
+                "Note: Node is not enforceable with mediation on this platform; prefer Deno.",
+                crate::colors::style_warning(),
+            )])]
+        } else {
+            vec![crate::bottom_pane::settings_ui::hints::shortcut_line(&[
+                crate::bottom_pane::settings_ui::hints::hint_enter(" edit"),
+                crate::bottom_pane::settings_ui::hints::KeyHint::new("Ctrl+S", " save")
+                    .with_key_style(crate::colors::style_success()),
+                crate::bottom_pane::settings_ui::hints::hint_esc(" close"),
+            ])]
+        }
     }
 
     pub(super) fn render_header_lines(&self) -> Vec<Line<'static>> {
@@ -47,23 +66,6 @@ impl JsReplSettingsView {
             Span::styled("  |  mediation: ", crate::colors::style_text_dim()),
             Span::styled(mediation, mediation_style),
         ])];
-
-        let node_blocked = self.network_enabled
-            && matches!(self.settings.runtime, JsReplRuntimeKindToml::Node)
-            && !cfg!(target_os = "macos");
-        if node_blocked {
-            lines.push(Line::from(vec![Span::styled(
-                "Note: Node is not enforceable with mediation on this platform; prefer Deno.",
-                crate::colors::style_warning(),
-            )]));
-        } else {
-            lines.push(crate::bottom_pane::settings_ui::hints::shortcut_line(&[
-                crate::bottom_pane::settings_ui::hints::hint_enter(" edit"),
-                crate::bottom_pane::settings_ui::hints::KeyHint::new("Ctrl+S", " save")
-                    .with_key_style(crate::colors::style_success()),
-                crate::bottom_pane::settings_ui::hints::hint_esc(" close"),
-            ]));
-        }
 
         lines.push(Line::from(""));
         debug_assert_eq!(lines.len(), usize::from(Self::HEADER_ROWS));

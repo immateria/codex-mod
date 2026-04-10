@@ -26,29 +26,29 @@ impl WrapperResolutionSource {
 
 impl ShellEscalationSettingsView {
     pub(super) fn header_lines(&self) -> Vec<Line<'static>> {
-        let profile = self
-            .active_profile
-            .as_deref()
-            .map(|p| format!("Profile: {p}"))
-            .unwrap_or_else(|| "Profile: (none)".to_string());
-
         vec![
             Line::from(Span::styled(
                 "Configure zsh-fork escalation for sandboxed shell tool calls.",
                 crate::colors::style_text_dim(),
             )),
             Line::from(Span::styled(
-                profile,
+                self.active_profile
+                    .as_deref()
+                    .map(|p| format!("Profile: {p}"))
+                    .unwrap_or_else(|| "Profile: (none)".to_string()),
                 crate::colors::style_text_dim(),
             )),
-            crate::bottom_pane::settings_ui::hints::shortcut_line(&[
-                crate::bottom_pane::settings_ui::hints::hint_enter(" activate"),
-                crate::bottom_pane::settings_ui::hints::KeyHint::new("Ctrl+S", " apply")
-                    .with_key_style(crate::colors::style_success()),
-                crate::bottom_pane::settings_ui::hints::hint_esc(" close"),
-            ]),
             Line::from(""),
         ]
+    }
+
+    pub(super) fn footer_shortcut_lines(&self) -> Vec<Line<'static>> {
+        vec![crate::bottom_pane::settings_ui::hints::shortcut_line(&[
+            crate::bottom_pane::settings_ui::hints::hint_enter(" activate"),
+            crate::bottom_pane::settings_ui::hints::KeyHint::new("Ctrl+S", " apply")
+                .with_key_style(crate::colors::style_success()),
+            crate::bottom_pane::settings_ui::hints::hint_esc(" close"),
+        ])]
     }
 
     fn shell_label(&self) -> String {
@@ -267,7 +267,9 @@ impl ShellEscalationSettingsView {
     }
 
     pub(super) fn main_page(&self) -> SettingsRowPage<'static> {
-        SettingsRowPage::new(" Shell escalation ", self.header_lines(), self.status_lines())
+        let mut footer = self.status_lines();
+        footer.extend(self.footer_shortcut_lines());
+        SettingsRowPage::new(" Shell escalation ", self.header_lines(), footer)
     }
 
     pub(super) fn edit_page(&self, target: EditTarget) -> SettingsEditorPage<'static> {
