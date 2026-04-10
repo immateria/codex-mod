@@ -9,7 +9,7 @@ use crate::bottom_pane::chrome::ChromeMode;
 use crate::colors;
 use crate::live_wrap::RowBuilder;
 use crate::ui_interaction::split_header_body_footer;
-use crate::util::buffer::{fill_rect, write_line};
+use crate::util::buffer::{fill_bg, fill_rect, write_line};
 
 use super::hints::{KeyHint, ShortcutBar, ShortcutPlacement};
 use super::line_runs::{
@@ -128,7 +128,7 @@ impl<'a> SettingsMenuPage<'a> {
     ) -> Option<SettingsSectionedPanelLayout> {
         let layout = self.layout_content(area)?;
         let base = Style::new().bg(colors::background()).fg(colors::text());
-        fill_rect(buf, area, Some(' '), base);
+        fill_bg(buf, area, base);
         let header_lines = self.combined_header_lines();
         render_lines(layout.header, buf, &header_lines, base);
         let footer_lines = self.combined_footer_lines();
@@ -415,7 +415,7 @@ fn render_lines(area: Rect, buf: &mut Buffer, lines: &[Line<'_>], base_style: St
         return;
     }
 
-    fill_rect(buf, area, Some(' '), base_style);
+    fill_bg(buf, area, base_style);
     for (idx, line) in lines.iter().enumerate().take(area.height as usize) {
         let y = area.y.saturating_add(idx as u16);
         write_line(buf, area.x, y, area.width, line, base_style);
@@ -440,7 +440,7 @@ fn render_menu_detail_pane<Id: Copy + PartialEq>(
         return;
     }
 
-    fill_rect(buf, area, Some(' '), base_style);
+    fill_bg(buf, area, base_style);
 
     let Some(selected_id) = selected_id else {
         return;

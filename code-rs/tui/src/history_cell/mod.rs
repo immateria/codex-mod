@@ -160,7 +160,7 @@ pub(crate) use web_search::{WebSearchSessionCell, WebSearchStatus};
 pub(crate) use agent::{AgentDetail, AgentRunCell, AgentStatusKind, AgentStatusPreview, StepProgress};
 pub(crate) use crate::history::state::ExploreEntryStatus;
 pub(crate) use crate::insert_history::word_wrap_lines;
-pub(crate) use crate::util::buffer::{fill_rect, write_line};
+pub(crate) use crate::util::buffer::{fill_bg, write_line};
 pub(crate) use code_common::elapsed::format_duration;
 pub(crate) use crate::history::compat::{ContextRecord, ExecStatus};
 pub(crate) use ratatui::prelude::Alignment;

@@ -258,11 +258,11 @@ impl ChatWidget<'_> {
                         tint_width = tint_width.saturating_add(1);
                     }
                     let tint_rect = Rect::new(tint_x, gutter_area.y, tint_width, gutter_area.height);
-                    fill_rect(buf, tint_rect, Some(' '), style);
+                    fill_bg(buf, tint_rect, style);
                     let right_col_x = content_area.x.saturating_add(content_area.width);
                     if right_col_x < history_right {
                         let right_rect = Rect::new(right_col_x, item_area.y, 1, item_area.height);
-                        fill_rect(buf, right_rect, Some(' '), style);
+                        fill_bg(buf, right_rect, style);
                     }
                     if let Some(t0) = _perf_gutter_start {
                         let dt = t0.elapsed().as_nanos();

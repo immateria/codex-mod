@@ -19,7 +19,7 @@ use crate::history::state::{
     TextTone,
 };
 use crate::insert_history::word_wrap_lines;
-use crate::util::buffer::{fill_rect, write_line};
+use crate::util::buffer::{fill_bg, write_line};
 
 use super::formatting::{
     record_output,
@@ -235,7 +235,7 @@ impl HistoryCell for ExecCell {
             let bg_style = Style::default()
                 .bg(crate::colors::background())
                 .fg(crate::colors::text());
-            fill_rect(buf, pre_area, Some(' '), bg_style);
+            fill_bg(buf, pre_area, bg_style);
             for (idx, line) in layout
                 .pre_lines
                 .iter()
@@ -262,7 +262,7 @@ impl HistoryCell for ExecCell {
             let bg_style = Style::default()
                 .bg(crate::colors::background())
                 .fg(crate::colors::text_dim());
-            fill_rect(buf, out_area, Some(' '), bg_style);
+            fill_bg(buf, out_area, bg_style);
             let block = Block::default()
                 .borders(Borders::LEFT)
                 .border_style(
@@ -307,7 +307,7 @@ impl HistoryCell for ExecCell {
                     height: status_height,
                 };
                 let bg_style = crate::colors::style_on_background();
-                fill_rect(buf, status_area, Some(' '), bg_style);
+                fill_bg(buf, status_area, bg_style);
                 write_line(buf, status_area.x, status_area.y, status_area.width, &line, bg_style);
             }
     }

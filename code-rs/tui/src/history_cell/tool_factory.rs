@@ -39,7 +39,7 @@ use crate::history::compat::{
     ToolStatus as HistoryToolStatus,
 };
 use ::image::ImageReader;
-use crate::util::buffer::{fill_rect, write_line};
+use crate::util::buffer::{fill_bg, write_line};
 
 // Friendly present-participle titles for running browser tools
 fn browser_running_title(tool_name: &str) -> &'static str {
@@ -655,7 +655,7 @@ impl HistoryCell for WebFetchToolCell {
             };
             let bg = crate::colors::background();
             let base_style = Style::default().bg(bg).fg(crate::colors::text());
-            fill_rect(buf, pre_area, Some(' '), base_style);
+            fill_bg(buf, pre_area, base_style);
             for (idx, line) in layout
                 .pre_lines
                 .iter()
@@ -677,7 +677,7 @@ impl HistoryCell for WebFetchToolCell {
             };
             let bg = crate::colors::background();
             let base_style = Style::default().bg(bg).fg(crate::colors::text_dim());
-            fill_rect(buf, body_area, Some(' '), base_style);
+            fill_bg(buf, body_area, base_style);
 
             let block = Block::default()
                 .borders(Borders::LEFT)

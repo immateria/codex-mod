@@ -1,5 +1,5 @@
 use crate::history::compat::{ExecAction, ExecStatus, ToolStatus as HistoryToolStatus};
-use crate::util::buffer::fill_rect;
+use crate::util::buffer::fill_bg;
 use ratatui::prelude::*;
 use ratatui::style::Style;
 use ratatui::widgets::{Block, Paragraph, Widget, Wrap};
@@ -223,7 +223,7 @@ pub(crate) trait HistoryCell {
         };
         let bg_style = Style::default().bg(cell_bg).fg(crate::colors::text());
         if assistant_like {
-            fill_rect(buf, area, Some(' '), bg_style);
+            fill_bg(buf, area, bg_style);
         }
 
         // Ensure the entire allocated area is painted with the theme background

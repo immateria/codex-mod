@@ -10,7 +10,7 @@ use crate::bottom_pane::chrome::ChromeMode;
 use crate::bottom_pane::settings_ui::rows::StyledText;
 use crate::bottom_pane::settings_ui::hints::{hint_enter, hint_esc, hint_nav_horizontal};
 use crate::colors;
-use crate::util::buffer::fill_rect;
+use crate::util::buffer::fill_bg;
 
 impl PluginsSettingsView {
     pub(super) fn render_framed(&self, area: Rect, buf: &mut Buffer) {
@@ -143,7 +143,7 @@ impl PluginsSettingsView {
         };
 
         let base = Style::new().bg(colors::background()).fg(colors::text());
-        fill_rect(buf, layout.body, Some(' '), base);
+        fill_bg(buf, layout.body, base);
         let mut lines = Vec::new();
         lines.push(Line::from(Span::styled(
             format!("Uninstall {}?", key.plugin_name),
@@ -243,7 +243,7 @@ impl PluginsSettingsView {
         };
 
         let base = Style::new().bg(colors::background()).fg(colors::text());
-        fill_rect(buf, layout.body, Some(' '), base);
+        fill_bg(buf, layout.body, base);
 
         let label = snapshot
             .sources

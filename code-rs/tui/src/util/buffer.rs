@@ -7,6 +7,13 @@ use unicode_width::UnicodeWidthStr;
 
 use crate::live_wrap::take_prefix_by_width;
 
+/// Fill the given rectangular area with spaces and apply the given style.
+/// This is the most common fill pattern — shorthand for
+/// `fill_rect(buf, area, Some(' '), style)`.
+pub fn fill_bg(buf: &mut Buffer, area: Rect, style: Style) {
+    fill_rect(buf, area, Some(' '), style);
+}
+
 /// Fill the given rectangular area with the provided style and optional character.
 ///
 /// The rectangle is clipped to the buffer's bounds before being applied. When `fill_char`

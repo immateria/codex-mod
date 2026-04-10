@@ -4,7 +4,7 @@ use ratatui::style::Style;
 use ratatui::text::Line;
 
 use crate::ui_interaction::scroll_top_to_keep_visible;
-use crate::util::buffer::{fill_rect, write_line};
+use crate::util::buffer::{fill_bg, write_line};
 
 #[derive(Clone, Debug)]
 pub(crate) struct SelectableLineRun<'a, Id> {
@@ -85,7 +85,7 @@ fn render_selectable_runs_inner<Id: Copy>(
         return;
     }
 
-    fill_rect(buf, area, Some(' '), base_style);
+    fill_bg(buf, area, base_style);
 
     let visible_start = scroll_top;
     let visible_end = scroll_top.saturating_add(area.height as usize);

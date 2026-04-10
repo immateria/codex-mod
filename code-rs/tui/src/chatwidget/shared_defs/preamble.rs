@@ -172,7 +172,7 @@ use crate::slash_command::{ProcessedCommand, SlashCommand};
 use crate::live_wrap::RowBuilder;
 use crate::streaming::StreamKind;
 use crate::streaming::controller::AppEventHistorySink;
-use crate::util::buffer::fill_rect;
+use crate::util::buffer::{fill_bg, fill_rect};
 use crate::user_approval_widget::ApprovalRequest;
 use code_ansi_escape::ansi_escape_line;
 pub(crate) use self::terminal::{

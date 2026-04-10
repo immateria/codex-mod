@@ -67,7 +67,7 @@ impl ChatWidget<'_> {
             .fg(crate::colors::text());
         // Clear the full history viewport once so reused rows/gutters do not
         // retain stale paint from previous frames.
-        fill_rect(buf, history_area, Some(' '), base_style);
+        fill_bg(buf, history_area, base_style);
 
         // Build streaming cell only when the live builder actually has content,
         // avoiding display_rows() Vec clone + collect on every idle frame.

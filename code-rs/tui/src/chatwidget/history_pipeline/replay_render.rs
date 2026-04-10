@@ -224,7 +224,7 @@ impl ChatWidget<'_> {
             let bg_style = Style::default()
                 .bg(cell_bg)
                 .fg(crate::colors::text());
-            fill_rect(buf, area, Some(' '), bg_style);
+            fill_bg(buf, area, bg_style);
         }
 
         let max_rows = area.height.min(total.saturating_sub(skip_rows));

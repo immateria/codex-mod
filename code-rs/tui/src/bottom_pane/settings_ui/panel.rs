@@ -7,7 +7,7 @@ use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Clear, Widget};
 
 use crate::colors;
-use crate::util::buffer::fill_rect;
+use crate::util::buffer::fill_bg;
 
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct SettingsPanelStyle {
@@ -123,7 +123,7 @@ impl<'a> SettingsPanel<'a> {
         block.render(area, buf);
 
         if self.style.fill_inner {
-            fill_rect(buf, layout.inner, Some(' '), self.style.background_style);
+            fill_bg(buf, layout.inner, self.style.background_style);
         }
 
         Some(layout)

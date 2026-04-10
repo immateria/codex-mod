@@ -4,7 +4,7 @@ use ratatui::text::Line;
 
 use crate::history::state::HistoryId;
 use crate::history_cell::{HistoryCell, HistoryCellType};
-use crate::util::buffer::fill_rect;
+use crate::util::buffer::fill_bg;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct FrozenHistoryCell {
@@ -82,6 +82,6 @@ impl HistoryCell for FrozenHistoryCell {
 
     fn custom_render_with_skip(&self, area: Rect, buf: &mut Buffer, _skip_rows: u16) {
         let bg_style = crate::colors::style_on_background();
-        fill_rect(buf, area, Some(' '), bg_style);
+        fill_bg(buf, area, bg_style);
     }
 }

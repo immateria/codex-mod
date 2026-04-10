@@ -118,7 +118,7 @@ impl HistoryCell for UpgradeNoticeCell {
         let bg_style = Style::default()
             .bg(crate::colors::background())
             .fg(crate::colors::text());
-        fill_rect(buf, area, Some(' '), bg_style);
+        fill_bg(buf, area, bg_style);
 
         let block = Block::default()
             .borders(Borders::ALL)

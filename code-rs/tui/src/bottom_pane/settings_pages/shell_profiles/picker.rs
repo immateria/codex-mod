@@ -450,7 +450,7 @@ impl ShellProfilesSettingsView {
             } else {
                 crate::colors::style_text_on_bg()
             };
-            fill_rect(buf, row_area, Some(' '), base);
+            fill_bg(buf, row_area, base);
 
             let checked = state.checked.get(idx).copied().unwrap_or(false);
             let check = if checked {

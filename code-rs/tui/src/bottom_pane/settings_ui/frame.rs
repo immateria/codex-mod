@@ -7,7 +7,7 @@ use ratatui::text::Line;
 use ratatui::widgets::{Block, Clear, Paragraph, Widget};
 
 use crate::colors;
-use crate::util::buffer::fill_rect;
+use crate::util::buffer::fill_bg;
 
 use super::layout::DEFAULT_FOOTER_GAP_LINES;
 
@@ -130,7 +130,7 @@ impl<'a> SettingsFrame<'a> {
         Clear.render(area, buf);
         block.render(area, buf);
         let base = Style::new().bg(colors::background()).fg(colors::text());
-        fill_rect(buf, inner, Some(' '), base);
+        fill_bg(buf, inner, base);
 
         if layout.header.height > 0 {
             Paragraph::new(self.header_lines.clone())
@@ -154,7 +154,7 @@ impl<'a> SettingsFrame<'a> {
     ) -> Option<SettingsFrameLayout> {
         let layout = self.layout_content(area)?;
         let base = Style::new().bg(colors::background()).fg(colors::text());
-        fill_rect(buf, area, Some(' '), base);
+        fill_bg(buf, area, base);
 
         if layout.header.height > 0 {
             Paragraph::new(self.header_lines.clone())

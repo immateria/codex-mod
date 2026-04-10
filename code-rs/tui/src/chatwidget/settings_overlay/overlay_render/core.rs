@@ -220,7 +220,7 @@ impl SettingsOverlayView {
         }
 
         let bg_style = crate::colors::style_on_background();
-        fill_rect(buf, area, Some(' '), bg_style);
+        fill_bg(buf, area, bg_style);
 
         if self.overview_rows.is_empty() {
             *self.last_overview_list_area.borrow_mut() = area;

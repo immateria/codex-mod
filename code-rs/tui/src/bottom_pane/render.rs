@@ -2,7 +2,7 @@ use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
 use ratatui::widgets::WidgetRef;
 
-use crate::util::buffer::fill_rect;
+use crate::util::buffer::{fill_bg, fill_rect};
 
 use super::layout::compute_composer_rect;
 use super::{ActiveViewKind, BottomPane};
@@ -15,7 +15,7 @@ impl WidgetRef for &BottomPane<'_> {
         let base_style = ratatui::style::Style::default()
             .bg(crate::colors::background())
             .fg(crate::colors::text());
-        fill_rect(buf, area, Some(' '), base_style);
+        fill_bg(buf, area, base_style);
 
         let mut composer_rect = compute_composer_rect(area, self.top_spacer_enabled);
         let mut composer_needs_render = true;

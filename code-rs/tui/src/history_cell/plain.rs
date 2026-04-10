@@ -230,7 +230,7 @@ impl PlainHistoryCell {
         let render_area = Rect::new(0, 0, requested_width, render_height);
         let mut buffer = Buffer::empty(render_area);
         // Paint full cell (including padding) with the cell background so tint extends through padding.
-        fill_rect(&mut buffer, render_area, Some(' '), Style::default().bg(cell_bg).fg(crate::colors::text()));
+        fill_bg(&mut buffer, render_area, Style::default().bg(cell_bg).fg(crate::colors::text()));
 
         let paragraph_lines = Text::from(trimmed_lines);
         if matches!(self.state.kind, HistoryCellType::User) {
@@ -390,7 +390,7 @@ impl HistoryCell for PlainHistoryCell {
         };
         if matches!(self.state.kind, HistoryCellType::Assistant) || is_auto_review {
             let bg_style = Style::default().bg(cell_bg).fg(crate::colors::text());
-            fill_rect(buf, area, Some(' '), bg_style);
+            fill_bg(buf, area, bg_style);
         }
 
         if requested_width == 0 || effective_width == 0 {

@@ -12,7 +12,7 @@ use crate::bottom_pane::{
 use crate::live_wrap::take_prefix_by_width;
 use crate::ui_consts::SEP_DOT;
 use crate::ui_interaction::ListWindow;
-use crate::util::buffer::fill_rect;
+use crate::util::buffer::{fill_bg, fill_rect};
 
 use super::types::{LABEL_COLUMN_WIDTH, SettingsHelpOverlay};
 use super::{SettingsContent, SettingsOverlayView};

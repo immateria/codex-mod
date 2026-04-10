@@ -11,7 +11,7 @@ impl ChatWidget<'_> {
     ) {
         if self.terminal.overlay().is_some() || self.agents_terminal.active {
             let bg_style = crate::colors::style_on_background();
-            fill_rect(buf, bottom_pane_area, Some(' '), bg_style);
+            fill_bg(buf, bottom_pane_area, bg_style);
         } else {
             // Render the bottom pane directly without a border for now
             // The composer has its own layout with hints at the bottom
@@ -89,7 +89,7 @@ impl ChatWidget<'_> {
                 };
 
                 if header_height > 0 {
-                    fill_rect(buf, header_area, Some(' '), inner_bg);
+                    fill_bg(buf, header_area, inner_bg);
                     let width_limit = header_area.width as usize;
                     let mut header_spans: Vec<ratatui::text::Span<'static>> = Vec::new();
                     let mut consumed_width: usize = 0;
@@ -325,7 +325,7 @@ impl ChatWidget<'_> {
                         width: footer_area.width,
                         height: footer_area.height.saturating_sub(1),
                     };
-                    fill_rect(buf, spacer_area, Some(' '), inner_bg);
+                    fill_bg(buf, spacer_area, inner_bg);
                 }
 
                 let instructions_area = Rect {

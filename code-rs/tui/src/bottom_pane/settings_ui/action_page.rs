@@ -9,7 +9,7 @@ use ratatui::widgets::{Paragraph, Widget, Wrap};
 use crate::bottom_pane::chrome::ChromeMode;
 use crate::colors;
 use crate::ui_interaction::split_header_body_footer;
-use crate::util::buffer::fill_rect;
+use crate::util::buffer::fill_bg;
 
 use super::buttons::{
     render_standard_button_strip_aligned, standard_button_at_aligned, StandardButtonSpec,
@@ -242,7 +242,7 @@ impl<'a> SettingsActionPage<'a> {
     ) -> Option<SettingsActionPageLayout> {
         let layout = self.layout_content_only(area)?;
         let base = Style::new().bg(colors::background()).fg(colors::text());
-        fill_rect(buf, area, Some(' '), base);
+        fill_bg(buf, area, base);
         self.render_lines(layout.header, buf, &self.header_lines);
         self.render_lines(layout.status, buf, &self.status_lines);
         self.render_lines(layout.footer, buf, &self.footer_lines);

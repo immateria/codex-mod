@@ -10,7 +10,7 @@ use crate::history::compat::{
     HistoryId,
     MergedExecRecord,
 };
-use crate::util::buffer::{fill_rect, write_line};
+use crate::util::buffer::{fill_bg, write_line};
 
 use super::core::{ExecKind, HistoryCell, HistoryCellType};
 use super::exec::ExecCell;
@@ -350,7 +350,7 @@ impl HistoryCell for MergedExecCell {
         let bg = Style::default()
             .bg(crate::colors::background())
             .fg(crate::colors::text());
-        fill_rect(buf, area, Some(' '), bg);
+        fill_bg(buf, area, bg);
         if area.width == 0 || area.height == 0 {
             return;
         }
@@ -439,7 +439,7 @@ impl HistoryCell for MergedExecCell {
                     width: area.width,
                     height: out_height,
                 };
-                fill_rect(buf, out_area, Some(' '), dim_style);
+                fill_bg(buf, out_area, dim_style);
                 let block = Block::default()
                     .borders(Borders::LEFT)
                     .border_style(
@@ -529,7 +529,7 @@ impl HistoryCell for MergedExecCell {
                     width: area.width,
                     height: out_height,
                 };
-                fill_rect(buf, out_area, Some(' '), dim_style);
+                fill_bg(buf, out_area, dim_style);
                 let block = Block::default()
                     .borders(Borders::LEFT)
                     .border_style(

@@ -27,7 +27,7 @@ use crate::ui_interaction::{
     SelectableListMouseResult,
     SETTINGS_LIST_MOUSE_CONFIG,
 };
-use crate::util::buffer::{fill_rect, write_line};
+use crate::util::buffer::{fill_bg, fill_rect, write_line};
 
 use crate::bottom_pane::{BottomPaneView, ConditionalUpdate};
 use crate::bottom_pane::BottomPane;

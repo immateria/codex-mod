@@ -33,7 +33,7 @@ impl ChatWidget<'_> {
             let gap_height = (content_area.y + content_area.height).saturating_sub(screen_y);
             if gap_height > 0 {
                 let gap_rect = Rect::new(content_area.x, screen_y, content_area.width, gap_height);
-                fill_rect(buf, gap_rect, Some(' '), base_style);
+                fill_bg(buf, gap_rect, base_style);
             }
             if let Some(t0) = _perf_hist_clear2 {
                 let dt = t0.elapsed().as_nanos();

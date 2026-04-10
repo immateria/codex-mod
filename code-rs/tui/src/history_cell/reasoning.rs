@@ -362,7 +362,7 @@ impl HistoryCell for CollapsibleReasoningCell {
         if collapsed {
             let bg = crate::colors::background();
             let base_style = Style::default().bg(bg).fg(crate::colors::text());
-            fill_rect(buf, area, Some(' '), base_style);
+            fill_bg(buf, area, base_style);
             for (idx, line) in layout
                 .lines
                 .iter()
@@ -379,7 +379,7 @@ impl HistoryCell for CollapsibleReasoningCell {
         let dim = crate::colors::text_dim();
         let bg = crate::colors::background();
         let base_style = Style::default().bg(bg).fg(dim);
-        fill_rect(buf, area, Some(' '), base_style);
+        fill_bg(buf, area, base_style);
 
         let block = Block::default()
             .borders(Borders::LEFT)

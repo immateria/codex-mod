@@ -243,7 +243,7 @@ impl AssistantMarkdownCell {
             crate::colors::assistant_bg()
         };
         let bg_style = Style::default().bg(cell_bg);
-        fill_rect(buf, area, Some(' '), bg_style);
+        fill_bg(buf, area, bg_style);
 
         if area.width == 0 || area.height == 0 {
             return;

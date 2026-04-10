@@ -576,7 +576,7 @@ impl ImageOutputCell {
     fn render_plain_summary(&self, area: Rect, buf: &mut Buffer, skip_rows: u16) {
         let cell_bg = colors::background();
         let bg_style = Style::default().bg(cell_bg).fg(colors::text());
-        fill_rect(buf, area, Some(' '), bg_style);
+        fill_bg(buf, area, bg_style);
         let lines = self.display_lines_trimmed();
         let text = Text::from(lines);
         Paragraph::new(text)
