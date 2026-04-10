@@ -1,5 +1,6 @@
 use super::*;
 use crate::history::state::AssistantMessageState;
+use crate::util::numeric::clamp_u16;
 use crate::ui_consts::SEP_DOT;
 use code_core::config::Config;
 use code_core::config_types::UriBasedFileOpener;
@@ -279,7 +280,7 @@ impl AssistantMarkdownCell {
 
             match seg {
                 AssistantSeg::Text(lines) | AssistantSeg::Bullet(lines) => {
-                    let total = lines.len().min(u16::MAX as usize) as u16;
+                    let total = clamp_u16(lines.len());
                     if total == 0 {
                         continue;
                     }
@@ -692,7 +693,7 @@ fn compute_assistant_layout_from_rendered_lines(
     let mut total: u16 = 0;
     for seg in &segs {
         let rows = match seg {
-            AssistantSeg::Text(lines) | AssistantSeg::Bullet(lines) => lines.len().min(u16::MAX as usize) as u16,
+            AssistantSeg::Text(lines) | AssistantSeg::Bullet(lines) => clamp_u16(lines.len()),
             AssistantSeg::Code { card } => card.area.height,
         };
         seg_rows.push(rows);
@@ -734,7 +735,7 @@ fn wrap_code_line(line: Line<'static>, width: usize) -> (Vec<Line<'static>>, u16
         .iter()
         .map(|s| unicode_width::UnicodeWidthStr::width(s.content.as_ref()))
         .sum();
-    let line_width_u16 = line_width.min(u16::MAX as usize) as u16;
+    let line_width_u16 = clamp_u16(line_width);
     if width == 0 || line_width <= width {
         return (vec![line], line_width_u16);
     }
@@ -770,7 +771,7 @@ fn wrap_code_line(line: Line<'static>, width: usize) -> (Vec<Line<'static>>, u16
         let mut remaining: &str = &owned;
         while !remaining.is_empty() {
             if current_width >= width {
-                max_width = max_width.max(current_width.min(u16::MAX as usize) as u16);
+                max_width = max_width.max(clamp_u16(current_width));
                 flush_current_line(&mut out, &mut current_spans, style, alignment, &mut current_width);
             }
 
@@ -783,7 +784,7 @@ fn wrap_code_line(line: Line<'static>, width: usize) -> (Vec<Line<'static>>, u16
                 crate::live_wrap::take_prefix_by_width(remaining, available);
             if taken == 0 {
                 if current_width > 0 {
-                    max_width = max_width.max(current_width.min(u16::MAX as usize) as u16);
+                    max_width = max_width.max(clamp_u16(current_width));
                     flush_current_line(
                         &mut out,
                         &mut current_spans,
@@ -808,14 +809,14 @@ fn wrap_code_line(line: Line<'static>, width: usize) -> (Vec<Line<'static>>, u16
             }
 
             if current_width >= width {
-                max_width = max_width.max(current_width.min(u16::MAX as usize) as u16);
+                max_width = max_width.max(clamp_u16(current_width));
                 flush_current_line(&mut out, &mut current_spans, style, alignment, &mut current_width);
             }
         }
     }
 
     if !current_spans.is_empty() {
-        max_width = max_width.max(current_width.min(u16::MAX as usize) as u16);
+        max_width = max_width.max(clamp_u16(current_width));
         out.push(Line {
             style,
             alignment,

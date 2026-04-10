@@ -20,6 +20,7 @@ use crate::history::state::{
 };
 use crate::insert_history::word_wrap_lines;
 use crate::util::buffer::{fill_bg, write_line};
+use crate::util::numeric::clamp_u16;
 
 use super::formatting::{
     record_output,
@@ -392,7 +393,7 @@ impl ExecCell {
                     return (Vec::new(), 0);
                 }
                 let wrapped = word_wrap_lines(&lines, wrap_width);
-                let total = wrapped.len().min(u16::MAX as usize) as u16;
+                let total = clamp_u16(wrapped.len());
                 (wrapped, total)
             };
 
@@ -400,7 +401,7 @@ impl ExecCell {
         let (mut out_lines, _) = wrap_and_clamp(out_trimmed, width.saturating_sub(2));
 
         super::formatting::maybe_fold_output(&mut out_lines, self.collapsed_output.get());
-        let out_block_total = out_lines.len().min(u16::MAX as usize) as u16;
+        let out_block_total = clamp_u16(out_lines.len());
 
         ExecRenderLayout {
             pre_lines,

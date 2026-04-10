@@ -3,6 +3,7 @@ use super::header;
 use super::prompt;
 use super::VariantContext;
 use super::super::{AutoActiveViewModel, AutoCoordinatorView};
+use crate::util::numeric::clamp_u16;
 
 pub(super) fn estimated_height_active_inner(
     view: &AutoCoordinatorView,
@@ -25,7 +26,7 @@ pub(super) fn estimated_height_active_with_context_inner(
         .saturating_add(AutoCoordinatorView::HEADER_HEIGHT as usize);
 
     if !model.awaiting_submission {
-        return total.min(u16::MAX as usize) as u16;
+        return clamp_u16(total);
     }
 
     let inner_width = inner_width(width);
@@ -86,7 +87,7 @@ pub(super) fn estimated_height_active_with_context_inner(
         total = total.saturating_add(composer_block);
     }
 
-    total.min(u16::MAX as usize) as u16
+    clamp_u16(total)
 }
 
 fn inner_width(width: u16) -> u16 {

@@ -385,9 +385,8 @@ impl HistoryRenderState {
                     (plan.total_rows(), HeightSource::AssistantPlan, None)
                 } else if let Some(layout_ref) = layout.as_ref() {
                     (
-                        layout_ref
-                            .line_count()
-                            .min(u16::MAX as usize) as u16,
+                        clamp_u16(layout_ref
+                            .line_count()),
                         HeightSource::Layout,
                         None,
                     )
@@ -409,7 +408,7 @@ impl HistoryRenderState {
                         )
                     } else if let Some(lines) = req.fallback_lines.as_ref() {
                         let wrapped = word_wrap_lines(lines, settings.width);
-                        let height = wrapped.len().min(u16::MAX as usize) as u16;
+                        let height = clamp_u16(wrapped.len());
                         if use_height_cache {
                             let key = CacheKey::new(req.history_id, settings);
                             self.height_cache.borrow_mut().insert(key, height);
@@ -431,7 +430,7 @@ impl HistoryRenderState {
                     }
                 } else if let Some(lines) = req.fallback_lines.as_ref() {
                     let wrapped = word_wrap_lines(lines, settings.width);
-                    let height = wrapped.len().min(u16::MAX as usize) as u16;
+                    let height = clamp_u16(wrapped.len());
                     if use_height_cache {
                         let key = CacheKey::new(req.history_id, settings);
                         self.height_cache.borrow_mut().insert(key, height);

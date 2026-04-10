@@ -11,7 +11,7 @@ use crate::history::state::{
     ToolCallState,
     ToolStatus as HistoryToolStatus,
 };
-use crate::text_formatting::format_json_compact;
+use crate::text_formatting::format_json_value_compact;
 use serde_json::Value;
 use std::cell::Cell;
 use std::time::{Duration, Instant, SystemTime};
@@ -126,7 +126,7 @@ impl ToolCallCell {
         let raw = match &arg.value {
             ArgumentValue::Text(text) => text.clone(),
             ArgumentValue::Json(json) => {
-                format_json_compact(&json.to_string()).unwrap_or_else(|| json.to_string())
+                format_json_value_compact(json)
             }
             ArgumentValue::Secret => return None,
         };
@@ -340,8 +340,7 @@ impl RunningToolCallCell {
             .and_then(|arg| match &arg.value {
                 ArgumentValue::Text(text) => Some(text.clone()),
                 ArgumentValue::Json(json) => {
-                    let raw = json.to_string();
-                    Some(format_json_compact(&raw).unwrap_or(raw))
+                    Some(format_json_value_compact(json))
                 }
                 ArgumentValue::Secret => None,
             })
@@ -648,8 +647,7 @@ fn render_argument(arg: &ToolArgument) -> Line<'static> {
     let value_span = match &arg.value {
         ArgumentValue::Text(text) => Span::styled(text.clone(), crate::colors::style_text()),
         ArgumentValue::Json(json) => {
-            let compact = format_json_compact(&json.to_string()).unwrap_or_else(|| json.to_string());
-            Span::styled(compact, crate::colors::style_text())
+            Span::styled(format_json_value_compact(json), crate::colors::style_text())
         }
         ArgumentValue::Secret => Span::styled("(secret)", crate::colors::style_text_dim()),
     };

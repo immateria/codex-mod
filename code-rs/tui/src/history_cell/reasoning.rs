@@ -14,6 +14,7 @@ use crate::history::state::{
 };
 use crate::history_cell::assistant::detect_bullet_prefix;
 use crate::render::line_utils;
+use crate::util::numeric::clamp_u16;
 use ratatui::text::Line;
 use std::cell::{Cell, RefCell};
 use unicode_width::UnicodeWidthStr as _;
@@ -167,7 +168,7 @@ impl CollapsibleReasoningCell {
             width.saturating_sub(2).max(1)
         };
         let wrapped = word_wrap_lines(&lines, wrap_width);
-        let total_rows = wrapped.len().min(u16::MAX as usize) as u16;
+        let total_rows = clamp_u16(wrapped.len());
         ReasoningLayout {
             lines: wrapped,
             total_rows,

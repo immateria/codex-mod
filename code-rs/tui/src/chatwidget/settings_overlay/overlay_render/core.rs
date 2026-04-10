@@ -419,7 +419,7 @@ impl SettingsOverlayView {
                 scroll = total_lines.saturating_sub(visible_lines);
             }
         }
-        let scroll = scroll.min(u16::MAX as usize) as u16;
+        let scroll = clamp_u16(scroll);
         *self.last_overview_list_area.borrow_mut() = area;
         *self.last_overview_line_sections.borrow_mut() = line_sections;
         *self.last_overview_line_hit_ranges.borrow_mut() = line_hit_ranges;

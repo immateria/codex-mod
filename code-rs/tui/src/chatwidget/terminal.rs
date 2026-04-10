@@ -11,6 +11,7 @@ use vt100::Parser as VtParser;
 use crate::app_event::{TerminalAfter, TerminalCommandGate};
 use crate::colors;
 use crate::sanitize::{sanitize_for_tui, Mode as SanitizeMode, Options as SanitizeOptions};
+use crate::util::numeric::clamp_u16;
 
 pub(crate) const TERMINAL_MAX_LINES: usize = 10_000;
 pub(crate) const TERMINAL_MAX_RAW: usize = 1_048_576;
@@ -126,7 +127,7 @@ impl TerminalOverlay {
     pub(crate) fn max_scroll(&self) -> u16 {
         let visible = self.visible_rows.max(1) as usize;
         let total = self.total_render_lines();
-        total.saturating_sub(visible).min(u16::MAX as usize) as u16
+        clamp_u16(total.saturating_sub(visible))
     }
 
     pub(crate) fn clamp_scroll(&mut self) {
@@ -149,7 +150,7 @@ impl TerminalOverlay {
         let visible = self.visible_rows.max(1) as usize;
         let total = self.total_render_lines();
         let max_scroll = total.saturating_sub(visible);
-        self.scroll = max_scroll.min(u16::MAX as usize) as u16;
+        self.scroll = clamp_u16(max_scroll);
     }
 
     pub(crate) fn reset_for_rerun(&mut self) {

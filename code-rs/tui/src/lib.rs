@@ -123,6 +123,7 @@ mod timing;
 mod util {
     pub(crate) mod buffer;
     pub(crate) mod list_window;
+    pub(crate) mod numeric;
 }
 mod spinner;
 mod tui;

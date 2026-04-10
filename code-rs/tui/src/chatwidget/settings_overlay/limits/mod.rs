@@ -12,6 +12,7 @@ use code_core::config_types::LimitsLayoutMode as ConfigLimitsLayoutMode;
 use super::super::limits_overlay::{LimitsOverlay, LimitsOverlayContent, LimitsTab, LimitsTabBody};
 use super::SettingsContent;
 use crate::util::buffer::fill_rect;
+use crate::util::numeric::clamp_u16;
 use unicode_width::UnicodeWidthStr;
 
 include!("model.rs");

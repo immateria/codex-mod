@@ -8,6 +8,7 @@ use unicode_width::UnicodeWidthStr as _;
 use crate::history::state::ExecRecord;
 use crate::history::state::ExecStatus;
 use crate::history::state::HistoryId;
+use crate::util::numeric::clamp_u16;
 use crate::insert_history::word_wrap_lines;
 use crate::util::buffer::{fill_rect, write_line};
 
@@ -146,8 +147,8 @@ impl JsReplCell {
             let end_rel = rest.find(" • ").unwrap_or(rest.len());
             let segment = &rest[..end_rel];
 
-            let start_col = text[..start].width().min(u16::MAX as usize) as u16;
-            let seg_width = segment.width().min(u16::MAX as usize) as u16;
+            let start_col = clamp_u16(text[..start].width());
+            let seg_width = clamp_u16(segment.width());
             if seg_width == 0 {
                 continue;
             }
@@ -167,7 +168,7 @@ impl JsReplCell {
             return JsReplRenderLayout::default();
         }
         let wrapped = word_wrap_lines(&trimmed, width);
-        let total = wrapped.len().min(u16::MAX as usize) as u16;
+        let total = clamp_u16(wrapped.len());
         JsReplRenderLayout {
             lines: wrapped,
             total,

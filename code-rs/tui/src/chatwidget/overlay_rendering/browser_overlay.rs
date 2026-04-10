@@ -1,4 +1,5 @@
 use super::*;
+use crate::util::numeric::clamp_u16;
 
 impl ChatWidget<'_> {
     pub(super) fn render_browser_overlay(
@@ -351,7 +352,7 @@ impl ChatWidget<'_> {
         )]));
 
         let max_scroll = info_lines.len().saturating_sub(info_column.height as usize);
-        let max_scroll_u16 = max_scroll.min(u16::MAX as usize) as u16;
+        let max_scroll_u16 = clamp_u16(max_scroll);
         self.browser_overlay_state
             .update_action_metrics(info_column.height, max_scroll_u16);
         let scroll = self

@@ -11,6 +11,7 @@ use crate::history::compat::{
     MergedExecRecord,
 };
 use crate::util::buffer::{fill_bg, write_line};
+use crate::util::numeric::clamp_u16;
 
 use super::core::{ExecKind, HistoryCell, HistoryCellType};
 use super::exec::ExecCell;
@@ -136,7 +137,7 @@ impl MergedExecCell {
 
         if let Some(agg_pre) = self.aggregated_read_preamble_lines() {
             let pre_wrapped = word_wrap_lines(&agg_pre, width);
-            let pre_total = pre_wrapped.len().min(u16::MAX as usize) as u16;
+            let pre_total = clamp_u16(pre_wrapped.len());
 
             let mut segments: Vec<MergedExecSegmentLayout> = Vec::with_capacity(self.segments.len());
             let mut total = header_total.saturating_add(pre_total);
@@ -144,7 +145,7 @@ impl MergedExecCell {
                 let (_, out_raw) = segment.lines();
                 let out = trim_empty_lines(out_raw);
                 let out_wrapped = word_wrap_lines(&out, out_wrap_width);
-                let out_total = out_wrapped.len().min(u16::MAX as usize) as u16;
+                let out_total = clamp_u16(out_wrapped.len());
                 total = total.saturating_add(out_total);
                 segments.push(MergedExecSegmentLayout {
                     pre_lines: Vec::new(),
@@ -197,8 +198,8 @@ impl MergedExecCell {
 
             let pre_wrapped = word_wrap_lines(&pre, width);
             let out_wrapped = word_wrap_lines(&out, out_wrap_width);
-            let pre_total = pre_wrapped.len().min(u16::MAX as usize) as u16;
-            let out_total = out_wrapped.len().min(u16::MAX as usize) as u16;
+            let pre_total = clamp_u16(pre_wrapped.len());
+            let out_total = clamp_u16(out_wrapped.len());
             total = total.saturating_add(pre_total).saturating_add(out_total);
             segments.push(MergedExecSegmentLayout {
                 pre_lines: pre_wrapped,

@@ -137,7 +137,7 @@ impl LimitsSettingsContent {
     }
 
     fn render_single_column(&self, area: Rect, buf: &mut Buffer, lines: &[Line<'static>]) {
-        let max_scroll = lines.len().saturating_sub(area.height as usize).min(u16::MAX as usize) as u16;
+        let max_scroll = clamp_u16(lines.len().saturating_sub(area.height as usize));
         self.overlay.set_max_scroll(max_scroll);
 
         let start = self.overlay.scroll() as usize;
@@ -338,7 +338,7 @@ impl LimitsSettingsContent {
 
     fn preferred_left_width(lines: &[Line<'static>]) -> u16 {
         let widest = lines.iter().map(Self::line_display_width).max().unwrap_or(0);
-        widest.saturating_add(2).min(u16::MAX as usize) as u16
+        clamp_u16(widest.saturating_add(2))
     }
 
     fn tab_at(&self, tabs_area: Rect, mouse_event: MouseEvent) -> Option<TabHit> {
@@ -383,8 +383,8 @@ impl LimitsSettingsContent {
     }
 
     fn update_wide_bounds(&self, left_lines: &[Line<'static>], right_lines: &[Line<'static>], height: u16) {
-        let left_max = left_lines.len().saturating_sub(height as usize).min(u16::MAX as usize) as u16;
-        let right_max = right_lines.len().saturating_sub(height as usize).min(u16::MAX as usize) as u16;
+        let left_max = clamp_u16(left_lines.len().saturating_sub(height as usize));
+        let right_max = clamp_u16(right_lines.len().saturating_sub(height as usize));
 
         self.left_max_scroll.set(left_max);
         self.right_max_scroll.set(right_max);

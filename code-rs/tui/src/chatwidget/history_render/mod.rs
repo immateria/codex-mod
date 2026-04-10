@@ -26,6 +26,7 @@ use code_core::config::Config;
 use crate::foundation::wrapping::word_wrap_lines;
 #[cfg(not(feature = "code-fork"))]
 use crate::insert_history::word_wrap_lines;
+use crate::util::numeric::clamp_u16;
 use unicode_segmentation::UnicodeSegmentation;
 use unicode_width::UnicodeWidthStr;
 

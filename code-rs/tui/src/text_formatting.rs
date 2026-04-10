@@ -13,9 +13,23 @@ pub(crate) fn string_display_width(text: &str) -> usize {
 /// input is not valid JSON.
 pub(crate) fn format_json_compact(text: &str) -> Option<String> {
     let json = serde_json::from_str::<serde_json::Value>(text).ok()?;
-    let json_pretty = serde_json::to_string_pretty(&json).unwrap_or_else(|_| json.to_string());
+    Some(compact_json_string(
+        &serde_json::to_string_pretty(&json).unwrap_or_else(|_| json.to_string()),
+    ))
+}
 
-    // Convert multi-line pretty JSON to compact single-line format by removing newlines and redundant whitespace.
+/// Like [`format_json_compact`] but takes a pre-parsed [`serde_json::Value`],
+/// avoiding the redundant parse→serialize→parse round-trip when the caller
+/// already holds a `Value`.
+pub(crate) fn format_json_value_compact(value: &serde_json::Value) -> String {
+    compact_json_string(
+        &serde_json::to_string_pretty(value).unwrap_or_else(|_| value.to_string()),
+    )
+}
+
+/// Compact a pretty-printed JSON string into a single line with minimal
+/// whitespace: only one space after `:` and `,` (but not before `}` or `]`).
+fn compact_json_string(json_pretty: &str) -> String {
     let mut result = String::new();
     let mut chars = json_pretty.chars().peekable();
     let mut in_string = false;
@@ -50,7 +64,7 @@ pub(crate) fn format_json_compact(text: &str) -> Option<String> {
         }
     }
 
-    Some(result)
+    result
 }
 
 /// Truncate `text` to at most `max_graphemes` graphemes, avoiding partial graphemes and adding an ellipsis when there

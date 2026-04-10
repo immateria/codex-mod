@@ -27,6 +27,7 @@ use super::formatting::{
 };
 use super::image::ImageOutputCell;
 use super::tool::{RunningToolCallCell, ToolCallCell};
+use crate::util::numeric::clamp_u16;
 
 use crate::history::compat::{
     ArgumentValue,
@@ -583,11 +584,11 @@ impl WebFetchToolCell {
         let body = self.folded_body_lines();
 
         let pre_wrapped = super::word_wrap_lines(&pre, width);
-        let pre_total = pre_wrapped.len().min(u16::MAX as usize) as u16;
+        let pre_total = clamp_u16(pre_wrapped.len());
 
         let body_wrap_width = width.saturating_sub(2).max(1);
         let body_wrapped = super::word_wrap_lines(&body, body_wrap_width);
-        let body_total = body_wrapped.len().min(u16::MAX as usize) as u16;
+        let body_total = clamp_u16(body_wrapped.len());
 
         WebFetchLayout {
             pre_lines: pre_wrapped,
