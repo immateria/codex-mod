@@ -13,6 +13,12 @@ impl StatusLineSetupView {
             return;
         }
 
+        let s_function = crate::colors::style_function();
+        let s_success = crate::colors::style_success();
+        let s_text_bright = crate::colors::style_text_bright();
+        let s_text_dim = crate::colors::style_text_dim();
+        let s_light_blue = crate::colors::style_light_blue();
+
         Clear.render(area, buf);
         let block = crate::components::popup_frame::themed_block()
             .title(" Status Line ")
@@ -30,11 +36,11 @@ impl StatusLineSetupView {
             use crate::bottom_pane::settings_ui::hints::{hint_enter, hint_esc, hint_nav_horizontal, shortcut_line, KeyHint};
             shortcut_line(&[
                 KeyHint::new(crate::icons::tab(), " lane")
-                    .with_key_style(crate::colors::style_function()),
+                    .with_key_style(s_function),
                 KeyHint::new("p", " primary")
-                    .with_key_style(crate::colors::style_function()),
+                    .with_key_style(s_function),
                 KeyHint::new(crate::icons::space(), " toggle")
-                    .with_key_style(crate::colors::style_success()),
+                    .with_key_style(s_success),
                 hint_nav_horizontal(" reorder"),
                 hint_enter(" apply"),
                 hint_esc(" cancel"),
@@ -44,7 +50,7 @@ impl StatusLineSetupView {
         lines.push(Line::from(vec![
             Span::styled(
                 "Editing lane: ",
-                crate::colors::style_text_bright(),
+                s_text_bright,
             ),
             Span::styled(
                 active_lane,
@@ -57,7 +63,7 @@ impl StatusLineSetupView {
         lines.push(Line::from(vec![
             Span::styled(
                 "Primary lane: ",
-                crate::colors::style_text_bright(),
+                s_text_bright,
             ),
             Span::styled(
                 primary_lane,
@@ -68,21 +74,21 @@ impl StatusLineSetupView {
         ]));
 
         lines.push(Line::from(vec![
-            Span::styled("Top preview: ", crate::colors::style_text_bright()),
+            Span::styled("Top preview: ", s_text_bright),
             Span::styled(
                 if top_preview.is_empty() {
                     "(none)".to_string()
                 } else {
                     top_preview
                 },
-                crate::colors::style_text_dim(),
+                s_text_dim,
             ),
         ]));
 
         lines.push(Line::from(vec![
             Span::styled(
                 "Bottom preview: ",
-                crate::colors::style_text_bright(),
+                s_text_bright,
             ),
             Span::styled(
                 if bottom_preview.is_empty() {
@@ -90,7 +96,7 @@ impl StatusLineSetupView {
                 } else {
                     bottom_preview
                 },
-                crate::colors::style_text_dim(),
+                s_text_dim,
             ),
         ]));
 
@@ -105,15 +111,15 @@ impl StatusLineSetupView {
             };
             let pointer = if selected { crate::icons::pointer_active() } else { " " };
             let mut line = Line::from(vec![
-                Span::styled(pointer, crate::colors::style_light_blue()),
+                Span::styled(pointer, s_light_blue),
                 Span::raw(" "),
-                Span::styled(marker, crate::colors::style_success()),
+                Span::styled(marker, s_success),
                 Span::raw(" "),
                 Span::styled(choice.item.label(), Style::default().add_modifier(Modifier::BOLD)),
                 Span::raw("  "),
                 Span::styled(
                     choice.item.description(),
-                    crate::colors::style_text_dim(),
+                    s_text_dim,
                 ),
             ]);
             if selected {
@@ -162,7 +168,7 @@ impl StatusLineSetupView {
                     indicator_x,
                     content.y,
                     crate::icons::arrow_up(),
-                    crate::colors::style_light_blue(),
+                    s_light_blue,
                 );
             }
             if s < max_scroll {
@@ -171,7 +177,7 @@ impl StatusLineSetupView {
                     indicator_x,
                     bottom_y,
                     crate::icons::arrow_down(),
-                    crate::colors::style_light_blue(),
+                    s_light_blue,
                 );
             }
         }

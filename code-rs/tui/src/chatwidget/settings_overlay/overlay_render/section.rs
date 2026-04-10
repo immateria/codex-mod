@@ -252,6 +252,8 @@ impl SettingsOverlayView {
             return;
         }
 
+        let s_on_bg = crate::colors::style_on_background();
+
         fill_rect(
             buf,
             area,
@@ -289,13 +291,13 @@ impl SettingsOverlayView {
             buf,
             box_area,
             Some(' '),
-            crate::colors::style_on_background(),
+            s_on_bg,
         );
 
         Block::default()
             .borders(Borders::ALL)
             .border_style(crate::colors::style_border())
-            .style(crate::colors::style_on_background())
+            .style(s_on_bg)
             .render(box_area, buf);
 
         let inner = box_area.inner(crate::ui_consts::UNIFORM_PAD);

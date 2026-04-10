@@ -35,7 +35,9 @@ impl AgentEditorView {
         let desc_box_h = self.description_field.desired_height(inner_width).min(6).saturating_add(2);
 
         let title_block: u16 = 2;
-        let desc_style = crate::colors::style_text_dim();
+        let s_text_dim = crate::colors::style_text_dim();
+        let s_error = crate::colors::style_error();
+        let c_success = crate::colors::success();
         let name_box_h: u16 = 3;
         let command_box_h: u16 = 3;
         let enabled_block: u16 = 2;
@@ -78,7 +80,7 @@ impl AgentEditorView {
             )));
             lines.push(Line::from(Span::styled(
                 self.install_hint.clone(),
-                crate::colors::style_text_dim(),
+                s_text_dim,
             )));
             lines.push(Line::from(""));
         }
@@ -90,7 +92,7 @@ impl AgentEditorView {
         if let Some(err) = &self.name_error {
             lines.push(Line::from(Span::styled(
                 err.clone(),
-                crate::colors::style_error(),
+                s_error,
             )));
         } else {
             lines.push(Line::from(""));
@@ -104,13 +106,13 @@ impl AgentEditorView {
         // Enabled toggle
         let enabled_style = if self.enabled {
             Style::default()
-                .fg(crate::colors::success())
+                .fg(c_success)
                 .add_modifier(Modifier::BOLD)
         } else {
-            crate::colors::style_text_dim()
+            s_text_dim
         };
         let disabled_style = if self.enabled {
-            crate::colors::style_text_dim()
+            s_text_dim
         } else {
             crate::colors::style_error_bold()
         };
@@ -157,12 +159,12 @@ impl AgentEditorView {
         let desc_message = if let Some(err) = &self.description_error {
             Line::from(Span::styled(
                 err.clone(),
-                crate::colors::style_error(),
+                s_error,
             ))
         } else {
             Line::from(Span::styled(
                 "Required: explain what this agent is good at so Code can pick it intelligently.",
-                desc_style,
+                s_text_dim,
             ))
         };
         lines.push(desc_message);
@@ -174,12 +176,12 @@ impl AgentEditorView {
         }
         lines.push(Line::from(Span::styled(
             "Optional guidance prepended to every request sent to the agent.",
-            desc_style,
+            s_text_dim,
         )));
         lines.push(Line::from(""));
 
         // Buttons row
-        let save_style = sel(FIELD_SAVE).fg(crate::colors::success());
+        let save_style = sel(FIELD_SAVE).fg(c_success);
         let cancel_style = sel(FIELD_CANCEL).fg(crate::colors::text());
         lines.push(Line::from(vec![
             Span::styled("[ Save ]", save_style),

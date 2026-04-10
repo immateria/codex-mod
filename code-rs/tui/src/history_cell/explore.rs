@@ -333,6 +333,7 @@ fn explore_lines_with_truncation(
         .max()
         .unwrap_or(0);
 
+    let s_text_dim = crate::colors::style_text_dim();
     for (display_idx, entry_idx) in visible_indices.iter().enumerate() {
         if truncated && display_idx == HEAD_ENTRIES {
             lines.push(Line::styled(
@@ -354,17 +355,17 @@ fn explore_lines_with_truncation(
         padded_label.extend(std::iter::repeat_n(' ', padding));
         spans.push(Span::styled(
             padded_label,
-            crate::colors::style_text_dim(),
+            s_text_dim,
         ));
         spans.extend(entry_summary_spans(entry));
         match entry.status {
             ExploreEntryStatus::Running => spans.push(Span::styled(
                 "…",
-                crate::colors::style_text_dim(),
+                s_text_dim,
             )),
             ExploreEntryStatus::NotFound => spans.push(Span::styled(
                 " (not found)",
-                crate::colors::style_text_dim(),
+                s_text_dim,
             )),
             ExploreEntryStatus::Error { exit_code } => {
                 let msg = match (entry.action, exit_code) {
@@ -417,6 +418,8 @@ fn entry_label_width(entry: &ExploreEntry) -> usize {
 }
 
 fn entry_summary_spans(entry: &ExploreEntry) -> Vec<Span<'static>> {
+    let s_text = crate::colors::style_text();
+    let s_text_dim = crate::colors::style_text_dim();
     match &entry.summary {
         ExploreSummary::Search { query, path } => {
             let mut spans = Vec::new();
@@ -424,19 +427,19 @@ fn entry_summary_spans(entry: &ExploreEntry) -> Vec<Span<'static>> {
                 && !q.is_empty() {
                     spans.push(Span::styled(
                         q.clone(),
-                        crate::colors::style_text(),
+                        s_text,
                     ));
                 }
             if let Some(p) = path {
                 spans.push(Span::styled(
                     format!(" in {p}"),
-                    crate::colors::style_text_dim(),
+                    s_text_dim,
                 ));
             }
             if spans.is_empty() {
                 spans.push(Span::styled(
                     "search".to_string(),
-                    crate::colors::style_text(),
+                    s_text,
                 ));
             }
             spans
@@ -445,7 +448,7 @@ fn entry_summary_spans(entry: &ExploreEntry) -> Vec<Span<'static>> {
             let target = path.clone().unwrap_or_else(|| "./".to_string());
             vec![Span::styled(
                 target,
-                crate::colors::style_text_dim(),
+                s_text_dim,
             )]
         }
         ExploreSummary::Read {
@@ -455,12 +458,12 @@ fn entry_summary_spans(entry: &ExploreEntry) -> Vec<Span<'static>> {
         } => {
             let mut spans = vec![Span::styled(
                 display_path.clone(),
-                crate::colors::style_text(),
+                s_text,
             )];
             if let Some(ann) = annotation {
                 spans.push(Span::styled(
                     format!(" {ann}"),
-                    crate::colors::style_text_dim(),
+                    s_text_dim,
                 ));
             }
             spans
@@ -470,27 +473,27 @@ fn entry_summary_spans(entry: &ExploreEntry) -> Vec<Span<'static>> {
             if let Some(annotation) = annotation {
                 spans.push(Span::styled(
                     format!(" {annotation}"),
-                    crate::colors::style_text_dim(),
+                    s_text_dim,
                 ));
             }
             spans
         }
         ExploreSummary::Fallback { text } => vec![Span::styled(
             text.clone(),
-            crate::colors::style_text(),
+            s_text,
         )],
         ExploreSummary::Count { target, annotation } => {
             let mut spans = Vec::new();
             if let Some(target) = target {
                 spans.push(Span::styled(
                     target.clone(),
-                    crate::colors::style_text(),
+                    s_text,
                 ));
             }
             if let Some(annotation) = annotation {
                 spans.push(Span::styled(
                     format!(" {annotation}"),
-                    crate::colors::style_text_dim(),
+                    s_text_dim,
                 ));
             }
             spans

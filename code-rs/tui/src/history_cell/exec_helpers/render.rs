@@ -48,6 +48,8 @@ pub(crate) fn exec_render_parts_parsed_with_meta(
     Option<Line<'static>>,
 ) {
     let action = meta.action;
+    let s_text = crate::colors::style_text();
+    let s_text_dim = crate::colors::style_text_dim();
     let ctx_path = meta.ctx_path.as_deref();
     let suppress_run_header = matches!(action, ExecAction::Run) && output.is_some();
     let mut pre: Vec<Line<'static>> = Vec::new();
@@ -57,15 +59,15 @@ pub(crate) fn exec_render_parts_parsed_with_meta(
             None => match action {
                 ExecAction::Read => pre.push(Line::styled(
                     "Read",
-                    crate::colors::style_text(),
+                    s_text,
                 )),
                 ExecAction::Search => pre.push(Line::styled(
                     "Search",
-                    crate::colors::style_text_dim(),
+                    s_text_dim,
                 )),
                 ExecAction::List => pre.push(Line::styled(
                     "List",
-                    crate::colors::style_text(),
+                    s_text,
                 )),
                 ExecAction::Run => {
                     let mut message = match &ctx_path {
@@ -94,7 +96,7 @@ pub(crate) fn exec_render_parts_parsed_with_meta(
                 ) {
                     pre.push(Line::styled(
                         done,
-                        crate::colors::style_text_dim(),
+                        s_text_dim,
                     ));
                 } else {
                     pre.push(Line::styled(
@@ -183,40 +185,40 @@ pub(crate) fn exec_render_parts_parsed_with_meta(
                         if i > 0 {
                             spans.push(Span::styled(
                                 ", ",
-                                crate::colors::style_text_dim(),
+                                s_text_dim,
                             ));
                         }
                         if let Some((left, right)) = chunk.rsplit_once(" and ") {
                             if !left.is_empty() {
                                 spans.push(Span::styled(
                                     left.to_string(),
-                                    crate::colors::style_text(),
+                                    s_text,
                                 ));
                                 spans.push(Span::styled(
                                     " and ",
-                                    crate::colors::style_text_dim(),
+                                    s_text_dim,
                                 ));
                                 spans.push(Span::styled(
                                     right.to_string(),
-                                    crate::colors::style_text(),
+                                    s_text,
                                 ));
                             } else {
                                 spans.push(Span::styled(
                                     chunk.to_string(),
-                                    crate::colors::style_text(),
+                                    s_text,
                                 ));
                             }
                         } else {
                             spans.push(Span::styled(
                                 chunk.to_string(),
-                                crate::colors::style_text(),
+                                s_text,
                             ));
                         }
                     }
                     if let Some(p) = path_part {
                         spans.push(Span::styled(
                             p.to_string(),
-                            crate::colors::style_text_dim(),
+                            s_text_dim,
                         ));
                     }
                 }
@@ -225,23 +227,23 @@ pub(crate) fn exec_render_parts_parsed_with_meta(
                         let (fname, rest) = line_text.split_at(idx);
                         spans.push(Span::styled(
                             fname.to_string(),
-                            crate::colors::style_text(),
+                            s_text,
                         ));
                         spans.push(Span::styled(
                             rest.to_string(),
-                            crate::colors::style_text_dim(),
+                            s_text_dim,
                         ));
                     } else {
                         spans.push(Span::styled(
                             line_text.to_string(),
-                            crate::colors::style_text(),
+                            s_text,
                         ));
                     }
                 }
                 "List" => {
                     spans.push(Span::styled(
                         line_text.to_string(),
-                        crate::colors::style_text(),
+                        s_text,
                     ));
                 }
                 _ => {
@@ -257,7 +259,7 @@ pub(crate) fn exec_render_parts_parsed_with_meta(
                     } else {
                         spans.push(Span::styled(
                             display_line,
-                            crate::colors::style_text(),
+                            s_text,
                         ));
                     }
                 }
@@ -284,7 +286,7 @@ pub(crate) fn exec_render_parts_parsed_with_meta(
             Span::styled("└ ", Style::default().add_modifier(Modifier::DIM)),
             Span::styled(
                 display_p,
-                crate::colors::style_text(),
+                s_text,
             ),
         ]));
     }
@@ -346,6 +348,8 @@ fn new_parsed_command(
     start_time: Option<Instant>,
 ) -> Vec<Line<'static>> {
     let meta = ParsedExecMetadata::from_commands(parsed_commands);
+    let s_text = crate::colors::style_text();
+    let s_text_dim = crate::colors::style_text_dim();
     let action = meta.action;
     let ctx_path = meta.ctx_path.as_deref();
     let suppress_run_header = matches!(action, ExecAction::Run) && output.is_some();
@@ -363,7 +367,7 @@ fn new_parsed_command(
                     };
                     lines.push(Line::styled(
                         format!("{label}{duration_suffix}"),
-                        crate::colors::style_text_dim(),
+                        s_text_dim,
                     ));
                 } else {
                     let mut message = match &ctx_path {
@@ -381,7 +385,7 @@ fn new_parsed_command(
                 if let Some(label) = action.tool_label() {
                     lines.push(Line::styled(
                         label,
-                        crate::colors::style_text(),
+                        s_text,
                     ));
                 } else {
                     let done = match ctx_path {
@@ -486,7 +490,7 @@ fn new_parsed_command(
                             // Add comma separator between items (dim)
                             spans.push(Span::styled(
                                 ", ",
-                                crate::colors::style_text_dim(),
+                                s_text_dim,
                             ));
                         }
                         // Within each chunk, if it contains " and ", split into left and right with dimmed " and "
@@ -494,26 +498,26 @@ fn new_parsed_command(
                             if !left.is_empty() {
                                 spans.push(Span::styled(
                                     left.to_string(),
-                                    crate::colors::style_text(),
+                                    s_text,
                                 ));
                                 spans.push(Span::styled(
                                     " and ",
-                                    crate::colors::style_text_dim(),
+                                    s_text_dim,
                                 ));
                                 spans.push(Span::styled(
                                     right.to_string(),
-                                    crate::colors::style_text(),
+                                    s_text,
                                 ));
                             } else {
                                 spans.push(Span::styled(
                                     chunk.to_string(),
-                                    crate::colors::style_text(),
+                                    s_text,
                                 ));
                             }
                         } else {
                             spans.push(Span::styled(
                                 chunk.to_string(),
-                                crate::colors::style_text(),
+                                s_text,
                             ));
                         }
                     }
@@ -521,7 +525,7 @@ fn new_parsed_command(
                         // Dim the entire path portion including the " in " or " (in " prefix
                         spans.push(Span::styled(
                             p.to_string(),
-                            crate::colors::style_text_dim(),
+                            s_text_dim,
                         ));
                     }
                 }
@@ -531,16 +535,16 @@ fn new_parsed_command(
                         let (fname, rest) = line_text.split_at(idx);
                         spans.push(Span::styled(
                             fname.to_string(),
-                            crate::colors::style_text(),
+                            s_text,
                         ));
                         spans.push(Span::styled(
                             rest.to_string(),
-                            crate::colors::style_text_dim(),
+                            s_text_dim,
                         ));
                     } else {
                         spans.push(Span::styled(
                             line_text.to_string(),
-                            crate::colors::style_text(),
+                            s_text,
                         ));
                     }
                 }
@@ -548,7 +552,7 @@ fn new_parsed_command(
                 "List" => {
                     spans.push(Span::styled(
                         line_text.to_string(),
-                        crate::colors::style_text(),
+                        s_text,
                     ));
                 }
                 _ => {
@@ -563,7 +567,7 @@ fn new_parsed_command(
                     } else {
                         spans.push(Span::styled(
                             display_line,
-                            crate::colors::style_text(),
+                            s_text,
                         ));
                     }
                 }
@@ -592,7 +596,7 @@ fn new_parsed_command(
             Span::styled("└ ", Style::default().add_modifier(Modifier::DIM)),
             Span::styled(
                 display_p,
-                crate::colors::style_text(),
+                s_text,
             ),
         ]));
         // no-op: avoid unused assignment warning; the variable's value is not consumed later

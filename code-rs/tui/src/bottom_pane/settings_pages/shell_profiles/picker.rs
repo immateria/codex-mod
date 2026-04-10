@@ -335,12 +335,13 @@ impl ShellProfilesSettingsView {
 
     pub(super) fn picker_footer_lines() -> Vec<Line<'static>> {
         use crate::bottom_pane::settings_ui::hints::{hint_esc, hint_nav, shortcut_line, KeyHint};
+        let s_success = crate::colors::style_success();
         vec![shortcut_line(&[
             hint_nav(" navigate"),
             KeyHint::new("Space/Enter", " toggle")
-                .with_key_style(crate::colors::style_success()),
+                .with_key_style(s_success),
             KeyHint::new("Ctrl+S", " save")
-                .with_key_style(crate::colors::style_success()),
+                .with_key_style(s_success),
             hint_esc(" cancel"),
         ])]
     }
@@ -397,13 +398,17 @@ impl ShellProfilesSettingsView {
             return;
         }
 
+        let s_on_bg = crate::colors::style_on_background();
+        let c_text_dim = crate::colors::text_dim();
+        let c_selection = crate::colors::selection();
+
         let total = state.items.len();
         if total == 0 {
             fill_rect(
                 buf,
                 area,
                 Some(' '),
-                crate::colors::style_on_background(),
+                s_on_bg,
             );
             write_line(
                 buf,
@@ -413,10 +418,10 @@ impl ShellProfilesSettingsView {
                 &Line::from(vec![Span::styled(
                     "no options available".to_string(),
                     Style::default()
-                        .fg(crate::colors::text_dim())
+                        .fg(c_text_dim)
                         .add_modifier(Modifier::ITALIC),
                 )]),
-                crate::colors::style_on_background(),
+                s_on_bg,
             );
             return;
         }
@@ -436,7 +441,7 @@ impl ShellProfilesSettingsView {
                     buf,
                     row_area,
                     Some(' '),
-                    crate::colors::style_on_background(),
+                    s_on_bg,
                 );
                 continue;
             }
@@ -445,7 +450,7 @@ impl ShellProfilesSettingsView {
             let is_selected = idx == selected;
             let base = if is_selected {
                 Style::default()
-                    .bg(crate::colors::selection())
+                    .bg(c_selection)
                     .fg(crate::colors::text_bright())
             } else {
                 crate::colors::style_text_on_bg()
@@ -488,7 +493,7 @@ impl ShellProfilesSettingsView {
                 } else if !item.is_no_filter_option && state.other_values.contains(&conflict_key) {
                     Style::default()
                         .bg(crate::colors::background())
-                        .fg(crate::colors::text_dim())
+                        .fg(c_text_dim)
                 } else {
                     base
                 },
@@ -501,8 +506,8 @@ impl ShellProfilesSettingsView {
                 spans.push(Span::styled(
                     format!("  {desc}"),
                     Style::default()
-                        .bg(crate::colors::selection())
-                        .fg(crate::colors::text_dim()),
+                        .bg(c_selection)
+                        .fg(c_text_dim),
                 ));
             }
 

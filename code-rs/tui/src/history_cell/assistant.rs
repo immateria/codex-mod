@@ -527,6 +527,13 @@ fn compute_assistant_layout_from_rendered_lines(
         };
     }
 
+    let c_assistant_mid_turn_bg = crate::colors::assistant_mid_turn_bg();
+    let c_assistant_bg = crate::colors::assistant_bg();
+    let c_code_block_bg = crate::colors::code_block_bg();
+    let s_border = crate::colors::style_border();
+    let s_text_dim = crate::colors::style_text_dim();
+    let c_assistant_hr = crate::colors::assistant_hr();
+
     let text_wrap_width = width;
     let mut segs: Vec<AssistantSeg> = Vec::new();
 
@@ -594,19 +601,19 @@ fn compute_assistant_layout_from_rendered_lines(
             let temp_area = Rect::new(0, 0, card_w, full_height);
             let mut temp_buf = Buffer::empty(temp_area);
             let cell_bg = if state.mid_turn {
-                crate::colors::assistant_mid_turn_bg()
+                c_assistant_mid_turn_bg
             } else {
-                crate::colors::assistant_bg()
+                c_assistant_bg
             };
             let code_bg = if state.mid_turn {
                 cell_bg
             } else {
-                crate::colors::code_block_bg()
+                c_code_block_bg
             };
 
             let blk = Block::default()
                 .borders(Borders::ALL)
-                .border_style(crate::colors::style_border())
+                .border_style(s_border)
                 .style(Style::default().bg(code_bg))
                 .padding(Padding {
                     left: 2,
@@ -617,7 +624,7 @@ fn compute_assistant_layout_from_rendered_lines(
             let blk = if let Some(lang) = lang_label.as_deref() {
                 blk.title(Span::styled(
                     format!(" {lang} "),
-                    crate::colors::style_text_dim(),
+                    s_text_dim,
                 ))
             } else {
                 blk
@@ -654,7 +661,7 @@ fn compute_assistant_layout_from_rendered_lines(
             }
             let hr = Line::from(Span::styled(
                 std::iter::repeat_n('─', text_wrap_width as usize).collect::<String>(),
-                Style::default().fg(crate::colors::assistant_hr()),
+                Style::default().fg(c_assistant_hr),
             ));
             segs.push(AssistantSeg::Bullet(vec![hr]));
             idx = idx.saturating_add(1);

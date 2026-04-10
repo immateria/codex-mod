@@ -71,6 +71,7 @@ impl ToolCallCell {
     pub(crate) fn retint(&mut self, _old: &crate::theme::Theme, _new: &crate::theme::Theme) {}
 
     fn header_line(&self) -> Line<'static> {
+        let s_text_dim = crate::colors::style_text_dim();
         let mut spans: Vec<Span<'static>> = Vec::with_capacity(5);
         let mut style = Style::default().add_modifier(Modifier::BOLD);
         style = match self.state.status {
@@ -82,7 +83,7 @@ impl ToolCallCell {
         if let Some(duration) = self.state.duration {
             spans.push(Span::styled(
                 format!(", duration: {}", format_duration(duration)),
-                crate::colors::style_text_dim(),
+                s_text_dim,
             ));
         }
 
@@ -91,7 +92,7 @@ impl ToolCallCell {
             if let Some(hint) = self.compact_invocation_hint() {
                 spans.push(Span::styled(
                     format!(" ({hint})"),
-                    crate::colors::style_text_dim(),
+                    s_text_dim,
                 ));
             }
             let args_count = self.state.arguments.len();
@@ -639,17 +640,18 @@ fn render_arguments(arguments: &[ToolArgument]) -> Vec<Line<'static>> {
 
 fn render_argument(arg: &ToolArgument) -> Line<'static> {
     let dim_style = crate::colors::style_text_dim();
+    let s_text = crate::colors::style_text();
     let mut spans = vec![Span::styled("└ ", dim_style)];
     spans.push(Span::styled(
         format!("{}: ", arg.name),
         dim_style,
     ));
     let value_span = match &arg.value {
-        ArgumentValue::Text(text) => Span::styled(text.clone(), crate::colors::style_text()),
+        ArgumentValue::Text(text) => Span::styled(text.clone(), s_text),
         ArgumentValue::Json(json) => {
-            Span::styled(format_json_value_compact(json), crate::colors::style_text())
+            Span::styled(format_json_value_compact(json), s_text)
         }
-        ArgumentValue::Secret => Span::styled("(secret)", crate::colors::style_text_dim()),
+        ArgumentValue::Secret => Span::styled("(secret)", dim_style),
     };
     spans.push(value_span);
     Line::from(spans)

@@ -238,6 +238,10 @@ impl ChatWidget<'_> {
         available_width: u16,
         collapsed: bool,
     ) {
+        let s_warning = crate::colors::style_warning();
+        let s_text_dim = crate::colors::style_text_dim();
+        let s_error = crate::colors::style_error();
+
         let mut bullets: Vec<(String, ratatui::style::Style)> = Vec::new();
 
         if matches!(entry.source_kind, Some(AgentSourceKind::AutoReview)) {
@@ -271,7 +275,7 @@ impl ChatWidget<'_> {
 
                 if has_findings || matches!(entry.status, AgentStatus::Completed) {
                     let color = if has_findings {
-                        crate::colors::style_warning()
+                        s_warning
                     } else {
                         crate::colors::style_success()
                     };
@@ -286,7 +290,7 @@ impl ChatWidget<'_> {
                         }
                         bullets.push((
                             self.truncate_overlay_text(trimmed, 280),
-                            crate::colors::style_text_dim(),
+                            s_text_dim,
                         ));
                     }
                 }
@@ -298,7 +302,7 @@ impl ChatWidget<'_> {
             if !text.is_empty() {
                 bullets.push((
                     format!("Final: {text}"),
-                    crate::colors::style_text_dim(),
+                    s_text_dim,
                 ));
             }
         }
@@ -308,7 +312,7 @@ impl ChatWidget<'_> {
                 if entry.error.is_none() {
                     bullets.push((
                         "Failed".to_string(),
-                        crate::colors::style_error(),
+                        s_error,
                     ));
                 }
             }
@@ -316,7 +320,7 @@ impl ChatWidget<'_> {
                 if entry.error.is_none() {
                     bullets.push((
                         "Cancelled".to_string(),
-                        crate::colors::style_warning(),
+                        s_warning,
                     ));
                 }
             }
@@ -390,7 +394,7 @@ impl ChatWidget<'_> {
                         ratatui::text::Span::raw(prefix),
                         ratatui::text::Span::styled(
                             wrapped.to_string(),
-                            crate::colors::style_error(),
+                            s_error,
                         ),
                     ]));
                 }

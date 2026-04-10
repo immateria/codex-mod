@@ -8,6 +8,9 @@ use super::{UndoTimelineEntry, UndoTimelineView};
 
 impl UndoTimelineView {
     fn render_list(&self, area: Rect, buf: &mut Buffer) {
+        let s_text_dim = crate::colors::style_text_dim();
+        let c_text_dim = crate::colors::text_dim();
+        let c_selection = crate::colors::selection();
         let (start, end) = self.visible_range();
         let mut lines: Vec<Line<'static>> = Vec::new();
         for (idx, entry) in self.entries[start..end].iter().enumerate() {
@@ -24,7 +27,7 @@ impl UndoTimelineView {
                     entry.label.clone(),
                     if selected {
                         crate::colors::style_text_bold()
-                            .bg(crate::colors::selection())
+                            .bg(c_selection)
                     } else {
                         crate::colors::style_text()
                     },
@@ -36,10 +39,10 @@ impl UndoTimelineView {
                     commit.clone(),
                     if selected {
                         Style::default()
-                            .fg(crate::colors::text_dim())
-                            .bg(crate::colors::selection())
+                            .fg(c_text_dim)
+                            .bg(c_selection)
                     } else {
-                        crate::colors::style_text_dim()
+                        s_text_dim
                     },
                 ));
             }
@@ -48,10 +51,10 @@ impl UndoTimelineView {
             if let Some(summary) = &entry.summary {
                 let style = if selected {
                     Style::default()
-                        .fg(crate::colors::text_dim())
-                        .bg(crate::colors::selection())
+                        .fg(c_text_dim)
+                        .bg(c_selection)
                 } else {
-                    crate::colors::style_text_dim()
+                    s_text_dim
                 };
                 lines.push(Line::from(Span::styled(format!("  {summary}"), style)));
             }
@@ -66,10 +69,10 @@ impl UndoTimelineView {
                 }
                 let style = if selected {
                     Style::default()
-                        .fg(crate::colors::text_dim())
-                        .bg(crate::colors::selection())
+                        .fg(c_text_dim)
+                        .bg(c_selection)
                 } else {
-                    crate::colors::style_text_dim()
+                    s_text_dim
                 };
                 lines.push(Line::from(Span::styled(
                     format!("  {}", parts.join(" • ")),
@@ -80,10 +83,10 @@ impl UndoTimelineView {
             if let Some(stats) = &entry.stats_line {
                 let style = if selected {
                     Style::default()
-                        .fg(crate::colors::text_dim())
-                        .bg(crate::colors::selection())
+                        .fg(c_text_dim)
+                        .bg(c_selection)
                 } else {
-                    crate::colors::style_text_dim()
+                    s_text_dim
                 };
                 lines.push(Line::from(Span::styled(format!("  {stats}"), style)));
             }
@@ -110,6 +113,8 @@ impl UndoTimelineView {
             return;
         };
 
+        let s_on_bg = crate::colors::style_on_background();
+
         let [conversation_area, files_area, footer_area] = Layout::vertical([
             Constraint::Percentage(55),
             Constraint::Percentage(35),
@@ -123,7 +128,7 @@ impl UndoTimelineView {
         conversation_block.render(conversation_area, buf);
         let conversation = Paragraph::new(entry.conversation_lines.clone())
             .wrap(ratatui::widgets::Wrap { trim: true })
-            .style(crate::colors::style_on_background())
+            .style(s_on_bg)
             .alignment(Alignment::Left);
         conversation.render(conversation_inner, buf);
 
@@ -141,7 +146,7 @@ impl UndoTimelineView {
         };
         let file_summary = Paragraph::new(file_lines)
             .wrap(ratatui::widgets::Wrap { trim: true })
-            .style(crate::colors::style_on_background())
+            .style(s_on_bg)
             .alignment(Alignment::Left);
         file_summary.render(files_inner, buf);
 
@@ -153,17 +158,20 @@ impl UndoTimelineView {
     }
 
     fn footer_lines(&self, entry: &UndoTimelineEntry) -> Vec<Line<'static>> {
+        let s_success = crate::colors::style_success();
+        let c_text_dim = crate::colors::text_dim();
+        let c_success = crate::colors::success();
         let files_checked = entry.files_available && self.restore_files;
         let files_status = {
             let marker = if files_checked { crate::icons::checkbox_on() } else { crate::icons::checkbox_off() };
-            let color = if files_checked { crate::colors::success() } else { crate::colors::text_dim() };
+            let color = if files_checked { c_success } else { c_text_dim };
             Span::styled(format!("{marker} Files"), Style::default().fg(color))
         };
 
         let convo_checked = entry.conversation_available && self.restore_conversation;
         let convo_status = {
             let marker = if convo_checked { crate::icons::checkbox_on() } else { crate::icons::checkbox_off() };
-            let color = if convo_checked { crate::colors::success() } else { crate::colors::text_dim() };
+            let color = if convo_checked { c_success } else { c_text_dim };
             Span::styled(format!("{marker} Conversation"), Style::default().fg(color))
         };
 
@@ -176,10 +184,10 @@ impl UndoTimelineView {
                 ).with_key_style(crate::colors::style_function()),
                 crate::bottom_pane::settings_ui::hints::KeyHint::new(
                     crate::icons::space(), " toggle files",
-                ).with_key_style(crate::colors::style_success()),
+                ).with_key_style(s_success),
                 crate::bottom_pane::settings_ui::hints::KeyHint::new(
                     "C", " toggle conversation",
-                ).with_key_style(crate::colors::style_success()),
+                ).with_key_style(s_success),
                 crate::bottom_pane::settings_ui::hints::hint_enter(" restore"),
                 crate::bottom_pane::settings_ui::hints::hint_esc(" close"),
             ]),

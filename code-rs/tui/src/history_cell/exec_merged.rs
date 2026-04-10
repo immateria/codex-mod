@@ -353,13 +353,19 @@ impl HistoryCell for MergedExecCell {
             return;
         }
 
+        let s_text = crate::colors::style_text();
+        let c_background = crate::colors::background();
+        let c_text_dim = crate::colors::text_dim();
+        let s_border_dim_on_bg = crate::colors::style_border_dim_on_bg();
+        let s_on_background = crate::colors::style_on_background();
+
         let layout = self.layout_for_width(area.width);
 
         // Build one header line based on exec kind
         let header_line = match self.kind {
             ExecKind::Read => Some(Line::styled(
                 "Read",
-                crate::colors::style_text(),
+                s_text,
             )),
             ExecKind::Search => Some(Line::styled(
                 "Search",
@@ -367,7 +373,7 @@ impl HistoryCell for MergedExecCell {
             )),
             ExecKind::List => Some(Line::styled(
                 "List",
-                crate::colors::style_text(),
+                s_text,
             )),
             ExecKind::Run => None,
         };
@@ -415,8 +421,8 @@ impl HistoryCell for MergedExecCell {
             }
 
             let dim_style = Style::default()
-                .bg(crate::colors::background())
-                .fg(crate::colors::text_dim());
+                .bg(c_background)
+                .fg(c_text_dim);
 
             for segment in &layout.segments {
                 if cur_y >= end_y {
@@ -441,9 +447,9 @@ impl HistoryCell for MergedExecCell {
                 let block = Block::default()
                     .borders(Borders::LEFT)
                     .border_style(
-                        crate::colors::style_border_dim_on_bg(),
+                        s_border_dim_on_bg,
                     )
-                    .style(crate::colors::style_on_background())
+                    .style(s_on_background)
                     .padding(Padding {
                         left: 1,
                         right: 0,
@@ -475,8 +481,8 @@ impl HistoryCell for MergedExecCell {
         // Fallback: each segment retains its own preamble and output
 
         let dim_style = Style::default()
-            .bg(crate::colors::background())
-            .fg(crate::colors::text_dim());
+            .bg(c_background)
+            .fg(c_text_dim);
 
         for segment in &layout.segments {
             if cur_y >= end_y {
@@ -529,9 +535,9 @@ impl HistoryCell for MergedExecCell {
                 let block = Block::default()
                     .borders(Borders::LEFT)
                     .border_style(
-                        crate::colors::style_border_dim_on_bg(),
+                        s_border_dim_on_bg,
                     )
-                    .style(crate::colors::style_on_background())
+                    .style(s_on_background)
                     .padding(Padding {
                         left: 1,
                         right: 0,

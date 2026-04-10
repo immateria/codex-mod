@@ -15,6 +15,15 @@ impl ChatWidget<'_> {
             Block, Borders, Clear, HighlightSpacing, List, ListItem, ListState, Paragraph,
         };
 
+        let s_on_bg = crate::colors::style_on_background();
+        let s_primary_bold = crate::colors::style_primary_bold();
+        let s_text_bold = crate::colors::style_text_bold();
+        let s_text_dim = crate::colors::style_text_dim();
+        let s_function = crate::colors::style_function();
+        let s_text = crate::colors::style_text();
+        let c_primary = crate::colors::primary();
+        let c_border = crate::colors::border();
+
         let scrim_style = Style::default()
             .bg(crate::colors::overlay_scrim())
             .fg(crate::colors::text_dim());
@@ -37,21 +46,21 @@ impl ChatWidget<'_> {
         Clear.render(window_area, buf);
 
         let title_spans = vec![
-            Span::styled(" Agents ", crate::colors::style_text()),
-            Span::styled("— Ctrl+A to close", crate::colors::style_text_dim()),
+            Span::styled(" Agents ", s_text),
+            Span::styled("— Ctrl+A to close", s_text_dim),
         ];
 
         let block = Block::default()
             .borders(Borders::ALL)
             .title(Line::from(title_spans))
-            .style(crate::colors::style_on_background())
+            .style(s_on_bg)
             .border_style(
                 crate::colors::style_border_on_bg(),
             );
         let inner = block.inner(window_area);
         block.render(window_area, buf);
 
-        fill_rect(buf, inner, None, crate::colors::style_on_background());
+        fill_rect(buf, inner, None, s_on_bg);
 
         // Remove vertical padding so the filter row sits directly below the title.
         let content = inner.inner(Margin {
@@ -88,11 +97,11 @@ impl ChatWidget<'_> {
 
         let sidebar_has_focus = self.agents_terminal.focus() == AgentsTerminalFocus::Sidebar;
         let sidebar_border_color = if sidebar_has_focus {
-            crate::colors::primary()
+            c_primary
         } else {
-            crate::colors::border()
+            c_border
         };
-        let filter_title_style = crate::colors::style_text_dim();
+        let filter_title_style = s_text_dim;
 
         if tab_height > 0 {
             let filter_row = tabs_area;
@@ -110,14 +119,14 @@ impl ChatWidget<'_> {
                 if idx > 0 {
                     spans.push(Span::styled(
                         " - ",
-                        crate::colors::style_text_dim(),
+                        s_text_dim,
                     ));
                 }
                 let active = *tab == self.agents_terminal.active_tab;
                 let style = if active {
-                    crate::colors::style_primary_bold()
+                    s_primary_bold
                 } else {
-                    crate::colors::style_text_dim()
+                    s_text_dim
                 };
                 spans.push(Span::styled(format!("{number} {label}"), style));
             }
@@ -127,11 +136,11 @@ impl ChatWidget<'_> {
                 AgentsSortMode::Name => "Name",
             };
             let sort_spans = vec![
-                Span::styled("Sort: ", crate::colors::style_text_dim()),
+                Span::styled("Sort: ", s_text_dim),
                 Span::raw("( "),
                 Span::styled(
                     format!("{sort_label} {}", crate::icons::sort_desc()),
-                    crate::colors::style_primary_bold(),
+                    s_primary_bold,
                 ),
                 Span::raw(" )"),
             ];
@@ -197,7 +206,7 @@ impl ChatWidget<'_> {
             items.push(ListItem::new(Line::from(vec![
                 Span::styled(
                     group.label.clone(),
-                    crate::colors::style_text_bold(),
+                    s_text_bold,
                 ),
             ])));
             row_entries.push(None);
@@ -241,7 +250,7 @@ impl ChatWidget<'_> {
                         prefix_span,
                         Span::styled(
                             display_name,
-                            crate::colors::style_text(),
+                            s_text,
                         ),
                         Span::raw(" "),
                         Span::styled(status_icon, Style::default().fg(color)),
@@ -265,7 +274,7 @@ impl ChatWidget<'_> {
             };
             items.push(ListItem::new(Line::from(vec![Span::styled(
                 empty_text,
-                crate::colors::style_text_dim(),
+                s_text_dim,
             )])));
             row_entries.push(None);
         }
@@ -281,14 +290,14 @@ impl ChatWidget<'_> {
 
         // Keep the selected agent vivid even when detail pane holds focus so users
         // don’t lose their place while reading logs.
-        let highlight_style = crate::colors::style_primary_bold();
+        let highlight_style = s_primary_bold;
         let sidebar = List::new(items)
             .highlight_style(highlight_style)
             .highlight_spacing(HighlightSpacing::Never);
 
         let sidebar_block = Block::default()
             .borders(Borders::ALL)
-            .style(crate::colors::style_on_background())
+            .style(s_on_bg)
             .border_style(Style::default().fg(sidebar_border_color));
 
         let sidebar_area = chunks[0];
@@ -299,7 +308,7 @@ impl ChatWidget<'_> {
             buf,
             sidebar_inner,
             None,
-            crate::colors::style_on_background(),
+            s_on_bg,
         );
 
         ratatui::widgets::StatefulWidget::render(sidebar, sidebar_inner, buf, &mut list_state);
@@ -332,7 +341,7 @@ impl ChatWidget<'_> {
                         Span::raw(" "),
                         Span::styled(
                             title_text,
-                            crate::colors::style_text_bold(),
+                            s_text_bold,
                         ),
                     ]));
 
@@ -345,26 +354,26 @@ impl ChatWidget<'_> {
                         .unwrap_or_else(|| display_name.clone());
                     let mut meta_line: Vec<Span> = vec![
                         Span::raw(" "),
-                        Span::styled("Status:", crate::colors::style_text_dim()),
+                        Span::styled("Status:", s_text_dim),
                         Span::raw(" "),
                         Span::styled(status_chip, Style::default().fg(status_color).add_modifier(Modifier::BOLD)),
                         Span::raw("   "),
-                        Span::styled("Model:", crate::colors::style_text_dim()),
+                        Span::styled("Model:", s_text_dim),
                         Span::raw(" "),
                         Span::styled(
                             model_meta,
-                            crate::colors::style_text(),
+                            s_text,
                         ),
                         Span::raw("   "),
-                        Span::styled("ID:", crate::colors::style_text_dim()),
+                        Span::styled("ID:", s_text_dim),
                         Span::raw(" "),
-                        Span::styled(id_short, crate::colors::style_text_dim()),
+                        Span::styled(id_short, s_text_dim),
                     ];
                     if let Some(batch_id) = entry.batch_id.as_ref() {
                         meta_line.push(Span::raw("   "));
                         meta_line.push(Span::styled(
                             format!("Batch: {}", short_batch_label(batch_id)),
-                            crate::colors::style_text_dim(),
+                            s_text_dim,
                         ));
                     }
                     lines.push(Line::from(meta_line));
@@ -390,7 +399,7 @@ impl ChatWidget<'_> {
                     self.ensure_trailing_blank_line(&mut lines);
 
                     // Action log box
-                    let action_header_style = crate::colors::style_text_bold();
+                    let action_header_style = s_text_bold;
                     let chevron = if self.agents_terminal.actions_collapsed {
                         crate::icons::collapse_closed()
                     } else {
@@ -419,7 +428,7 @@ impl ChatWidget<'_> {
                             Span::raw("│   "),
                             Span::styled(
                                 "No updates yet",
-                                crate::colors::style_text_dim(),
+                                s_text_dim,
                             ),
                         ]));
                         let mut footer = String::from("╰");
@@ -454,7 +463,7 @@ impl ChatWidget<'_> {
                         Span::raw(" "),
                         Span::styled(
                             "No data for selected agent",
-                            crate::colors::style_text_dim(),
+                            s_text_dim,
                         ),
                     ]));
                 }
@@ -464,7 +473,7 @@ impl ChatWidget<'_> {
                     Span::raw(" "),
                     Span::styled(
                         "No agents available",
-                        crate::colors::style_text_dim(),
+                        s_text_dim,
                     ),
                 ]));
             }
@@ -498,9 +507,9 @@ impl ChatWidget<'_> {
 
         let detail_has_focus = self.agents_terminal.focus() == AgentsTerminalFocus::Detail;
         let detail_border_color = if detail_has_focus {
-            crate::colors::primary()
+            c_primary
         } else {
-            crate::colors::border()
+            c_border
         };
         let history_block = Block::default()
             .borders(Borders::ALL)
@@ -520,35 +529,35 @@ impl ChatWidget<'_> {
                     ),
                     Span::styled(
                         pending.agent_name.clone(),
-                        crate::colors::style_text(),
+                        s_text,
                     ),
                     Span::styled(
                         " — Enter/Y stop  ",
-                        crate::colors::style_text_dim(),
+                        s_text_dim,
                     ),
                     Span::styled(
                         "Esc/N cancel",
-                        crate::colors::style_text_dim(),
+                        s_text_dim,
                     ),
                 ])
             } else {
                 Line::from(vec![
-                    Span::styled(format!("[{ud}/{lr}]", ud = crate::icons::nav_up_down(), lr = crate::icons::nav_left_right()), crate::colors::style_function()),
-                    Span::styled(" navigate   ", crate::colors::style_text_dim()),
-                    Span::styled("[1-5]", crate::colors::style_function()),
-                    Span::styled(" filter   ", crate::colors::style_text_dim()),
-                    Span::styled("[S]", crate::colors::style_function()),
-                    Span::styled(" sort   ", crate::colors::style_text_dim()),
-                    Span::styled("[H/A]", crate::colors::style_function()),
-                    Span::styled(" toggle details   ", crate::colors::style_text_dim()),
-                    Span::styled("[X]", crate::colors::style_function()),
-                    Span::styled(" stop   ", crate::colors::style_text_dim()),
-                    Span::styled("[Ctrl+A]", crate::colors::style_function()),
-                    Span::styled(" exit", crate::colors::style_text_dim()),
+                    Span::styled(format!("[{ud}/{lr}]", ud = crate::icons::nav_up_down(), lr = crate::icons::nav_left_right()), s_function),
+                    Span::styled(" navigate   ", s_text_dim),
+                    Span::styled("[1-5]", s_function),
+                    Span::styled(" filter   ", s_text_dim),
+                    Span::styled("[S]", s_function),
+                    Span::styled(" sort   ", s_text_dim),
+                    Span::styled("[H/A]", s_function),
+                    Span::styled(" toggle details   ", s_text_dim),
+                    Span::styled("[X]", s_function),
+                    Span::styled(" stop   ", s_text_dim),
+                    Span::styled("[Ctrl+A]", s_function),
+                    Span::styled(" exit", s_text_dim),
                 ])
             };
             Paragraph::new(hint_line)
-                .style(crate::colors::style_on_background())
+                .style(s_on_bg)
                 .alignment(ratatui::layout::Alignment::Center)
                 .render(hint_area, buf);
         }

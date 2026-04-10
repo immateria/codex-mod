@@ -170,14 +170,14 @@ impl Widget for LimitsTabsRowWidget<'_> {
         }
 
         let window = compute_tab_window(self.tabs, self.selected_tab, area.width as usize);
-        let indicator_style = crate::colors::style_text_dim();
+        let s_text_dim = crate::colors::style_text_dim();
 
         let mut spans = Vec::new();
 
         if window.has_left_overflow {
             spans.push(Span::styled(
                 format!("{} ", crate::icons::arrow_left()),
-                indicator_style,
+                s_text_dim,
             ));
         }
 
@@ -187,7 +187,7 @@ impl Widget for LimitsTabsRowWidget<'_> {
             let style = if is_selected {
                 crate::colors::style_text_bold()
             } else {
-                crate::colors::style_text_dim()
+                s_text_dim
             };
             spans.push(Span::styled(format!(" {} ", tab.title), style));
             spans.push(Span::raw(" "));
@@ -196,7 +196,7 @@ impl Widget for LimitsTabsRowWidget<'_> {
         if window.has_right_overflow {
             spans.push(Span::styled(
                 format!(" {}", crate::icons::arrow_right()),
-                indicator_style,
+                s_text_dim,
             ));
         }
 

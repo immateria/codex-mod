@@ -41,6 +41,16 @@ impl ChatWidget<'_> {
         let history_right = history_area.x.saturating_add(history_area.width);
         let logging_enabled = history_cell_logging_enabled();
 
+        // Cache theme colors for the gutter symbol coloring closure to avoid
+        // repeated RwLock reads + Arc clones per visible cell.
+        let c_success = crate::colors::success();
+        let c_error = crate::colors::error();
+        let c_text = crate::colors::text();
+        let c_text_dim = crate::colors::text_dim();
+        let c_text_bright = crate::colors::text_bright();
+        let c_primary = crate::colors::primary();
+        let c_info = crate::colors::info();
+
         let render_loop_start = if self.perf_state.enabled {
             Some(std::time::Instant::now())
         } else {
@@ -282,13 +292,13 @@ impl ChatWidget<'_> {
                 };
                 let color_for_symbol = |symbol: &str| {
                     if is_auto_review {
-                        crate::colors::success()
+                        c_success
                     } else if symbol == "↳" {
                         match item_kind {
                             crate::history_cell::HistoryCellType::Tool { status } => match status {
-                                crate::history_cell::ToolCellStatus::Running => crate::colors::info(),
-                                crate::history_cell::ToolCellStatus::Success => crate::colors::success(),
-                                crate::history_cell::ToolCellStatus::Failed => crate::colors::error(),
+                                crate::history_cell::ToolCellStatus::Running => c_info,
+                                crate::history_cell::ToolCellStatus::Success => c_success,
+                                crate::history_cell::ToolCellStatus::Failed => c_error,
                             },
                             crate::history_cell::HistoryCellType::Exec {
                                 kind: crate::history_cell::ExecKind::Run,
@@ -296,58 +306,58 @@ impl ChatWidget<'_> {
                             } => {
                                 if let Some(exec) = cached_exec {
                                     match &exec.output {
-                                        None => crate::colors::text(),
-                                        Some(o) if o.exit_code == 0 => crate::colors::text(),
-                                        Some(_) => crate::colors::error(),
+                                        None => c_text,
+                                        Some(o) if o.exit_code == 0 => c_text,
+                                        Some(_) => c_error,
                                     }
                                 } else {
-                                    crate::colors::text()
+                                    c_text
                                 }
                             }
                             crate::history_cell::HistoryCellType::Patch { kind } => match kind {
-                                crate::history_cell::PatchKind::ApplySuccess => crate::colors::success(),
-                                crate::history_cell::PatchKind::ApplyBegin => crate::colors::success(),
-                                crate::history_cell::PatchKind::Proposed => crate::colors::primary(),
-                                crate::history_cell::PatchKind::ApplyFailure => crate::colors::error(),
+                                crate::history_cell::PatchKind::ApplySuccess => c_success,
+                                crate::history_cell::PatchKind::ApplyBegin => c_success,
+                                crate::history_cell::PatchKind::Proposed => c_primary,
+                                crate::history_cell::PatchKind::ApplyFailure => c_error,
                             },
-                            _ => crate::colors::text_dim(),
+                            _ => c_text_dim,
                         }
                     } else if crate::icons::is_exec_prompt(symbol) {
                         if let Some(exec) = cached_exec {
                             match &exec.output {
-                                None => crate::colors::text(),
-                                Some(o) if o.exit_code == 0 => crate::colors::text(),
-                                Some(_) => crate::colors::error(),
+                                None => c_text,
+                                Some(o) if o.exit_code == 0 => c_text,
+                                Some(_) => c_error,
                             }
                         } else {
                             match item_kind {
                                 crate::history_cell::HistoryCellType::Exec {
                                     kind: crate::history_cell::ExecKind::Run,
                                     status: crate::history::state::ExecStatus::Success,
-                                } => crate::colors::text(),
+                                } => c_text,
                                 crate::history_cell::HistoryCellType::Exec {
                                     kind: crate::history_cell::ExecKind::Run,
                                     status: crate::history::state::ExecStatus::Error,
-                                } => crate::colors::error(),
-                                crate::history_cell::HistoryCellType::Exec { .. } => crate::colors::text(),
-                                _ => crate::colors::text(),
+                                } => c_error,
+                                crate::history_cell::HistoryCellType::Exec { .. } => c_text,
+                                _ => c_text,
                             }
                         }
                     } else if crate::icons::is_patch(symbol) {
                         match item_kind {
                             crate::history_cell::HistoryCellType::Patch {
                                 kind: crate::history_cell::PatchKind::ApplySuccess,
-                            } => crate::colors::success(),
+                            } => c_success,
                             crate::history_cell::HistoryCellType::Patch {
                                 kind: crate::history_cell::PatchKind::ApplyBegin,
-                            } => crate::colors::success(),
+                            } => c_success,
                             crate::history_cell::HistoryCellType::Patch {
                                 kind: crate::history_cell::PatchKind::Proposed,
-                            } => crate::colors::primary(),
+                            } => c_primary,
                             crate::history_cell::HistoryCellType::Patch {
                                 kind: crate::history_cell::PatchKind::ApplyFailure,
-                            } => crate::colors::error(),
-                            _ => crate::colors::primary(),
+                            } => c_error,
+                            _ => c_primary,
                         }
                     } else if crate::icons::is_spinner(symbol)
                         && item
@@ -355,36 +365,36 @@ impl ChatWidget<'_> {
                             .downcast_ref::<crate::history_cell::RunningToolCallCell>()
                             .is_some_and(|cell| cell.has_title("Waiting"))
                     {
-                        crate::colors::text_bright()
+                        c_text_bright
                     } else if crate::icons::is_progress(symbol) {
                         if let Some(plan_cell) = item
                             .as_any()
                             .downcast_ref::<crate::history_cell::PlanUpdateCell>()
                         {
                             if plan_cell.is_complete() {
-                                crate::colors::success()
+                                c_success
                             } else {
-                                crate::colors::info()
+                                c_info
                             }
                         } else {
-                            crate::colors::success()
+                            c_success
                         }
                     } else if crate::icons::is_user(symbol) {
-                        crate::colors::text()
+                        c_text
                     } else if symbol == "⋮" {
-                        crate::colors::primary()
+                        c_primary
                     } else if crate::icons::is_assistant(symbol) {
-                        crate::colors::text_bright()
+                        c_text_bright
                     } else if crate::icons::is_running(symbol) {
-                        crate::colors::info()
+                        c_info
                     } else if crate::icons::is_success(symbol) {
-                        crate::colors::success()
+                        c_success
                     } else if crate::icons::is_failure(symbol) {
-                        crate::colors::error()
+                        c_error
                     } else if crate::icons::is_notice(symbol) {
-                        crate::colors::text_bright()
+                        c_text_bright
                     } else {
-                        crate::colors::text_dim()
+                        c_text_dim
                     }
                 };
 

@@ -221,6 +221,7 @@ impl PatchSummaryCell {
 
     fn build_lines(&self, width: u16) -> Vec<Line<'static>> {
         let effective_width = width.max(1);
+        let c_error = crate::colors::error();
         let mut lines: Vec<Line<'static>> = create_diff_summary_with_width(
             self.title,
             &self.record.changes,
@@ -240,11 +241,11 @@ impl PatchSummaryCell {
                 }
                 lines.push(
                     Line::from("Patch application failed")
-                        .fg(crate::colors::error())
+                        .fg(c_error)
                         .bold(),
                 );
                 if !metadata.message.is_empty() {
-                    lines.push(Line::from(metadata.message.clone()).fg(crate::colors::error()));
+                    lines.push(Line::from(metadata.message.clone()).fg(c_error));
                 }
                 if let Some(stdout) = &metadata.stdout_excerpt
                     && !stdout.is_empty() {
@@ -257,9 +258,9 @@ impl PatchSummaryCell {
                 if let Some(stderr) = &metadata.stderr_excerpt
                     && !stderr.is_empty() {
                         lines.push(Line::default());
-                        lines.push(Line::from("stderr excerpt:").fg(crate::colors::error()));
+                        lines.push(Line::from("stderr excerpt:").fg(c_error));
                         for line in stderr.lines() {
-                            lines.push(Line::from(line.to_string()).fg(crate::colors::error()));
+                            lines.push(Line::from(line.to_string()).fg(c_error));
                         }
                     }
             }
@@ -339,9 +340,10 @@ pub(crate) fn new_patch_event(
 }
 
 pub(crate) fn new_patch_apply_failure(stderr: String) -> PlainMessageState {
+    let c_error = crate::colors::error();
     let mut lines: Vec<Line<'static>> = vec![
         Line::from("Patch application failed")
-            .fg(crate::colors::error())
+            .fg(c_error)
             .bold(),
         Line::from(""),
     ];
@@ -354,7 +356,7 @@ pub(crate) fn new_patch_apply_failure(stderr: String) -> PlainMessageState {
     );
     for line in norm.lines() {
         if !line.is_empty() {
-            lines.push(ansi_escape_line(line).fg(crate::colors::error()));
+            lines.push(ansi_escape_line(line).fg(c_error));
         }
     }
 

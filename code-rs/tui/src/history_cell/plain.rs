@@ -189,13 +189,15 @@ impl PlainHistoryCell {
         }
 
         let is_auto_review = self.is_auto_review_notice();
+        let c_background = crate::colors::background();
+        let c_text = crate::colors::text();
         let cell_bg = match self.state.kind {
             HistoryCellType::Assistant => crate::colors::assistant_bg(),
-            HistoryCellType::CompactionSummary => crate::colors::background(),
+            HistoryCellType::CompactionSummary => c_background,
             _ if is_auto_review => Self::auto_review_bg(),
-            _ => crate::colors::background(),
+            _ => c_background,
         };
-        let bg_style = Style::default().bg(cell_bg).fg(crate::colors::text());
+        let bg_style = Style::default().bg(cell_bg).fg(c_text);
 
         let trimmed_lines = self.display_lines_trimmed();
         let text = Text::from(trimmed_lines.clone());
@@ -228,7 +230,7 @@ impl PlainHistoryCell {
         let render_area = Rect::new(0, 0, requested_width, render_height);
         let mut buffer = Buffer::empty(render_area);
         // Paint full cell (including padding) with the cell background so tint extends through padding.
-        fill_bg(&mut buffer, render_area, Style::default().bg(cell_bg).fg(crate::colors::text()));
+        fill_bg(&mut buffer, render_area, Style::default().bg(cell_bg).fg(c_text));
 
         let paragraph_lines = Text::from(trimmed_lines);
         if matches!(self.state.kind, HistoryCellType::User) {

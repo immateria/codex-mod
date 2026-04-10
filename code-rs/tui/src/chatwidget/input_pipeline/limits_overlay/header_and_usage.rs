@@ -84,6 +84,7 @@ impl ChatWidget<'_> {
         summary: Option<&StoredUsageSummary>,
         is_api_key_account: bool,
     ) -> Vec<RtLine<'static>> {
+        let s_text_dim = crate::colors::style_text_dim();
         const WIDTH: usize = 14;
         let now = Local::now();
         let anchor = now
@@ -134,7 +135,7 @@ impl ChatWidget<'_> {
             .unwrap_or(0);
         let column_divider = RtSpan::styled(
             " │ ",
-            crate::colors::style_text_dim(),
+            s_text_dim,
         );
         for (dt, totals) in series.iter() {
             let label = Self::format_hour_label(*dt);
@@ -168,15 +169,15 @@ impl ChatWidget<'_> {
                 RtSpan::raw(prefix.clone()),
                 RtSpan::styled(
                     format!("{label} "),
-                    crate::colors::style_text_dim(),
+                    s_text_dim,
                 ),
-                RtSpan::styled("│ ", crate::colors::style_text_dim()),
+                RtSpan::styled("│ ", s_text_dim),
                 RtSpan::styled(bar, crate::colors::style_primary()),
                 RtSpan::raw(format!(" {formatted_tokens} tokens")),
                 column_divider.clone(),
                 RtSpan::styled(
                     format!("{cached_display} cached"),
-                    crate::colors::style_text_dim(),
+                    s_text_dim,
                 ),
                 column_divider.clone(),
                 RtSpan::styled(
@@ -184,7 +185,7 @@ impl ChatWidget<'_> {
                         "{cost_display} {}",
                         if is_api_key_account { "cost" } else { "saved" }
                     ),
-                    crate::colors::style_text_dim(),
+                    s_text_dim,
                 ),
             ]));
         }
@@ -195,6 +196,7 @@ impl ChatWidget<'_> {
         summary: Option<&StoredUsageSummary>,
         is_api_key_account: bool,
     ) -> Vec<RtLine<'static>> {
+        let s_text_dim = crate::colors::style_text_dim();
         const WIDTH: usize = 14;
         let today = Local::now().date_naive();
         let day_totals = Self::aggregate_daily_totals(summary);
@@ -235,7 +237,7 @@ impl ChatWidget<'_> {
             .unwrap_or(0);
         let column_divider = RtSpan::styled(
             " │ ",
-            crate::colors::style_text_dim(),
+            s_text_dim,
         );
         for (day, totals) in daily.iter() {
             let label = Self::format_daily_label(*day);
@@ -270,15 +272,15 @@ impl ChatWidget<'_> {
                 RtSpan::raw(prefix.clone()),
                 RtSpan::styled(
                     format!("{label} "),
-                    crate::colors::style_text_dim(),
+                    s_text_dim,
                 ),
-                RtSpan::styled("│ ", crate::colors::style_text_dim()),
+                RtSpan::styled("│ ", s_text_dim),
                 RtSpan::styled(bar, crate::colors::style_primary()),
                 RtSpan::raw(format!(" {formatted_tokens} tokens")),
                 column_divider.clone(),
                 RtSpan::styled(
                     format!("{cached_display} cached"),
-                    crate::colors::style_text_dim(),
+                    s_text_dim,
                 ),
                 column_divider.clone(),
                 RtSpan::styled(
@@ -286,7 +288,7 @@ impl ChatWidget<'_> {
                         "{cost_display} {}",
                         if is_api_key_account { "cost" } else { "saved" }
                     ),
-                    crate::colors::style_text_dim(),
+                    s_text_dim,
                 ),
             ]));
         }
@@ -330,6 +332,7 @@ impl ChatWidget<'_> {
         summary: Option<&StoredUsageSummary>,
         is_api_key_account: bool,
     ) -> Vec<RtLine<'static>> {
+        let s_text_dim = crate::colors::style_text_dim();
         const WIDTH: usize = 14;
         const MONTHS: usize = 6;
 
@@ -388,7 +391,7 @@ impl ChatWidget<'_> {
             .unwrap_or(0);
         let column_divider = RtSpan::styled(
             " │ ",
-            crate::colors::style_text_dim(),
+            s_text_dim,
         );
         for (start, totals) in months.iter() {
             let label = start.format("%b %Y").to_string();
@@ -422,15 +425,15 @@ impl ChatWidget<'_> {
                 RtSpan::raw(prefix.clone()),
                 RtSpan::styled(
                     format!("{label} "),
-                    crate::colors::style_text_dim(),
+                    s_text_dim,
                 ),
-                RtSpan::styled("│ ", crate::colors::style_text_dim()),
+                RtSpan::styled("│ ", s_text_dim),
                 RtSpan::styled(bar, crate::colors::style_primary()),
                 RtSpan::raw(format!(" {formatted_tokens} tokens")),
                 column_divider.clone(),
                 RtSpan::styled(
                     format!("{cached_display} cached"),
-                    crate::colors::style_text_dim(),
+                    s_text_dim,
                 ),
                 column_divider.clone(),
                 RtSpan::styled(
@@ -438,7 +441,7 @@ impl ChatWidget<'_> {
                         "{cost_display} {}",
                         if is_api_key_account { "cost" } else { "saved" }
                     ),
-                    crate::colors::style_text_dim(),
+                    s_text_dim,
                 ),
             ]));
         }

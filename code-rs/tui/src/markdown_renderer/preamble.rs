@@ -218,6 +218,10 @@ impl MarkdownRenderer {
     }
 
     fn parse_list_item(&mut self, line: &str) -> Option<Line<'static>> {
+        let c_text = crate::colors::text();
+        let c_text_mid = crate::colors::text_mid();
+        let c_text_dim = crate::colors::text_dim();
+        let c_function = crate::colors::function();
         let trimmed = line.trim_start();
 
         // Check for unordered list markers
@@ -266,9 +270,9 @@ impl MarkdownRenderer {
             // Color by nesting level:
             // 1 → text, 2 → midpoint between text and text_dim, 3+ → text_dim
             let content_fg = match level {
-                1 => crate::colors::text(),
-                2 => crate::colors::text_mid(),
-                _ => crate::colors::text_dim(),
+                1 => c_text,
+                2 => c_text_mid,
+                _ => c_text_dim,
             };
 
             let mut spans = vec![Span::raw(" ".repeat(indent))];
@@ -284,7 +288,7 @@ impl MarkdownRenderer {
                 .into_iter()
                 .map(|s| {
                     if let Some(fg) = s.style.fg {
-                        if fg == crate::colors::function() {
+                        if fg == c_function {
                             let mut st = s.style;
                             st.fg = Some(crate::colors::mix_toward(fg, content_fg, 0.30));
                             return Span::styled(s.content, st);
@@ -311,9 +315,9 @@ impl MarkdownRenderer {
                 let styled_content = self.process_inline_spans(content);
                 let depth = indent / 2 + 1;
                 let content_fg = match depth {
-                    1 => crate::colors::text(),
-                    2 => crate::colors::text_mid(),
-                    _ => crate::colors::text_dim(),
+                    1 => c_text,
+                    2 => c_text_mid,
+                    _ => c_text_dim,
                 };
 
                 let mut spans = vec![
@@ -331,7 +335,7 @@ impl MarkdownRenderer {
                     .into_iter()
                     .map(|s| {
                         if let Some(fg) = s.style.fg {
-                            if fg == crate::colors::function() {
+                            if fg == c_function {
                                 let mut st = s.style;
                                 st.fg = Some(crate::colors::mix_toward(fg, content_fg, 0.30));
                                 return Span::styled(s.content, st);
@@ -360,6 +364,7 @@ impl MarkdownRenderer {
     }
 
     fn process_inline_spans(&mut self, text: &str) -> Vec<Span<'static>> {
+        let c_text_bright = crate::colors::text_bright();
         let mut spans = Vec::new();
         let chars: Vec<char> = text.chars().collect();
         let mut i = 0;
@@ -436,7 +441,7 @@ impl MarkdownRenderer {
                     if chars[j] == marker && chars[j + 1] == marker && chars[j + 2] == marker {
                         let st = Style::default()
                             .add_modifier(Modifier::BOLD | Modifier::ITALIC)
-                            .fg(crate::colors::text_bright());
+                            .fg(c_text_bright);
                         spans.push(Span::styled(content, st));
                         i = j + 3;
                         break;
@@ -568,7 +573,7 @@ impl MarkdownRenderer {
                     if chars[j] == marker && chars[j + 1] == marker {
                         // Found closing markers
                         // Bold text uses bright color consistently
-                        let bold_color = crate::colors::text_bright();
+                        let bold_color = c_text_bright;
                         spans.push(Span::styled(
                             bold_content,
                             Style::default().fg(bold_color).add_modifier(Modifier::BOLD),

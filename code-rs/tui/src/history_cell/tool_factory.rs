@@ -633,6 +633,8 @@ impl HistoryCell for WebFetchToolCell {
             return;
         }
 
+        let c_background = crate::colors::background();
+
         let layout = self.layout_for_width(area.width);
 
         let pre_total = layout.pre_total;
@@ -654,7 +656,7 @@ impl HistoryCell for WebFetchToolCell {
                 width: area.width,
                 height: pre_height,
             };
-            let bg = crate::colors::background();
+            let bg = c_background;
             let base_style = Style::default().bg(bg).fg(crate::colors::text());
             fill_bg(buf, pre_area, base_style);
             for (idx, line) in layout
@@ -676,7 +678,7 @@ impl HistoryCell for WebFetchToolCell {
                 width: area.width,
                 height: body_height,
             };
-            let bg = crate::colors::background();
+            let bg = c_background;
             let base_style = Style::default().bg(bg).fg(crate::colors::text_dim());
             fill_bg(buf, body_area, base_style);
 

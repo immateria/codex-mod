@@ -20,6 +20,9 @@ impl AgentsSettingsContent {
         available_width: Option<usize>,
     ) -> Vec<Line<'static>> {
         let mut lines: Vec<Line<'static>> = Vec::new();
+        let s_primary = crate::colors::style_primary();
+        let s_primary_bold = crate::colors::style_primary_bold();
+        let s_text_dim = crate::colors::style_text_dim();
         lines.push(Line::from(Span::styled(
             "Agents",
             Style::default().add_modifier(Modifier::BOLD),
@@ -52,7 +55,7 @@ impl AgentsSettingsContent {
             spans.push(Span::styled(
                 crate::icons::selection_prefix(selected),
                 if selected {
-                    crate::colors::style_primary()
+                    s_primary
                 } else {
                     Style::default()
                 },
@@ -60,7 +63,7 @@ impl AgentsSettingsContent {
             spans.push(Span::styled(
                 format!("{:<width$}", row.name, width = max_name_chars),
                 if selected {
-                    crate::colors::style_primary_bold()
+                    s_primary_bold
                 } else {
                     Style::default()
                 },
@@ -91,7 +94,7 @@ impl AgentsSettingsContent {
                             spans.push(Span::raw("  "));
                             spans.push(Span::styled(
                                 truncated,
-                                crate::colors::style_text_dim(),
+                                s_text_dim,
                             ));
                             showed_desc = true;
                         }
@@ -106,7 +109,7 @@ impl AgentsSettingsContent {
                 } else {
                     "Enter to configure"
                 };
-                spans.push(Span::styled(hint, crate::colors::style_text_dim()));
+                spans.push(Span::styled(hint, s_text_dim));
             }
 
             lines.push(Line::from(spans));
@@ -120,7 +123,7 @@ impl AgentsSettingsContent {
         add_spans.push(Span::styled(
             crate::icons::selection_prefix(add_agent_selected),
             if add_agent_selected {
-                crate::colors::style_primary()
+                s_primary
             } else {
                 Style::default()
             },
@@ -128,7 +131,7 @@ impl AgentsSettingsContent {
         add_spans.push(Span::styled(
             "Add new agent…",
             if add_agent_selected {
-                crate::colors::style_primary_bold()
+                s_primary_bold
             } else {
                 Style::default()
             },
@@ -137,7 +140,7 @@ impl AgentsSettingsContent {
             add_spans.push(Span::raw("  "));
             add_spans.push(Span::styled(
                 "Enter to configure",
-                crate::colors::style_text_dim(),
+                s_text_dim,
             ));
         }
         lines.push(Line::from(add_spans));
@@ -155,7 +158,7 @@ impl AgentsSettingsContent {
             spans.push(Span::styled(
                 crate::icons::selection_prefix(selected),
                 if selected {
-                    crate::colors::style_primary()
+                    s_primary
                 } else {
                     Style::default()
                 },
@@ -163,7 +166,7 @@ impl AgentsSettingsContent {
             spans.push(Span::styled(
                 format!("/{cmd}"),
                 if selected {
-                    crate::colors::style_primary_bold()
+                    s_primary_bold
                 } else {
                     Style::default()
                 },
@@ -172,7 +175,7 @@ impl AgentsSettingsContent {
                 spans.push(Span::raw("  "));
                 spans.push(Span::styled(
                     "Enter to configure",
-                    crate::colors::style_text_dim(),
+                    s_text_dim,
                 ));
             }
             lines.push(Line::from(spans));
@@ -184,7 +187,7 @@ impl AgentsSettingsContent {
         add_spans.push(Span::styled(
             crate::icons::selection_prefix(add_selected),
             if add_selected {
-                crate::colors::style_primary()
+                s_primary
             } else {
                 Style::default()
             },
@@ -192,7 +195,7 @@ impl AgentsSettingsContent {
         add_spans.push(Span::styled(
             "Add new…",
             if add_selected {
-                crate::colors::style_primary_bold()
+                s_primary_bold
             } else {
                 Style::default()
             },
@@ -201,7 +204,7 @@ impl AgentsSettingsContent {
             add_spans.push(Span::raw("  "));
             add_spans.push(Span::styled(
                 "Enter to create",
-                crate::colors::style_text_dim(),
+                s_text_dim,
             ));
         }
         lines.push(Line::from(add_spans));

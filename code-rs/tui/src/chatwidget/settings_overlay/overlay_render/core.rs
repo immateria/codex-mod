@@ -4,11 +4,13 @@ impl SettingsOverlayView {
             return;
         }
 
+        let s_on_bg = crate::colors::style_on_background();
+
         let block = Block::default()
             .title(self.block_title_line())
             .title_alignment(Alignment::Left)
             .borders(Borders::ALL)
-            .style(crate::colors::style_on_background())
+            .style(s_on_bg)
             .border_style(
                 crate::colors::style_border_on_bg(),
             );
@@ -21,7 +23,7 @@ impl SettingsOverlayView {
             buf,
             inner,
             Some(' '),
-            crate::colors::style_on_background(),
+            s_on_bg,
         );
 
         // Render a close button as an inset box in the top-right corner:
@@ -215,6 +217,11 @@ impl SettingsOverlayView {
             return;
         }
 
+        let s_text_dim = crate::colors::style_text_dim();
+        let s_border_dim = crate::colors::style_border_dim();
+        let c_selection = crate::colors::selection();
+        let c_text = crate::colors::text();
+
         let bg_style = crate::colors::style_on_background();
         fill_bg(buf, area, bg_style);
 
@@ -225,7 +232,7 @@ impl SettingsOverlayView {
             *self.last_overview_scroll.borrow_mut() = 0;
             let line = Line::from(vec![Span::styled(
                 "No settings available.",
-                crate::colors::style_text_dim(),
+                s_text_dim,
             )]);
             Paragraph::new(line)
                 .style(bg_style)
@@ -256,7 +263,7 @@ impl SettingsOverlayView {
                 if dash_count > 0 {
                     lines.push(Line::from(vec![Span::styled(
                         format!("  {}", "─".repeat(dash_count)),
-                        crate::colors::style_border_dim(),
+                        s_border_dim,
                     )]));
                     line_sections.push(None);
                     line_hit_ranges.push([None, None]);
@@ -331,8 +338,8 @@ impl SettingsOverlayView {
             if is_active {
                 summary_line = summary_line.style(
                     Style::default()
-                        .bg(crate::colors::selection())
-                        .fg(crate::colors::text()),
+                        .bg(c_selection)
+                        .fg(c_text),
                 );
             }
             lines.push(summary_line);
@@ -342,7 +349,7 @@ impl SettingsOverlayView {
             let info_text = row.section.help_line();
             let info_trimmed = self.trim_with_ellipsis(info_text, content_width.saturating_sub(8));
             let info_trimmed_width = UnicodeWidthStr::width(info_trimmed.as_str());
-            let info_style = crate::colors::style_text_dim();
+            let info_style = s_text_dim;
             let mut info_line = Line::from(vec![
                 Span::raw("  "),
                 Span::styled("└ ", info_style),
@@ -351,8 +358,8 @@ impl SettingsOverlayView {
             if is_active {
                 info_line = info_line.style(
                     Style::default()
-                        .bg(crate::colors::selection())
-                        .fg(crate::colors::text()),
+                        .bg(c_selection)
+                        .fg(c_text),
                 );
             }
             lines.push(info_line);
@@ -383,7 +390,7 @@ impl SettingsOverlayView {
                     if dash_count > 0 {
                         lines.push(Line::from(vec![Span::styled(
                             format!("  {}", "─".repeat(dash_count)),
-                            crate::colors::style_border_dim(),
+                            s_border_dim,
                         )]));
                         line_sections.push(None);
                         line_hit_ranges.push([None, None]);

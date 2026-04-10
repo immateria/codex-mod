@@ -36,12 +36,13 @@ impl HistoryCell for RateLimitsCell {
     }
 
     fn display_lines(&self) -> Vec<Line<'static>> {
+        let c_warning = crate::colors::warning();
         let mut lines: Vec<Line<'static>> = Vec::new();
         lines.push(
             Line::styled(
                 "Rate limits update",
                 Style::default()
-                    .fg(crate::colors::warning())
+                    .fg(c_warning)
                     .add_modifier(Modifier::BOLD),
             ),
         );
@@ -54,7 +55,7 @@ impl HistoryCell for RateLimitsCell {
             lines.push(Line::styled(
                 "Warnings",
                 Style::default()
-                    .fg(crate::colors::warning())
+                    .fg(c_warning)
                     .add_modifier(Modifier::BOLD),
             ));
             for entry in &self.record.legend {
@@ -75,6 +76,8 @@ impl HistoryCell for RateLimitsCell {
 }
 
 fn snapshot_summary_lines(snapshot: &RateLimitSnapshotEvent) -> Vec<Line<'static>> {
+    let s_text = crate::colors::style_text();
+    let s_text_dim = crate::colors::style_text_dim();
     let mut lines = Vec::new();
 
     let hourly_line = format!(
@@ -84,13 +87,13 @@ fn snapshot_summary_lines(snapshot: &RateLimitSnapshotEvent) -> Vec<Line<'static
     );
     lines.push(Line::from(vec![Span::styled(
         hourly_line,
-        crate::colors::style_text(),
+        s_text,
     )]));
 
     if let Some(seconds) = snapshot.primary_reset_after_seconds {
         lines.push(Line::from(vec![Span::styled(
             format_reset_line(seconds),
-            crate::colors::style_text_dim(),
+            s_text_dim,
         )]));
     }
 
@@ -101,13 +104,13 @@ fn snapshot_summary_lines(snapshot: &RateLimitSnapshotEvent) -> Vec<Line<'static
     );
     lines.push(Line::from(vec![Span::styled(
         weekly_line,
-        crate::colors::style_text(),
+        s_text,
     )]));
 
     if let Some(seconds) = snapshot.secondary_reset_after_seconds {
         lines.push(Line::from(vec![Span::styled(
             format_reset_line(seconds),
-            crate::colors::style_text_dim(),
+            s_text_dim,
         )]));
     }
 

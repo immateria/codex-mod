@@ -319,7 +319,7 @@ impl BottomPaneView<'_> for ListSelectionView {
                     .render(spacer_area, buf);
             }
             // Render footer on the last inner line
-            let footer_area = Rect { x: inner.x.saturating_add(1), y: inner.y + inner.height - 1, width: content_width, height: 1 };
+            let footer_area = Rect { x: inner.x.saturating_add(1), y: inner.y.saturating_add(inner.height.saturating_sub(1)), width: content_width, height: 1 };
             let line = crate::bottom_pane::settings_ui::hints::shortcut_line(&[
                 crate::bottom_pane::settings_ui::hints::hint_nav(" navigate"),
                 crate::bottom_pane::settings_ui::hints::hint_enter(" select"),

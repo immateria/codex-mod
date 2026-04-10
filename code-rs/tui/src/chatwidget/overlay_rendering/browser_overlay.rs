@@ -15,6 +15,11 @@ impl ChatWidget<'_> {
         use ratatui::widgets::{Block, Borders, Clear, Paragraph, Wrap};
         use ratatui::widgets::Widget;
 
+        let s_text = crate::colors::style_text();
+        let s_text_dim = crate::colors::style_text_dim();
+        let s_on_bg = crate::colors::style_on_background();
+
+
         let scrim_style = Style::default()
             .bg(crate::colors::overlay_scrim())
             .fg(crate::colors::text_dim());
@@ -41,21 +46,21 @@ impl ChatWidget<'_> {
             .title(RLine::from(vec![
                 Span::styled(
                     format!(" {} ", self.browser_title()),
-                    crate::colors::style_text(),
+                    s_text,
                 ),
                 Span::styled(
                     "— Ctrl+B to close",
-                    crate::colors::style_text_dim(),
+                    s_text_dim,
                 ),
             ]))
-            .style(crate::colors::style_on_background())
+            .style(s_on_bg)
             .border_style(
                 crate::colors::style_border_on_bg(),
             );
         let inner = block.inner(window_area);
         block.render(window_area, buf);
 
-        let inner_bg = crate::colors::style_on_background();
+        let inner_bg = s_on_bg;
         fill_rect(buf, inner, None, inner_bg);
 
         let content = inner.inner(crate::ui_consts::HORIZONTAL_PAD);
@@ -119,11 +124,11 @@ impl ChatWidget<'_> {
 
         let is_active = screenshot_path.is_some();
         let key_hint_style = crate::colors::style_function();
-        let label_style = crate::colors::style_text_dim();
+        let label_style = s_text_dim;
         let dot_style = if is_active {
             crate::colors::style_success_green()
         } else {
-            crate::colors::style_text_dim()
+            s_text_dim
         };
 
         let header_height = u16::from(content.height >= 3);
@@ -230,7 +235,7 @@ impl ChatWidget<'_> {
                     "No browser session captured yet.",
                 )]))
                 .alignment(Alignment::Center)
-                .style(crate::colors::style_text_dim());
+                .style(s_text_dim);
                 Widget::render(message, screenshot_display_area, buf);
             }
         }
@@ -256,7 +261,7 @@ impl ChatWidget<'_> {
                 let progress_line = self.browser_overlay_progress_line(area.width, current_time, total_time);
                 Paragraph::new(progress_line)
                     .alignment(Alignment::Center)
-                    .style(crate::colors::style_text())
+                    .style(s_text)
                     .render(area, buf);
             }
 
@@ -265,8 +270,8 @@ impl ChatWidget<'_> {
         }
 
         let header_style = crate::colors::style_text_bold();
-        let secondary_style = crate::colors::style_text_dim();
-        let primary_style = crate::colors::style_text();
+        let secondary_style = s_text_dim;
+        let primary_style = s_text;
 
         let mut info_lines: Vec<RLine<'static>> = Vec::new();
 
@@ -361,7 +366,7 @@ impl ChatWidget<'_> {
             .min(max_scroll_u16);
 
         let paragraph = Paragraph::new(info_lines)
-            .style(crate::colors::style_text())
+            .style(s_text)
             .wrap(Wrap { trim: false })
             .scroll((scroll, 0));
         Widget::render(paragraph, info_column, buf);

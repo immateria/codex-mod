@@ -188,6 +188,8 @@ pub(super) fn create_diff_summary_with_width(
     let total_added: usize = files.iter().map(|f| f.added).sum();
     let total_removed: usize = files.iter().map(|f| f.removed).sum();
     let noun = if file_count == 1 { "file" } else { "files" };
+    let s_success = crate::colors::style_success();
+    let s_error = crate::colors::style_error();
 
     let mut out: Vec<RtLine<'static>> = Vec::with_capacity(files.len() + 2);
     let mut header_spans: Vec<RtSpan<'static>> = Vec::with_capacity(4);
@@ -207,12 +209,12 @@ pub(super) fn create_diff_summary_with_width(
         header_spans.push(RtSpan::raw("("));
         header_spans.push(RtSpan::styled(
             format!("+{total_added}"),
-            crate::colors::style_success(),
+            s_success,
         ));
         header_spans.push(RtSpan::raw(" "));
         header_spans.push(RtSpan::styled(
             format!("-{total_removed}"),
-            crate::colors::style_error(),
+            s_error,
         ));
         header_spans.push(RtSpan::raw(")"));
     }
@@ -305,7 +307,7 @@ pub(super) fn create_diff_summary_with_width(
             spans.push(RtSpan::styled(" (", dim_style));
             spans.push(RtSpan::styled(
                 format!("-{}", f.removed),
-                crate::colors::style_error(),
+                s_error,
             ));
             spans.push(RtSpan::styled(")", dim_style));
         } else if matches!(
@@ -315,12 +317,12 @@ pub(super) fn create_diff_summary_with_width(
             spans.push(RtSpan::styled(" (", dim_style));
             spans.push(RtSpan::styled(
                 format!("+{}", f.added),
-                crate::colors::style_success(),
+                s_success,
             ));
             spans.push(RtSpan::raw(" "));
             spans.push(RtSpan::styled(
                 format!("-{}", f.removed),
-                crate::colors::style_error(),
+                s_error,
             ));
             spans.push(RtSpan::styled(")", dim_style));
         }

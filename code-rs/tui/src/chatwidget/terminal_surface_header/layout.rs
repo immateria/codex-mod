@@ -15,6 +15,8 @@ pub(super) fn render_dynamic_header_line(input: &DynamicHeaderLayoutInput<'_>) -
     let mut use_short_dir = false;
     let mut compact_labels = false;
 
+    let s_text_dim = crate::colors::style_text_dim();
+    let s_info = crate::colors::style_info();
     let build = |include_reasoning: bool,
                  include_model: bool,
                  include_service_tier: bool,
@@ -39,7 +41,7 @@ pub(super) fn render_dynamic_header_line(input: &DynamicHeaderLayoutInput<'_>) -
                 spans,
                 width,
                 "  •  ",
-                crate::colors::style_text_dim(),
+                s_text_dim,
             );
         };
 
@@ -60,7 +62,7 @@ pub(super) fn render_dynamic_header_line(input: &DynamicHeaderLayoutInput<'_>) -
                 width,
                 label,
                 apply_hover_style(
-                    crate::colors::style_text_dim(),
+                    s_text_dim,
                     input.hover_style,
                     is_hovered,
                 ),
@@ -105,7 +107,7 @@ pub(super) fn render_dynamic_header_line(input: &DynamicHeaderLayoutInput<'_>) -
                 &mut width,
                 if compact { "" } else { "Model: " },
                 input.model,
-                crate::colors::style_info(),
+                s_info,
                 ClickableAction::ShowModelSelector,
             );
         }
@@ -118,7 +120,7 @@ pub(super) fn render_dynamic_header_line(input: &DynamicHeaderLayoutInput<'_>) -
                 &mut width,
                 if compact { "" } else { "Speed: " },
                 input.service_tier,
-                crate::colors::style_info(),
+                s_info,
                 ClickableAction::ToggleServiceTier,
             );
         }
@@ -131,7 +133,7 @@ pub(super) fn render_dynamic_header_line(input: &DynamicHeaderLayoutInput<'_>) -
                 &mut width,
                 if compact { "" } else { "Shell: " },
                 input.shell,
-                crate::colors::style_info(),
+                s_info,
                 ClickableAction::ShowShellSelector,
             );
         }
@@ -141,7 +143,7 @@ pub(super) fn render_dynamic_header_line(input: &DynamicHeaderLayoutInput<'_>) -
         {
             push_separator(&mut spans, &mut width);
             let value_style = match kind {
-                McpHeaderIndicatorKind::Connecting => crate::colors::style_info(),
+                McpHeaderIndicatorKind::Connecting => s_info,
                 McpHeaderIndicatorKind::Error => crate::colors::style_error_bold(),
             };
             push_clickable_labeled_segment(
@@ -163,7 +165,7 @@ pub(super) fn render_dynamic_header_line(input: &DynamicHeaderLayoutInput<'_>) -
                 &mut width,
                 if compact { "" } else { "Reasoning: " },
                 input.reasoning,
-                crate::colors::style_info(),
+                s_info,
                 ClickableAction::ShowReasoningSelector,
             );
         }
@@ -177,7 +179,7 @@ pub(super) fn render_dynamic_header_line(input: &DynamicHeaderLayoutInput<'_>) -
                     &mut width,
                     if compact { "" } else { "Directory: " },
                     dir_display,
-                    crate::colors::style_info(),
+                    s_info,
                     ClickableAction::ShowDirectoryPicker,
                 );
             } else {
@@ -186,14 +188,14 @@ pub(super) fn render_dynamic_header_line(input: &DynamicHeaderLayoutInput<'_>) -
                         &mut spans,
                         &mut width,
                         "Directory: ",
-                        crate::colors::style_text_dim(),
+                        s_text_dim,
                     );
                 }
                 push_text(
                     &mut spans,
                     &mut width,
                     dir_display,
-                    crate::colors::style_info(),
+                    s_info,
                 );
             }
         }
@@ -207,7 +209,7 @@ pub(super) fn render_dynamic_header_line(input: &DynamicHeaderLayoutInput<'_>) -
                     &mut spans,
                     &mut width,
                     "Branch: ",
-                    crate::colors::style_text_dim(),
+                    s_text_dim,
                 );
             }
             push_text(

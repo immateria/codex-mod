@@ -116,6 +116,9 @@ impl UserApprovalWidget<'_> {
         before_ticket: BackgroundOrderTicket,
         app_event_tx: AppEventSender,
     ) -> Self {
+        let c_info = crate::colors::info();
+        let c_text_dim = crate::colors::text_dim();
+        let s_text_dim = crate::colors::style_text_dim();
         let confirmation_prompt = match &approval_request {
             ApprovalRequest::Exec {
                 command,
@@ -130,7 +133,7 @@ impl UserApprovalWidget<'_> {
                 let mut contents: Vec<Line> = vec![
                     Line::from(""), // extra spacing above the prompt
                     Line::from(vec![
-                        "? ".fg(crate::colors::info()),
+                        "? ".fg(c_info),
                         "Code wants to run ".bold(),
                         cmd_span,
                     ]),
@@ -152,7 +155,7 @@ impl UserApprovalWidget<'_> {
                     contents.push(Line::from(Span::styled(
                         "Additional sandbox permissions requested:",
                         Style::default()
-                            .fg(crate::colors::text_dim())
+                            .fg(c_text_dim)
                             .add_modifier(Modifier::ITALIC),
                     )));
 
@@ -220,19 +223,19 @@ impl UserApprovalWidget<'_> {
                 // full set of actions, even with the bottom pane height cap.
                 let mut contents: Vec<Line> = vec![
                     Line::from(vec![
-                        "? ".fg(crate::colors::info()),
+                        "? ".fg(c_info),
                         "Network access blocked".bold(),
                     ]),
                     Line::from(vec![
-                        Span::styled("Host: ", crate::colors::style_text_dim()),
+                        Span::styled("Host: ", s_text_dim),
                         Span::raw(host.clone()),
                     ]),
                     Line::from(vec![
-                        Span::styled("Protocol: ", crate::colors::style_text_dim()),
+                        Span::styled("Protocol: ", s_text_dim),
                         Span::raw(protocol_label),
                     ]),
                     Line::from(vec![
-                        Span::styled("Command: ", crate::colors::style_text_dim()),
+                        Span::styled("Command: ", s_text_dim),
                         cmd_span,
                     ]),
                 ];
@@ -242,7 +245,7 @@ impl UserApprovalWidget<'_> {
                 contents.push(Line::from(Span::styled(
                     "To allow/deny permanently, edit Settings -> Network lists.",
                     Style::default()
-                        .fg(crate::colors::text_dim())
+                        .fg(c_text_dim)
                         .add_modifier(Modifier::ITALIC),
                 )));
                 Paragraph::new(contents).wrap(Wrap { trim: false })
@@ -255,7 +258,7 @@ impl UserApprovalWidget<'_> {
                 let mut contents: Vec<Line> = vec![
                     Line::from(""),
                     Line::from(vec![
-                        "? ".fg(crate::colors::info()),
+                        "? ".fg(c_info),
                         "Code wants to request additional permissions".bold(),
                     ]),
                     Line::from(""),
@@ -277,7 +280,7 @@ impl UserApprovalWidget<'_> {
                     contents.push(Line::from(Span::styled(
                         "Requested permissions:",
                         Style::default()
-                            .fg(crate::colors::text_dim())
+                            .fg(c_text_dim)
                             .add_modifier(Modifier::ITALIC),
                     )));
 
@@ -335,7 +338,7 @@ impl UserApprovalWidget<'_> {
                 let contents = vec![
                     Line::from(""),
                     Line::from(vec![
-                        "? ".fg(crate::colors::info()),
+                        "? ".fg(c_info),
                         "Run shell command ".bold(),
                         cmd_span,
                         " now?".into(),

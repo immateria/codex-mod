@@ -281,6 +281,7 @@ mod android_stub {
                 return;
             }
 
+            let s_text_dim = crate::colors::style_text_dim();
             let lines: Vec<Line<'static>> = vec![
                 Line::from(vec![Span::styled(
                     "Chrome/CDP is not available on Android builds.",
@@ -293,9 +294,9 @@ mod android_stub {
                 Line::from(""),
                 Line::from(vec![
                     Span::styled("Enter", crate::colors::style_success()),
-                    Span::styled("/", crate::colors::style_text_dim()),
+                    Span::styled("/", s_text_dim),
                     Span::styled(crate::icons::escape(), crate::colors::style_error()),
-                    Span::styled(" close", crate::colors::style_text_dim()),
+                    Span::styled(" close", s_text_dim),
                 ]),
             ];
 

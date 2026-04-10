@@ -198,6 +198,7 @@ impl HistoryCell for ExecCell {
         total
     }
     fn custom_render_with_skip(&self, area: Rect, buf: &mut Buffer, skip_rows: u16) {
+        let s_on_background = crate::colors::style_on_background();
         let layout = self.layout_for_width(area.width);
         let status_line = self.status_line_for_render();
 
@@ -267,7 +268,7 @@ impl HistoryCell for ExecCell {
                 .border_style(
                     crate::colors::style_border_dim_on_bg(),
                 )
-                .style(crate::colors::style_on_background())
+                .style(s_on_background)
                 .padding(Padding {
                     left: 1,
                     right: 0,
@@ -303,7 +304,7 @@ impl HistoryCell for ExecCell {
                     width: area.width,
                     height: status_height,
                 };
-                let bg_style = crate::colors::style_on_background();
+                let bg_style = s_on_background;
                 fill_bg(buf, status_area, bg_style);
                 write_line(buf, status_area.x, status_area.y, status_area.width, &line, bg_style);
             }
@@ -520,6 +521,7 @@ impl ExecCell {
     }
 
     fn wait_summary_line(&self, state: &ExecWaitState) -> Option<Line<'static>> {
+        let s_text_dim = crate::colors::style_text_dim();
         if state.waiting {
             return None;
         }
@@ -528,7 +530,7 @@ impl ExecCell {
                 let text = format!("Ran for {}", format_duration(run_duration));
                 return Some(Line::styled(
                     text,
-                    crate::colors::style_text_dim(),
+                    s_text_dim,
                 ));
             }
         let total = state.total_wait?;
@@ -538,7 +540,7 @@ impl ExecCell {
         let text = format!("Waited {}", format_duration(total));
         Some(Line::styled(
             text,
-            crate::colors::style_text_dim(),
+            s_text_dim,
         ))
     }
 

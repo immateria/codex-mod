@@ -145,27 +145,32 @@ impl LoginAccountsState {
 
     pub(super) fn render_account_list_lines(&self) -> Vec<Line<'static>> {
         let mut lines = Vec::new();
+        let s_text_dim = crate::colors::style_text_dim();
+        let s_primary = crate::colors::style_primary();
+        let s_primary_bold = crate::colors::style_primary_bold();
+        let c_success = crate::colors::success();
+        let s_text = crate::colors::style_text();
         if self.accounts.is_empty() {
             lines.push(Line::from(Span::styled(
                 "No accounts connected yet.",
-                crate::colors::style_text_dim(),
+                s_text_dim,
             )));
         } else {
             for (idx, account) in self.accounts.iter().enumerate() {
                 let selected = idx == self.selected;
                 let arrow_style = if selected {
-                    crate::colors::style_primary()
+                    s_primary
                 } else {
-                    crate::colors::style_text_dim()
+                    s_text_dim
                 };
                 let label_style = if selected {
-                    crate::colors::style_primary_bold()
+                    s_primary_bold
                 } else if account.is_active {
                     Style::default()
-                        .fg(crate::colors::success())
+                        .fg(c_success)
                         .add_modifier(Modifier::BOLD)
                 } else {
-                    crate::colors::style_text()
+                    s_text
                 };
 
                 let mut spans = vec![
@@ -173,7 +178,7 @@ impl LoginAccountsState {
                     Span::styled(account.label.clone(), label_style),
                     Span::styled(
                         format!("  [{}]", Self::account_mode_badge(account.mode)),
-                        crate::colors::style_text_dim(),
+                        s_text_dim,
                     ),
                 ];
 
@@ -181,7 +186,7 @@ impl LoginAccountsState {
                     spans.push(Span::styled(
                         " (current)",
                         Style::default()
-                            .fg(crate::colors::success())
+                            .fg(c_success)
                             .add_modifier(Modifier::BOLD),
                     ));
                 }
@@ -200,17 +205,17 @@ impl LoginAccountsState {
             Span::styled(
                 crate::icons::selection_prefix(add_selected),
                 if add_selected {
-                    crate::colors::style_primary()
+                    s_primary
                 } else {
-                    crate::colors::style_text_dim()
+                    s_text_dim
                 },
             ),
             Span::styled(
                 "Add account…",
                 if add_selected {
-                    crate::colors::style_primary_bold()
+                    s_primary_bold
                 } else {
-                    crate::colors::style_text()
+                    s_text
                 },
             ),
         ]));
@@ -220,17 +225,17 @@ impl LoginAccountsState {
             Span::styled(
                 crate::icons::selection_prefix(store_selected),
                 if store_selected {
-                    crate::colors::style_primary()
+                    s_primary
                 } else {
-                    crate::colors::style_text_dim()
+                    s_text_dim
                 },
             ),
             Span::styled(
                 "Account store paths…",
                 if store_selected {
-                    crate::colors::style_primary_bold()
+                    s_primary_bold
                 } else {
-                    crate::colors::style_text()
+                    s_text
                 },
             ),
         ]));
@@ -240,6 +245,7 @@ impl LoginAccountsState {
 
     fn render_selected_details_lines(&self) -> Vec<Line<'static>> {
         let mut lines = Vec::new();
+        let s_text_dim = crate::colors::style_text_dim();
 
         if let Some(account) = self.accounts.get(self.selected) {
             lines.push(Line::from(vec![Span::styled(
@@ -253,7 +259,7 @@ impl LoginAccountsState {
                 ),
                 Span::styled(
                     format!("  [{}]", Self::account_mode_badge(account.mode)),
-                    crate::colors::style_text_dim(),
+                    s_text_dim,
                 ),
                 Span::styled(
                     if account.is_active { "  (current)" } else { "" },
@@ -267,13 +273,13 @@ impl LoginAccountsState {
             if account.detail_items.is_empty() {
                 lines.push(Line::from(Span::styled(
                     "No metadata available for this account.",
-                    crate::colors::style_text_dim(),
+                    s_text_dim,
                 )));
             } else {
                 for item in &account.detail_items {
                     lines.push(Line::from(vec![
-                        Span::styled("• ", crate::colors::style_text_dim()),
-                        Span::styled(item.clone(), crate::colors::style_text_dim()),
+                        Span::styled("• ", s_text_dim),
+                        Span::styled(item.clone(), s_text_dim),
                     ]));
                 }
             }
@@ -284,11 +290,11 @@ impl LoginAccountsState {
             )]));
             lines.push(Line::from(Span::styled(
                 "Connect another ChatGPT or API-key account.",
-                crate::colors::style_text_dim(),
+                s_text_dim,
             )));
             lines.push(Line::from(Span::styled(
                 "Useful when your current account is near usage limits.",
-                crate::colors::style_text_dim(),
+                s_text_dim,
             )));
         } else {
             lines.push(Line::from(vec![Span::styled(
@@ -297,11 +303,11 @@ impl LoginAccountsState {
             )]));
             lines.push(Line::from(Span::styled(
                 "Control where account records are loaded from and saved to.",
-                crate::colors::style_text_dim(),
+                s_text_dim,
             )));
             lines.push(Line::from(Span::styled(
                 "Supports multiple read paths with a dedicated write target.",
-                crate::colors::style_text_dim(),
+                s_text_dim,
             )));
         }
 

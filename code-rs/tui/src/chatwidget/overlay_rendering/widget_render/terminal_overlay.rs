@@ -9,8 +9,12 @@ impl ChatWidget<'_> {
         bottom_pane_area: Rect,
         buf: &mut Buffer,
     ) {
+        let s_on_bg = crate::colors::style_on_background();
+        let s_text_dim = crate::colors::style_text_dim();
+        let s_text = crate::colors::style_text();
+
         if self.terminal.overlay().is_some() || self.agents_terminal.active {
-            let bg_style = crate::colors::style_on_background();
+            let bg_style = s_on_bg;
             fill_bg(buf, bottom_pane_area, bg_style);
         } else {
             // Render the bottom pane directly without a border for now
@@ -46,17 +50,17 @@ impl ChatWidget<'_> {
                 .title(ratatui::text::Line::from(vec![
                     ratatui::text::Span::styled(
                         format!(" Terminal - {} ", overlay.title),
-                        crate::colors::style_text(),
+                        s_text,
                     ),
                 ]))
-                .style(crate::colors::style_on_background())
+                .style(s_on_bg)
                 .border_style(
                     crate::colors::style_border_on_bg(),
                 );
             let inner = block.inner(window_area);
             block.render(window_area, buf);
 
-            let inner_bg = crate::colors::style_on_background();
+            let inner_bg = s_on_bg;
             fill_rect(buf, inner, None, inner_bg);
 
             let content = inner.inner(crate::ui_consts::HORIZONTAL_PAD);
@@ -119,7 +123,7 @@ impl ChatWidget<'_> {
                             .saturating_add(UnicodeWidthStr::width(status_text.as_str()));
                         header_spans.push(ratatui::text::Span::styled(
                             status_text,
-                            crate::colors::style_text_dim(),
+                            s_text_dim,
                         ));
 
                         let interval = crate::spinner::current_spinner().interval_ms.max(50);
@@ -163,7 +167,7 @@ impl ChatWidget<'_> {
                             .saturating_add(UnicodeWidthStr::width(status_text.as_str()));
                         header_spans.push(ratatui::text::Span::styled(
                             status_text,
-                            crate::colors::style_text_dim(),
+                            s_text_dim,
                         ));
                     }
 
@@ -177,11 +181,11 @@ impl ChatWidget<'_> {
                             if !truncated.is_empty() {
                                 header_spans.push(ratatui::text::Span::styled(
                                     "  •  ",
-                                    crate::colors::style_text_dim(),
+                                    s_text_dim,
                                 ));
                                 header_spans.push(ratatui::text::Span::styled(
                                     truncated,
-                                    crate::colors::style_text(),
+                                    s_text,
                                 ));
                             }
                         }
@@ -252,7 +256,7 @@ impl ChatWidget<'_> {
                                 window_lines.push(ratatui::text::Line::from(vec![
                                     ratatui::text::Span::styled(
                                         "… output truncated (showing last 10,000 lines)",
-                                        crate::colors::style_text_dim(),
+                                        s_text_dim,
                                     ),
                                 ]));
                             } else {
@@ -286,7 +290,7 @@ impl ChatWidget<'_> {
                     ),
                     ratatui::text::Span::styled(
                         " Scroll  ",
-                        crate::colors::style_text_dim(),
+                        s_text_dim,
                     ),
                     ratatui::text::Span::styled(
                         crate::icons::escape(),
@@ -294,7 +298,7 @@ impl ChatWidget<'_> {
                     ),
                     ratatui::text::Span::styled(
                         if overlay.running { " Cancel  " } else { " Close  " },
-                        crate::colors::style_text_dim(),
+                        s_text_dim,
                     ),
                 ];
                 if overlay.running {
@@ -304,7 +308,7 @@ impl ChatWidget<'_> {
                     ));
                     footer_spans.push(ratatui::text::Span::styled(
                         " cancel",
-                        crate::colors::style_text_dim(),
+                        s_text_dim,
                     ));
                 } else if pending_visible {
                     footer_spans.push(ratatui::text::Span::styled(
@@ -313,7 +317,7 @@ impl ChatWidget<'_> {
                     ));
                     footer_spans.push(ratatui::text::Span::styled(
                         " run",
-                        crate::colors::style_text_dim(),
+                        s_text_dim,
                     ));
                 }
                 if footer_height > 1 {

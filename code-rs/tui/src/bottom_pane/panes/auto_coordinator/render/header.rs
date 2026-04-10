@@ -265,7 +265,7 @@ pub(super) fn render_header(view: &AutoCoordinatorView, buf: &mut Buffer, params
     let default_message_span = Span::styled(display_message.to_string(), message_style);
     let base_line = {
         let mut spans = base_spans.clone();
-        spans.push(default_message_span.clone());
+        spans.push(default_message_span);
         Line::from(spans)
     };
 
@@ -287,7 +287,7 @@ pub(super) fn render_header(view: &AutoCoordinatorView, buf: &mut Buffer, params
         right_spans.push(Span::raw(" "));
         right_spans.push(Span::styled(runtime_text, Style::default().fg(runtime_color)));
     }
-    let right_line = Line::from(right_spans.clone());
+    let right_line = Line::from(right_spans);
     let right_width = right_line.width().min(area.width as usize) as u16;
     let constraints = if right_width == 0 {
         vec![Constraint::Fill(1)]
@@ -300,7 +300,7 @@ pub(super) fn render_header(view: &AutoCoordinatorView, buf: &mut Buffer, params
         .split(area);
 
     let left_available = chunks[0].width;
-    let mut left_line = base_line.clone();
+    let mut left_line = base_line;
     let show_progress_hint = model.cli_running
         || model.awaiting_submission
         || (model.waiting_for_response && !model.coordinator_waiting);
@@ -311,7 +311,7 @@ pub(super) fn render_header(view: &AutoCoordinatorView, buf: &mut Buffer, params
         let try_apply = |content: &str| -> Option<Line<'static>> {
             let mut candidate_spans = base_spans.clone();
             candidate_spans.push(Span::styled(content.to_string(), status_style));
-            let candidate_line = Line::from(candidate_spans.clone());
+            let candidate_line = Line::from(candidate_spans);
             if candidate_line.width() <= left_available as usize {
                 Some(candidate_line)
             } else {

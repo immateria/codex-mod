@@ -259,6 +259,8 @@ pub(crate) fn set_last_sequence_number(&mut self, kind: StreamKind, seq: Option<
         };
         tracing::debug!("push_and_maybe_commit for {:?}, delta.len={} contains_nl={}", kind, delta.len(), delta.contains('\n'));
         let cfg = self.config.clone();
+        let c_text_dim = crate::colors::text_dim();
+        let c_text_bright = crate::colors::text_bright();
 
         // Check header flag before borrowing state (used only to avoid double headers)
         let _just_emitted_header = self.header.consume_header_flag();
@@ -290,8 +292,8 @@ pub(crate) fn set_last_sequence_number(&mut self, kind: StreamKind, seq: Option<
                 // Recoloring the whole Answer line can mask per-span BOLD styling on some
                 // terminals. See regression: inline bold appeared normal due to line FG.
                 let color = match kind {
-                    StreamKind::Reasoning => Some(crate::colors::text_dim()),
-                    StreamKind::Answer => Some(crate::colors::text_bright()),
+                    StreamKind::Reasoning => Some(c_text_dim),
+                    StreamKind::Answer => Some(c_text_bright),
                 };
                 let mut styled: Vec<Line<'static>> = Vec::with_capacity(newly_completed.len());
                 for mut line in newly_completed {
@@ -331,8 +333,8 @@ pub(crate) fn set_last_sequence_number(&mut self, kind: StreamKind, seq: Option<
                     if !newly_completed.is_empty() {
                         // Apply stream-specific color
                         let color = match kind {
-                            StreamKind::Reasoning => Some(crate::colors::text_dim()),
-                            StreamKind::Answer => Some(crate::colors::text_bright()),
+                            StreamKind::Reasoning => Some(c_text_dim),
+                            StreamKind::Answer => Some(c_text_bright),
                         };
                         let mut styled: Vec<Line<'static>> = Vec::with_capacity(newly_completed.len());
                         for mut line in newly_completed.drain(..) {
@@ -395,7 +397,7 @@ pub(crate) fn set_last_sequence_number(&mut self, kind: StreamKind, seq: Option<
                             .commit_soft_lines(&cfg2, relax_list, relax_code)
                     };
                     if !newly_completed.is_empty() {
-                        let color = Some(crate::colors::text_dim());
+                        let color = Some(c_text_dim);
                         let mut styled: Vec<Line<'static>> = Vec::with_capacity(newly_completed.len());
                         for mut line in newly_completed.drain(..) {
                             if let Some(c) = color {
@@ -481,6 +483,8 @@ pub(crate) fn set_last_sequence_number(&mut self, kind: StreamKind, seq: Option<
             return false;
         }
         let cfg = self.config.clone();
+        let c_text_dim = crate::colors::text_dim();
+        let c_text_bright = crate::colors::text_bright();
         // Capture the full render source BEFORE draining/clearing the collector so
         // we can rebuild the final Assistant cell without losing any content.
         let full_source_before_drain = {
@@ -518,8 +522,8 @@ pub(crate) fn set_last_sequence_number(&mut self, kind: StreamKind, seq: Option<
             }
             // Apply stream-specific color to body lines
             let color = match kind {
-                StreamKind::Reasoning => Some(crate::colors::text_dim()),
-                StreamKind::Answer => Some(crate::colors::text_bright()),
+                StreamKind::Reasoning => Some(c_text_dim),
+                StreamKind::Answer => Some(c_text_bright),
             };
             let mut out_lines: Vec<Line<'static>> = out_lines
                 .into_iter()
@@ -540,7 +544,7 @@ pub(crate) fn set_last_sequence_number(&mut self, kind: StreamKind, seq: Option<
                     && let Some(id) = self.current_stream_id()
                         && let Some(sidx) = id.split('#').next_back().and_then(|frag| frag.strip_prefix('s')) {
                             let marker = format!("[s{sidx} final]");
-                            let dim = crate::colors::text_dim();
+                            let dim = c_text_dim;
                             out_lines.push(Line::from(ratatui::text::Span::styled(marker, ratatui::style::Style::default().fg(dim))));
                         }
             }
@@ -597,6 +601,8 @@ pub(crate) fn set_last_sequence_number(&mut self, kind: StreamKind, seq: Option<
         let Some(kind) = self.current_stream else {
             return false;
         };
+        let c_text_dim = crate::colors::text_dim();
+        let c_text_bright = crate::colors::text_bright();
         // Timeout-based soft commit: if no newline arrived and nothing is queued, force a soft commit.
         let timeout_ms = self.config.tui.stream.soft_commit_timeout_ms
             .or(self.config.tui.stream.responsive.then_some(400));
@@ -616,8 +622,8 @@ pub(crate) fn set_last_sequence_number(&mut self, kind: StreamKind, seq: Option<
                 };
                 if !newly_completed.is_empty() {
                     let color = match kind {
-                        StreamKind::Reasoning => Some(crate::colors::text_dim()),
-                        StreamKind::Answer => Some(crate::colors::text_bright()),
+                        StreamKind::Reasoning => Some(c_text_dim),
+                        StreamKind::Answer => Some(c_text_bright),
                     };
                     let mut styled: Vec<Line<'static>> = Vec::with_capacity(newly_completed.len());
                     for mut line in newly_completed.drain(..) {
@@ -657,8 +663,8 @@ pub(crate) fn set_last_sequence_number(&mut self, kind: StreamKind, seq: Option<
             }
             // Apply stream-specific color to body lines while preserving modifiers
             let color = match kind {
-                StreamKind::Reasoning => Some(crate::colors::text_dim()),
-                StreamKind::Answer => Some(crate::colors::text_bright()),
+                StreamKind::Reasoning => Some(c_text_dim),
+                StreamKind::Answer => Some(c_text_bright),
             };
             let mut history: Vec<Line<'static>> = history
                 .into_iter()

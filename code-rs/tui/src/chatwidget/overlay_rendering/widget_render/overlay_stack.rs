@@ -8,6 +8,17 @@ impl ChatWidget<'_> {
         bottom_pane_area: Rect,
         buf: &mut Buffer,
     ) {
+        let s_on_bg = crate::colors::style_on_background();
+        let s_text_bold = crate::colors::style_text_bold();
+        let s_text_dim = crate::colors::style_text_dim();
+        let s_border_on_bg = crate::colors::style_border_on_bg();
+        let s_text = crate::colors::style_text();
+        let c_overlay_scrim = crate::colors::overlay_scrim();
+        let c_text_bright = crate::colors::text_bright();
+        let c_text_dim = crate::colors::text_dim();
+        let c_background = crate::colors::background();
+        let c_text = crate::colors::text();
+
         if self.terminal.overlay().is_none() && self.browser_overlay_visible {
             self.render_browser_overlay(area, history_area, bottom_pane_area, buf);
             return;
@@ -33,8 +44,8 @@ impl ChatWidget<'_> {
                 // We intentionally do this across the entire widget area rather than just the
                 // history area so the viewer stands out even with browser HUD or status bars.
                 let scrim_bg = Style::default()
-                    .bg(crate::colors::overlay_scrim())
-                    .fg(crate::colors::text_dim());
+                    .bg(c_overlay_scrim)
+                    .fg(c_text_dim);
                 let _perf_scrim_start = if self.perf_state.enabled {
                     Some(std::time::Instant::now())
                 } else {
@@ -75,8 +86,8 @@ impl ChatWidget<'_> {
                 }
 
                 // Build a styled title: keys/icons in normal text color; descriptors and dividers dim
-                let t_dim = crate::colors::style_text_dim();
-                let t_fg = crate::colors::style_text();
+                let t_dim = s_text_dim;
+                let t_fg = s_text;
                 let has_tabs = overlay.tabs.len() > 1;
                 let mut title_spans: Vec<ratatui::text::Span<'static>> = vec![
                     ratatui::text::Span::styled(" ", t_dim),
@@ -105,15 +116,15 @@ impl ChatWidget<'_> {
                     .title(ratatui::text::Line::from(title_spans))
                     // Use normal background for the window itself so it contrasts against the
                     // dimmed scrim behind
-                    .style(crate::colors::style_on_background())
+                    .style(s_on_bg)
                     .border_style(
-                        crate::colors::style_border_on_bg(),
+                        s_border_on_bg,
                     );
                 let inner = block.inner(area);
                 block.render(area, buf);
 
                 // Paint inner content background as the normal theme background
-                let inner_bg = crate::colors::style_on_background();
+                let inner_bg = s_on_bg;
                 let _perf_overlay_inner_bg_start = if self.perf_state.enabled {
                     Some(std::time::Instant::now())
                 } else {
@@ -178,7 +189,7 @@ impl ChatWidget<'_> {
                         let selected = i == overlay.selected;
 
                         // Both selected and unselected tabs use the normal background
-                        let tab_bg = crate::colors::background();
+                        let tab_bg = c_background;
                         let bg_style = Style::default().bg(tab_bg);
                         fill_rect(buf, rect, None, bg_style);
 
@@ -190,9 +201,9 @@ impl ChatWidget<'_> {
                             height: 1,
                         };
                         let label_style = if selected {
-                            crate::colors::style_text_bold()
+                            s_text_bold
                         } else {
-                            crate::colors::style_text_dim()
+                            s_text_dim
                         };
                         let line = ratatui::text::Line::from(ratatui::text::Span::styled(
                             labels[i].clone(),
@@ -222,7 +233,7 @@ impl ChatWidget<'_> {
                     if let Some((label, _)) = overlay.tabs.get(overlay.selected) {
                         let header_line = ratatui::text::Line::from(ratatui::text::Span::styled(
                             label.clone(),
-                            crate::colors::style_text_bold(),
+                            s_text_bold,
                         ));
                         let para = Paragraph::new(RtText::from(vec![header_line]))
                             .wrap(ratatui::widgets::Wrap { trim: true });
@@ -270,7 +281,7 @@ impl ChatWidget<'_> {
                     }
 
                     // Fill body background with a slightly lighter/darker paper-like background
-                    let bg = crate::colors::background();
+                    let bg = c_background;
                     let contrast_target = if crate::colors::is_dark_theme() {
                         ratatui::style::Color::White
                     } else {
@@ -320,7 +331,7 @@ impl ChatWidget<'_> {
                         let dlg_inner = dlg_block.inner(dialog);
                         dlg_block.render(dialog, buf);
                         // Fill dialog inner area with theme background for consistent look
-                        let dlg_bg = crate::colors::style_on_background();
+                        let dlg_bg = s_on_bg;
                         for y in dlg_inner.y..dlg_inner.y + dlg_inner.height {
                             for x in dlg_inner.x..dlg_inner.x + dlg_inner.width {
                                 buf[(x, y)].set_style(dlg_bg);
@@ -349,8 +360,8 @@ impl ChatWidget<'_> {
 
                     // Global scrim across widget
                     let scrim_bg = Style::default()
-                        .bg(crate::colors::overlay_scrim())
-                        .fg(crate::colors::text_dim());
+                        .bg(c_overlay_scrim)
+                        .fg(c_text_dim);
                     for y in area.y..area.y + area.height {
                         for x in area.x..area.x + area.width {
                             buf[(x, y)].set_style(scrim_bg);
@@ -366,33 +377,33 @@ impl ChatWidget<'_> {
                     self.help.window_rect.set(window_area);
                     Clear.render(window_area, buf);
 
-                    let border_style = crate::colors::style_border_on_bg();
+                    let border_style = s_border_on_bg;
 
                     let block = Block::default()
                         .borders(Borders::ALL)
                         .title(ratatui::text::Line::from(vec![
                             ratatui::text::Span::styled(
                                 " ",
-                                crate::colors::style_text_dim(),
+                                s_text_dim,
                             ),
                             ratatui::text::Span::styled(
                                 "Guide",
-                                crate::colors::style_text(),
+                                s_text,
                             ),
                             ratatui::text::Span::styled(
                                 crate::ui_consts::SEP_EM,
-                                crate::colors::style_text_dim(),
+                                s_text_dim,
                             ),
                             ratatui::text::Span::styled(
                                 crate::icons::escape(),
-                                crate::colors::style_text(),
+                                s_text,
                             ),
                             ratatui::text::Span::styled(
                                 " close",
-                                crate::colors::style_text_dim(),
+                                s_text_dim,
                             ),
                         ]))
-                        .style(crate::colors::style_on_background())
+                        .style(s_on_bg)
                         .border_style(border_style);
                     let inner = block.inner(window_area);
                     block.render(window_area, buf);
@@ -412,13 +423,13 @@ impl ChatWidget<'_> {
                             let button_bg = if lit {
                                 crate::colors::selection()
                             } else {
-                                crate::colors::background()
+                                c_background
                             };
                             let glyph_style = Style::default()
                                 .fg(if lit {
-                                    crate::colors::text_bright()
+                                    c_text_bright
                                 } else {
-                                    crate::colors::text_dim()
+                                    c_text_dim
                                 })
                                 .bg(button_bg)
                                 .add_modifier(if lit { ratatui::style::Modifier::BOLD } else { ratatui::style::Modifier::empty() });
@@ -478,7 +489,7 @@ impl ChatWidget<'_> {
                     }
 
                     // Paint inner bg
-                    let inner_bg = crate::colors::style_on_background();
+                    let inner_bg = s_on_bg;
                     for y in inner.y..inner.y + inner.height {
                         for x in inner.x..inner.x + inner.width {
                             buf[(x, y)].set_style(inner_bg);
@@ -494,14 +505,14 @@ impl ChatWidget<'_> {
                     };
                     if tab_area.height > 0 {
                         let active_num_style = Style::default()
-                            .fg(crate::colors::text());
+                            .fg(c_text);
                         let active_label_style = Style::default()
-                            .fg(crate::colors::text())
+                            .fg(c_text)
                             .add_modifier(ratatui::style::Modifier::BOLD | ratatui::style::Modifier::UNDERLINED);
                         let hover_style = Style::default()
-                            .fg(crate::colors::text());
+                            .fg(c_text);
                         let inactive_style = Style::default()
-                            .fg(crate::colors::text_dim());
+                            .fg(c_text_dim);
                         let sep_style = Style::default()
                             .fg(crate::colors::border());
 
@@ -573,9 +584,9 @@ impl ChatWidget<'_> {
                         use crate::chatwidget::internals::state::HelpFocus;
                         let focus = self.help.focus.get();
 
-                        let arrow_normal = crate::colors::style_text_dim();
+                        let arrow_normal = s_text_dim;
                         let arrow_highlight = Style::default()
-                            .fg(crate::colors::text_bright())
+                            .fg(c_text_bright)
                             .add_modifier(ratatui::style::Modifier::BOLD);
 
                         let spacer = "   ";

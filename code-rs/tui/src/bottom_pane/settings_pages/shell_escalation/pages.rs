@@ -26,17 +26,18 @@ impl WrapperResolutionSource {
 
 impl ShellEscalationSettingsView {
     pub(super) fn header_lines(&self) -> Vec<Line<'static>> {
+        let s_text_dim = crate::colors::style_text_dim();
         vec![
             Line::from(Span::styled(
                 "Configure zsh-fork escalation for sandboxed shell tool calls.",
-                crate::colors::style_text_dim(),
+                s_text_dim,
             )),
             Line::from(Span::styled(
                 self.active_profile
                     .as_deref()
                     .map(|p| format!("Profile: {p}"))
                     .unwrap_or_else(|| "Profile: (none)".to_string()),
-                crate::colors::style_text_dim(),
+                s_text_dim,
             )),
             Line::from(""),
         ]
@@ -184,6 +185,7 @@ impl ShellEscalationSettingsView {
     }
 
     pub(super) fn status_lines(&self) -> Vec<Line<'static>> {
+        let s_text_dim = crate::colors::style_text_dim();
         let mut reasons = Vec::<String>::new();
 
         if !cfg!(unix) {
@@ -232,16 +234,16 @@ impl ShellEscalationSettingsView {
                 ),
                 Span::styled(
                     "  Status",
-                    crate::colors::style_text_dim(),
+                    s_text_dim,
                 ),
             ]),
             Line::from(Span::styled(
                 self.shell_label(),
-                crate::colors::style_text_dim(),
+                s_text_dim,
             )),
             Line::from(Span::styled(
                 wrapper_line,
-                crate::colors::style_text_dim(),
+                s_text_dim,
             )),
         ];
 
@@ -250,7 +252,7 @@ impl ShellEscalationSettingsView {
             for reason in reasons.into_iter().take(4) {
                 lines.push(Line::from(Span::styled(
                     format!("- {reason}"),
-                    crate::colors::style_text_dim(),
+                    s_text_dim,
                 )));
             }
         }
@@ -259,7 +261,7 @@ impl ShellEscalationSettingsView {
             Line::from(""),
             Line::from(Span::styled(
                 "Triggers only for sandboxed `shell` tool calls that invoke `zsh -lc/-c`.",
-                crate::colors::style_text_dim(),
+                s_text_dim,
             )),
         ]);
 
@@ -278,6 +280,7 @@ impl ShellEscalationSettingsView {
             EditTarget::WrapperOverride => (" Shell escalation: Wrapper override ", "Wrapper path override"),
         };
 
+        let s_text_dim = crate::colors::style_text_dim();
         let mut post = Vec::new();
         if let Some(notice) = self.editor_notice.as_ref() {
             post.push(Line::from(vec![Span::styled(
@@ -297,11 +300,11 @@ impl ShellEscalationSettingsView {
                     } else {
                         "Enter accept · Ctrl+S accept+apply · Esc cancel"
                     },
-                    crate::colors::style_text_dim(),
+                    s_text_dim,
                 )]),
                 Line::from(vec![Span::styled(
                     "Empty clears the value.",
-                    crate::colors::style_text_dim(),
+                    s_text_dim,
                 )]),
                 Line::from(""),
             ],
