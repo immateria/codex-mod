@@ -387,3 +387,5 @@ pub(crate) fn style_on_selection() -> Style { Style::default().bg(selection()) }
 
 // Combined fg+bg helpers for the most common pairings.
 pub(crate) fn style_text_on_bg() -> Style { Style::default().fg(text()).bg(background()) }
+pub(crate) fn style_border_on_bg() -> Style { Style::default().fg(border()).bg(background()) }
+pub(crate) fn style_border_dim_on_bg() -> Style { Style::default().fg(border_dim()).bg(background()) }

@@ -10,9 +10,7 @@ impl SettingsOverlayView {
             .borders(Borders::ALL)
             .style(crate::colors::style_on_background())
             .border_style(
-                Style::default()
-                    .fg(crate::colors::border())
-                    .bg(crate::colors::background()),
+                crate::colors::style_border_on_bg(),
             );
         let inner = block.inner(area);
         block.render(area, buf);
@@ -95,9 +93,7 @@ impl SettingsOverlayView {
             return false;
         }
 
-        let border_style = Style::default()
-            .fg(crate::colors::border())
-            .bg(crate::colors::background());
+        let border_style = crate::colors::style_border_on_bg();
         let hovered = self.close_button_hovered.get();
         let button_bg = if hovered {
             crate::colors::selection()

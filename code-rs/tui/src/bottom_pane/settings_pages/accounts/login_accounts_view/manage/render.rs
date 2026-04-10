@@ -372,9 +372,7 @@ impl LoginAccountsState {
         let Some(layout) = page.render(area, buf) else {
             return;
         };
-        let base = Style::default()
-            .bg(crate::colors::background())
-            .fg(crate::colors::text());
+        let base = crate::colors::style_text_on_bg();
 
         Paragraph::new(header_lines)
             .wrap(Wrap { trim: true })

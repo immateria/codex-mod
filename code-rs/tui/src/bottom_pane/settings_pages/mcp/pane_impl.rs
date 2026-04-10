@@ -66,9 +66,7 @@ impl McpSettingsView {
             buf,
             area,
             Some(' '),
-            Style::default()
-                .bg(crate::colors::background())
-                .fg(crate::colors::text()),
+            crate::colors::style_text_on_bg(),
         );
 
         let Some(layout) =
@@ -103,9 +101,7 @@ impl McpSettingsView {
         let list_scroll_top = self.list_scroll_top(layout.list_inner.height, list_width);
         Paragraph::new(list_lines)
             .style(
-                Style::default()
-                    .bg(crate::colors::background())
-                    .fg(crate::colors::text()),
+                crate::colors::style_text_on_bg(),
             )
             .scroll((u16::try_from(list_scroll_top).unwrap_or(u16::MAX), 0))
             .render(layout.list_inner, buf);
@@ -123,9 +119,7 @@ impl McpSettingsView {
         let summary_lines = self.summary_lines();
         let summary_metrics = self.summary_metrics_for_viewport(layout.summary_inner);
         let mut summary_paragraph = Paragraph::new(summary_lines).style(
-            Style::default()
-                .bg(crate::colors::background())
-                .fg(crate::colors::text()),
+            crate::colors::style_text_on_bg(),
         );
         if self.summary_wrap {
             summary_paragraph = summary_paragraph.wrap(Wrap { trim: false });
@@ -184,9 +178,7 @@ impl McpSettingsView {
         );
         Paragraph::new(tool_lines)
             .style(
-                Style::default()
-                    .bg(crate::colors::background())
-                    .fg(crate::colors::text()),
+                crate::colors::style_text_on_bg(),
             )
             .scroll((u16::try_from(tools_scroll_top).unwrap_or(u16::MAX), 0))
             .render(layout.tools_inner, buf);

@@ -147,9 +147,7 @@ impl SettingsOverlayView {
             return;
         }
 
-        let background = Style::default()
-            .bg(crate::colors::background())
-            .fg(crate::colors::text());
+        let background = crate::colors::style_text_on_bg();
         let end_x = area.x + area.width - 1;
         let end_y = area.y + area.height - 1;
 

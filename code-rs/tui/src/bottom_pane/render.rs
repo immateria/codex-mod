@@ -12,9 +12,7 @@ impl WidgetRef for &BottomPane<'_> {
         // Base clear: fill the entire bottom pane with the theme background so
         // newly exposed rows (e.g., when the composer grows on paste) do not
         // show stale pixels from history.
-        let base_style = ratatui::style::Style::default()
-            .bg(crate::colors::background())
-            .fg(crate::colors::text());
+        let base_style = crate::colors::style_text_on_bg();
         fill_bg(buf, area, base_style);
 
         let mut composer_rect = compute_composer_rect(area, self.top_spacer_enabled);

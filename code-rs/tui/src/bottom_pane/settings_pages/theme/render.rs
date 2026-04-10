@@ -86,9 +86,7 @@ impl ThemeSelectionView {
             .title(Line::from(title_spans))
             .style(crate::colors::style_on_background())
             .border_style(
-                Style::default()
-                    .fg(crate::colors::border())
-                    .bg(crate::colors::background()),
+                crate::colors::style_border_on_bg(),
             );
         let inner = outer.inner(render_area);
         outer.render(render_area, buf);

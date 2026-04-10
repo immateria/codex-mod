@@ -73,9 +73,7 @@ pub(crate) fn clean_wait_command(raw: &str) -> String {
 pub(crate) fn left_border_span() -> Span<'static> {
     Span::styled(
         "│ ",
-        Style::default()
-            .fg(crate::colors::border_dim())
-            .bg(crate::colors::background()),
+        crate::colors::style_border_dim_on_bg(),
     )
 }
 

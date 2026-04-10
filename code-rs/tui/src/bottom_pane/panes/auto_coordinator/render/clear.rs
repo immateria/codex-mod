@@ -1,8 +1,5 @@
 use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
-use ratatui::style::Style;
-
-use crate::colors;
 
 pub(super) fn clear_row(area: Rect, buf: &mut Buffer) {
     if area.height == 0 {
@@ -11,7 +8,7 @@ pub(super) fn clear_row(area: Rect, buf: &mut Buffer) {
     for x in area.x..area.x.saturating_add(area.width) {
         let cell = &mut buf[(x, area.y)];
         cell.set_symbol(" ");
-        cell.set_style(Style::default().fg(colors::text()).bg(colors::background()));
+        cell.set_style(crate::colors::style_text_on_bg());
     }
 }
 

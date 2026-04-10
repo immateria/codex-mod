@@ -210,7 +210,6 @@ impl ChatWidget<'_> {
 
     pub(super) fn render_status_bar(&self, area: Rect, buf: &mut Buffer) {
         use crate::exec_command::relativize_to_home;
-        use ratatui::style::Style;
         use ratatui::text::Line;
         use ratatui::widgets::Block;
         use ratatui::widgets::Borders;
@@ -364,9 +363,7 @@ impl ChatWidget<'_> {
         let status_style = if effect_enabled {
             crate::colors::style_text()
         } else {
-            Style::default()
-                .bg(crate::colors::background())
-                .fg(crate::colors::text())
+            crate::colors::style_text_on_bg()
         };
 
         let mcp_kind = mcp_indicator.as_ref().map(|(kind, _)| *kind);

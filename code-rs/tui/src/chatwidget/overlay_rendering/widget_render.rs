@@ -17,9 +17,7 @@ impl ChatWidget<'_> {
         // Safety clear for non-standard mode: keep a stable background even
         // when downstream widgets intentionally skip unchanged regions.
         if !self.standard_terminal_mode {
-            let bg_style = Style::default()
-                .bg(crate::colors::background())
-                .fg(crate::colors::text());
+            let bg_style = crate::colors::style_text_on_bg();
             fill_rect(buf, area, None, bg_style);
         }
 
@@ -62,9 +60,7 @@ impl ChatWidget<'_> {
         // per-cell height caching don't thrash on startup.
         self.update_welcome_height_hint(content_area.width.saturating_sub(2), content_area.height);
 
-        let base_style = Style::default()
-            .bg(crate::colors::background())
-            .fg(crate::colors::text());
+        let base_style = crate::colors::style_text_on_bg();
         // Clear the full history viewport once so reused rows/gutters do not
         // retain stale paint from previous frames.
         fill_bg(buf, history_area, base_style);

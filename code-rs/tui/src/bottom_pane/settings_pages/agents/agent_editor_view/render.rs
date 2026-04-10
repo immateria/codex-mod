@@ -23,9 +23,7 @@ impl AgentEditorView {
         if rect.width == 0 || rect.height == 0 {
             return;
         }
-        let style = Style::default()
-            .bg(crate::colors::background())
-            .fg(crate::colors::text());
+        let style = crate::colors::style_text_on_bg();
         for y in rect.y..rect.y.saturating_add(rect.height) {
             for x in rect.x..rect.x.saturating_add(rect.width) {
                 let cell = &mut buf[(x, y)];

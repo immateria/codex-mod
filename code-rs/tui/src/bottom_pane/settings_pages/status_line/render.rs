@@ -149,9 +149,7 @@ impl StatusLineSetupView {
         let paragraph = Paragraph::new(lines)
             .scroll((self.scroll_offset.get(), 0))
             .style(
-                Style::default()
-                    .bg(crate::colors::background())
-                    .fg(crate::colors::text()),
+                crate::colors::style_text_on_bg(),
             );
         paragraph.render(content, buf);
 

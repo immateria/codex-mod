@@ -66,9 +66,7 @@ impl ChatWidget<'_> {
                 .end_symbol(None)
                 .track_symbol(Some("│"))
                 .track_style(
-                    Style::default()
-                        .fg(crate::colors::border())
-                        .bg(crate::colors::background()),
+                    crate::colors::style_border_on_bg(),
                 )
                 .thumb_symbol("█")
                 .thumb_style(

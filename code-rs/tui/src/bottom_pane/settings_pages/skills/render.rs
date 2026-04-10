@@ -29,9 +29,7 @@ impl SkillsSettingsView {
                 buf,
                 area,
                 Some(' '),
-                Style::default()
-                    .bg(colors::background())
-                    .fg(colors::text()),
+                crate::colors::style_text_on_bg(),
             );
         }
 

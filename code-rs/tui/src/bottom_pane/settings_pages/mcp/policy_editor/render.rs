@@ -59,9 +59,7 @@ impl McpSettingsView {
             .title(format!(" MCP Scheduling: {} ", editor.server))
             .border_style(crate::colors::style_primary())
             .style(
-                Style::default()
-                    .bg(crate::colors::background())
-                    .fg(crate::colors::text()),
+                crate::colors::style_text_on_bg(),
             );
         let inner = block.inner(area);
         block.render(area, buf);
@@ -211,9 +209,7 @@ impl McpSettingsView {
             ))
             .border_style(crate::colors::style_primary())
             .style(
-                Style::default()
-                    .bg(crate::colors::background())
-                    .fg(crate::colors::text()),
+                crate::colors::style_text_on_bg(),
             );
         let inner = block.inner(area);
         block.render(area, buf);

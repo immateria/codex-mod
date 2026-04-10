@@ -414,9 +414,7 @@ impl HistoryCell for JsReplCell {
             return;
         }
 
-        let bg_style = Style::default()
-            .bg(crate::colors::background())
-            .fg(crate::colors::text());
+        let bg_style = crate::colors::style_text_on_bg();
         fill_rect(buf, Rect {
             x: area.x,
             y: area.y,

@@ -347,9 +347,7 @@ impl HistoryCell for MergedExecCell {
         true
     }
     fn custom_render_with_skip(&self, area: Rect, buf: &mut Buffer, mut skip_rows: u16) {
-        let bg = Style::default()
-            .bg(crate::colors::background())
-            .fg(crate::colors::text());
+        let bg = crate::colors::style_text_on_bg();
         fill_bg(buf, area, bg);
         if area.width == 0 || area.height == 0 {
             return;
@@ -443,9 +441,7 @@ impl HistoryCell for MergedExecCell {
                 let block = Block::default()
                     .borders(Borders::LEFT)
                     .border_style(
-                        Style::default()
-                            .fg(crate::colors::border_dim())
-                            .bg(crate::colors::background()),
+                        crate::colors::style_border_dim_on_bg(),
                     )
                     .style(crate::colors::style_on_background())
                     .padding(Padding {
@@ -533,9 +529,7 @@ impl HistoryCell for MergedExecCell {
                 let block = Block::default()
                     .borders(Borders::LEFT)
                     .border_style(
-                        Style::default()
-                            .fg(crate::colors::border_dim())
-                            .bg(crate::colors::background()),
+                        crate::colors::style_border_dim_on_bg(),
                     )
                     .style(crate::colors::style_on_background())
                     .padding(Padding {

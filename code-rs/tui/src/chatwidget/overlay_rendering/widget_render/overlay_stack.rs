@@ -107,9 +107,7 @@ impl ChatWidget<'_> {
                     // dimmed scrim behind
                     .style(crate::colors::style_on_background())
                     .border_style(
-                        Style::default()
-                            .fg(crate::colors::border())
-                            .bg(crate::colors::background()),
+                        crate::colors::style_border_on_bg(),
                     );
                 let inner = block.inner(area);
                 block.render(area, buf);
@@ -340,9 +338,7 @@ impl ChatWidget<'_> {
                         ];
                         let para = Paragraph::new(RtText::from(lines))
                             .style(
-                                Style::default()
-                                    .bg(crate::colors::background())
-                                    .fg(crate::colors::text()),
+                                crate::colors::style_text_on_bg(),
                             )
                             .wrap(ratatui::widgets::Wrap { trim: true });
                         ratatui::widgets::Widget::render(para, dlg_inner, buf);
@@ -374,9 +370,7 @@ impl ChatWidget<'_> {
                     self.help.window_rect.set(window_area);
                     Clear.render(window_area, buf);
 
-                    let border_style = Style::default()
-                        .fg(crate::colors::border())
-                        .bg(crate::colors::background());
+                    let border_style = crate::colors::style_border_on_bg();
 
                     let block = Block::default()
                         .borders(Borders::ALL)
