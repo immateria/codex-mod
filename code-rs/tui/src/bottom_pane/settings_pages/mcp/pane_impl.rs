@@ -40,14 +40,7 @@ impl McpSettingsView {
             return;
         };
 
-        let block = Block::default()
-            .borders(Borders::ALL)
-            .border_style(crate::colors::style_border())
-            .style(
-                Style::default()
-                    .bg(crate::colors::background())
-                    .fg(crate::colors::text()),
-            )
+        let block = crate::components::popup_frame::themed_block()
             .title(" MCP Servers ")
             .title_alignment(Alignment::Center);
         block.render(area, buf);

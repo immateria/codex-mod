@@ -94,10 +94,7 @@ impl AgentEditorView {
 
     pub(super) fn render_inner(&self, area: Rect, buf: &mut Buffer) {
         Clear.render(area, buf);
-        let block = Block::default()
-            .borders(Borders::ALL)
-            .border_style(crate::colors::style_border())
-            .style(crate::colors::style_text_on_bg())
+        let block = crate::components::popup_frame::themed_block()
             .title(" Configure Agent ")
             .title_alignment(Alignment::Center);
         let inner = block.inner(area);

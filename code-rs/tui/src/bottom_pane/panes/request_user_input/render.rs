@@ -3,7 +3,7 @@ use ratatui::buffer::Buffer;
 use ratatui::layout::{Alignment, Rect};
 use ratatui::style::Stylize;
 use ratatui::text::{Line, Span};
-use ratatui::widgets::{Block, Borders, Clear, Paragraph, Widget, Wrap};
+use ratatui::widgets::{Clear, Paragraph, Widget, Wrap};
 
 use crate::components::selection_popup_common::{render_rows, GenericDisplayRow};
 
@@ -50,10 +50,7 @@ impl RequestUserInputView {
         }
 
         Clear.render(area, buf);
-        let block = Block::default()
-            .borders(Borders::ALL)
-            .border_style(crate::colors::style_border())
-            .style(crate::colors::style_text_on_bg())
+        let block = crate::components::popup_frame::themed_block()
             .title("User input")
             .title_alignment(Alignment::Center);
         let inner = block.inner(area);

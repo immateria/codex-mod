@@ -101,12 +101,9 @@ mod imp {
 
             Clear.render(area, buf);
 
-            let block = Block::default()
-                .borders(Borders::ALL)
+            let block = crate::components::popup_frame::themed_block()
                 .title(Line::from(" Chrome Launch Options "))
-                .title_alignment(Alignment::Center)
-                .style(crate::colors::style_text_on_bg())
-                .border_style(crate::colors::style_border());
+                .title_alignment(Alignment::Center);
             let inner = block.inner(area);
             block.render(area, buf);
 
@@ -269,12 +266,9 @@ mod android_stub {
 
             Clear.render(area, buf);
 
-            let block = Block::default()
-                .borders(Borders::ALL)
+            let block = crate::components::popup_frame::themed_block()
                 .title(Line::from(" Chrome Launch Options "))
-                .title_alignment(Alignment::Center)
-                .style(crate::colors::style_text_on_bg())
-                .border_style(crate::colors::style_border());
+                .title_alignment(Alignment::Center);
             let inner = block.inner(area);
             block.render(area, buf);
 

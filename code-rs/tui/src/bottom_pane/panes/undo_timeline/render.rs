@@ -2,7 +2,7 @@ use ratatui::buffer::Buffer;
 use ratatui::layout::{Alignment, Constraint, Layout, Rect};
 use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
-use ratatui::widgets::{Block, Borders, Clear, Paragraph, Widget};
+use ratatui::widgets::{Clear, Paragraph, Widget};
 
 use super::{UndoTimelineEntry, UndoTimelineView};
 
@@ -119,11 +119,8 @@ impl UndoTimelineView {
         ])
         .areas(area);
 
-        let conversation_block = Block::default()
-            .borders(Borders::ALL)
-            .title(" Conversation preview ")
-            .border_style(crate::colors::style_border())
-            .style(crate::colors::style_text_on_bg());
+        let conversation_block = crate::components::popup_frame::themed_block()
+            .title(" Conversation preview ");
         let conversation_inner = conversation_block.inner(conversation_area);
         conversation_block.render(conversation_area, buf);
         let conversation = Paragraph::new(entry.conversation_lines.clone())
@@ -132,11 +129,8 @@ impl UndoTimelineView {
             .alignment(Alignment::Left);
         conversation.render(conversation_inner, buf);
 
-        let files_block = Block::default()
-            .borders(Borders::ALL)
-            .title(" File changes ")
-            .border_style(crate::colors::style_border())
-            .style(crate::colors::style_text_on_bg());
+        let files_block = crate::components::popup_frame::themed_block()
+            .title(" File changes ");
         let files_inner = files_block.inner(files_area);
         files_block.render(files_area, buf);
         let file_lines = if entry.file_lines.is_empty() {
@@ -200,11 +194,8 @@ impl UndoTimelineView {
         }
 
         Clear.render(area, buf);
-        let block = Block::default()
-            .borders(Borders::ALL)
+        let block = crate::components::popup_frame::themed_block()
             .title(" Restore workspace snapshot ")
-            .border_style(crate::colors::style_border())
-            .style(crate::colors::style_text_on_bg())
             .title_alignment(Alignment::Center);
         let inner = block.inner(area);
         block.render(area, buf);
@@ -214,11 +205,8 @@ impl UndoTimelineView {
         ])
         .areas(inner);
 
-        let list_block = Block::default()
-            .borders(Borders::ALL)
-            .title(" Snapshots ")
-            .border_style(crate::colors::style_border())
-            .style(crate::colors::style_text_on_bg());
+        let list_block = crate::components::popup_frame::themed_block()
+            .title(" Snapshots ");
         let list_inner = list_block.inner(list_area);
         list_block.render(list_area, buf);
         self.render_list(list_inner, buf);

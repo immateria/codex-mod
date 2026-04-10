@@ -321,15 +321,8 @@ impl ChatWidget<'_> {
                             height: h,
                         };
                         Clear.render(dialog, buf);
-                        let dlg_block = Block::default()
-                            .borders(Borders::ALL)
-                            .title("Confirm Undo")
-                            .style(
-                                Style::default()
-                                    .bg(crate::colors::background())
-                                    .fg(crate::colors::text()),
-                            )
-                            .border_style(crate::colors::style_border());
+                        let dlg_block = crate::components::popup_frame::themed_block()
+                            .title("Confirm Undo");
                         let dlg_inner = dlg_block.inner(dialog);
                         dlg_block.render(dialog, buf);
                         // Fill dialog inner area with theme background for consistent look

@@ -2,6 +2,15 @@ use ratatui::buffer::Buffer;
 use ratatui::layout::{Alignment, Rect};
 use ratatui::widgets::{Block, Borders, Clear, Widget};
 
+/// A bordered block styled with the current theme's border and background.
+/// Returns a `Block` ready for further chaining (`.title()`, `.style()`, etc.).
+pub(crate) fn themed_block() -> Block<'static> {
+    Block::default()
+        .borders(Borders::ALL)
+        .border_style(crate::colors::style_border())
+        .style(crate::colors::style_text_on_bg())
+}
+
 pub(crate) fn render_popup_frame(area: Rect, buf: &mut Buffer, title: &str) -> Option<Rect> {
     if area.is_empty() {
         return None;
@@ -9,10 +18,7 @@ pub(crate) fn render_popup_frame(area: Rect, buf: &mut Buffer, title: &str) -> O
 
     Clear.render(area, buf);
 
-    let block = Block::default()
-        .borders(Borders::ALL)
-        .border_style(crate::colors::style_border())
-        .style(crate::colors::style_text_on_bg())
+    let block = themed_block()
         .title(title)
         .title_alignment(Alignment::Center);
 
