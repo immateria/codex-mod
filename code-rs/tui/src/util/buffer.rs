@@ -10,7 +10,7 @@ use crate::live_wrap::take_prefix_by_width;
 /// Fill the given rectangular area with spaces and apply the given style.
 /// This is the most common fill pattern — shorthand for
 /// `fill_rect(buf, area, Some(' '), style)`.
-pub fn fill_bg(buf: &mut Buffer, area: Rect, style: Style) {
+pub(crate) fn fill_bg(buf: &mut Buffer, area: Rect, style: Style) {
     fill_rect(buf, area, Some(' '), style);
 }
 
@@ -18,7 +18,7 @@ pub fn fill_bg(buf: &mut Buffer, area: Rect, style: Style) {
 ///
 /// The rectangle is clipped to the buffer's bounds before being applied. When `fill_char`
 /// is `Some(_)`, each cell's symbol is replaced; otherwise only the style is updated.
-pub fn fill_rect(buf: &mut Buffer, area: Rect, fill_char: Option<char>, style: Style) {
+pub(crate) fn fill_rect(buf: &mut Buffer, area: Rect, fill_char: Option<char>, style: Style) {
     let rect = buf.area.intersection(area);
     if rect.width == 0 || rect.height == 0 {
         return;
@@ -68,7 +68,7 @@ pub fn fill_rect(buf: &mut Buffer, area: Rect, fill_char: Option<char>, style: S
 
 /// Draw a styled line into the buffer, clipping to the provided width and
 /// applying a base style (commonly used to enforce background colors).
-pub fn write_line(
+pub(crate) fn write_line(
     buf: &mut Buffer,
     origin_x: u16,
     origin_y: u16,

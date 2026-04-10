@@ -121,8 +121,8 @@ mod theme;
 mod thread_spawner;
 mod timing;
 mod util {
-    pub mod buffer;
-    pub mod list_window;
+    pub(crate) mod buffer;
+    pub(crate) mod list_window;
 }
 mod spinner;
 mod tui;

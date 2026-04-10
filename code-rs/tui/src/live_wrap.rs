@@ -2,10 +2,10 @@ use unicode_width::UnicodeWidthChar;
 
 /// A single visual row produced by RowBuilder.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Row {
-    pub text: String,
+pub(crate) struct Row {
+    pub(crate) text: String,
     /// True if this row ends with an explicit line break (as opposed to a hard wrap).
-    pub explicit_break: bool,
+    pub(crate) explicit_break: bool,
 }
 
 fn make_row(text: String, explicit_break: bool) -> Row {
@@ -18,7 +18,7 @@ fn make_row(text: String, explicit_break: bool) -> Row {
 /// Incrementally wraps input text into visual rows of at most `width` cells.
 ///
 /// Step 1: plain-text only. ANSI-carry and styled spans will be added later.
-pub struct RowBuilder {
+pub(crate) struct RowBuilder {
     target_width: usize,
     /// Buffer for the current logical line (until a '\n' is seen).
     current_line: String,
@@ -27,7 +27,7 @@ pub struct RowBuilder {
 }
 
 impl RowBuilder {
-    pub fn new(target_width: usize) -> Self {
+    pub(crate) fn new(target_width: usize) -> Self {
         Self {
             target_width: target_width.max(1),
             current_line: String::new(),
@@ -36,7 +36,7 @@ impl RowBuilder {
     }
 
     /// Push an input fragment. May contain newlines.
-    pub fn push_fragment(&mut self, fragment: &str) {
+    pub(crate) fn push_fragment(&mut self, fragment: &str) {
         if fragment.is_empty() {
             return;
         }
@@ -58,24 +58,24 @@ impl RowBuilder {
     }
 
     /// Return a snapshot of produced rows (non-draining).
-    pub fn rows(&self) -> &[Row] {
+    pub(crate) fn rows(&self) -> &[Row] {
         &self.rows
     }
 
     /// True when the builder has no content to display (no committed rows
     /// and no partial current line).
-    pub fn is_empty(&self) -> bool {
+    pub(crate) fn is_empty(&self) -> bool {
         self.rows.is_empty() && self.current_line.is_empty()
     }
 
     /// Number of display rows (committed + optional partial current line).
-    pub fn display_row_count(&self) -> usize {
+    pub(crate) fn display_row_count(&self) -> usize {
         self.rows.len() + usize::from(!self.current_line.is_empty())
     }
 
     /// Returns the in-progress (not yet committed) current line as a Row,
     /// if non-empty. Avoids the full Vec clone that `display_rows()` performs.
-    pub fn trailing_display_row(&self) -> Option<Row> {
+    pub(crate) fn trailing_display_row(&self) -> Option<Row> {
         if self.current_line.is_empty() {
             None
         } else {
@@ -84,7 +84,7 @@ impl RowBuilder {
     }
 
     /// Rows suitable for display, including the current partial line if any.
-    pub fn display_rows(&self) -> Vec<Row> {
+    pub(crate) fn display_rows(&self) -> Vec<Row> {
         let mut out = self.rows.clone();
         if !self.current_line.is_empty() {
             out.push(make_row(self.current_line.clone(), false));
@@ -224,7 +224,7 @@ mod tests {
 
 /// Take a prefix of `text` whose visible width is at most `max_cols`.
 /// Returns (prefix, suffix, prefix_width).
-pub fn take_prefix_by_width(text: &str, max_cols: usize) -> (String, &str, usize) {
+pub(crate) fn take_prefix_by_width(text: &str, max_cols: usize) -> (String, &str, usize) {
     if max_cols == 0 || text.is_empty() {
         return (String::new(), text, 0);
     }

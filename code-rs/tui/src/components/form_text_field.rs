@@ -11,7 +11,7 @@ use std::cell::RefCell;
 use crate::components::textarea::{TextArea, TextAreaState};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum InputFilter {
+pub(crate) enum InputFilter {
     None,
     /// Allow only ASCII alphanumeric, '-', '_' and '.'; disallow spaces and newlines
     Id,
@@ -25,7 +25,7 @@ pub enum InputFilter {
 /// - Supports single‑line mode (ignores Enter pastes/newlines) and multi‑line
 ///   mode (Enter inserts a newline; paste preserves newlines).
 #[derive(Debug)]
-pub struct FormTextField {
+pub(crate) struct FormTextField {
     textarea: TextArea,
     state: RefCell<TextAreaState>,
     single_line: bool,
@@ -34,7 +34,7 @@ pub struct FormTextField {
 }
 
 impl FormTextField {
-    pub fn new_single_line() -> Self {
+    pub(crate) fn new_single_line() -> Self {
         Self {
             textarea: TextArea::new(),
             state: RefCell::new(TextAreaState::default()),
@@ -43,7 +43,7 @@ impl FormTextField {
             placeholder: None,
         }
     }
-    pub fn new_multi_line() -> Self {
+    pub(crate) fn new_multi_line() -> Self {
         Self {
             textarea: TextArea::new(),
             state: RefCell::new(TextAreaState::default()),
@@ -53,9 +53,9 @@ impl FormTextField {
         }
     }
 
-    pub fn set_filter(&mut self, filter: InputFilter) { self.filter = filter; }
+    pub(crate) fn set_filter(&mut self, filter: InputFilter) { self.filter = filter; }
 
-    pub fn set_placeholder(&mut self, placeholder: &str) {
+    pub(crate) fn set_placeholder(&mut self, placeholder: &str) {
         let trimmed = placeholder.trim();
         self.placeholder = if trimmed.is_empty() {
             None
@@ -68,7 +68,7 @@ impl FormTextField {
         c.is_ascii_alphanumeric() || matches!(c, '-' | '_' | '.')
     }
 
-    pub fn set_text(&mut self, text: &str) {
+    pub(crate) fn set_text(&mut self, text: &str) {
         if self.single_line {
             let mut t = text.replace('\r', "\n");
             t = t.replace('\n', " ");
@@ -79,21 +79,21 @@ impl FormTextField {
         self.textarea.set_cursor(self.textarea.text().len());
     }
 
-    pub fn move_cursor_to_start(&mut self) {
+    pub(crate) fn move_cursor_to_start(&mut self) {
         self.textarea.set_cursor(0);
     }
 
     // Intentionally no "move_cursor_to_end" to avoid unused-warn; add if needed.
 
-    pub fn text(&self) -> &str { self.textarea.text() }
+    pub(crate) fn text(&self) -> &str { self.textarea.text() }
 
-    pub fn cursor_is_at_start(&self) -> bool { self.textarea.cursor() == 0 }
-    pub fn cursor_is_at_end(&self) -> bool { self.textarea.cursor() == self.textarea.text().len() }
+    pub(crate) fn cursor_is_at_start(&self) -> bool { self.textarea.cursor() == 0 }
+    pub(crate) fn cursor_is_at_end(&self) -> bool { self.textarea.cursor() == self.textarea.text().len() }
 
     #[cfg(test)]
-    pub fn cursor(&self) -> usize { self.textarea.cursor() }
+    pub(crate) fn cursor(&self) -> usize { self.textarea.cursor() }
 
-    pub fn handle_key(&mut self, key: KeyEvent) -> bool {
+    pub(crate) fn handle_key(&mut self, key: KeyEvent) -> bool {
         // For single-line inputs, swallow Enter (treat as no-op here; the form
         // can decide to move focus or trigger an action). Also convert any
         // Control-Enter to newline only in multi-line mode.
@@ -128,7 +128,7 @@ impl FormTextField {
         true
     }
 
-    pub fn handle_paste(&mut self, mut pasted: String) {
+    pub(crate) fn handle_paste(&mut self, mut pasted: String) {
         pasted = pasted.replace('\r', "\n");
         // Remove newlines entirely for ID filter; otherwise normalize
         match self.filter {
@@ -150,13 +150,13 @@ impl FormTextField {
 
     /// Handle mouse click at screen coordinates, repositioning the cursor.
     /// Returns true if the cursor was moved.
-    pub fn handle_mouse_click(&mut self, screen_x: u16, screen_y: u16, area: Rect) -> bool {
+    pub(crate) fn handle_mouse_click(&mut self, screen_x: u16, screen_y: u16, area: Rect) -> bool {
         self.textarea.handle_mouse_click(screen_x, screen_y, area, *self.state.borrow())
     }
 
     /// Scrolls multiline fields by one wrapped line in the given direction.
     /// Returns true when this moved the cursor (and therefore viewport).
-    pub fn handle_mouse_scroll(&mut self, scroll_down: bool) -> bool {
+    pub(crate) fn handle_mouse_scroll(&mut self, scroll_down: bool) -> bool {
         if self.single_line {
             return false;
         }
@@ -169,14 +169,14 @@ impl FormTextField {
         self.textarea.cursor() != before
     }
 
-    pub fn desired_height(&self, width: u16) -> u16 {
+    pub(crate) fn desired_height(&self, width: u16) -> u16 {
         if self.single_line { 1 } else { self.textarea.desired_height(width).max(1) }
     }
 
     /// Render the field text within `area`. When `focused` is true, draw a thin
     /// caret marker at the logical cursor position (the real terminal cursor is
     /// hidden while overlays are active).
-    pub fn render(&self, area: Rect, buf: &mut Buffer, focused: bool) {
+    pub(crate) fn render(&self, area: Rect, buf: &mut Buffer, focused: bool) {
         // Paint text using the TextArea renderer for exact wrapping
         let mut state = *self.state.borrow();
         StatefulWidgetRef::render_ref(&(&self.textarea), area, buf, &mut state);

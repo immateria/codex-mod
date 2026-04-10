@@ -6,7 +6,7 @@ use ratatui::text::Span;
 use regex_lite::Regex;
 
 /// Custom markdown renderer with full control over spacing and styling
-pub struct MarkdownRenderer {
+pub(crate) struct MarkdownRenderer {
     lines: Vec<Line<'static>>,
     current_line: Vec<Span<'static>>,
     in_code_block: bool,
@@ -22,7 +22,7 @@ pub struct MarkdownRenderer {
 }
 
 impl MarkdownRenderer {
-    pub fn new() -> Self {
+    pub(crate) fn new() -> Self {
         Self {
             lines: Vec::new(),
             current_line: Vec::new(),
@@ -35,7 +35,7 @@ impl MarkdownRenderer {
         }
     }
 
-    pub fn render(text: &str) -> Vec<Line<'static>> {
+    pub(crate) fn render(text: &str) -> Vec<Line<'static>> {
         let mut renderer = Self::new();
         // Top-level assistant text uses the theme's primary text color as the
         // base for tinting inline code spans.
@@ -45,7 +45,7 @@ impl MarkdownRenderer {
         renderer.lines
     }
 
-    pub fn render_with_bold_first_sentence(text: &str) -> Vec<Line<'static>> {
+    pub(crate) fn render_with_bold_first_sentence(text: &str) -> Vec<Line<'static>> {
         let mut renderer = Self::new();
         renderer.bold_first_sentence = true;
         renderer.inline_code_tint_target = Some(crate::colors::text());

@@ -6,16 +6,16 @@ use ratatui::layout::Rect;
 use ratatui::prelude::Color;
 
 #[derive(Clone, Copy, Debug)]
-pub struct RevealRender {
-    pub progress: f32,
-    pub variant: RevealVariant,
-    pub intro_light: bool,
+pub(crate) struct RevealRender {
+    pub(crate) progress: f32,
+    pub(crate) variant: RevealVariant,
+    pub(crate) intro_light: bool,
 }
 
-pub struct GradientBackground;
+pub(crate) struct GradientBackground;
 
 impl GradientBackground {
-    pub fn render(
+    pub(crate) fn render(
         buf: &mut Buffer,
         area: Rect,
         gradient: &GradientSpec,
@@ -33,7 +33,7 @@ impl GradientBackground {
         }
     }
 
-    pub fn render_static(buf: &mut Buffer, area: Rect, gradient: &GradientSpec, fg: Color) {
+    pub(crate) fn render_static(buf: &mut Buffer, area: Rect, gradient: &GradientSpec, fg: Color) {
         for row in 0..area.height {
             for col in 0..area.width {
                 let x = col as f32 / area.width.max(1) as f32;
@@ -47,7 +47,7 @@ impl GradientBackground {
         }
     }
 
-    pub fn render_reveal(
+    pub(crate) fn render_reveal(
         buf: &mut Buffer,
         area: Rect,
         gradient: &GradientSpec,
