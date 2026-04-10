@@ -50,7 +50,8 @@ impl ChatComposer {
                             // bursty catch‑up redraws.
                             let mut target = next;
                             while target <= now {
-                                if let Some(t) = target.checked_add(period) { target = t; } else { break; }
+                                let Some(t) = target.checked_add(period) else { break; };
+                                target = t;
                             }
                             next = target;
                         }

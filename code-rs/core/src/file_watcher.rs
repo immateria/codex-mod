@@ -25,7 +25,7 @@ use tracing::warn;
 use crate::config::Config;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum FileWatcherEvent {
+pub(crate) enum FileWatcherEvent {
     SkillsChanged { paths: Vec<PathBuf> },
 }
 

@@ -41,7 +41,7 @@ impl PlanUpdateCell {
             crate::colors::info()
         };
 
-        let mut spans: Vec<Span<'static>> = Vec::new();
+        let mut spans: Vec<Span<'static>> = Vec::with_capacity(6);
         spans.push(Span::styled(
             self.state.name.clone(),
             Style::default()
@@ -59,7 +59,7 @@ impl PlanUpdateCell {
     }
 
     fn step_line(&self, step: &PlanStep, is_first: bool) -> Line<'static> {
-        let mut spans: Vec<Span<'static>> = Vec::new();
+        let mut spans: Vec<Span<'static>> = Vec::with_capacity(4);
         spans.push(if is_first {
             Span::raw("└ ")
         } else {

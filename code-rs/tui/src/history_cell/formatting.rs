@@ -792,7 +792,11 @@ pub(crate) fn fold_sections(
         .saturating_add(result.len())
         .saturating_add(error.len());
 
-    let mut shown: Vec<Line<'static>> = Vec::new();
+    let cap = limits.args
+        .saturating_add(limits.result)
+        .saturating_add(limits.error)
+        .saturating_add(1);
+    let mut shown: Vec<Line<'static>> = Vec::with_capacity(cap);
     shown.extend(args.into_iter().take(limits.args));
     shown.extend(result.into_iter().take(limits.result));
     shown.extend(error.into_iter().take(limits.error));

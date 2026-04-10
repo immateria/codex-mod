@@ -1541,7 +1541,7 @@ async fn persist_overrides_with_behavior(
         Err(e) => return Err(e.into()),
     };
 
-    let effective_profile = if let Some(p) = profile { Some(p.to_owned()) } else { doc.get("profile").and_then(|i| i.as_str()).map(ToString::to_string) };
+    let effective_profile = profile.map(|p| p.to_owned()).or_else(|| doc.get("profile").and_then(|i| i.as_str()).map(ToString::to_string));
 
     let mut mutated = false;
     for (segments, value) in overrides.iter().copied() {

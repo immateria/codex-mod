@@ -44,10 +44,10 @@ const MAX_RETRIES: usize = 10;
 const RETRY_SLEEP: Duration = Duration::from_millis(100);
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct HistoryEntry {
-    pub session_id: String,
-    pub ts: u64,
-    pub text: String,
+pub(crate) struct HistoryEntry {
+    pub(crate) session_id: String,
+    pub(crate) ts: u64,
+    pub(crate) text: String,
 }
 
 fn history_filepath(config: &Config) -> PathBuf {

@@ -5,12 +5,12 @@ use thiserror::Error;
 
 #[derive(Debug, Error, PartialEq, Eq)]
 #[error("{message}")]
-pub struct ConstraintError {
-    pub message: String,
+pub(crate) struct ConstraintError {
+    pub(crate) message: String,
 }
 
 impl ConstraintError {
-    pub fn invalid_value(candidate: impl Into<String>, allowed: impl Into<String>) -> Self {
+    pub(crate) fn invalid_value(candidate: impl Into<String>, allowed: impl Into<String>) -> Self {
         let candidate = candidate.into();
         let allowed = allowed.into();
         Self {
@@ -18,7 +18,7 @@ impl ConstraintError {
         }
     }
 
-    pub fn empty_field(field_name: impl Into<String>) -> Self {
+    pub(crate) fn empty_field(field_name: impl Into<String>) -> Self {
         let field_name = field_name.into();
         Self {
             message: format!("field `{field_name}` cannot be empty"),
@@ -26,7 +26,7 @@ impl ConstraintError {
     }
 }
 
-pub type ConstraintResult<T> = Result<T, ConstraintError>;
+pub(crate) type ConstraintResult<T> = Result<T, ConstraintError>;
 
 impl From<ConstraintError> for std::io::Error {
     fn from(err: ConstraintError) -> Self {
@@ -37,13 +37,13 @@ impl From<ConstraintError> for std::io::Error {
 type ConstraintValidator<T> = dyn Fn(&T) -> ConstraintResult<()> + Send + Sync;
 
 #[derive(Clone)]
-pub struct Constrained<T> {
+pub(crate) struct Constrained<T> {
     value: T,
     validator: Arc<ConstraintValidator<T>>,
 }
 
 impl<T: Send + Sync> Constrained<T> {
-    pub fn new(
+    pub(crate) fn new(
         initial_value: T,
         validator: impl Fn(&T) -> ConstraintResult<()> + Send + Sync + 'static,
     ) -> ConstraintResult<Self> {
@@ -55,21 +55,21 @@ impl<T: Send + Sync> Constrained<T> {
         })
     }
 
-    pub fn allow_any(initial_value: T) -> Self {
+    pub(crate) fn allow_any(initial_value: T) -> Self {
         Self {
             value: initial_value,
             validator: Arc::new(|_| Ok(())),
         }
     }
 
-    pub fn allow_any_from_default() -> Self
+    pub(crate) fn allow_any_from_default() -> Self
     where
         T: Default,
     {
         Self::allow_any(T::default())
     }
 
-    pub fn allow_only(value: T) -> Self
+    pub(crate) fn allow_only(value: T) -> Self
     where
         T: PartialEq + Send + Sync + fmt::Debug + Clone + 'static,
     {
@@ -88,7 +88,7 @@ impl<T: Send + Sync> Constrained<T> {
         Self { value, validator }
     }
 
-    pub fn allow_values(initial_value: T, allowed: Vec<T>) -> ConstraintResult<Self>
+    pub(crate) fn allow_values(initial_value: T, allowed: Vec<T>) -> ConstraintResult<Self>
     where
         T: PartialEq + Send + Sync + fmt::Debug + 'static,
     {
@@ -104,22 +104,18 @@ impl<T: Send + Sync> Constrained<T> {
         })
     }
 
-    pub fn get(&self) -> &T {
-        &self.value
-    }
-
-    pub fn value(&self) -> T
+    pub(crate) fn value(&self) -> T
     where
         T: Copy,
     {
         self.value
     }
 
-    pub fn can_set(&self, candidate: &T) -> ConstraintResult<()> {
+    pub(crate) fn can_set(&self, candidate: &T) -> ConstraintResult<()> {
         (self.validator)(candidate)
     }
 
-    pub fn set(&mut self, value: T) -> ConstraintResult<()> {
+    pub(crate) fn set(&mut self, value: T) -> ConstraintResult<()> {
         (self.validator)(&value)?;
         self.value = value;
         Ok(())

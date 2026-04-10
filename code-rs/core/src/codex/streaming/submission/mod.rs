@@ -110,7 +110,7 @@ pub(in crate::codex) async fn submission_loop(
                 sess_arc.send_event(event).await;
             }
             Op::AddPendingInputDeveloper { text } => {
-                let sess = match sess.as_ref() { Some(s) => s.clone(), None => { send_no_session_event(sub.id).await; continue; } };
+                let Some(sess) = sess.as_ref().cloned() else { send_no_session_event(sub.id).await; continue; };
                 let dev_msg = ResponseInputItem::Message { role: "developer".to_string(), content: vec![ContentItem::InputText { text }] };
                 let should_start_turn = sess.enqueue_out_of_turn_item(dev_msg);
                 if should_start_turn {

@@ -6,7 +6,7 @@ use shlex::split as shlex_split;
 use crate::parse_command::{parse_command_impl, ParsedCommand};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub enum DryRunGuardKey {
+pub(crate) enum DryRunGuardKey {
     CargoFmt,
     CargoFix,
     CargoClippyFix,
@@ -25,7 +25,7 @@ pub enum DryRunGuardKey {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub enum PackageManager {
+pub(crate) enum PackageManager {
     Npm,
     Pnpm,
     Yarn,
@@ -42,29 +42,29 @@ impl PackageManager {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum DryRunDisposition {
+pub(crate) enum DryRunDisposition {
     DryRun,
     Mutating,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct DryRunAnalysis {
-    pub key: DryRunGuardKey,
-    pub disposition: DryRunDisposition,
+pub(crate) struct DryRunAnalysis {
+    pub(crate) key: DryRunGuardKey,
+    pub(crate) disposition: DryRunDisposition,
     tokens: Vec<String>,
     display_name: String,
     custom_suggested_dry_run: Option<String>,
 }
 
 #[derive(Clone, Default)]
-pub struct DryRunGuardState {
+pub(crate) struct DryRunGuardState {
     command_counter: u64,
     last_dry_run: HashMap<DryRunGuardKey, u64>,
     last_mutating: HashMap<DryRunGuardKey, u64>,
 }
 
 impl DryRunGuardState {
-    pub fn has_recent_dry_run(&self, key: DryRunGuardKey) -> bool {
+    pub(crate) fn has_recent_dry_run(&self, key: DryRunGuardKey) -> bool {
         match self.last_dry_run.get(&key).copied() {
             Some(dry_seq) => {
                 let last_mut = self.last_mutating.get(&key).copied().unwrap_or(0);
@@ -74,7 +74,7 @@ impl DryRunGuardState {
         }
     }
 
-    pub fn note_execution(&mut self, analysis: &DryRunAnalysis) {
+    pub(crate) fn note_execution(&mut self, analysis: &DryRunAnalysis) {
         self.command_counter = self.command_counter.saturating_add(1);
         let seq = self.command_counter;
         match analysis.disposition {
@@ -89,7 +89,7 @@ impl DryRunGuardState {
 }
 
 impl DryRunAnalysis {
-    pub fn suggested_dry_run(&self) -> Option<String> {
+    pub(crate) fn suggested_dry_run(&self) -> Option<String> {
         if let Some(custom) = &self.custom_suggested_dry_run {
             return Some(custom.clone());
         }
@@ -113,7 +113,7 @@ impl DryRunAnalysis {
         }
     }
 
-    pub fn display_name(&self) -> &str {
+    pub(crate) fn display_name(&self) -> &str {
         &self.display_name
     }
 
@@ -311,7 +311,7 @@ fn command_basename(token: &str) -> String {
 fn equal_ignore_case<S: AsRef<str>, T: AsRef<str>>(left: S, right: T) -> bool {
     left.as_ref().eq_ignore_ascii_case(right.as_ref())
 }
-pub fn analyze_command(command: &[String]) -> Option<DryRunAnalysis> {
+pub(crate) fn analyze_command(command: &[String]) -> Option<DryRunAnalysis> {
     let first_tokens = first_command_tokens(command)?;
     if first_tokens.is_empty() {
         return None;

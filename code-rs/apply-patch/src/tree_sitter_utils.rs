@@ -59,11 +59,13 @@ pub(crate) fn find_embedded_apply_patch(script: &str) -> Result<Option<EmbeddedA
             b'\'' => {
                 // 'EOF'
                 let k = rest[j+1..].find('\'').map(|p| j + 1 + p);
-                if let Some(endq) = k { (&rest[j+1..endq], endq + 1) } else { i = start + 2; continue; }
+                let Some(endq) = k else { i = start + 2; continue; };
+                (&rest[j+1..endq], endq + 1)
             }
             b'"' => {
                 let k = rest[j+1..].find('"').map(|p| j + 1 + p);
-                if let Some(endq) = k { (&rest[j+1..endq], endq + 1) } else { i = start + 2; continue; }
+                let Some(endq) = k else { i = start + 2; continue; };
+                (&rest[j+1..endq], endq + 1)
             }
             _ => {
                 // Bare word up to whitespace

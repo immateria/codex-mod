@@ -1584,7 +1584,9 @@ async fn run_submit(args: crate::cli::SubmitArgs) -> anyhow::Result<()> {
     };
 
     // Resolve target environment id
-    let env_id = if let Some(e) = args.env.clone() { e } else {
+    let env_id = if let Some(e) = args.env.clone() {
+        e
+    } else {
         let base_url = util::normalize_base_url(
             &std::env::var("CODEX_CLOUD_TASKS_BASE_URL")
                 .unwrap_or_else(|_| "https://chatgpt.com/backend-api".to_string()),

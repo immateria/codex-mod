@@ -183,7 +183,7 @@ impl HeightManager {
             let override_target = hud_target_override.is_some();
             // Use caller-provided target when available; otherwise fall back to
             // an aspect-based estimate similar to the older preview logic.
-            let mut target = if let Some(t) = hud_target_override { t } else {
+            let mut target = hud_target_override.unwrap_or_else(|| {
                 // Compute HUD target height using 16:9 aspect on full inner width.
                 let padded_area = Rect { x: area.x + 1, y: area.y, width: area.width.saturating_sub(2), height: area.height };
                 let inner_cols = padded_area.width.saturating_sub(2);
@@ -191,7 +191,7 @@ impl HeightManager {
                 let number = (inner_cols as u32) * 3 * (cw as u32);
                 let denom = 4 * (ch as u32);
                 ((number / denom) as u16).saturating_add(1) // include borders budget
-            };
+            });
 
             // Keep within budget: reserve space for status + bottom + >=1 row history.
             let vertical_budget = area

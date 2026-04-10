@@ -148,9 +148,8 @@ pub use sources::ShellStyleSkillMode;
 #[allow(deprecated)]
 pub use sources::set_tui_auto_drive_settings;
 
-pub use crate::config_constraint::Constrained;
-pub use crate::config_constraint::ConstraintError;
-pub use crate::config_constraint::ConstraintResult;
+pub(crate) use crate::config_constraint::Constrained;
+pub(crate) use crate::config_constraint::ConstraintError;
 
 pub(crate) use defaults::merge_with_default_agents;
 pub(crate) use validation::upgrade_legacy_model_slugs;

@@ -1312,7 +1312,7 @@ fn convert_mcp_content_to_items(
         items.push(item);
     }
 
-    if saw_image { Some(items) } else { None }
+    saw_image.then_some(items)
 }
 
 // Implement Display so callers can treat the payload like a plain string when logging or doing
