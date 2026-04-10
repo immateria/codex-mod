@@ -135,7 +135,7 @@ fn is_macos() -> bool {
     cfg!(target_os = "macos")
 }
 
-pub fn actionlint_hint() -> String {
+pub(crate) fn actionlint_hint() -> String {
     if is_macos() && has("brew") {
         return "brew install actionlint".to_string();
     }
@@ -145,7 +145,7 @@ pub fn actionlint_hint() -> String {
     "See: https://github.com/rhysd/actionlint#installation".to_string()
 }
 
-pub fn shellcheck_hint() -> String {
+pub(crate) fn shellcheck_hint() -> String {
     if is_macos() && has("brew") {
         return "brew install shellcheck".to_string();
     }
@@ -164,7 +164,7 @@ pub fn shellcheck_hint() -> String {
     "https://www.shellcheck.net/".to_string()
 }
 
-pub fn markdownlint_hint() -> String {
+pub(crate) fn markdownlint_hint() -> String {
     if has("npm") {
         return "npm i -g markdownlint-cli2".to_string();
     }
@@ -174,7 +174,7 @@ pub fn markdownlint_hint() -> String {
     "npm i -g markdownlint-cli2".to_string()
 }
 
-pub fn hadolint_hint() -> String {
+pub(crate) fn hadolint_hint() -> String {
     if is_macos() && has("brew") {
         return "brew install hadolint".to_string();
     }
@@ -193,7 +193,7 @@ pub fn hadolint_hint() -> String {
     "https://github.com/hadolint/hadolint".to_string()
 }
 
-pub fn yamllint_hint() -> String {
+pub(crate) fn yamllint_hint() -> String {
     if is_macos() && has("brew") {
         return "brew install yamllint".to_string();
     }
@@ -212,14 +212,14 @@ pub fn yamllint_hint() -> String {
     "https://yamllint.readthedocs.io/".to_string()
 }
 
-pub fn cargo_check_hint() -> String {
+pub(crate) fn cargo_check_hint() -> String {
     if has("cargo") {
         return "cargo check --all-targets".to_string();
     }
     "Install Rust (https://rustup.rs) to enable cargo check".to_string()
 }
 
-pub fn shfmt_hint() -> String {
+pub(crate) fn shfmt_hint() -> String {
     if is_macos() && has("brew") {
         return "brew install shfmt".to_string();
     }
@@ -238,7 +238,7 @@ pub fn shfmt_hint() -> String {
     "https://github.com/mvdan/sh".to_string()
 }
 
-pub fn prettier_hint() -> String {
+pub(crate) fn prettier_hint() -> String {
     if has("npm") {
         return "npx --yes prettier --write <path>".to_string();
     }
@@ -248,7 +248,7 @@ pub fn prettier_hint() -> String {
     "npm install --global prettier".to_string()
 }
 
-pub fn tsc_hint() -> String {
+pub(crate) fn tsc_hint() -> String {
     if has("pnpm") {
         return "pnpm add -D typescript".to_string();
     }
@@ -258,7 +258,7 @@ pub fn tsc_hint() -> String {
     "npm install --save-dev typescript".to_string()
 }
 
-pub fn eslint_hint() -> String {
+pub(crate) fn eslint_hint() -> String {
     if has("pnpm") {
         return "pnpm add -D eslint".to_string();
     }
@@ -268,21 +268,21 @@ pub fn eslint_hint() -> String {
     "npm install --save-dev eslint".to_string()
 }
 
-pub fn phpstan_hint() -> String {
+pub(crate) fn phpstan_hint() -> String {
     if has("composer") {
         return "composer require --dev phpstan/phpstan".to_string();
     }
     "See: https://phpstan.org/user-guide/getting-started".to_string()
 }
 
-pub fn psalm_hint() -> String {
+pub(crate) fn psalm_hint() -> String {
     if has("composer") {
         return "composer require --dev vimeo/psalm".to_string();
     }
     "See: https://psalm.dev/docs/install/".to_string()
 }
 
-pub fn mypy_hint() -> String {
+pub(crate) fn mypy_hint() -> String {
     if has("pipx") {
         return "pipx install mypy".to_string();
     }
@@ -292,7 +292,7 @@ pub fn mypy_hint() -> String {
     "pip install --user mypy".to_string()
 }
 
-pub fn pyright_hint() -> String {
+pub(crate) fn pyright_hint() -> String {
     if has("npm") {
         return "npm install --save-dev pyright".to_string();
     }
@@ -302,7 +302,7 @@ pub fn pyright_hint() -> String {
     "See: https://github.com/microsoft/pyright".to_string()
 }
 
-pub fn golangci_lint_hint() -> String {
+pub(crate) fn golangci_lint_hint() -> String {
     if is_macos() && has("brew") {
         return "brew install golangci-lint".to_string();
     }

@@ -30,7 +30,7 @@ pub(crate) fn insert_history_lines_above(terminal: &mut tui::Tui, reserved_botto
     insert_history_lines_to_writer_above(terminal, &mut out, reserved_bottom_rows, lines);
 }
 
-pub fn insert_history_lines_to_writer_above<B, W>(
+fn insert_history_lines_to_writer_above<B, W>(
     terminal: &mut ratatui::Terminal<B>,
     writer: &mut W,
     reserved_bottom_rows: u16,
@@ -116,7 +116,7 @@ pub fn insert_history_lines_to_writer_above<B, W>(
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct SetScrollRegion(pub std::ops::Range<u16>);
+struct SetScrollRegion(std::ops::Range<u16>);
 
 impl Command for SetScrollRegion {
     fn write_ansi(&self, f: &mut impl fmt::Write) -> fmt::Result {
@@ -139,7 +139,7 @@ impl Command for SetScrollRegion {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct ResetScrollRegion;
+struct ResetScrollRegion;
 
 impl Command for ResetScrollRegion {
     fn write_ansi(&self, f: &mut impl fmt::Write) -> fmt::Result {

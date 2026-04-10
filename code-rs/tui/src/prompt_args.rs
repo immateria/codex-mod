@@ -62,7 +62,7 @@ impl PromptExpansionError {
 /// A placeholder is any token that matches the pattern `$[A-Z][A-Z0-9_]*`
 /// (for example `$USER`). The function returns the variable names without
 /// the leading `$`, de-duplicated and in the order of first appearance.
-pub fn prompt_argument_names(content: &str) -> Vec<String> {
+pub(crate) fn prompt_argument_names(content: &str) -> Vec<String> {
     let mut seen = HashSet::new();
     let mut names = Vec::new();
     for m in PROMPT_ARG_REGEX.find_iter(content) {
@@ -87,7 +87,7 @@ pub fn prompt_argument_names(content: &str) -> Vec<String> {
 /// The input is split using shlex rules, so quoted values are supported
 /// (for example `USER="Alice Smith"`). The function returns a map of parsed
 /// arguments, or an error if a token is missing `=` or if the key is empty.
-pub fn parse_prompt_inputs(rest: &str) -> Result<HashMap<String, String>, PromptArgsError> {
+pub(crate) fn parse_prompt_inputs(rest: &str) -> Result<HashMap<String, String>, PromptArgsError> {
     let mut map = HashMap::new();
     if rest.trim().is_empty() {
         return Ok(map);
@@ -199,7 +199,7 @@ pub fn expand_custom_prompt(
 }
 
 /// Detect whether `content` contains numeric placeholders ($1..$9) or `$ARGUMENTS`.
-pub fn prompt_has_numeric_placeholders(content: &str) -> bool {
+pub(crate) fn prompt_has_numeric_placeholders(content: &str) -> bool {
     if content.contains("$ARGUMENTS") {
         return true;
     }
@@ -218,7 +218,7 @@ pub fn prompt_has_numeric_placeholders(content: &str) -> bool {
 }
 
 /// Expand `$1..$9` and `$ARGUMENTS` in `content` with values from `args`.
-pub fn expand_numeric_placeholders(content: &str, args: &[String]) -> String {
+pub(crate) fn expand_numeric_placeholders(content: &str, args: &[String]) -> String {
     let mut out = String::with_capacity(content.len());
     let mut i = 0;
     let mut cached_joined_args: Option<String> = None;
