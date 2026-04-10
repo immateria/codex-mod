@@ -31,7 +31,7 @@ fn setsid_available() -> bool {
     std::process::Command::new("setsid")
         .arg("true")
         .status()
-        .is_some_and(|status| status.success())
+        .is_ok_and(|status| status.success())
 }
 
 fn shell_command(program: &str) -> (String, Vec<String>) {
