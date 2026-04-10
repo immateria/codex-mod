@@ -71,7 +71,7 @@ impl ToolCallCell {
     pub(crate) fn retint(&mut self, _old: &crate::theme::Theme, _new: &crate::theme::Theme) {}
 
     fn header_line(&self) -> Line<'static> {
-        let mut spans: Vec<Span<'static>> = Vec::new();
+        let mut spans: Vec<Span<'static>> = Vec::with_capacity(5);
         let mut style = Style::default().add_modifier(Modifier::BOLD);
         style = match self.state.status {
             HistoryToolStatus::Running => style.fg(crate::colors::info()),
@@ -101,7 +101,7 @@ impl ToolCallCell {
                 .unwrap_or(0);
             let total_hidden = args_count.saturating_add(result_count);
             if total_hidden > 0 {
-                let mut parts: Vec<String> = Vec::new();
+                let mut parts: Vec<String> = Vec::with_capacity(2);
                 if args_count > 0 {
                     parts.push(format!("{args_count} arg{}", if args_count == 1 { "" } else { "s" }));
                 }
@@ -183,7 +183,10 @@ impl ToolCallCell {
     }
 
     fn expanded_detail_lines(&self) -> Vec<Line<'static>> {
-        let mut lines: Vec<Line<'static>> = Vec::new();
+        let arg_count = self.state.arguments.len();
+        let result_count = self.state.result_preview.as_ref().map_or(0, |r| r.lines.len());
+        let error_count = if self.state.error_message.is_some() { 1 } else { 0 };
+        let mut lines: Vec<Line<'static>> = Vec::with_capacity(arg_count + result_count + error_count + 4);
         lines.extend(render_arguments(&self.state.arguments));
 
         let result_lines = self.result_preview_lines();

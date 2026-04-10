@@ -51,7 +51,7 @@ pub(super) fn fit_sections_to_width(
         include_footer_hint: bool,
         include_ctrl_c: bool,
     | -> (Vec<Span<'static>>, usize) {
-        let mut spans: Vec<Span<'static>> = Vec::new();
+        let mut spans: Vec<Span<'static>> = Vec::with_capacity(left_sections.len() * 2);
         let mut len = 0usize;
         let mut last_section_was_separator = false;
 
@@ -101,7 +101,7 @@ pub(super) fn fit_sections_to_width(
         include_editor: bool,
         include_right_other: bool,
     | -> (Vec<Span<'static>>, usize) {
-        let mut assembled: Vec<Span<'static>> = Vec::new();
+        let mut assembled: Vec<Span<'static>> = Vec::with_capacity(right_sections.len() * 2 + 4);
         let mut len = 0usize;
 
         let token_spans = if use_compact_tokens {

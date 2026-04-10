@@ -281,7 +281,7 @@ impl PlainHistoryCell {
 
     fn header_line(&self, theme: &Theme) -> Option<Line<'static>> {
         let header = self.state.header()?;
-        let mut spans: Vec<Span<'static>> = Vec::new();
+        let mut spans: Vec<Span<'static>> = Vec::with_capacity(3);
         let style = header_style(self.state.role(), theme);
         spans.push(Span::styled(header.label.clone(), style));
         if let Some(badge) = &header.badge {
@@ -329,14 +329,15 @@ impl HistoryCell for PlainHistoryCell {
             return vec![self.collapsed_summary_line()];
         }
         let theme = current_theme();
-        let mut lines: Vec<Line<'static>> = Vec::new();
+        let body = self.state.body();
+        let mut lines: Vec<Line<'static>> = Vec::with_capacity(body.len() + 2);
 
         if !self.hide_header()
             && let Some(header) = self.header_line(&theme) {
                 lines.push(header);
             }
 
-        let mut body_lines = message_lines_to_ratatui(self.state.body(), &theme);
+        let mut body_lines = message_lines_to_ratatui(body, &theme);
         if self.is_warning_notice()
             && let Some(first_line) = body_lines.first_mut()
             && let Some(first_span) = first_line.spans.first_mut()

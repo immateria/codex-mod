@@ -19,7 +19,7 @@ type TrackedClickableLine = (
 
 impl ChatWidget<'_> {
     pub(crate) fn export_transcript_lines_for_buffer(&self) -> Vec<ratatui::text::Line<'static>> {
-        let mut out: Vec<ratatui::text::Line<'static>> = Vec::new();
+        let mut out: Vec<ratatui::text::Line<'static>> = Vec::with_capacity(self.history_cells.len() * 4);
         for (idx, cell) in self.history_cells.iter().enumerate() {
             out.extend(self.render_lines_for_terminal(idx, cell.as_ref()));
         }
@@ -407,8 +407,8 @@ impl ChatWidget<'_> {
             .map(|value| render_plain_header_template(value, &header_template_ctx));
         let show_bottom_line = header_cfg.show_bottom_line && bottom_text.is_some();
 
-        let mut status_lines: Vec<Line<'static>> = Vec::new();
-        let mut tracked_clickable_lines: Vec<TrackedClickableLine> = Vec::new();
+        let mut status_lines: Vec<Line<'static>> = Vec::with_capacity(2);
+        let mut tracked_clickable_lines: Vec<TrackedClickableLine> = Vec::with_capacity(2);
         if header_cfg.show_top_line {
             if let Some(custom_top) = top_text_with_regions {
                 tracked_clickable_lines.push((0, custom_top.clickable_ranges, custom_top.width));

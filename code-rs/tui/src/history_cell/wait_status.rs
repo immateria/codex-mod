@@ -40,7 +40,7 @@ impl HistoryCell for WaitStatusCell {
 
     fn display_lines(&self) -> Vec<Line<'static>> {
         let theme = current_theme();
-        let mut lines: Vec<Line<'static>> = Vec::new();
+        let mut lines: Vec<Line<'static>> = Vec::with_capacity(self.state.details.len() + 2);
 
         lines.push(render_header(&self.state.header, &theme));
 
@@ -58,7 +58,7 @@ impl HistoryCell for WaitStatusCell {
 }
 
 fn render_header(header: &WaitStatusHeader, theme: &Theme) -> Line<'static> {
-    let mut spans: Vec<Span<'static>> = Vec::new();
+    let mut spans: Vec<Span<'static>> = Vec::with_capacity(2);
     spans.push(Span::styled(
         header.title.clone(),
         Style::default()
@@ -75,7 +75,7 @@ fn render_header(header: &WaitStatusHeader, theme: &Theme) -> Line<'static> {
 }
 
 fn render_detail(detail: &WaitStatusDetail, theme: &Theme) -> Line<'static> {
-    let mut spans: Vec<Span<'static>> = Vec::new();
+    let mut spans: Vec<Span<'static>> = Vec::with_capacity(3);
     let tone_color = color_for_tone(detail.tone, theme);
     spans.push(Span::styled(
         detail.label.clone(),
