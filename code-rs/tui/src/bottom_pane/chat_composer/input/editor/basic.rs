@@ -77,8 +77,7 @@ pub(super) fn handle_input_basic(view: &mut ChatComposer, input: KeyEvent) -> (I
         || view
             .post_paste_space_guard
             .as_ref()
-            .map(|guard| view.textarea.cursor() != guard.cursor_pos)
-            .unwrap_or(false)
+            .is_some_and(|guard| view.textarea.cursor() != guard.cursor_pos)
     {
         view.post_paste_space_guard = None;
     }

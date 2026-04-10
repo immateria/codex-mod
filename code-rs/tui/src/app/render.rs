@@ -119,8 +119,7 @@ impl App<'_> {
         let screen_size = terminal.size()?;
         if self
             .last_frame_size
-            .map(|prev| prev != screen_size)
-            .unwrap_or(false)
+            .is_some_and(|prev| prev != screen_size)
         {
             terminal.clear()?;
         }

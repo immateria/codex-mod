@@ -114,8 +114,7 @@ pub(crate) fn coalesce_read_ranges_in_lines_local(lines: &mut Vec<Line<'static>>
         && lines[0]
             .spans
             .first()
-            .map(|s| s.content.as_ref() != "└ " && s.content.as_ref() != "  ")
-            .unwrap_or(false)
+            .is_some_and(|s| s.content.as_ref() != "└ " && s.content.as_ref() != "  ")
     {
         rebuilt.push(lines[0].clone());
     }

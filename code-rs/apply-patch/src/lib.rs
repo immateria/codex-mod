@@ -593,8 +593,7 @@ pub fn apply_hunks(
             } => match move_path {
                 Some(move_path) => {
                     if std::fs::metadata(move_path)
-                        .map(|m| m.is_file())
-                        .unwrap_or(false)
+                        .is_ok_and(|m| m.is_file())
                     {
                         Some(move_path.as_path())
                     } else {

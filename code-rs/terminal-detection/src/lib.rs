@@ -317,8 +317,7 @@ fn detect_terminal_info_from_env(env: &dyn Environment) -> TerminalInfo {
     if env.has("KITTY_WINDOW_ID")
         || env
             .var("TERM")
-            .map(|term| term.contains("kitty"))
-            .unwrap_or(false)
+            .is_some_and(|term| term.contains("kitty"))
     {
         return TerminalInfo::from_name(TerminalName::Kitty, /*version*/ None, multiplexer);
     }
@@ -326,8 +325,7 @@ fn detect_terminal_info_from_env(env: &dyn Environment) -> TerminalInfo {
     if env.has("ALACRITTY_SOCKET")
         || env
             .var("TERM")
-            .map(|term| term == "alacritty")
-            .unwrap_or(false)
+            .is_some_and(|term| term == "alacritty")
     {
         return TerminalInfo::from_name(
             TerminalName::Alacritty,

@@ -79,8 +79,7 @@ impl AutoDriveHistory {
         for item in tail.into_iter() {
             let matched = normalize_message(&item)
                 .and_then(|message| queue.front().map(|expected| (message, expected)))
-                .map(|(message, expected)| message == *expected)
-                .unwrap_or(false);
+                .is_some_and(|(message, expected)| message == *expected);
 
             if matched {
                 self.session_metrics.record_duplicate_items(1);

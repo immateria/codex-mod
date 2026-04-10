@@ -347,8 +347,7 @@ impl HistoryRenderState {
 
                 let has_custom_render = req
                     .cell
-                    .map(crate::history_cell::HistoryCell::has_custom_render)
-                    .unwrap_or(false);
+                    .is_some_and(crate::history_cell::HistoryCell::has_custom_render);
 
                 let prohibit_cache = matches!(req.kind, RenderRequestKind::Streaming { .. });
                 let use_cache = req.use_cache && !prohibit_cache;

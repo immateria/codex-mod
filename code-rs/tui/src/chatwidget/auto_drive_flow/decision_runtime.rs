@@ -48,8 +48,7 @@ impl ChatWidget<'_> {
         self.auto_state.current_status_title = status_title;
         let planning_turn = cli
             .as_ref()
-            .map(|action| action.suppress_ui_context)
-            .unwrap_or(false);
+            .is_some_and(|action| action.suppress_ui_context);
         let cli_context_raw = cli
             .as_ref()
             .and_then(|action| action.context.clone());

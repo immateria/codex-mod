@@ -14,8 +14,7 @@ pub(super) fn grouped_batches(event: &AgentStatusUpdateEvent) -> Vec<(String, Ve
                 && !agent
                     .batch_id
                     .as_deref()
-                    .map(|batch| batch.eq_ignore_ascii_case("auto-review"))
-                    .unwrap_or(false)
+                    .is_some_and(|batch| batch.eq_ignore_ascii_case("auto-review"))
         })
         .cloned()
         .collect();

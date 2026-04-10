@@ -1024,8 +1024,7 @@ fn maybe_apply_terminal_theme_detection(config: &mut Config, theme_configured_ex
     let theme = &mut config.tui.theme;
 
     let autodetect_disabled = std::env::var("CODE_DISABLE_THEME_AUTODETECT")
-        .map(|value| code_core::util::is_truthy(&value))
-        .unwrap_or(false);
+        .is_ok_and(|value| code_core::util::is_truthy(&value));
     if autodetect_disabled {
         tracing::info!("Terminal theme autodetect disabled via CODE_DISABLE_THEME_AUTODETECT");
         return;
@@ -1174,8 +1173,7 @@ fn determine_repo_trust_state(
         .projects
         .as_ref()
         .and_then(|m| m.get(&proj_key))
-        .map(|p| p.approval_policy.is_some() || p.sandbox_mode.is_some())
-        .unwrap_or(false);
+        .is_some_and(|p| p.approval_policy.is_some() || p.sandbox_mode.is_some());
     if has_per_project_overrides {
         return Ok(false);
     }

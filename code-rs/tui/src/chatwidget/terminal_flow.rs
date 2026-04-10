@@ -461,8 +461,7 @@ impl ChatWidget<'_> {
                 && self
                     .terminal
                     .overlay()
-                    .map(|overlay| overlay.id == id)
-                    .unwrap_or(false)
+                    .is_some_and(|overlay| overlay.id == id)
                 {
                     if let Some(overlay) = self.terminal.overlay_mut() {
                         overlay.push_assistant_message("Approval granted. Running command…");

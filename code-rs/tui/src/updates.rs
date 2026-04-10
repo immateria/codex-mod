@@ -42,8 +42,7 @@ fn force_upgrade_preview_enabled() -> bool {
         FORCE_UPGRADE_FALSE => false,
         _ => {
             let computed = std::env::var("SHOW_UPGRADE")
-                .map(|value| code_core::util::is_truthy(value.trim()))
-                .unwrap_or(false);
+                .is_ok_and(|value| code_core::util::is_truthy(value.trim()));
 
             FORCE_UPGRADE_PREVIEW.store(
                 if computed {
@@ -445,8 +444,7 @@ fn wrap_with_sudo(command: &[String]) -> Vec<String> {
 fn starts_with_sudo(command: &[String]) -> bool {
     command
         .first()
-        .map(|c| c.eq_ignore_ascii_case("sudo"))
-        .unwrap_or(false)
+        .is_some_and(|c| c.eq_ignore_ascii_case("sudo"))
 }
 
 #[cfg(any(target_os = "macos", target_os = "linux"))]

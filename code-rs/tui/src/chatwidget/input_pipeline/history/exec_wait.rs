@@ -9,8 +9,7 @@ impl ChatWidget<'_> {
             }
             if target
                 .last()
-                .map(|(existing, existing_err)| existing == trimmed && *existing_err == *is_error)
-                .unwrap_or(false)
+                .is_some_and(|(existing, existing_err)| existing == trimmed && *existing_err == *is_error)
             {
                 continue;
             }

@@ -17,15 +17,13 @@ pub fn branch_worktree_root(path: &Path) -> Option<PathBuf> {
         let parent = ancestor.parent()?;
         if parent
             .file_name()
-            .map(|name| name == OsStr::new("branches"))
-            .unwrap_or(false)
+            .is_some_and(|name| name == OsStr::new("branches"))
         {
             let mut higher = parent.parent();
             while let Some(dir) = higher {
                 if dir
                     .file_name()
-                    .map(|name| name == OsStr::new(".code"))
-                    .unwrap_or(false)
+                    .is_some_and(|name| name == OsStr::new(".code"))
                 {
                     candidate = Some(ancestor.to_path_buf());
                     break;
@@ -740,8 +738,7 @@ pub async fn copy_uncommitted_to_worktree(src_root: &Path, worktree_path: &Path)
     let include_submods = std::env::var("CODEX_BRANCH_INCLUDE_SUBMODULES")
         .ok()
         .map(|v| v.to_ascii_lowercase())
-        .map(|v| v == "1" || v == "true" || v == "yes")
-        .unwrap_or(false);
+        .is_some_and(|v| v == "1" || v == "true" || v == "yes");
     if include_submods
         && let Ok(out) = Command::new("git")
             .current_dir(src_root)

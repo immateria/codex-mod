@@ -68,8 +68,7 @@ impl ChatWidget<'_> {
                 return self.history_cells[idx]
                     .as_any()
                     .downcast_ref::<crate::history_cell::CollapsibleReasoningCell>()
-                    .map(crate::history_cell::CollapsibleReasoningCell::is_collapsed)
-                    .unwrap_or(false);
+                    .is_some_and(crate::history_cell::CollapsibleReasoningCell::is_collapsed);
             }
             false
         };
@@ -739,13 +738,11 @@ impl ChatWidget<'_> {
             let mut should_add_spacing = idx < request_count.saturating_sub(1) && visible_height > 0;
             if should_add_spacing {
                 let this_is_collapsed_reasoning = cached_reasoning
-                    .map(crate::history_cell::CollapsibleReasoningCell::is_collapsed)
-                    .unwrap_or(false);
+                    .is_some_and(crate::history_cell::CollapsibleReasoningCell::is_collapsed);
                 if this_is_collapsed_reasoning {
                     let prev_is_collapsed_reasoning = idx
                         .checked_sub(1)
-                        .map(is_collapsed_reasoning_at)
-                        .unwrap_or(false);
+                        .is_some_and(is_collapsed_reasoning_at);
                     let next_is_collapsed_reasoning = is_collapsed_reasoning_at(idx + 1);
                     if prev_is_collapsed_reasoning && next_is_collapsed_reasoning {
                         should_add_spacing = false;

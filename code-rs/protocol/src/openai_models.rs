@@ -338,8 +338,7 @@ impl ModelMessages {
     fn has_personality_placeholder(&self) -> bool {
         self.instructions_template
             .as_ref()
-            .map(|spec| spec.contains(PERSONALITY_PLACEHOLDER))
-            .unwrap_or(false)
+            .is_some_and(|spec| spec.contains(PERSONALITY_PLACEHOLDER))
     }
 
     fn supports_personality(&self) -> bool {

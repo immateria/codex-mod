@@ -451,13 +451,11 @@ pub fn list_rate_limit_snapshots(
         if entry
             .file_type()
             .ok()
-            .map(|ft| ft.is_file())
-            .unwrap_or(false)
+            .is_some_and(|ft| ft.is_file())
             && path
                 .extension()
                 .and_then(|ext| ext.to_str())
-                .map(|ext| ext.eq_ignore_ascii_case("json"))
-                .unwrap_or(false)
+                .is_some_and(|ext| ext.eq_ignore_ascii_case("json"))
         {
             let contents = match fs::read_to_string(&path) {
                 Ok(text) => text,

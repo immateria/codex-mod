@@ -125,8 +125,7 @@ impl ChatWidget<'_> {
                     .auto_state
                     .current_cli_prompt
                     .as_ref()
-                    .map(|prompt| !prompt.trim().is_empty())
-                    .unwrap_or(false);
+                    .is_some_and(|prompt| !prompt.trim().is_empty());
 
             if prompt_visible {
                 return EscRoute::new(EscIntent::AutoPauseForEdit, true, false);

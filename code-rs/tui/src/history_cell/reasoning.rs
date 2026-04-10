@@ -179,8 +179,7 @@ impl CollapsibleReasoningCell {
             .borrow()
             .id
             .as_ref()
-            .map(|id| id == candidate)
-            .unwrap_or(false)
+            .is_some_and(|id| id == candidate)
     }
 
     pub(crate) fn set_in_progress(&self, in_progress: bool) {
@@ -473,8 +472,7 @@ fn dedup_append_entries(
     for nl in incoming.drain(..) {
         let dup = existing
             .last()
-            .map(|last| to_plain(last) == to_plain(&nl))
-            .unwrap_or(false);
+            .is_some_and(|last| to_plain(last) == to_plain(&nl));
         if !dup {
             existing.push(nl);
         }

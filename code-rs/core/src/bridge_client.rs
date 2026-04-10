@@ -587,8 +587,7 @@ fn workspace_has_code_bridge(start: &Path) -> bool {
     let contains_dep = |section: &str| -> bool {
         json.get(section)
             .and_then(|v| v.as_object())
-            .map(|map| map.contains_key("@just-every/code-bridge"))
-            .unwrap_or(false)
+            .is_some_and(|map| map.contains_key("@just-every/code-bridge"))
     };
 
     contains_dep("dependencies") || contains_dep("devDependencies") || contains_dep("peerDependencies")

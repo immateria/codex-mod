@@ -698,8 +698,7 @@ fn unwrap_shell_script(command: &[String]) -> Option<String> {
 
 fn is_shell_like(token: &str) -> bool {
     filter_command_name(token)
-        .map(|name| matches!(name.as_str(), "bash" | "sh" | "dash" | "zsh" | "ksh" | "busybox"))
-        .unwrap_or(false)
+        .is_some_and(|name| matches!(name.as_str(), "bash" | "sh" | "dash" | "zsh" | "ksh" | "busybox"))
 }
 
 fn looks_like_line_filter(cmd: &str) -> bool {

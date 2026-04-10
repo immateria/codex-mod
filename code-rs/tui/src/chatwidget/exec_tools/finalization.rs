@@ -112,8 +112,7 @@ pub(in super::super) fn finalize_all_running_as_interrupted(chat: &mut ChatWidge
                     let replaced = chat.history_cells[idx]
                         .as_any()
                         .downcast_ref::<history_cell::RunningToolCallCell>()
-                        .map(|cell| cell.has_title("Waiting"))
-                        .unwrap_or(false);
+                        .is_some_and(|cell| cell.has_title("Waiting"));
 
                     if replaced {
                         chat.history_replace_with_record(

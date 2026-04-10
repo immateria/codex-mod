@@ -349,8 +349,7 @@ async fn wait_for_type(
                         && val
                             .get("type")
                             .and_then(|t| t.as_str())
-                            .map(|t| expected_lower.contains(&t.to_string()))
-                            .unwrap_or(false)
+                            .is_some_and(|t| expected_lower.contains(&t.to_string()))
                         {
                             return Some(val);
                         }

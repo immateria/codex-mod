@@ -51,8 +51,7 @@ impl ChatWidget<'_> {
                 .layout
                 .scrollbar_visible_until
                 .get()
-                .map(|t| now < t)
-                .unwrap_or(false);
+                .is_some_and(|t| now < t);
         if show_scrollbar {
             let mut sb_state = self.layout.vertical_scrollbar_state.borrow_mut();
             let max_scroll = total_height.saturating_sub(content_area.height);

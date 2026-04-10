@@ -127,8 +127,7 @@ impl<'a> SettingsListDetailPage<'a> {
         let forced_panel = self.forced_panel();
         let used_forced = forced_panel
             .layout(area)
-            .map(|layout| matches!(self.layout_from_panel(layout).mode, SettingsListDetailMode::Split { .. }))
-            .unwrap_or(false);
+            .is_some_and(|layout| matches!(self.layout_from_panel(layout).mode, SettingsListDetailMode::Split { .. }));
 
         let rendered = if used_forced { forced_panel.render(area, buf)? } else { self.panel.render(area, buf)? };
         let layout = self.layout_from_panel(rendered);

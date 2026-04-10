@@ -163,8 +163,7 @@ impl BrowserManager {
         let browser_active = self
             .browser
             .try_lock()
-            .map(|b| b.is_some())
-            .unwrap_or(false);
+            .is_ok_and(|b| b.is_some());
 
         let mode = if cfg.0 { "enabled" } else { "disabled" };
         let fullpage = if cfg.3 { "on" } else { "off" };

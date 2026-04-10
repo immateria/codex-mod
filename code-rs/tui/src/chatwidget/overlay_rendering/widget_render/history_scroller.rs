@@ -204,8 +204,7 @@ impl ChatWidget<'_> {
                         let this_collapsed = cell
                             .as_any()
                             .downcast_ref::<crate::history_cell::CollapsibleReasoningCell>()
-                            .map(crate::history_cell::CollapsibleReasoningCell::is_collapsed)
-                            .unwrap_or(false);
+                            .is_some_and(crate::history_cell::CollapsibleReasoningCell::is_collapsed);
                         if this_collapsed {
                             let prev_collapsed = prev_visible_idx
                                 .and_then(|j| cells[j]

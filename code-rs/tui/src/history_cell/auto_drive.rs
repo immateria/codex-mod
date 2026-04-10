@@ -1201,8 +1201,7 @@ impl HistoryCell for AutoDriveCardCell {
         self.celebration_started_at.is_some()
             || self
                 .reveal_progress()
-                .map(|(progress, _)| progress < 0.999)
-                .unwrap_or(false)
+                .is_some_and(|(progress, _)| progress < 0.999)
     }
 
     fn desired_height(&self, width: u16) -> u16 {

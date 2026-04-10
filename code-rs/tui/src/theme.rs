@@ -319,8 +319,7 @@ fn needs_ansi256_fallback() -> bool {
 
     // Library-based probe as a final signal (may be conservative on Windows).
     let has_truecolor_probe = supports_color::on_cached(supports_color::Stream::Stdout)
-        .map(|lvl| lvl.has_16m)
-        .unwrap_or(false);
+        .is_some_and(|lvl| lvl.has_16m);
 
     !(has_truecolor_env || known_truecolor || has_truecolor_probe)
 }

@@ -47,8 +47,7 @@ impl ChatWidget<'_> {
         let read_only = self
             .pending_auto_turn_config
             .as_ref()
-            .map(|cfg| cfg.read_only)
-            .unwrap_or(false);
+            .is_some_and(|cfg| cfg.read_only);
 
         if read_only {
             self.auto_turn_review_state = None;

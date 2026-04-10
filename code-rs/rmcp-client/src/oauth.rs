@@ -318,8 +318,7 @@ impl OAuthPersistor {
                 let new_token_response = WrappedOAuthTokenResponse(credentials.clone());
                 let same_token = last_credentials
                     .as_ref()
-                    .map(|prev| prev.token_response == new_token_response)
-                    .unwrap_or(false);
+                    .is_some_and(|prev| prev.token_response == new_token_response);
                 let expires_at = if same_token {
                     last_credentials.as_ref().and_then(|prev| prev.expires_at)
                 } else {

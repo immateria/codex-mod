@@ -312,8 +312,7 @@ impl ChatWidget<'_> {
                 .auto_state
                 .current_summary
                 .as_ref()
-                .map(|summary| !summary.trim().is_empty())
-                .unwrap_or(false);
+                .is_some_and(|summary| !summary.trim().is_empty());
 
         if show_summary_without_ellipsis {
             trimmed.to_string()
@@ -401,8 +400,7 @@ impl ChatWidget<'_> {
             .auto_state
             .last_broadcast_summary
             .as_ref()
-            .map(|prev| prev == &display_text)
-            .unwrap_or(false)
+            .is_some_and(|prev| prev == &display_text)
         {
             return;
         }

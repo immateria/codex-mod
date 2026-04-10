@@ -41,8 +41,7 @@ impl ProxyConfig {
 
     fn proxy_for_request(&self, req: &Request) -> Option<ProxyAddress> {
         let is_secure = RequestContext::try_from(req)
-            .map(|ctx| ctx.protocol.is_secure())
-            .unwrap_or(false);
+            .is_ok_and(|ctx| ctx.protocol.is_secure());
         self.proxy_for_protocol(is_secure)
     }
 

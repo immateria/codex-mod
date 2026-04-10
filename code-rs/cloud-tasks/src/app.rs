@@ -243,8 +243,7 @@ impl DiffOverlay {
             && self
                 .current_attempt()
                 .and_then(|attempt| attempt.diff_raw.as_ref())
-                .map(|diff| !diff.is_empty())
-                .unwrap_or(false)
+                .is_some_and(|diff| !diff.is_empty())
     }
 
     pub fn apply_selection_to_fields(&mut self) {

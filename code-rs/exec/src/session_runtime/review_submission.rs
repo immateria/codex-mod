@@ -28,8 +28,7 @@ pub(super) async fn submit_initial_turn(
     let _ = clear_stale_lock_if_dead(Some(&config.cwd));
 
     let skip_review_lock = std::env::var("CODE_REVIEW_LOCK_LEASE")
-        .map(|value| value == "1")
-        .unwrap_or(false);
+        .is_ok_and(|value| value == "1");
 
     if let Some(mut request) = review_request.clone() {
         // Cross-process review coordination.

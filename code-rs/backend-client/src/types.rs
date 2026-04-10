@@ -116,8 +116,7 @@ impl ContentFragment {
                 if inner
                     .content_type
                     .as_deref()
-                    .map(|ct| ct.eq_ignore_ascii_case("text"))
-                    .unwrap_or(false)
+                    .is_some_and(|ct| ct.eq_ignore_ascii_case("text"))
                 {
                     inner.text.as_deref().filter(|s| !s.is_empty())
                 } else {
@@ -220,8 +219,7 @@ impl WorklogMessage {
         self.author
             .as_ref()
             .and_then(|a| a.role.as_deref())
-            .map(|role| role.eq_ignore_ascii_case("assistant"))
-            .unwrap_or(false)
+            .is_some_and(|role| role.eq_ignore_ascii_case("assistant"))
     }
 
     fn text_values(&self) -> Vec<String> {

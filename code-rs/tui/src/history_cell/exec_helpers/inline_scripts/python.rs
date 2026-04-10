@@ -228,8 +228,7 @@ fn split_heredoc_script_lines(script_tokens: &[String]) -> Vec<String> {
                     should_break = true;
                 } else if current
                     .first()
-                    .map(|s| s.as_str() == "import" || s.as_str() == "from")
-                    .unwrap_or(false)
+                    .is_some_and(|s| s.as_str() == "import" || s.as_str() == "from")
                 {
                     if current.len() > 1 && next_token != "as" && next_token != "," {
                         should_break = true;
@@ -239,8 +238,7 @@ fn split_heredoc_script_lines(script_tokens: &[String]) -> Vec<String> {
                     && next_token
                         .chars()
                         .next()
-                        .map(|ch| ch.is_ascii_alphanumeric() || ch == '_')
-                        .unwrap_or(false)
+                        .is_some_and(|ch| ch.is_ascii_alphanumeric() || ch == '_')
                     && !next_token.contains('(')
                 {
                     should_break = true;

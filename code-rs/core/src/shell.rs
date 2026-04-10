@@ -268,15 +268,13 @@ pub async fn default_user_shell() -> Shell {
         .arg("$PSVersionTable.PSVersion.Major")
         .output()
         .await
-        .map(|o| o.status.success())
-        .unwrap_or(false);
+        .is_some_and(|o| o.status.success());
     let bash_exe = if Command::new("bash.exe")
         .arg("--version")
         .output()
         .await
         .ok()
-        .map(|o| o.status.success())
-        .unwrap_or(false)
+        .is_some_and(|o| o.status.success())
     {
         which::which("bash.exe").ok()
     } else {

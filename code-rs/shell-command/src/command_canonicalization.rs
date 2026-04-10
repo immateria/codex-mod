@@ -169,16 +169,14 @@ fn is_busybox_executable(path: &str) -> bool {
     Path::new(path)
         .file_name()
         .and_then(|s| s.to_str())
-        .map(|name| name.eq_ignore_ascii_case("busybox") || name.eq_ignore_ascii_case("busybox.exe"))
-        .unwrap_or(false)
+        .is_some_and(|name| name.eq_ignore_ascii_case("busybox") || name.eq_ignore_ascii_case("busybox.exe"))
 }
 
 fn is_shell_applet(path: &str) -> bool {
     Path::new(path)
         .file_name()
         .and_then(|s| s.to_str())
-        .map(|name| matches!(name.to_ascii_lowercase().as_str(), "sh" | "ash" | "bash" | "zsh" | "dash" | "ksh"))
-        .unwrap_or(false)
+        .is_some_and(|name| matches!(name.to_ascii_lowercase().as_str(), "sh" | "ash" | "bash" | "zsh" | "dash" | "ksh"))
 }
 
 #[cfg(test)]

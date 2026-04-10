@@ -118,8 +118,7 @@ impl RemoteModelsManager {
             let state = self.state.read().await;
             let is_fresh = state
                 .fetched_at
-                .map(|t| cache::is_fresh(t, self.cache_ttl))
-                .unwrap_or(false);
+                .is_some_and(|t| cache::is_fresh(t, self.cache_ttl));
             (state.etag.clone(), !is_fresh)
         };
 

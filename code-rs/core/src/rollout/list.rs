@@ -301,8 +301,7 @@ where
         if entry
             .file_type()
             .await
-            .map(|ft| ft.is_dir())
-            .unwrap_or(false)
+            .is_ok_and(|ft| ft.is_dir())
             && let Some(s) = entry.file_name().to_str()
             && let Some(v) = parse(s)
         {
@@ -323,8 +322,7 @@ where
         if entry
             .file_type()
             .await
-            .map(|ft| ft.is_file())
-            .unwrap_or(false)
+            .is_ok_and(|ft| ft.is_file())
             && let Some(s) = entry.file_name().to_str()
             && let Some(v) = parse(s, &entry.path())
         {

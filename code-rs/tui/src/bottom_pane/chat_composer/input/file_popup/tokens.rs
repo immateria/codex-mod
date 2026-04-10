@@ -41,8 +41,7 @@ fn current_at_token(textarea: &TextArea) -> Option<String> {
         .after_cursor
         .chars()
         .next()
-        .map(char::is_whitespace)
-        .unwrap_or(false);
+        .is_some_and(char::is_whitespace);
 
     // Left candidate: token containing the cursor position.
     let token_left = if ctx.start_idx < ctx.end_idx {

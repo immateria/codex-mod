@@ -279,8 +279,7 @@ fn cell_matches<C: ToolCardCell>(
         .history_cells
         .get(idx)
         .and_then(|cell| cell.as_any().downcast_ref::<C>())
-        .map(|typed| identity_matches(typed, slot, signature))
-        .unwrap_or(false)
+        .is_some_and(|typed| identity_matches(typed, slot, signature))
 }
 
 fn identity_matches<C: ToolCardCell>(typed: &C, slot: &ToolCardSlot, signature: Option<&str>) -> bool {

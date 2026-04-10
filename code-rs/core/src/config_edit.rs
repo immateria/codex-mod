@@ -1255,8 +1255,7 @@ pub async fn upsert_subagent_command(code_home: &Path, cmd: &SubagentCommandConf
             let same = tbl
                 .get("name")
                 .and_then(|i| i.as_str())
-                .map(|s| s.eq_ignore_ascii_case(&cmd.name))
-                .unwrap_or(false);
+                .is_some_and(|s| s.eq_ignore_ascii_case(&cmd.name));
             if same {
                 // Update fields
                 tbl["name"] = toml_edit::value(cmd.name.clone());
@@ -1313,8 +1312,7 @@ pub async fn delete_subagent_command(code_home: &Path, name: &str) -> Result<boo
     arr.retain(|t| {
         !t.get("name")
             .and_then(|i| i.as_str())
-            .map(|s| s.eq_ignore_ascii_case(name))
-            .unwrap_or(false)
+            .is_some_and(|s| s.eq_ignore_ascii_case(name))
     });
     let removed = arr.len() != before;
     if removed {
@@ -1394,8 +1392,7 @@ pub async fn upsert_agent_config(
             let same = tbl
                 .get("name")
                 .and_then(|i| i.as_str())
-                .map(|s| s.eq_ignore_ascii_case(name))
-                .unwrap_or(false);
+                .is_some_and(|s| s.eq_ignore_ascii_case(name));
             if same {
                 if let Some(val) = enabled { tbl["enabled"] = toml_edit::value(val); }
                 if let Some(a) = args { tbl["args"] = toml_edit::value(toml_edit::Array::from_iter(a.iter().cloned())); }

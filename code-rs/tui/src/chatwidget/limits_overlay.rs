@@ -220,8 +220,7 @@ impl LimitsTab {
             if !lines.is_empty()
                 && !lines
                     .last()
-                    .map(|line| line.spans.is_empty())
-                    .unwrap_or(false)
+                    .is_some_and(|line| line.spans.is_empty())
             {
                 lines.push(RtLine::from(""));
             }

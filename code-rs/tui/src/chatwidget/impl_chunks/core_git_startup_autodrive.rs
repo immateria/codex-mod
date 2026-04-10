@@ -7,15 +7,13 @@ impl ChatWidget<'_> {
         for ancestor in path.ancestors() {
             if ancestor
                 .file_name()
-                .map(|name| name == std::ffi::OsStr::new("branches"))
-                .unwrap_or(false)
+                .is_some_and(|name| name == std::ffi::OsStr::new("branches"))
             {
                 let mut higher = ancestor.parent();
                 while let Some(dir) = higher {
                     if dir
                         .file_name()
-                        .map(|name| name == std::ffi::OsStr::new(".code"))
-                        .unwrap_or(false)
+                        .is_some_and(|name| name == std::ffi::OsStr::new(".code"))
                     {
                         return true;
                     }

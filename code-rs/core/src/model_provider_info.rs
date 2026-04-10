@@ -483,8 +483,7 @@ impl ModelProviderInfo {
 
         self.base_url
             .as_ref()
-            .map(|base| matches_azure_responses_base_url(base))
-            .unwrap_or(false)
+            .is_some_and(|base| matches_azure_responses_base_url(base))
     }
 
     pub(crate) fn is_backend_responses_endpoint(&self) -> bool {

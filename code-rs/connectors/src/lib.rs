@@ -240,8 +240,7 @@ fn merge_directory_app(existing: &mut DirectoryApp, incoming: DirectoryApp) {
 
     let incoming_description_present = description
         .as_deref()
-        .map(|value| !value.trim().is_empty())
-        .unwrap_or(false);
+        .is_some_and(|value| !value.trim().is_empty());
     if incoming_description_present {
         existing.description = description;
     }

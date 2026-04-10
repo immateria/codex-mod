@@ -459,8 +459,7 @@ fn render_wrapped_block_lines(
     }
     while rows
         .last()
-        .map(|line| line.trim().is_empty())
-        .unwrap_or(false)
+        .is_some_and(|line| line.trim().is_empty())
     {
         rows.pop();
     }

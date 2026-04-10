@@ -182,8 +182,7 @@ impl ChatWidget<'_> {
         if let Some(idx) = self.history_cells.iter().position(|cell| {
             cell.as_any()
                 .downcast_ref::<crate::history_cell::BackgroundEventCell>()
-                .map(|c| c.state().description.trim() == RESUME_PLACEHOLDER_MESSAGE)
-                .unwrap_or(false)
+                .is_some_and(|c| c.state().description.trim() == RESUME_PLACEHOLDER_MESSAGE)
         }) {
             self.history_remove_at(idx);
         }

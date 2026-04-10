@@ -2040,8 +2040,7 @@ fn run_auto_loop(inputs: AutoLoopInputs) -> Result<()> {
     );
     let git_repo_present = run_git_command(["rev-parse", "--is-inside-work-tree"])
         .as_deref()
-        .map(|value| value == "true")
-        .unwrap_or(false);
+        .is_some_and(|value| value == "true");
     if !git_repo_present {
         base_developer_intro.push_str(
             "\n\nThe current working directory is not a git repository. Auto Drive must only launch read-only agents. If a request includes write: true, downgrade it to read-only.",

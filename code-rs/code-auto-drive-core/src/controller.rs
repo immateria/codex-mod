@@ -819,8 +819,7 @@ impl AutoDriveController {
             && !self.phase.is_paused_manual()
             && self
                 .countdown_seconds()
-                .map(|seconds| seconds > 0)
-                .unwrap_or(false)
+                .is_some_and(|seconds| seconds > 0)
     }
 
     pub fn countdown_seconds(&self) -> Option<u8> {

@@ -271,14 +271,12 @@ impl ChatWidget<'_> {
                 .arg("--version")
                 .output()
                 .await
-                .map(|out| out.status.success())
-                .unwrap_or(false);
+                .is_ok_and(|out| out.status.success());
 
             let workflow_dir = worktree.join(".github").join("workflows");
             let workflows_exist = if fs::metadata(&workflow_dir)
                 .await
-                .map(|meta| meta.is_dir())
-                .unwrap_or(false)
+                .is_ok_and(|meta| meta.is_dir())
             {
                 match fs::read_dir(&workflow_dir).await {
                     Ok(mut dir) => {
@@ -287,8 +285,7 @@ impl ChatWidget<'_> {
                             if entry
                                 .file_type()
                                 .await
-                                .map(|ft| ft.is_file())
-                                .unwrap_or(false)
+                                .is_ok_and(|ft| ft.is_file())
                             {
                                 found = true;
                                 break;

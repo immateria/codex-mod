@@ -255,8 +255,7 @@ impl MergedExecCell {
             let t = text.trim();
             t.contains(" (in ")
                 || t.rsplit_once(" in ")
-                    .map(|(_, rhs)| rhs.trim_end().ends_with('/'))
-                    .unwrap_or(false)
+                    .is_some_and(|(_, rhs)| rhs.trim_end().ends_with('/'))
         }
 
         let mut kept: Vec<Line<'static>> = Vec::new();

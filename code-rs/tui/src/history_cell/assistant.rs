@@ -883,8 +883,7 @@ pub(crate) fn detect_bullet_prefix(
     let mut bullet_text = bullet_span.content.as_ref().to_string();
     let has_following_space_span = spans
         .get(idx + 1)
-        .map(|s| s.content.as_ref() == " ")
-        .unwrap_or(false);
+        .is_some_and(|s| s.content.as_ref() == " ");
     let has_trailing_space_in_bullet = bullet_text.ends_with(' ');
     if !(has_following_space_span || has_trailing_space_in_bullet) {
         return None;

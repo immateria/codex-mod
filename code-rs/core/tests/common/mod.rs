@@ -89,8 +89,7 @@ pub(crate) fn load_sse_fixture_with_id(path: impl AsRef<Path>, id: &str) -> Stri
                 .unwrap_or_else(|| panic!("fixture event missing type"));
             if event
                 .as_object()
-                .map(|obj| obj.len() == 1)
-                .unwrap_or(false)
+                .is_some_and(|obj| obj.len() == 1)
             {
                 format!("event: {kind}\n\n")
             } else {

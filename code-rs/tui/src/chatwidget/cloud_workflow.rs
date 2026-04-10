@@ -207,8 +207,7 @@ impl ChatWidget<'_> {
                 is_current: self
                     .cloud_tasks_selected_env
                     .as_ref()
-                    .map(|selected| selected.id == env_clone.id)
-                    .unwrap_or(false),
+                    .is_some_and(|selected| selected.id == env_clone.id),
                 actions: vec![Box::new(move |tx: &AppEventSender| {
                     tx.send(AppEvent::SetCloudEnvironment {
                         environment: Some(env_clone.clone()),

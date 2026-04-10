@@ -495,7 +495,7 @@ impl ExecCell {
     }
 
     fn wait_note_lines(&self, state: &ExecWaitState) -> Vec<Line<'static>> {
-        let mut lines = Vec::new();
+        let mut lines = Vec::with_capacity(state.notes.len());
         for note in &state.notes {
             let mut line = Line::from(note.text.clone());
             let mut style = Style::default().fg(if note.is_error {
@@ -614,8 +614,7 @@ impl ExecCell {
                 let is_error_line = |line: &Line<'static>| {
                     line.spans
                         .first()
-                        .map(|span| span.content.as_ref().starts_with("Error (exit"))
-                        .unwrap_or(false)
+                        .is_some_and(|span| span.content.as_ref().starts_with("Error (exit"))
                 };
                 let insert_at = out.iter().position(is_error_line).unwrap_or(out.len());
 

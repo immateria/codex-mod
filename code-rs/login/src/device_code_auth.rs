@@ -287,13 +287,11 @@ fn looks_like_cloudflare_challenge(
         || headers
             .get("server-timing")
             .and_then(|v| v.to_str().ok())
-            .map(|v| v.to_lowercase().contains("chlray"))
-            .unwrap_or(false)
+            .is_some_and(|v| v.to_lowercase().contains("chlray"))
         || headers
             .get("set-cookie")
             .and_then(|v| v.to_str().ok())
-            .map(|cookie| cookie.contains("__cf_bm="))
-            .unwrap_or(false)
+            .is_some_and(|cookie| cookie.contains("__cf_bm="))
 }
 
 #[cfg(feature = "browser-automation")]

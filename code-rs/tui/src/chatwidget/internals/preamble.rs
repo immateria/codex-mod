@@ -113,8 +113,7 @@ impl MergeRepoState {
                     ])
                     .output()
                     .await
-                    .map(|o| o.status.success())
-                    .unwrap_or(false);
+                    .is_ok_and(|o| o.status.success());
                 let fast_forward = if exists {
                     Command::new("git")
                         .current_dir(&git_root)
@@ -126,8 +125,7 @@ impl MergeRepoState {
                         ])
                         .output()
                         .await
-                        .map(|o| o.status.success())
-                        .unwrap_or(false)
+                        .is_ok_and(|o| o.status.success())
                 } else {
                     false
                 };

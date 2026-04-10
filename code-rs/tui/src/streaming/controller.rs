@@ -605,8 +605,7 @@ pub(crate) fn set_last_sequence_number(&mut self, kind: StreamKind, seq: Option<
             let overdue = self
                 .state(kind)
                 .last_commit_instant
-                .map(|t| t.elapsed() >= std::time::Duration::from_millis(ms))
-                .unwrap_or(false);
+                .is_some_and(|t| t.elapsed() >= std::time::Duration::from_millis(ms));
             if queue_empty && overdue {
                 let relax_list = self.config.tui.stream.relax_list_holdback;
                 let relax_code = self.config.tui.stream.relax_code_holdback;

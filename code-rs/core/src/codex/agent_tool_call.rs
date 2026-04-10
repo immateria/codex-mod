@@ -1955,8 +1955,7 @@ fn is_auto_review_agent_info(agent: &crate::protocol::AgentInfo) -> bool {
         || agent
             .batch_id
             .as_deref()
-            .map(|batch| batch.eq_ignore_ascii_case("auto-review"))
-            .unwrap_or(false)
+            .is_some_and(|batch| batch.eq_ignore_ascii_case("auto-review"))
 }
 
 fn build_agent_completion_wake_message(batch_id: &str) -> ResponseInputItem {

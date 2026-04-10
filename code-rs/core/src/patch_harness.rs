@@ -253,8 +253,7 @@ pub(crate) fn run_patch_harness(
         .filter(|path| path
             .extension()
             .and_then(|ext| ext.to_str())
-            .map(|ext| prettier_exts.contains(&ext))
-            .unwrap_or(false))
+            .is_some_and(|ext| prettier_exts.contains(&ext)))
         .cloned()
         .collect();
     let prettier_group = validation_tool_category("prettier");
@@ -678,8 +677,7 @@ fn is_shell_script(staged_root: &Path, relative: &Path) -> bool {
             std::fs::read(staged)
                 .ok()
                 .and_then(|bytes| String::from_utf8(bytes).ok())
-                .map(|contents| contents.starts_with("#!/"))
-                .unwrap_or(false)
+                .is_some_and(|contents| contents.starts_with("#!/"))
         }
     }
 }

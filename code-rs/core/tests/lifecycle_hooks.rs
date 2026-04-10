@@ -45,8 +45,7 @@ fn find_message_index(
                 && content_item
                     .get("text")
                     .and_then(|v| v.as_str())
-                    .map(|text| text.contains(needle))
-                    .unwrap_or(false)
+                    .is_some_and(|text| text.contains(needle))
         });
         matches.then_some(idx)
     })

@@ -162,13 +162,11 @@ pub(crate) fn normalize_pasted_path(pasted: &str) -> Option<PathBuf> {
         let drive = pasted
             .chars()
             .next()
-            .map(|c| c.is_ascii_alphabetic())
-            .unwrap_or(false)
+            .is_some_and(|c| c.is_ascii_alphabetic())
             && pasted.get(1..2) == Some(":")
             && pasted
                 .get(2..3)
-                .map(|s| s == "\\" || s == "/")
-                .unwrap_or(false);
+                .is_some_and(|s| s == "\\" || s == "/");
         let unc = pasted.starts_with("\\\\");
         drive || unc
     };

@@ -51,8 +51,7 @@ fn prepend_path(env_map: &mut HashMap<String, String>, prefix: &str) {
     let parts: Vec<String> = existing.split(';').map(|s| s.to_string()).collect();
     if parts
         .first()
-        .map(|p| p.eq_ignore_ascii_case(prefix))
-        .unwrap_or(false)
+        .is_some_and(|p| p.eq_ignore_ascii_case(prefix))
     {
         return;
     }

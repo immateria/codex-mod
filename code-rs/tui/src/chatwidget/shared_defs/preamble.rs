@@ -1290,8 +1290,7 @@ impl AgentTerminalEntry {
         if self
             .logs
             .last()
-            .map(|entry| entry.kind == kind && entry.message == msg)
-            .unwrap_or(false)
+            .is_some_and(|entry| entry.kind == kind && entry.message == msg)
         {
             return;
         }
@@ -1518,8 +1517,7 @@ impl AgentsTerminalState {
             .filter(|id| {
                 self.entries
                     .get(*id)
-                    .map(|entry| self.tab_allows(entry))
-                    .unwrap_or(false)
+                    .is_some_and(|entry| self.tab_allows(entry))
             })
             .cloned()
             .collect();

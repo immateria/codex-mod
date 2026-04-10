@@ -37,8 +37,7 @@ fn ascii_only_enabled() -> bool {
     static ASCII_ONLY: OnceLock<bool> = OnceLock::new();
     *ASCII_ONLY.get_or_init(|| {
         std::env::var("CODEX_TUI_ASCII")
-            .map(|value| code_core::util::is_truthy(&value))
-            .unwrap_or(false)
+            .is_ok_and(|value| code_core::util::is_truthy(&value))
     })
 }
 

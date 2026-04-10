@@ -1500,8 +1500,7 @@ impl ConfigToml {
             let path_str = path.to_string_lossy().into_owned();
             projects
                 .and_then(|p| p.get(&path_str))
-                .map(|p| p.trust_level.as_deref() == Some("trusted"))
-                .unwrap_or(false)
+                .is_some_and(|p| p.trust_level.as_deref() == Some("trusted"))
         };
 
         // Fast path: exact cwd match

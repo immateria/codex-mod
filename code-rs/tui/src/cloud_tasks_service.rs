@@ -203,8 +203,7 @@ async fn load_config() -> Result<CloudTasksConfig> {
     let base_url = normalize_base_url(&base_url_env);
     let use_mock = std::env::var("CODEX_CLOUD_TASKS_MODE")
         .ok()
-        .map(|mode| mode.eq_ignore_ascii_case("mock"))
-        .unwrap_or(false);
+        .is_some_and(|mode| mode.eq_ignore_ascii_case("mock"));
     if use_mock {
         return Ok(CloudTasksConfig {
             base_url,

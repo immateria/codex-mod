@@ -28,8 +28,7 @@ pub(super) fn command_exists(cmd: &str) -> bool {
         let path = std::path::Path::new(cmd);
         if path.extension().is_some() {
             return std::fs::metadata(path)
-                .map(|metadata| metadata.is_file())
-                .unwrap_or(false);
+                .is_ok_and(|metadata| metadata.is_file());
         }
 
         #[cfg(target_os = "windows")]
@@ -39,8 +38,7 @@ pub(super) fn command_exists(cmd: &str) -> bool {
                     .with_extension("")
                     .with_extension(ext.trim_start_matches('.'));
                 if std::fs::metadata(&candidate)
-                    .map(|metadata| metadata.is_file())
-                    .unwrap_or(false)
+                    .is_some_and(|metadata| metadata.is_file())
                 {
                     return true;
                 }
@@ -48,8 +46,7 @@ pub(super) fn command_exists(cmd: &str) -> bool {
         }
 
         return std::fs::metadata(path)
-            .map(|metadata| metadata.is_file())
-            .unwrap_or(false);
+            .is_ok_and(|metadata| metadata.is_file());
     }
 
     #[cfg(target_os = "windows")]

@@ -144,8 +144,7 @@ impl RowKind {
 
     pub(super) fn supports_legacy_hotkey(self) -> bool {
         self.as_hotkey_row()
-            .map(HotkeyRow::allows_legacy)
-            .unwrap_or(false)
+            .is_some_and(HotkeyRow::allows_legacy)
     }
 
     pub(super) fn hotkey_capture_label(self) -> Option<&'static str> {

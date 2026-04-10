@@ -310,14 +310,12 @@ fn draw_diff_overlay(frame: &mut Frame, area: Rect, app: &mut App) {
     let ov_can_apply = app
         .diff_overlay
         .as_ref()
-        .map(super::app::DiffOverlay::current_can_apply)
-        .unwrap_or(false);
+        .is_some_and(super::app::DiffOverlay::current_can_apply);
     let is_error = app
         .diff_overlay
         .as_ref()
         .and_then(|o| o.sd.wrapped_lines().first().cloned())
-        .map(|s| s.trim_start().starts_with("Task failed:"))
-        .unwrap_or(false)
+        .is_some_and(|s| s.trim_start().starts_with("Task failed:"))
         && !ov_can_apply;
     let title = app
         .diff_overlay
@@ -422,8 +420,7 @@ fn draw_diff_overlay(frame: &mut Frame, area: Rect, app: &mut App) {
     let is_diff_view = app
         .diff_overlay
         .as_ref()
-        .map(|o| matches!(o.current_view, crate::app::DetailView::Diff))
-        .unwrap_or(false);
+        .is_some_and(|o| matches!(o.current_view, crate::app::DetailView::Diff));
     let styled_lines: Vec<Line<'static>> = if is_diff_view {
         let raw = app.diff_overlay.as_ref().map(|o| o.sd.wrapped_lines());
         raw.unwrap_or(&[])

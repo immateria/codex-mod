@@ -685,8 +685,7 @@ impl ChatWidget<'_> {
                     .agents_terminal
                     .entries
                     .get(&pending.agent_id)
-                    .map(|entry| matches!(entry.status, AgentStatus::Pending | AgentStatus::Running))
-                    .unwrap_or(false)
+                    .is_some_and(|entry| matches!(entry.status, AgentStatus::Pending | AgentStatus::Running))
             });
             if should_clear {
                 self.agents_terminal.clear_stop_prompt();
@@ -846,8 +845,7 @@ impl ChatWidget<'_> {
             .agents_terminal
             .entries
             .get(agent_id.as_str())
-            .map(|entry| matches!(entry.status, AgentStatus::Pending | AgentStatus::Running))
-            .unwrap_or(false);
+            .is_some_and(|entry| matches!(entry.status, AgentStatus::Pending | AgentStatus::Running));
 
         if !(is_active || is_entry_active) {
             return;
@@ -887,8 +885,7 @@ impl ChatWidget<'_> {
                 .agents_terminal
                 .entries
                 .get(agent_id)
-                .map(|entry| matches!(entry.status, AgentStatus::Pending | AgentStatus::Running))
-                .unwrap_or(false);
+                .is_some_and(|entry| matches!(entry.status, AgentStatus::Pending | AgentStatus::Running));
         }
 
         if !can_cancel {

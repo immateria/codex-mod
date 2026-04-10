@@ -81,8 +81,7 @@ fn chrome_logging_enabled() -> bool {
 
 fn env_truthy(key: &str) -> bool {
     std::env::var(key)
-        .map(|value| matches!(value.as_str(), "1" | "true" | "TRUE" | "yes" | "YES"))
-        .unwrap_or(false)
+        .is_ok_and(|value| matches!(value.as_str(), "1" | "true" | "TRUE" | "yes" | "YES"))
 }
 
 fn resolve_chrome_log_path() -> Option<PathBuf> {

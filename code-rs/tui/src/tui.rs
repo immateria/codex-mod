@@ -400,14 +400,12 @@ fn should_enable_focus_change() -> bool {
 pub(crate) fn should_enable_keyboard_enhancement() -> bool {
     // Hard overrides first
     if env::var("CODE_DISABLE_KBD_ENHANCEMENT")
-        .map(|v| v == "1")
-        .unwrap_or(false)
+        .is_ok_and(|v| v == "1")
     {
         return false;
     }
     if env::var("CODE_ENABLE_KBD_ENHANCEMENT")
-        .map(|v| v == "1")
-        .unwrap_or(false)
+        .is_ok_and(|v| v == "1")
     {
         return true;
     }

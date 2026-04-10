@@ -189,8 +189,7 @@ impl AgentEditorView {
 
         while lines
             .last()
-            .map(|line| line.spans.iter().all(|s| s.content.trim().is_empty()))
-            .unwrap_or(false)
+            .is_some_and(|line| line.spans.iter().all(|s| s.content.trim().is_empty()))
         {
             lines.pop();
         }

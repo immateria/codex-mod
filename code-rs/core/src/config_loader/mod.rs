@@ -632,8 +632,7 @@ async fn load_project_layers(
         let dot_code = dir.join(".code");
         if !tokio::fs::metadata(&dot_code)
             .await
-            .map(|meta| meta.is_dir())
-            .unwrap_or(false)
+            .is_ok_and(|meta| meta.is_dir())
         {
             continue;
         }

@@ -40,8 +40,7 @@ struct HousekeepingConfig {
 impl HousekeepingConfig {
     fn from_env() -> Self {
         let disabled = std::env::var("CODE_CLEANUP_DISABLE")
-            .map(|value| crate::util::is_truthy(&value))
-            .unwrap_or(false);
+            .is_ok_and(|value| crate::util::is_truthy(&value));
 
         let session_retention_days = parse_days_env(
             "CODE_CLEANUP_SESSION_RETENTION_DAYS",

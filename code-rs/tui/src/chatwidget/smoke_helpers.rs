@@ -369,8 +369,7 @@ impl ChatWidgetHarness {
             .settings
             .overlay
             .as_ref()
-            .map(|overlay| overlay.active_section() == SettingsSection::Agents)
-            .unwrap_or(false)
+            .is_some_and(|overlay| overlay.active_section() == SettingsSection::Agents)
     }
 
     pub fn agents_settings_is_agent_editor_active(&mut self) -> bool {
@@ -380,8 +379,7 @@ impl ChatWidgetHarness {
             .overlay
             .as_ref()
             .and_then(|overlay| overlay.agents_content())
-            .map(super::settings_overlay::AgentsSettingsContent::is_agent_editor_active)
-            .unwrap_or(false)
+            .is_some_and(super::settings_overlay::AgentsSettingsContent::is_agent_editor_active)
     }
 
     pub fn is_bottom_pane_active(&mut self) -> bool {

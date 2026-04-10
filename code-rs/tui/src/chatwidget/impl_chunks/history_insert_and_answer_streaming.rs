@@ -60,8 +60,7 @@ impl ChatWidget<'_> {
                         if let Some(found_idx) = self.history_cells.iter().rposition(|c| {
                             c.as_any()
                                 .downcast_ref::<history_cell::CollapsibleReasoningCell>()
-                                .map(|rc| rc.matches_id(rid))
-                                .unwrap_or(false)
+                                .is_some_and(|rc| rc.matches_id(rid))
                         }) {
                             if let Some(reasoning_cell) = self.history_cells[found_idx]
                                 .as_any_mut()
@@ -746,8 +745,7 @@ impl ChatWidget<'_> {
                             c.as_any()
                                 .downcast_ref::<history_cell::StreamingContentCell>()
                                 .and_then(|sc| sc.id.as_ref())
-                                .map(|existing| Some(existing.as_str()) == id.as_deref())
-                                .unwrap_or(false)
+                                .is_some_and(|existing| Some(existing.as_str()) == id.as_deref())
                         }) {
                             self.history_remove_at(idx);
                         }
@@ -822,8 +820,7 @@ impl ChatWidget<'_> {
                     c.as_any()
                         .downcast_ref::<history_cell::StreamingContentCell>()
                         .and_then(|sc| sc.id.as_ref())
-                        .map(|existing| existing == want)
-                        .unwrap_or(false)
+                        .is_some_and(|existing| existing == want)
                 }) {
                     self.history_remove_at(idx);
                 }
@@ -884,8 +881,7 @@ impl ChatWidget<'_> {
                 && let Some(existing_idx) = self.history_cells.iter().rposition(|c| {
                     c.as_any()
                         .downcast_ref::<history_cell::AssistantMarkdownCell>()
-                        .map(|amc| amc.stream_id() == Some(want.as_str()))
-                        .unwrap_or(false)
+                        .is_some_and(|amc| amc.stream_id() == Some(want.as_str()))
                 })
                     && let Some(amc) = self.history_cells[existing_idx]
                         .as_any()

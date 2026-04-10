@@ -3569,8 +3569,7 @@ pub fn set_mcp_tool_scheduling_override(
             let remove_whole_table = server_table
                 .get("tool_scheduling")
                 .and_then(toml_edit::Item::as_table)
-                .map(toml_edit::Table::is_empty)
-                .unwrap_or(false);
+                .is_some_and(toml_edit::Table::is_empty);
             if remove_whole_table {
                 server_table.remove("tool_scheduling");
             }

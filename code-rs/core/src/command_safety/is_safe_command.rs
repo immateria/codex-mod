@@ -10,8 +10,7 @@ fn is_bash(cmd: &str) -> bool {
     Path::new(trimmed)
         .file_name()
         .and_then(|s| s.to_str())
-        .map(|name| name.eq_ignore_ascii_case("bash") || name.eq_ignore_ascii_case("bash.exe"))
-        .unwrap_or(false)
+        .is_some_and(|name| name.eq_ignore_ascii_case("bash") || name.eq_ignore_ascii_case("bash.exe"))
 }
 
 pub fn is_known_safe_command(command: &[String]) -> bool {

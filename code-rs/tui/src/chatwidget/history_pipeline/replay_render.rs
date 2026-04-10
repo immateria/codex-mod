@@ -187,8 +187,7 @@ impl ChatWidget<'_> {
     pub(in super::super) fn is_auto_review_cell(item: &dyn HistoryCell) -> bool {
         item.as_any()
             .downcast_ref::<crate::history_cell::PlainHistoryCell>()
-            .map(crate::history_cell::PlainHistoryCell::is_auto_review_notice)
-            .unwrap_or(false)
+            .is_some_and(crate::history_cell::PlainHistoryCell::is_auto_review_notice)
     }
 
     pub(in super::super) fn render_cached_lines(

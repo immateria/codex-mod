@@ -70,8 +70,7 @@ impl PlainHistoryCell {
     pub(crate) fn is_auto_review_notice(&self) -> bool {
         self.state
             .header()
-            .map(|h| h.label.to_lowercase().contains("auto review"))
-            .unwrap_or(false)
+            .is_some_and(|h| h.label.to_lowercase().contains("auto review"))
     }
 
     pub(crate) fn auto_review_bg() -> ratatui::style::Color {
@@ -93,8 +92,7 @@ impl PlainHistoryCell {
             .body()
             .first()
             .and_then(|line| line.spans.first())
-            .map(|span| span.text.starts_with("WARN: "))
-            .unwrap_or(false)
+            .is_some_and(|span| span.text.starts_with("WARN: "))
     }
     pub(crate) fn from_state(state: PlainMessageState) -> Self {
         let mut kind = history_cell_kind_from_plain(state.kind);

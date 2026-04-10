@@ -79,8 +79,7 @@ fn now_ts() -> String {
 
 pub(crate) fn maybe_init(config: &Config) {
     let enabled = std::env::var("CODEX_TUI_RECORD_SESSION")
-        .map(|v| code_core::util::is_truthy(&v))
-        .unwrap_or(false);
+        .is_ok_and(|v| code_core::util::is_truthy(&v));
     if !enabled {
         return;
     }

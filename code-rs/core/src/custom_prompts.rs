@@ -34,8 +34,7 @@ pub async fn discover_prompts_in_excluding(
         let is_file = entry
             .file_type()
             .await
-            .map(|ft| ft.is_file())
-            .unwrap_or(false);
+            .is_ok_and(|ft| ft.is_file());
         if !is_file {
             continue;
         }
@@ -43,8 +42,7 @@ pub async fn discover_prompts_in_excluding(
         let is_md = path
             .extension()
             .and_then(|s| s.to_str())
-            .map(|ext| ext.eq_ignore_ascii_case("md"))
-            .unwrap_or(false);
+            .is_some_and(|ext| ext.eq_ignore_ascii_case("md"));
         if !is_md {
             continue;
         }

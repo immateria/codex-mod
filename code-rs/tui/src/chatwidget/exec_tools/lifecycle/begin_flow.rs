@@ -12,14 +12,12 @@ fn try_upgrade_fallback_exec_cell(
             let command_matches_call = exec.command.len() == 1
                 && exec.command
                     .first()
-                    .map(|cmd| cmd == &ev.call_id)
-                    .unwrap_or(false);
+                    .is_some_and(|cmd| cmd == &ev.call_id);
             let record_matches_call = exec
                 .record
                 .call_id
                 .as_deref()
-                .map(|cid| cid == ev.call_id)
-                .unwrap_or(false);
+                .is_some_and(|cid| cid == ev.call_id);
             let looks_like_fallback = exec.output.is_some()
                 && exec.parsed.is_empty()
                 && (command_matches_call || record_matches_call);
@@ -186,15 +184,13 @@ fn apply_exec_begin_metadata_to_finished_call(
                 let matches_call = segment
                     .call_id
                     .as_deref()
-                    .map(|cid| cid == ev.call_id)
-                    .unwrap_or(false);
+                    .is_some_and(|cid| cid == ev.call_id);
                 let fallback_matches = segment.call_id.is_none()
                     && segment.command.len() == 1
                     && segment
                         .command
                         .first()
-                        .map(|cmd| cmd.contains(&ev.call_id))
-                        .unwrap_or(false);
+                        .is_some_and(|cmd| cmd.contains(&ev.call_id));
                 if matches_call || fallback_matches {
                     if hydrate_exec_record_from_begin(segment, ev) {
                         segment_found = true;
