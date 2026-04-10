@@ -65,7 +65,9 @@ impl<'a> SettingsMenuPage<'a> {
         placement: ShortcutPlacement,
         hints: Vec<KeyHint<'static>>,
     ) -> Self {
-        let shortcut_bar = ShortcutBar::at(placement, hints);
+        use super::hints::OverflowMode;
+        let shortcut_bar = ShortcutBar::at(placement, hints)
+            .with_overflow(OverflowMode::Wrap);
         self.shortcut_bar = (!shortcut_bar.is_empty()).then_some(shortcut_bar);
         self
     }
@@ -83,25 +85,27 @@ impl<'a> SettingsMenuPage<'a> {
         SettingsMenuPageContentOnly { page: self }
     }
 
-    fn sectioned_panel(&self) -> SettingsSectionedPanel<'_> {
+    /// Build the sectioned panel using width-aware shortcut bar line counts.
+    fn sectioned_panel_for_width(&self, content_width: u16) -> SettingsSectionedPanel<'_> {
         SettingsSectionedPanel::new(
             self.title.clone(),
             self.style,
-            self.header_line_count(),
-            self.footer_line_count(),
+            self.header_line_count_for_width(content_width),
+            self.footer_line_count_for_width(content_width),
         )
         .with_min_body_rows(2)
     }
 
     fn layout_framed(&self, area: Rect) -> Option<SettingsSectionedPanelLayout> {
-        self.sectioned_panel().layout(area)
+        let cw = self.estimate_content_width(area.width);
+        self.sectioned_panel_for_width(cw).layout(area)
     }
 
     fn layout_content(&self, area: Rect) -> Option<SettingsSectionedPanelLayout> {
         split_header_body_footer(
             area,
-            self.header_line_count(),
-            self.footer_line_count(),
+            self.header_line_count_for_width(area.width),
+            self.footer_line_count_for_width(area.width),
             1,
         )
             .map(Into::into)
@@ -112,11 +116,12 @@ impl<'a> SettingsMenuPage<'a> {
         area: Rect,
         buf: &mut Buffer,
     ) -> Option<SettingsSectionedPanelLayout> {
-        let layout = self.sectioned_panel().render(area, buf)?;
+        let cw = self.estimate_content_width(area.width);
+        let layout = self.sectioned_panel_for_width(cw).render(area, buf)?;
         let base = Style::new().bg(colors::background()).fg(colors::text());
-        let header_lines = self.combined_header_lines();
+        let header_lines = self.combined_header_lines_for_width(layout.header.width);
         render_lines(layout.header, buf, &header_lines, base);
-        let footer_lines = self.combined_footer_lines();
+        let footer_lines = self.combined_footer_lines_for_width(layout.footer.width);
         render_lines(layout.footer, buf, &footer_lines, base);
         Some(layout)
     }
@@ -129,23 +134,51 @@ impl<'a> SettingsMenuPage<'a> {
         let layout = self.layout_content(area)?;
         let base = Style::new().bg(colors::background()).fg(colors::text());
         fill_bg(buf, area, base);
-        let header_lines = self.combined_header_lines();
+        let header_lines = self.combined_header_lines_for_width(layout.header.width);
         render_lines(layout.header, buf, &header_lines, base);
-        let footer_lines = self.combined_footer_lines();
+        let footer_lines = self.combined_footer_lines_for_width(layout.footer.width);
         render_lines(layout.footer, buf, &footer_lines, base);
         Some(layout)
     }
 
-    fn header_line_count(&self) -> usize {
-        self.header_lines
-            .len()
-            .saturating_add(usize::from(self.shortcuts_in_header()))
+    /// Estimate content width from outer area width, accounting for border +
+    /// content margin.  Used for pre-computing shortcut wrap line counts
+    /// before the layout is finalized.
+    fn estimate_content_width(&self, area_width: u16) -> u16 {
+        // Border consumes 1 column on each side.
+        let border = 2u16;
+        let margin = self.style.content_margin.horizontal.saturating_mul(2);
+        area_width.saturating_sub(border).saturating_sub(margin)
     }
 
-    fn footer_line_count(&self) -> usize {
+    fn header_line_count_for_width(&self, width: u16) -> usize {
+        self.header_lines
+            .len()
+            .saturating_add(self.shortcut_line_count_in_header(width))
+    }
+
+    fn footer_line_count_for_width(&self, width: u16) -> usize {
         self.footer_lines
             .len()
-            .saturating_add(usize::from(self.shortcuts_in_footer()))
+            .saturating_add(self.shortcut_line_count_in_footer(width))
+    }
+
+    fn shortcut_line_count_in_header(&self, width: u16) -> usize {
+        if !self.shortcuts_in_header() {
+            return 0;
+        }
+        self.shortcut_bar
+            .as_ref()
+            .map_or(0, |bar| bar.line_count_for_width(width))
+    }
+
+    fn shortcut_line_count_in_footer(&self, width: u16) -> usize {
+        if !self.shortcuts_in_footer() {
+            return 0;
+        }
+        self.shortcut_bar
+            .as_ref()
+            .map_or(0, |bar| bar.line_count_for_width(width))
     }
 
     fn shortcuts_in_header(&self) -> bool {
@@ -160,21 +193,21 @@ impl<'a> SettingsMenuPage<'a> {
             .is_some_and(|bar| bar.placement() == ShortcutPlacement::Bottom)
     }
 
-    fn combined_header_lines(&self) -> Vec<Line<'static>> {
+    fn combined_header_lines_for_width(&self, width: u16) -> Vec<Line<'static>> {
         let mut lines = self.header_lines.clone();
         if self.shortcuts_in_header() {
-            if let Some(shortcut_bar) = self.shortcut_bar.as_ref() {
-                lines.push(shortcut_bar.line());
+            if let Some(bar) = self.shortcut_bar.as_ref() {
+                lines.extend(bar.lines_for_width(width));
             }
         }
         lines
     }
 
-    fn combined_footer_lines(&self) -> Vec<Line<'static>> {
+    fn combined_footer_lines_for_width(&self, width: u16) -> Vec<Line<'static>> {
         let mut lines = self.footer_lines.clone();
         if self.shortcuts_in_footer() {
-            if let Some(shortcut_bar) = self.shortcut_bar.as_ref() {
-                lines.push(shortcut_bar.line());
+            if let Some(bar) = self.shortcut_bar.as_ref() {
+                lines.extend(bar.lines_for_width(width));
             }
         }
         lines
