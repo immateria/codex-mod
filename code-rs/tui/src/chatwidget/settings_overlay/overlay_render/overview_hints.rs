@@ -105,7 +105,7 @@ impl SettingsOverlayView {
         let hint_group = |key_label: String, description: &'static str| -> Vec<Span<'static>> {
             vec![
                 Span::styled(key_label, key),
-                Span::styled(description.to_string(), hint),
+                Span::styled(description, hint),
             ]
         };
 
@@ -129,7 +129,7 @@ impl SettingsOverlayView {
             vec![
                 Span::styled("focus", hint),
                 Span::styled(": ", separator),
-                Span::styled(focus_label.to_string(), focus),
+                Span::styled(focus_label, focus),
             ],
         ]);
 
@@ -142,7 +142,7 @@ impl SettingsOverlayView {
                 vec![
                     Span::styled("focus", hint),
                     Span::styled(": ", separator),
-                    Span::styled(focus_label.to_string(), focus),
+                    Span::styled(focus_label, focus),
                 ],
             ]);
         }

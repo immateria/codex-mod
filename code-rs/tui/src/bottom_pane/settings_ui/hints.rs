@@ -230,9 +230,9 @@ fn shortcut_lines_wrapped(hints: &[KeyHint<'_>], max_width: u16) -> Vec<Line<'st
 pub(crate) fn hint_nav(description: &'static str) -> KeyHint<'static> {
     KeyHint::new(icons::nav_up_down(), description)
         .with_key_spans(vec![
-            Span::styled(icons::arrow_up().to_string(), Style::new().fg(colors::function())),
+            Span::styled(icons::arrow_up(), Style::new().fg(colors::function())),
             Span::raw(" "),
-            Span::styled(icons::arrow_down().to_string(), Style::new().fg(colors::primary())),
+            Span::styled(icons::arrow_down(), Style::new().fg(colors::primary())),
         ])
 }
 
@@ -241,9 +241,9 @@ pub(crate) fn hint_nav(description: &'static str) -> KeyHint<'static> {
 pub(crate) fn hint_nav_horizontal(description: &'static str) -> KeyHint<'static> {
     KeyHint::new(icons::nav_left_right(), description)
         .with_key_spans(vec![
-            Span::styled(icons::arrow_left().to_string(), Style::new().fg(colors::function())),
+            Span::styled(icons::arrow_left(), Style::new().fg(colors::function())),
             Span::raw(" "),
-            Span::styled(icons::arrow_right().to_string(), Style::new().fg(colors::primary())),
+            Span::styled(icons::arrow_right(), Style::new().fg(colors::primary())),
         ])
 }
 
