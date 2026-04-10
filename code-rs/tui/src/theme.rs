@@ -72,6 +72,12 @@ pub(crate) struct Theme {
     // Animation colors
     pub(crate) spinner: Color,
     pub(crate) progress: Color,
+
+    // Shortcut bar hint colors
+    pub(crate) hint_key: Color,
+    pub(crate) hint_dismiss: Color,
+    pub(crate) hint_confirm: Color,
+    pub(crate) hint_nav: Color,
 }
 
 impl Default for Theme {
@@ -277,6 +283,22 @@ fn apply_custom_colors(theme: &mut Theme, colors: &ThemeColors) {
     if let Some(ref c) = colors.progress
         && let Some(color) = parse_color(c) {
             theme.progress = color;
+        }
+    if let Some(ref c) = colors.hint_key
+        && let Some(color) = parse_color(c) {
+            theme.hint_key = color;
+        }
+    if let Some(ref c) = colors.hint_dismiss
+        && let Some(color) = parse_color(c) {
+            theme.hint_dismiss = color;
+        }
+    if let Some(ref c) = colors.hint_confirm
+        && let Some(color) = parse_color(c) {
+            theme.hint_confirm = color;
+        }
+    if let Some(ref c) = colors.hint_nav
+        && let Some(color) = parse_color(c) {
+            theme.hint_nav = color;
         }
 }
 
@@ -940,6 +962,10 @@ fn get_predefined_theme(name: ThemeName) -> Theme {
             function: Color::Rgb(126, 231, 135),      // #7EE787
             spinner: Color::Rgb(59, 67, 79),          // #3B434F
             progress: Color::Rgb(37, 194, 255),       // #25C2FF
+            hint_key: Color::Rgb(37, 194, 255),
+            hint_dismiss: Color::Rgb(248, 81, 73),
+            hint_confirm: Color::Rgb(63, 185, 80),
+            hint_nav: Color::Rgb(121, 192, 255),
         },
         ThemeName::DarkCarbonAnsi16 => Theme {
             primary: Color::Indexed(12),
@@ -963,6 +989,10 @@ fn get_predefined_theme(name: ThemeName) -> Theme {
             function: Color::Indexed(10),
             spinner: Color::Indexed(7),
             progress: Color::Indexed(12),
+            hint_key: Color::Indexed(12),
+            hint_dismiss: Color::Indexed(1),
+            hint_confirm: Color::Indexed(2),
+            hint_nav: Color::Indexed(14),
         },
 
         ThemeName::LightPhoton => Theme {
@@ -988,6 +1018,10 @@ fn get_predefined_theme(name: ThemeName) -> Theme {
             function: Color::Rgb(0, 95, 204),       // #005FCC
             spinner: Color::Rgb(156, 163, 175),     // #9CA3AF
             progress: Color::Rgb(0, 95, 204),       // #005FCC
+            hint_key: Color::Rgb(0, 162, 255),
+            hint_dismiss: Color::Rgb(207, 34, 46),
+            hint_confirm: Color::Rgb(26, 127, 55),
+            hint_nav: Color::Rgb(9, 105, 218),
         },
         ThemeName::LightPhotonAnsi16 => Theme {
             primary: Color::Indexed(12),
@@ -1011,6 +1045,10 @@ fn get_predefined_theme(name: ThemeName) -> Theme {
             function: Color::Indexed(10),
             spinner: Color::Indexed(4),
             progress: Color::Indexed(12),
+            hint_key: Color::Indexed(12),
+            hint_dismiss: Color::Indexed(1),
+            hint_confirm: Color::Indexed(2),
+            hint_nav: Color::Indexed(12),
         },
 
         ThemeName::LightPrismRainbow => Theme {
@@ -1036,6 +1074,10 @@ fn get_predefined_theme(name: ThemeName) -> Theme {
             function: Color::Rgb(58, 134, 255),       // #3A86FF
             spinner: Color::Rgb(165, 174, 192),       // #A5AEC0
             progress: Color::Rgb(58, 134, 255),       // #3A86FF
+            hint_key: Color::Rgb(58, 134, 255),
+            hint_dismiss: Color::Rgb(255, 0, 110),
+            hint_confirm: Color::Rgb(46, 196, 182),
+            hint_nav: Color::Rgb(0, 187, 249),
         },
 
         ThemeName::LightVividTriad => Theme {
@@ -1061,6 +1103,10 @@ fn get_predefined_theme(name: ThemeName) -> Theme {
             function: Color::Rgb(0, 224, 255),       // #00E0FF
             spinner: Color::Rgb(154, 163, 175),      // #9AA3AF
             progress: Color::Rgb(0, 224, 255),       // #00E0FF
+            hint_key: Color::Rgb(0, 224, 255),
+            hint_dismiss: Color::Rgb(233, 53, 97),
+            hint_confirm: Color::Rgb(0, 179, 107),
+            hint_nav: Color::Rgb(0, 224, 255),
         },
 
         ThemeName::LightPorcelain => Theme {
@@ -1086,6 +1132,10 @@ fn get_predefined_theme(name: ThemeName) -> Theme {
             function: Color::Rgb(39, 110, 241),       // #276EF1
             spinner: Color::Rgb(154, 168, 181),       // #9AA8B5
             progress: Color::Rgb(39, 110, 241),       // #276EF1
+            hint_key: Color::Rgb(39, 110, 241),
+            hint_dismiss: Color::Rgb(217, 45, 32),
+            hint_confirm: Color::Rgb(43, 168, 74),
+            hint_nav: Color::Rgb(20, 115, 230),
         },
 
         ThemeName::LightSandbar => Theme {
@@ -1111,6 +1161,10 @@ fn get_predefined_theme(name: ThemeName) -> Theme {
             function: Color::Rgb(201, 122, 0),       // #C97A00
             spinner: Color::Rgb(183, 172, 158),      // #B7AC9E
             progress: Color::Rgb(201, 122, 0),       // #C97A00
+            hint_key: Color::Rgb(201, 122, 0),
+            hint_dismiss: Color::Rgb(198, 40, 40),
+            hint_confirm: Color::Rgb(46, 125, 50),
+            hint_nav: Color::Rgb(14, 116, 144),
         },
 
         ThemeName::LightGlacier => Theme {
@@ -1136,6 +1190,10 @@ fn get_predefined_theme(name: ThemeName) -> Theme {
             function: Color::Rgb(14, 165, 233),       // #0EA5E9
             spinner: Color::Rgb(156, 178, 199),       // #9CB2C7
             progress: Color::Rgb(14, 165, 233),       // #0EA5E9
+            hint_key: Color::Rgb(14, 165, 233),
+            hint_dismiss: Color::Rgb(220, 38, 38),
+            hint_confirm: Color::Rgb(22, 163, 74),
+            hint_nav: Color::Rgb(2, 132, 199),
         },
 
         ThemeName::DarkShinobiDusk => Theme {
@@ -1161,6 +1219,10 @@ fn get_predefined_theme(name: ThemeName) -> Theme {
             function: Color::Rgb(122, 162, 247),       // #7AA2F7
             spinner: Color::Rgb(42, 49, 64),           // #2A3140
             progress: Color::Rgb(122, 162, 247),       // #7AA2F7
+            hint_key: Color::Rgb(122, 162, 247),
+            hint_dismiss: Color::Rgb(247, 118, 142),
+            hint_confirm: Color::Rgb(158, 206, 106),
+            hint_nav: Color::Rgb(125, 207, 255),
         },
 
         ThemeName::DarkOledBlackPro => Theme {
@@ -1186,6 +1248,10 @@ fn get_predefined_theme(name: ThemeName) -> Theme {
             function: Color::Rgb(37, 194, 255),      // #25C2FF
             spinner: Color::Rgb(45, 45, 45),         // #2D2D2D
             progress: Color::Rgb(0, 209, 255),       // #00D1FF
+            hint_key: Color::Rgb(0, 209, 255),
+            hint_dismiss: Color::Rgb(255, 59, 48),
+            hint_confirm: Color::Rgb(33, 243, 114),
+            hint_nav: Color::Rgb(37, 194, 255),
         },
 
         ThemeName::DarkAmberTerminal => Theme {
@@ -1211,6 +1277,10 @@ fn get_predefined_theme(name: ThemeName) -> Theme {
             function: Color::Rgb(255, 176, 0),       // #FFB000
             spinner: Color::Rgb(58, 45, 23),         // #3A2D17
             progress: Color::Rgb(255, 176, 0),       // #FFB000
+            hint_key: Color::Rgb(255, 176, 0),
+            hint_dismiss: Color::Rgb(255, 94, 58),
+            hint_confirm: Color::Rgb(255, 207, 51),
+            hint_nav: Color::Rgb(255, 184, 77),
         },
 
         ThemeName::DarkAuroraFlux => Theme {
@@ -1236,6 +1306,10 @@ fn get_predefined_theme(name: ThemeName) -> Theme {
             function: Color::Rgb(142, 202, 255),       // #8ECAFF
             spinner: Color::Rgb(37, 48, 74),           // #25304A
             progress: Color::Rgb(142, 202, 255),       // #8ECAFF
+            hint_key: Color::Rgb(142, 202, 255),
+            hint_dismiss: Color::Rgb(255, 107, 129),
+            hint_confirm: Color::Rgb(158, 228, 147),
+            hint_nav: Color::Rgb(142, 202, 255),
         },
 
         ThemeName::DarkCharcoalRainbow => Theme {
@@ -1261,6 +1335,10 @@ fn get_predefined_theme(name: ThemeName) -> Theme {
             function: Color::Rgb(179, 136, 255),      // #B388FF
             spinner: Color::Rgb(42, 42, 42),          // #2A2A2A
             progress: Color::Rgb(26, 209, 255),       // #1AD1FF
+            hint_key: Color::Rgb(26, 209, 255),
+            hint_dismiss: Color::Rgb(255, 77, 109),
+            hint_confirm: Color::Rgb(0, 194, 168),
+            hint_nav: Color::Rgb(26, 209, 255),
         },
 
         ThemeName::DarkZenGarden => Theme {
@@ -1286,6 +1364,10 @@ fn get_predefined_theme(name: ThemeName) -> Theme {
             function: Color::Rgb(137, 220, 235),       // #89DCEB
             spinner: Color::Rgb(37, 49, 58),           // #25313A
             progress: Color::Rgb(148, 226, 213),       // #94E2D5
+            hint_key: Color::Rgb(148, 226, 213),
+            hint_dismiss: Color::Rgb(243, 139, 168),
+            hint_confirm: Color::Rgb(166, 227, 161),
+            hint_nav: Color::Rgb(137, 220, 235),
         },
 
         ThemeName::DarkPaperLightPro => Theme {
@@ -1311,6 +1393,10 @@ fn get_predefined_theme(name: ThemeName) -> Theme {
             function: Color::Rgb(0, 95, 204),       // #005FCC
             spinner: Color::Rgb(140, 149, 159),     // #8C959F
             progress: Color::Rgb(0, 95, 204),       // #005FCC
+            hint_key: Color::Rgb(0, 95, 204),
+            hint_dismiss: Color::Rgb(207, 34, 46),
+            hint_confirm: Color::Rgb(26, 127, 55),
+            hint_nav: Color::Rgb(9, 105, 218),
         },
 
         ThemeName::Custom => {

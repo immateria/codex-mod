@@ -84,6 +84,18 @@ impl ThemeSelectionView {
         if let Some(v) = color_to_hex(cur.progress) {
             example["colors"]["progress"] = serde_json::Value::String(v);
         }
+        if let Some(v) = color_to_hex(cur.hint_key) {
+            example["colors"]["hint_key"] = serde_json::Value::String(v);
+        }
+        if let Some(v) = color_to_hex(cur.hint_dismiss) {
+            example["colors"]["hint_dismiss"] = serde_json::Value::String(v);
+        }
+        if let Some(v) = color_to_hex(cur.hint_confirm) {
+            example["colors"]["hint_confirm"] = serde_json::Value::String(v);
+        }
+        if let Some(v) = color_to_hex(cur.hint_nav) {
+            example["colors"]["hint_nav"] = serde_json::Value::String(v);
+        }
 
         let before_ticket = self.before_ticket.clone();
         let fallback_tx = self.app_event_tx.clone();
@@ -151,7 +163,7 @@ impl ThemeSelectionView {
 
                 // Prompt with example and detailed field usage to help the model choose appropriate colors
                 let developer = format!(
-                    "You are designing a TUI color theme for a terminal UI.\n\nOutput: Strict JSON only. Include fields: `name` (string), `is_dark` (boolean), and `colors` (object of hex strings #RRGGBB).\n\nImportant rules:\n- Include EVERY `colors` key below. If you are not changing a value, copy it from the Current example.\n- Ensure strong contrast and readability for text vs background and for dim/bright variants.\n- Favor accessible color contrast (WCAG-ish) where possible.\n\nColor semantics (how the UI uses them):\n- background: main screen background.\n- foreground: primary foreground accents for widgets.\n- text: normal body text; must be readable on background.\n- text_dim: secondary/description text; slightly lower contrast than text.\n- text_bright: headings/emphasis; higher contrast than text.\n- primary: primary action/highlight color for selected items/buttons.\n- secondary: secondary accents (less prominent than primary).\n- border: container borders/dividers; should be visible but subtle against background.\n- border_focused: border when focused/active; slightly stronger than border.\n- selection: background for selected list rows; must contrast with text.\n- cursor: text caret color in input fields; must contrast with background.\n- success/warning/error/info: status badges and notices.\n- keyword/string/comment/function: syntax highlight accents in code blocks.\n- spinner: glyph color for loading animations; should be visible on background.\n- progress: progress-bar foreground color.\n\nCurrent theme example (copy unchanged values from here):\n{example}",
+                    "You are designing a TUI color theme for a terminal UI.\n\nOutput: Strict JSON only. Include fields: `name` (string), `is_dark` (boolean), and `colors` (object of hex strings #RRGGBB).\n\nImportant rules:\n- Include EVERY `colors` key below. If you are not changing a value, copy it from the Current example.\n- Ensure strong contrast and readability for text vs background and for dim/bright variants.\n- Favor accessible color contrast (WCAG-ish) where possible.\n\nColor semantics (how the UI uses them):\n- background: main screen background.\n- foreground: primary foreground accents for widgets.\n- text: normal body text; must be readable on background.\n- text_dim: secondary/description text; slightly lower contrast than text.\n- text_bright: headings/emphasis; higher contrast than text.\n- primary: primary action/highlight color for selected items/buttons.\n- secondary: secondary accents (less prominent than primary).\n- border: container borders/dividers; should be visible but subtle against background.\n- border_focused: border when focused/active; slightly stronger than border.\n- selection: background for selected list rows; must contrast with text.\n- cursor: text caret color in input fields; must contrast with background.\n- success/warning/error/info: status badges and notices.\n- keyword/string/comment/function: syntax highlight accents in code blocks.\n- spinner: glyph color for loading animations; should be visible on background.\n- progress: progress-bar foreground color.\n- hint_key: default key label color in keyboard shortcut bars.\n- hint_dismiss: Esc/close/cancel key label color in shortcut bars.\n- hint_confirm: Enter/save/apply key label color in shortcut bars.\n- hint_nav: navigation arrow key label color in shortcut bars.\n\nCurrent theme example (copy unchanged values from here):\n{example}",
                 );
                 let input: Vec<code_protocol::models::ResponseItem> = vec![
                     code_protocol::models::ResponseItem::Message {
@@ -373,6 +385,10 @@ impl ThemeSelectionView {
                     colors.function = get("function");
                     colors.spinner = get("spinner");
                     colors.progress = get("progress");
+                    colors.hint_key = get("hint_key");
+                    colors.hint_dismiss = get("hint_dismiss");
+                    colors.hint_confirm = get("hint_confirm");
+                    colors.hint_nav = get("hint_nav");
                 }
                 let _ = progress_tx.send(ProgressMsg::CompletedThemeOk(Box::new(
                     ThemeGenerationResult {

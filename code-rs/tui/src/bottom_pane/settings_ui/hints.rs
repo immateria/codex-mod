@@ -28,7 +28,7 @@ impl<'a> KeyHint<'a> {
         Self {
             key: key.into(),
             description: description.into(),
-            key_style: Style::new().fg(colors::primary()),
+            key_style: Style::new().fg(colors::hint_key()),
             description_style: Style::new().fg(colors::text_dim()),
             key_spans: None,
         }
@@ -223,7 +223,7 @@ fn shortcut_lines_wrapped(hints: &[KeyHint<'_>], max_width: u16) -> Vec<Line<'st
 /// `primary()` — so the pair reads as two distinct arrows rather than a
 /// monochrome zigzag.
 pub(crate) fn hint_nav(description: &'static str) -> KeyHint<'static> {
-    let c = colors::primary();
+    let c = colors::hint_nav();
     KeyHint::new(icons::nav_up_down(), description)
         .with_key_spans(vec![
             Span::styled(icons::arrow_up(), Style::new().fg(c)),
@@ -232,9 +232,9 @@ pub(crate) fn hint_nav(description: &'static str) -> KeyHint<'static> {
         ])
 }
 
-/// Horizontal (◂ ▸) hint with theme-colored arrows.
+/// Horizontal (◂ ▸) hint with theme `hint_nav` color.
 pub(crate) fn hint_nav_horizontal(description: &'static str) -> KeyHint<'static> {
-    let c = colors::primary();
+    let c = colors::hint_nav();
     KeyHint::new(icons::nav_left_right(), description)
         .with_key_spans(vec![
             Span::styled(icons::arrow_left(), Style::new().fg(c)),
@@ -259,14 +259,18 @@ pub(crate) fn key_ctrl(key: &str) -> String {
     icons::ctrl_combo(key)
 }
 
-/// Esc hint using theme `primary()` key style.
+/// Esc/dismiss hint using theme `hint_dismiss` color.
 pub(crate) fn hint_esc(description: &'static str) -> KeyHint<'static> {
-    KeyHint::new(icons::escape(), description)
+    let mut h = KeyHint::new(icons::escape(), description);
+    h.key_style = Style::new().fg(colors::hint_dismiss());
+    h
 }
 
-/// Enter/confirm hint using theme `primary()` key style.
+/// Enter/confirm hint using theme `hint_confirm` color.
 pub(crate) fn hint_enter(description: &'static str) -> KeyHint<'static> {
-    KeyHint::new(icons::enter(), description)
+    let mut h = KeyHint::new(icons::enter(), description);
+    h.key_style = Style::new().fg(colors::hint_confirm());
+    h
 }
 
 pub(crate) fn status_and_shortcuts(

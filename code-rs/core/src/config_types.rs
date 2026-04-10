@@ -3001,6 +3001,12 @@ pub struct ThemeColors {
     // Animation colors
     pub spinner: Option<String>,
     pub progress: Option<String>,
+
+    // Shortcut bar hint colors
+    pub hint_key: Option<String>,
+    pub hint_dismiss: Option<String>,
+    pub hint_confirm: Option<String>,
+    pub hint_nav: Option<String>,
 }
 
 /// Browser configuration for integrated screenshot capabilities.

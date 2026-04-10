@@ -132,6 +132,23 @@ pub(crate) fn keyword() -> Color {
     current_theme().keyword
 }
 
+// Shortcut bar hint colors
+pub(crate) fn hint_key() -> Color {
+    current_theme().hint_key
+}
+
+pub(crate) fn hint_dismiss() -> Color {
+    current_theme().hint_dismiss
+}
+
+pub(crate) fn hint_confirm() -> Color {
+    current_theme().hint_confirm
+}
+
+pub(crate) fn hint_nav() -> Color {
+    current_theme().hint_nav
+}
+
 // Overlay/scrim helper: a dimmed background used behind modal overlays.
 // We derive it from the current theme background so it looks consistent for
 // both light and dark themes.
