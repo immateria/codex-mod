@@ -196,7 +196,7 @@ mod tests {
         assert_eq!(layout.body.y, 3);
         assert_eq!(layout.footer.y, 9);
         assert_eq!(layout.footer.height, 2);
-        assert_eq!(layout.visible_rows(), 5);
+        assert_eq!(layout.visible_rows(), 6);
     }
 
     #[test]
@@ -215,7 +215,7 @@ mod tests {
 
         assert_eq!(rendered, layout);
         assert_eq!(layout.header, Rect::new(0, 0, 20, 1));
-        assert_eq!(layout.body, Rect::new(0, 1, 20, 3));
+        assert_eq!(layout.body, Rect::new(0, 1, 20, 4));
         assert_eq!(layout.footer, Rect::new(0, 5, 20, 1));
         assert_eq!(
             layout.footer.y,

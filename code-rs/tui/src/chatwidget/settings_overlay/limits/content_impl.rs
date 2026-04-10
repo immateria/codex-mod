@@ -365,9 +365,9 @@ impl LimitsSettingsContent {
 
     fn content_areas(area: Rect, has_tabs: bool) -> (Rect, Option<Rect>, Rect) {
         let constraints = if has_tabs {
-            vec![Constraint::Length(1), Constraint::Length(2), Constraint::Fill(1)]
+            vec![Constraint::Length(2), Constraint::Fill(1), Constraint::Length(1)]
         } else {
-            vec![Constraint::Length(1), Constraint::Fill(1)]
+            vec![Constraint::Fill(1), Constraint::Length(1)]
         };
 
         let chunks = Layout::default()
@@ -376,9 +376,9 @@ impl LimitsSettingsContent {
             .split(area);
 
         if has_tabs {
-            (chunks[0], Some(chunks[1]), chunks[2])
+            (chunks[2], Some(chunks[0]), chunks[1])
         } else {
-            (chunks[0], None, chunks[1])
+            (chunks[1], None, chunks[0])
         }
     }
 
