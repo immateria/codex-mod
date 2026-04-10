@@ -109,7 +109,7 @@ impl AppsSettingsView {
         }
 
         let shortcuts = vec![
-            hint_nav(" select"),
+            hint_nav(" navigate"),
             KeyHint::new(crate::bottom_pane::settings_ui::hints::key_space(), " pin")
                 .with_key_style(Style::new().fg(colors::success())),
             hint_enter(" details"),

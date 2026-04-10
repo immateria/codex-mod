@@ -11,7 +11,7 @@ use super::UpdateSettingsView;
 impl UpdateSettingsView {
     pub(super) fn shortcuts() -> Vec<KeyHint<'static>> {
         vec![
-            KeyHint::new("Up/Down", " move"),
+            crate::bottom_pane::settings_ui::hints::hint_nav(" navigate"),
             hint_enter(" activate"),
             KeyHint::new(crate::bottom_pane::settings_ui::hints::key_space(), " toggle"),
             hint_esc(" close"),

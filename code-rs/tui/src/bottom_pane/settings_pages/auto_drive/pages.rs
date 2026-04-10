@@ -90,7 +90,7 @@ impl AutoDriveSettingsView {
                 hint_enter(" select/toggle"),
                 hint_nav_horizontal(" adjust delay"),
                 hint_esc(" close"),
-                KeyHint::new(key_ctrl("S"), " close"),
+                KeyHint::new(key_ctrl("S"), " save"),
             ],
         )
     }
@@ -103,7 +103,7 @@ impl AutoDriveSettingsView {
             &[
                 hint_enter(" edit/add"),
                 KeyHint::new(key_space(), " toggle enabled"),
-                KeyHint::new("D", " remove"),
+                KeyHint::new("d", " remove"),
                 hint_esc(" back"),
             ],
         )

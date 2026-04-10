@@ -97,7 +97,7 @@ impl SecretsSettingsView {
 
     fn list_shortcuts(&self, deleting: bool) -> Vec<KeyHint<'static>> {
         let mut hints = vec![
-            hint_nav(" select"),
+            hint_nav(" navigate"),
             KeyHint::new("r", " refresh").with_key_style(Style::new().fg(colors::info())),
             hint_esc(" back"),
         ];

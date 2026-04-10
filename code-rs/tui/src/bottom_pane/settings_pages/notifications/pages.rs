@@ -43,7 +43,7 @@ impl NotificationsSettingsView {
                 hint_nav(" navigate"),
                 KeyHint::new(format!("{lr}/Space", lr = crate::icons::nav_left_right()), " toggle")
                     .with_key_style(Style::new().fg(colors::success())),
-                hint_enter(" toggle/close"),
+                hint_enter(" activate"),
                 hint_esc(" close"),
             ]),
             NotificationsMode::Custom { .. } => (vec![Line::from(vec![

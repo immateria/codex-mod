@@ -152,7 +152,7 @@ mod imp {
             lines.push(crate::bottom_pane::settings_ui::hints::shortcut_line(&[
                 crate::bottom_pane::settings_ui::hints::KeyHint::new(
                     format!("{ud}/jk", ud = crate::icons::nav_up_down()),
-                    " move",
+                    " navigate",
                 ).with_key_style(crate::colors::style_function()),
                 crate::bottom_pane::settings_ui::hints::hint_enter(" select"),
                 crate::bottom_pane::settings_ui::hints::KeyHint::new(

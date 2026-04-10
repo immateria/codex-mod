@@ -50,7 +50,7 @@ impl CloudTasksView {
             footer_hint: {
                 use crate::bottom_pane::settings_ui::hints::{hint_esc, hint_nav, shortcut_line, KeyHint};
                 shortcut_line(&[
-                    hint_nav(" select"),
+                    hint_nav(" navigate"),
                     crate::bottom_pane::settings_ui::hints::hint_enter(" actions"),
                     KeyHint::new("r", " refresh")
                         .with_key_style(crate::colors::style_info()),

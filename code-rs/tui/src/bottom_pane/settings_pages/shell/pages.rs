@@ -44,7 +44,7 @@ impl ShellSelectionView {
         ];
 
         let shortcuts = vec![
-            hint_nav(" select"),
+            hint_nav(" navigate"),
             hint_enter(" apply"),
             KeyHint::new("e/→", " edit"),
             KeyHint::new("p", " pin"),

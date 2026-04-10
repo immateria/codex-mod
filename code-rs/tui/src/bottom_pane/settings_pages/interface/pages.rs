@@ -46,7 +46,6 @@ impl InterfaceSettingsView {
         }
         post_field_lines.push(shortcut_line(&[
             hint_enter(" save"),
-            KeyHint::new(key_ctrl("S"), " save").with_key_style(Style::new().fg(crate::colors::success())),
             hint_esc(" cancel"),
         ]));
 

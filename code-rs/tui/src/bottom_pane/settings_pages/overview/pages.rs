@@ -23,7 +23,7 @@ impl SettingsOverviewView {
         )
         .with_shortcuts(crate::bottom_pane::settings_ui::hints::ShortcutPlacement::Bottom, 
             vec![
-                KeyHint::new(format!("{ud}/jk", ud = crate::icons::nav_up_down()), " move")
+                KeyHint::new(format!("{ud}/jk", ud = crate::icons::nav_up_down()), " navigate")
                     .with_key_style(Style::new().fg(colors::function())),
                 hint_enter(" open").with_key_style(Style::new().fg(colors::function())),
                 hint_esc(" close").with_key_style(Style::new().fg(colors::function())),
