@@ -67,8 +67,11 @@ impl<'a> SettingsFrame<'a> {
 
         // We only show the footer when there is room for the footer gap plus at least one
         // footer line. Otherwise, a tiny viewport would yield an out-of-bounds footer rect.
+        // The constant is currently 0 but may change; keep the comparison future-proof.
+        #[allow(clippy::absurd_extreme_comparisons)]
+        let footer_too_tight = remaining_after_header <= DEFAULT_FOOTER_GAP_LINES;
         let (footer_gap_height, footer_height) = if self.footer_lines.is_empty()
-            || remaining_after_header <= DEFAULT_FOOTER_GAP_LINES
+            || footer_too_tight
         {
             (0, 0)
         } else {

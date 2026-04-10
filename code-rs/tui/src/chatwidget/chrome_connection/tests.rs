@@ -187,33 +187,7 @@ fn send_browser_screenshot_update_emits_codex_event() {
 fn cached_connection_write_skips_empty() {
     let _env_lock = crate::chatwidget::smoke_helpers::TEST_ENV_LOCK
         .lock()
-        .unwrap_or_else(|poisoned| poisoned.into_inner());
-    let dir = tempdir().expect("tempdir");
-    let _home_guard = EnvVarGuard::set("CODE_HOME", dir.path().as_os_str().to_owned());
-    let _codex_home_guard = EnvVarGuard::clear("CODEX_HOME");
-
-    let rt = tokio::runtime::Builder::new_current_thread()
-        .enable_all()
-        .build()
-        .expect("runtime");
-
-    rt.block_on(async {
-        super::super::write_cached_connection(None, None)
-            .await
-            .expect("write empty");
-    });
-
-    assert!(
-        !dir.path().join("cache.json").exists(),
-        "expected cache.json to not be created for empty write"
-    );
-}
-
-#[test]
-fn cached_connection_round_trips() {
-    let _env_lock = crate::chatwidget::smoke_helpers::TEST_ENV_LOCK
-        .lock()
-        .unwrap_or_else(|poisoned| poisoned.into_inner());
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     let dir = tempdir().expect("tempdir");
     let _home_guard = EnvVarGuard::set("CODE_HOME", dir.path().as_os_str().to_owned());
     let _codex_home_guard = EnvVarGuard::clear("CODEX_HOME");

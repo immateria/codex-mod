@@ -78,7 +78,7 @@ impl ChatWidget<'_> {
             {
                 #[cfg(feature = "test-helpers")]
                 if std::env::var("CODE_TUI_TEST_MODE").is_ok() {
-                    eprintln!("toggle_bottommost_exec_fold: exec idx={idx} call_id={:?}", cell.call_id());
+                    tracing::debug!("toggle_bottommost_exec_fold: exec idx={idx} call_id={:?}", cell.call_id());
                 }
                 exec_cell.toggle_output_collapsed();
                 self.invalidate_height_cache();
@@ -90,7 +90,7 @@ impl ChatWidget<'_> {
             {
                 #[cfg(feature = "test-helpers")]
                 if std::env::var("CODE_TUI_TEST_MODE").is_ok() {
-                    eprintln!("toggle_bottommost_exec_fold: js idx={idx} call_id={:?}", cell.call_id());
+                    tracing::debug!("toggle_bottommost_exec_fold: js idx={idx} call_id={:?}", cell.call_id());
                 }
                 js_cell.toggle_output_collapsed();
                 self.invalidate_height_cache();
@@ -100,7 +100,7 @@ impl ChatWidget<'_> {
             if let Some(tool_cell) = cell.as_any().downcast_ref::<ToolCallCell>() {
                 #[cfg(feature = "test-helpers")]
                 if std::env::var("CODE_TUI_TEST_MODE").is_ok() {
-                    eprintln!("toggle_bottommost_exec_fold: tool idx={idx} call_id={:?}", cell.call_id());
+                    tracing::debug!("toggle_bottommost_exec_fold: tool idx={idx} call_id={:?}", cell.call_id());
                 }
                 tool_cell.toggle_details_collapsed();
                 self.invalidate_height_cache();
@@ -110,7 +110,7 @@ impl ChatWidget<'_> {
             if let Some(tool_cell) = cell.as_any().downcast_ref::<RunningToolCallCell>() {
                 #[cfg(feature = "test-helpers")]
                 if std::env::var("CODE_TUI_TEST_MODE").is_ok() {
-                    eprintln!("toggle_bottommost_exec_fold: running tool idx={idx} call_id={:?}", cell.call_id());
+                    tracing::debug!("toggle_bottommost_exec_fold: running tool idx={idx} call_id={:?}", cell.call_id());
                 }
                 tool_cell.toggle_details_collapsed();
                 self.invalidate_height_cache();
@@ -120,7 +120,7 @@ impl ChatWidget<'_> {
             if let Some(web_fetch_cell) = cell.as_any().downcast_ref::<WebFetchToolCell>() {
                 #[cfg(feature = "test-helpers")]
                 if std::env::var("CODE_TUI_TEST_MODE").is_ok() {
-                    eprintln!("toggle_bottommost_exec_fold: web idx={idx} call_id={:?}", cell.call_id());
+                    tracing::debug!("toggle_bottommost_exec_fold: web idx={idx} call_id={:?}", cell.call_id());
                 }
                 web_fetch_cell.toggle_body_collapsed();
                 self.invalidate_height_cache();

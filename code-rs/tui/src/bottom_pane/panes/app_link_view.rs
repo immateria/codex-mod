@@ -274,7 +274,7 @@ mod tests {
         let expected_url = app.install_url.clone().expect("install url");
 
         let mut view = AppLinkView::new(AppLinkViewParams { app }, app_event_tx.clone());
-        let mut pane = make_pane(app_event_tx.clone());
+        let mut pane = make_pane(app_event_tx);
 
         view.handle_key_event(
             &mut pane,
@@ -302,7 +302,7 @@ mod tests {
         );
 
         let mut view = AppLinkView::new(AppLinkViewParams { app }, app_event_tx.clone());
-        let mut pane = make_pane(app_event_tx.clone());
+        let mut pane = make_pane(app_event_tx);
 
         // Enter on first screen emits OpenUrlInBrowser and moves into confirmation.
         view.handle_key_event(
@@ -343,7 +343,7 @@ mod tests {
         assert!(rx.try_recv().is_err());
 
         // Confirmation screen.
-        let mut view = AppLinkView::new(AppLinkViewParams { app }, app_event_tx.clone());
+        let mut view = AppLinkView::new(AppLinkViewParams { app }, app_event_tx);
         view.handle_key_event(&mut pane, KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
         let _ = rx.try_recv().expect("OpenUrlInBrowser");
         view.handle_key_event(&mut pane, KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE));

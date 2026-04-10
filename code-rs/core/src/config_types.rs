@@ -2431,6 +2431,7 @@ where
 {
     #[derive(Deserialize)]
     #[serde(untagged)]
+    #[allow(clippy::large_enum_variant)]
     enum ThemeConfigCompat {
         Name(String),
         Table(ThemeConfig),

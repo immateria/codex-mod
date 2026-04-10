@@ -20,7 +20,7 @@ fn make_view_with_tools(groups_enabled: bool, tool_names: &[&'static str]) -> Va
         .iter()
         .map(|name| ToolRow {
             status: ToolStatus {
-                name: *name,
+                name,
                 description: "Run tool",
                 installed: true,
                 install_hint: String::new(),

@@ -2298,6 +2298,7 @@ fn resolve_execve_wrapper_exe_with(
 }
 
 #[cfg(unix)]
+#[allow(clippy::too_many_arguments)]
 async fn run_shell_with_zsh_fork(
     sess: Arc<Session>,
     zsh_fork_exec_config: ZshForkExecConfig,
@@ -3409,6 +3410,7 @@ mod tests {
 }
 
 #[cfg(all(test, unix))]
+#[allow(clippy::expect_used)]
 mod shell_zsh_fork_tests {
     use super::*;
     use crate::protocol::SandboxPolicy;

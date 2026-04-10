@@ -208,60 +208,6 @@ fn run_add(config_overrides: &CliConfigOverrides, add_args: AddArgs) -> Result<(
     Ok(())
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn add_with_url_defaults_to_mcp_remote() {
-        let transport = build_mcp_transport_for_add(
-            Some("https://mcp.example.com/mcp".to_string()),
-            None,
-            None,
-            Vec::new(),
-        )
-        .expect("transport");
-
-        match transport {
-            McpServerTransportConfig::Stdio { command, args, env } => {
-                assert_eq!(command, "npx");
-                assert_eq!(args[0], "-y");
-                assert_eq!(args[1], "mcp-remote");
-                assert_eq!(args[2], "https://mcp.example.com/mcp");
-                assert!(env.is_none());
-            }
-            _ => panic!("expected stdio transport"),
-        }
-    }
-
-    #[test]
-    fn add_with_url_and_bearer_token_uses_streamable_http() {
-        let transport = build_mcp_transport_for_add(
-            Some("https://mcp.example.com/mcp".to_string()),
-            Some("token".to_string()),
-            None,
-            Vec::new(),
-        )
-        .expect("transport");
-
-        match transport {
-            McpServerTransportConfig::StreamableHttp {
-                url,
-                bearer_token,
-                bearer_token_env_var: _,
-                http_headers: _,
-                env_http_headers: _,
-                oauth_resource,
-            } => {
-                assert_eq!(url, "https://mcp.example.com/mcp");
-                assert_eq!(bearer_token.as_deref(), Some("token"));
-                assert_eq!(oauth_resource, None);
-            }
-            _ => panic!("expected streamable http transport"),
-        }
-    }
-}
-
 fn run_remove(config_overrides: &CliConfigOverrides, remove_args: RemoveArgs) -> Result<()> {
     config_overrides.parse_overrides().map_err(|e| anyhow!(e))?;
 
@@ -598,5 +544,59 @@ fn validate_server_name(name: &str) -> Result<()> {
         Ok(())
     } else {
         bail!("invalid server name '{name}' (use letters, numbers, '-', '_')");
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn add_with_url_defaults_to_mcp_remote() {
+        let transport = build_mcp_transport_for_add(
+            Some("https://mcp.example.com/mcp".to_string()),
+            None,
+            None,
+            Vec::new(),
+        )
+        .expect("transport");
+
+        match transport {
+            McpServerTransportConfig::Stdio { command, args, env } => {
+                assert_eq!(command, "npx");
+                assert_eq!(args[0], "-y");
+                assert_eq!(args[1], "mcp-remote");
+                assert_eq!(args[2], "https://mcp.example.com/mcp");
+                assert!(env.is_none());
+            }
+            _ => panic!("expected stdio transport"),
+        }
+    }
+
+    #[test]
+    fn add_with_url_and_bearer_token_uses_streamable_http() {
+        let transport = build_mcp_transport_for_add(
+            Some("https://mcp.example.com/mcp".to_string()),
+            Some("token".to_string()),
+            None,
+            Vec::new(),
+        )
+        .expect("transport");
+
+        match transport {
+            McpServerTransportConfig::StreamableHttp {
+                url,
+                bearer_token,
+                bearer_token_env_var: _,
+                http_headers: _,
+                env_http_headers: _,
+                oauth_resource,
+            } => {
+                assert_eq!(url, "https://mcp.example.com/mcp");
+                assert_eq!(bearer_token.as_deref(), Some("token"));
+                assert_eq!(oauth_resource, None);
+            }
+            _ => panic!("expected streamable http transport"),
+        }
     }
 }

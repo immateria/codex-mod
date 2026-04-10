@@ -19,10 +19,12 @@ fn make_entry_global(name: &str) -> SecretListEntry {
 }
 
 fn shared_state_ready(env_id: &str, entries: Vec<SecretListEntry>) -> Arc<Mutex<SecretsSharedState>> {
-    let mut state = SecretsSharedState::default();
-    state.list = crate::chatwidget::SecretsListState::Ready {
-        env_id: env_id.to_string(),
-        entries,
+    let state = SecretsSharedState {
+        list: crate::chatwidget::SecretsListState::Ready {
+            env_id: env_id.to_string(),
+            entries,
+        },
+        ..SecretsSharedState::default()
     };
     Arc::new(Mutex::new(state))
 }

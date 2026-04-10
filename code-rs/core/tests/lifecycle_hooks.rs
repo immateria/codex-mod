@@ -603,10 +603,8 @@ event: response.completed\ndata: {completed_two}\n\n"
             .await
             .expect("timeout waiting for exec begin")
             .expect("event stream should remain open");
-        if let EventMsg::ExecCommandBegin(ev) = event.msg {
-            if ev.call_id == "call-1" {
+        if let EventMsg::ExecCommandBegin(ev) = event.msg && ev.call_id == "call-1" {
                 break;
-            }
         }
     }
 

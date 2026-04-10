@@ -295,6 +295,7 @@ impl Clone for ModelClient {
 }
 
 impl ModelClient {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         config: Arc<Config>,
         auth_manager: Option<Arc<AuthManager>>,

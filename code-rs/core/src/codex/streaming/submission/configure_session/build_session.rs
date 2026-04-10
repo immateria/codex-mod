@@ -268,6 +268,7 @@ impl Runner<'_> {
             });
         }
 
+        #[allow(clippy::default_constructed_unit_structs)]
         let network_approval = Arc::new(crate::network_approval::NetworkApprovalService::default());
 
         #[cfg(feature = "managed-network-proxy")]

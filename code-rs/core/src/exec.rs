@@ -172,6 +172,7 @@ pub async fn process_exec_tool_call(
     .await
 }
 
+#[allow(clippy::too_many_arguments)]
 pub async fn process_exec_tool_call_with_managed_network(
     params: ExecParams,
     sandbox_type: SandboxType,

@@ -759,7 +759,7 @@ mod tests {
             sandbox: SandboxType::WindowsRestrictedToken,
             windows_sandbox_level: WindowsSandboxLevel::Disabled,
             sandbox_permissions: SandboxPermissions::UseDefault,
-            sandbox_policy: sandbox_policy.clone(),
+            sandbox_policy,
             justification: None,
             arg0: None,
         }
@@ -865,7 +865,7 @@ mod tests {
                     sandbox: SandboxType::None,
                     windows_sandbox_level: WindowsSandboxLevel::Disabled,
                     sandbox_permissions: SandboxPermissions::UseDefault,
-                    sandbox_policy: sandbox_policy.clone(),
+                    sandbox_policy,
                     justification: None,
                     arg0: None,
                 },

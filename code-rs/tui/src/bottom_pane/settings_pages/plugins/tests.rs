@@ -74,7 +74,7 @@ fn make_detail_outcome(
 ) -> PluginReadOutcome {
     PluginReadOutcome {
         marketplace_name: marketplace_name.to_string(),
-        marketplace_path: marketplace_path.clone(),
+        marketplace_path,
         plugin: PluginDetail {
             id: plugin_id.to_string(),
             name: plugin_name.to_string(),
@@ -132,7 +132,7 @@ fn enter_on_list_opens_detail_and_requests_plugin_detail() {
     let marketplace_path = abs("/tmp/marketplace");
     let plugin_source_path = abs("/tmp/marketplace/plugins/p1");
 
-    let plugin = make_configured_plugin("p1", "plugin-one", plugin_source_path.clone(), false, false);
+    let plugin = make_configured_plugin("p1", "plugin-one", plugin_source_path, false, false);
     let marketplaces = vec![make_marketplace("Local", marketplace_path.clone(), plugin)];
     let shared_state = make_shared_state_ready(vec![root.clone()], marketplaces);
 
@@ -173,7 +173,7 @@ fn detail_install_action_emits_install_event() {
         marketplace_path.clone(),
         "p1",
         "plugin-one",
-        plugin_source_path.clone(),
+        plugin_source_path,
         false,
         false,
     );
@@ -181,9 +181,9 @@ fn detail_install_action_emits_install_event() {
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner)
         .details
-        .insert(key.clone(), PluginsDetailState::Ready(outcome));
+        .insert(key.clone(), PluginsDetailState::Ready(Box::new(outcome)));
 
-    view.mode = Mode::Detail { key: key.clone() };
+    view.mode = Mode::Detail { key };
     view.focused_detail_button = DetailAction::Install;
 
     assert!(view.handle_key_event_direct(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE)));

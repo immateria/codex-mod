@@ -808,6 +808,7 @@ pub(crate) fn install_unified_panic_hook() {
     });
 }
 
+#[allow(clippy::too_many_arguments)]
 fn run_ratatui_app(
     cli: Cli,
     mut config: Config,

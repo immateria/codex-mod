@@ -783,6 +783,7 @@ impl portable_pty::ChildKiller for PipeChildKiller {
 }
 
 #[cfg(unix)]
+#[allow(clippy::too_many_arguments)]
 async fn spawn_pipe_exec_command_session(
     cmd: String,
     workdir: Option<String>,

@@ -1183,11 +1183,13 @@ mod tests {
             "outbound initialized flag should be set"
         );
 
-        let opted_out = outbound_opted_out_notification_methods
-            .read()
-            .expect("read lock");
-        assert!(opted_out.contains("configWarning"));
-        assert!(opted_out.contains("codex/event/session_configured"));
+        {
+            let opted_out = outbound_opted_out_notification_methods
+                .read()
+                .expect("read lock");
+            assert!(opted_out.contains("configWarning"));
+            assert!(opted_out.contains("codex/event/session_configured"));
+        }
 
         // Drain initialize response envelope to ensure processing completed.
         let envelope = outgoing_rx.recv().await.expect("initialize response envelope");

@@ -1923,270 +1923,6 @@ impl IntoWireAuthMode for code_app_server_protocol::AuthMode {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use code_app_server_protocol::AuthMode;
-    use code_core::auth::CodexAuth;
-    use code_core::auth::RefreshTokenError;
-    use code_core::config::ConfigOverrides;
-    use code_protocol::mcp_protocol::RemoveConversationListenerParams;
-    use code_protocol::protocol::SessionSource;
-    use mcp_types::RequestId;
-    use serde_json::from_value;
-    use tokio::sync::mpsc;
-
-    fn make_processor_for_tests() -> (CodexMessageProcessor, mpsc::UnboundedReceiver<crate::outgoing_message::OutgoingMessage>) {
-        let (outgoing_tx, outgoing_rx) = mpsc::unbounded_channel();
-        let outgoing = Arc::new(OutgoingMessageSender::new(outgoing_tx));
-        let config = Arc::new(
-            Config::load_with_cli_overrides(Vec::new(), ConfigOverrides::default())
-                .expect("load default config"),
-        );
-        let auth_manager = AuthManager::shared_with_mode_and_originator(
-            config.code_home.clone(),
-            AuthMode::ApiKey,
-            config.responses_originator_header.clone(),
-        );
-        let conversation_manager = Arc::new(ConversationManager::new(
-            auth_manager.clone(),
-            SessionSource::Mcp,
-        ));
-
-        (
-            CodexMessageProcessor::new(
-                auth_manager,
-                conversation_manager,
-                outgoing,
-                None,
-                config,
-            ),
-            outgoing_rx,
-        )
-    }
-
-    fn make_processor_with_auth_for_tests(
-        auth_manager: Arc<AuthManager>,
-    ) -> (
-        CodexMessageProcessor,
-        mpsc::UnboundedReceiver<crate::outgoing_message::OutgoingMessage>,
-    ) {
-        let (outgoing_tx, outgoing_rx) = mpsc::unbounded_channel();
-        let outgoing = Arc::new(OutgoingMessageSender::new(outgoing_tx));
-        let config = Arc::new(
-            Config::load_with_cli_overrides(Vec::new(), ConfigOverrides::default())
-                .expect("load default config"),
-        );
-        let conversation_manager = Arc::new(ConversationManager::new(
-            auth_manager.clone(),
-            SessionSource::Mcp,
-        ));
-
-        (
-            CodexMessageProcessor::new(
-                auth_manager,
-                conversation_manager,
-                outgoing,
-                None,
-                config,
-            ),
-            outgoing_rx,
-        )
-    }
-
-    #[tokio::test]
-    async fn remove_conversation_listener_enforces_owner_connection() {
-        let (mut processor, mut outgoing_rx) = make_processor_for_tests();
-
-        let subscription_id = Uuid::new_v4();
-        let (cancel_tx, mut cancel_rx) = oneshot::channel();
-        processor.conversation_listeners.insert(
-            subscription_id,
-            ConversationListenerRegistration {
-                owner_connection_id: ConnectionId(1),
-                cancel_tx,
-            },
-        );
-
-        processor
-            .remove_conversation_listener(
-                ConnectionId(2),
-                RequestId::Integer(10),
-                RemoveConversationListenerParams { subscription_id },
-            )
-            .await;
-
-        let message = outgoing_rx
-            .recv()
-            .await
-            .expect("error response should be sent");
-        match message {
-            crate::outgoing_message::OutgoingMessage::Error(err) => {
-                assert_eq!(err.id, RequestId::Integer(10));
-                assert!(err.error.message.contains("subscription not found"));
-            }
-            _ => panic!("expected error response"),
-        }
-
-        assert!(
-            processor.conversation_listeners.contains_key(&subscription_id),
-            "listener should remain registered for original owner"
-        );
-
-        processor
-            .remove_conversation_listener(
-                ConnectionId(1),
-                RequestId::Integer(11),
-                RemoveConversationListenerParams { subscription_id },
-            )
-            .await;
-
-        let message = outgoing_rx
-            .recv()
-            .await
-            .expect("success response should be sent");
-        match message {
-            crate::outgoing_message::OutgoingMessage::Response(response) => {
-                assert_eq!(response.id, RequestId::Integer(11));
-            }
-            _ => panic!("expected success response"),
-        }
-
-        assert!(
-            processor.conversation_listeners.get(&subscription_id).is_none(),
-            "listener should be removed by owner"
-        );
-        assert_eq!(cancel_rx.try_recv(), Ok(()));
-    }
-
-    #[tokio::test]
-    async fn get_auth_status_omits_token_after_permanent_refresh_failure() {
-        let auth = CodexAuth::create_dummy_chatgpt_auth_for_testing();
-        let auth_manager = AuthManager::from_auth_for_testing(auth.clone());
-        auth_manager.seed_refresh_failure_for_testing(
-            &auth,
-            RefreshTokenError::permanent("refresh token already used"),
-        );
-
-        let (processor, mut outgoing_rx) = make_processor_with_auth_for_tests(auth_manager);
-        processor
-            .get_auth_status(
-                RequestId::Integer(42),
-                GetAuthStatusParams {
-                    include_token: Some(true),
-                    refresh_token: Some(false),
-                },
-            )
-            .await;
-
-        let message = outgoing_rx
-            .recv()
-            .await
-            .expect("auth status response should be sent");
-        let response = match message {
-            crate::outgoing_message::OutgoingMessage::Response(response) => response,
-            _ => panic!("expected response message"),
-        };
-        let status: GetAuthStatusResponse =
-            from_value(response.result).expect("valid getAuthStatus payload");
-        assert_eq!(
-            status,
-            GetAuthStatusResponse {
-                auth_method: Some(code_protocol::mcp_protocol::AuthMode::ChatGPT),
-                auth_token: None,
-                requires_openai_auth: Some(true),
-            }
-        );
-    }
-
-    #[test]
-    fn parse_plan_type_is_case_insensitive() {
-        assert_eq!(parse_plan_type(Some("Pro".to_string())), PlanType::Pro);
-        assert_eq!(
-            parse_plan_type(Some("BUSINESS".to_string())),
-            PlanType::Business
-        );
-        assert_eq!(parse_plan_type(Some("mystery".to_string())), PlanType::Unknown);
-        assert_eq!(parse_plan_type(None), PlanType::Unknown);
-    }
-
-    #[test]
-    fn select_rate_limit_snapshot_prefers_matching_account() {
-        let snapshots = vec![
-            code_core::account_usage::StoredRateLimitSnapshot {
-                account_id: "acct-a".to_string(),
-                plan: Some("pro".to_string()),
-                snapshot: None,
-                observed_at: None,
-                primary_next_reset_at: None,
-                secondary_next_reset_at: None,
-                last_usage_limit_hit_at: None,
-            },
-            code_core::account_usage::StoredRateLimitSnapshot {
-                account_id: "acct-b".to_string(),
-                plan: Some("plus".to_string()),
-                snapshot: None,
-                observed_at: None,
-                primary_next_reset_at: None,
-                secondary_next_reset_at: None,
-                last_usage_limit_hit_at: None,
-            },
-        ];
-
-        let selected = select_rate_limit_snapshot(Some("acct-b".to_string()), snapshots)
-            .expect("snapshot should be selected");
-        assert_eq!(selected.account_id, "acct-b");
-    }
-
-    #[test]
-    fn rate_limit_snapshot_from_event_maps_windows() {
-        let event = code_core::protocol::RateLimitSnapshotEvent {
-            primary_used_percent: 11.0,
-            secondary_used_percent: 22.0,
-            primary_to_secondary_ratio_percent: 50.0,
-            primary_window_minutes: 60,
-            secondary_window_minutes: 1440,
-            primary_reset_after_seconds: Some(12),
-            secondary_reset_after_seconds: Some(34),
-        };
-
-        let snapshot = rate_limit_snapshot_from_event(&event, Some(PlanType::Pro));
-        assert_eq!(snapshot.plan_type, Some(PlanType::Pro));
-        assert_eq!(
-            snapshot.primary.as_ref().and_then(|window| window.window_minutes),
-            Some(60)
-        );
-        assert_eq!(
-            snapshot
-                .secondary
-                .as_ref()
-                .and_then(|window| window.window_minutes),
-            Some(1440)
-        );
-    }
-
-    #[test]
-    fn map_tool_request_user_input_response_preserves_answers() {
-        let response = ToolRequestUserInputResponse {
-            answers: std::collections::HashMap::from([(
-                "question_id".to_string(),
-                code_app_server_protocol::ToolRequestUserInputAnswer {
-                    answers: vec!["selected".to_string()],
-                },
-            )]),
-        };
-
-        let mapped = map_tool_request_user_input_response(response);
-        assert_eq!(
-            mapped
-                .answers
-                .get("question_id")
-                .expect("question_id should exist")
-                .answers,
-            vec!["selected".to_string()]
-        );
-    }
-}
 
 impl IntoWireAuthMode for code_protocol::mcp_protocol::AuthMode {
     fn into_wire(self) -> code_protocol::mcp_protocol::AuthMode {
@@ -2386,3 +2122,267 @@ fn snippet_from_content(content: &[code_protocol::models::ContentItem]) -> Optio
 }
 
 // Unused legacy mappers removed to avoid warnings.
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use code_app_server_protocol::AuthMode;
+    use code_core::auth::CodexAuth;
+    use code_core::auth::RefreshTokenError;
+    use code_core::config::ConfigOverrides;
+    use code_protocol::mcp_protocol::RemoveConversationListenerParams;
+    use code_protocol::protocol::SessionSource;
+    use mcp_types::RequestId;
+    use serde_json::from_value;
+    use tokio::sync::mpsc;
+
+    fn make_processor_for_tests() -> (CodexMessageProcessor, mpsc::UnboundedReceiver<crate::outgoing_message::OutgoingMessage>) {
+        let (outgoing_tx, outgoing_rx) = mpsc::unbounded_channel();
+        let outgoing = Arc::new(OutgoingMessageSender::new(outgoing_tx));
+        let config = Arc::new(
+            Config::load_with_cli_overrides(Vec::new(), ConfigOverrides::default())
+                .expect("load default config"),
+        );
+        let auth_manager = AuthManager::shared_with_mode_and_originator(
+            config.code_home.clone(),
+            AuthMode::ApiKey,
+            config.responses_originator_header.clone(),
+        );
+        let conversation_manager = Arc::new(ConversationManager::new(
+            auth_manager.clone(),
+            SessionSource::Mcp,
+        ));
+
+        (
+            CodexMessageProcessor::new(
+                auth_manager,
+                conversation_manager,
+                outgoing,
+                None,
+                config,
+            ),
+            outgoing_rx,
+        )
+    }
+
+    fn make_processor_with_auth_for_tests(
+        auth_manager: Arc<AuthManager>,
+    ) -> (
+        CodexMessageProcessor,
+        mpsc::UnboundedReceiver<crate::outgoing_message::OutgoingMessage>,
+    ) {
+        let (outgoing_tx, outgoing_rx) = mpsc::unbounded_channel();
+        let outgoing = Arc::new(OutgoingMessageSender::new(outgoing_tx));
+        let config = Arc::new(
+            Config::load_with_cli_overrides(Vec::new(), ConfigOverrides::default())
+                .expect("load default config"),
+        );
+        let conversation_manager = Arc::new(ConversationManager::new(
+            auth_manager.clone(),
+            SessionSource::Mcp,
+        ));
+
+        (
+            CodexMessageProcessor::new(
+                auth_manager,
+                conversation_manager,
+                outgoing,
+                None,
+                config,
+            ),
+            outgoing_rx,
+        )
+    }
+
+    #[tokio::test]
+    async fn remove_conversation_listener_enforces_owner_connection() {
+        let (mut processor, mut outgoing_rx) = make_processor_for_tests();
+
+        let subscription_id = Uuid::new_v4();
+        let (cancel_tx, mut cancel_rx) = oneshot::channel();
+        processor.conversation_listeners.insert(
+            subscription_id,
+            ConversationListenerRegistration {
+                owner_connection_id: ConnectionId(1),
+                cancel_tx,
+            },
+        );
+
+        processor
+            .remove_conversation_listener(
+                ConnectionId(2),
+                RequestId::Integer(10),
+                RemoveConversationListenerParams { subscription_id },
+            )
+            .await;
+
+        let message = outgoing_rx
+            .recv()
+            .await
+            .expect("error response should be sent");
+        match message {
+            crate::outgoing_message::OutgoingMessage::Error(err) => {
+                assert_eq!(err.id, RequestId::Integer(10));
+                assert!(err.error.message.contains("subscription not found"));
+            }
+            _ => panic!("expected error response"),
+        }
+
+        assert!(
+            processor.conversation_listeners.contains_key(&subscription_id),
+            "listener should remain registered for original owner"
+        );
+
+        processor
+            .remove_conversation_listener(
+                ConnectionId(1),
+                RequestId::Integer(11),
+                RemoveConversationListenerParams { subscription_id },
+            )
+            .await;
+
+        let message = outgoing_rx
+            .recv()
+            .await
+            .expect("success response should be sent");
+        match message {
+            crate::outgoing_message::OutgoingMessage::Response(response) => {
+                assert_eq!(response.id, RequestId::Integer(11));
+            }
+            _ => panic!("expected success response"),
+        }
+
+        assert!(
+            !processor.conversation_listeners.contains_key(&subscription_id),
+            "listener should be removed by owner"
+        );
+        assert_eq!(cancel_rx.try_recv(), Ok(()));
+    }
+
+    #[tokio::test]
+    async fn get_auth_status_omits_token_after_permanent_refresh_failure() {
+        let auth = CodexAuth::create_dummy_chatgpt_auth_for_testing();
+        let auth_manager = AuthManager::from_auth_for_testing(auth.clone());
+        auth_manager.seed_refresh_failure_for_testing(
+            &auth,
+            RefreshTokenError::permanent("refresh token already used"),
+        );
+
+        let (processor, mut outgoing_rx) = make_processor_with_auth_for_tests(auth_manager);
+        processor
+            .get_auth_status(
+                RequestId::Integer(42),
+                GetAuthStatusParams {
+                    include_token: Some(true),
+                    refresh_token: Some(false),
+                },
+            )
+            .await;
+
+        let message = outgoing_rx
+            .recv()
+            .await
+            .expect("auth status response should be sent");
+        let response = match message {
+            crate::outgoing_message::OutgoingMessage::Response(response) => response,
+            _ => panic!("expected response message"),
+        };
+        let status: GetAuthStatusResponse =
+            from_value(response.result).expect("valid getAuthStatus payload");
+        assert_eq!(
+            status,
+            GetAuthStatusResponse {
+                auth_method: Some(code_protocol::mcp_protocol::AuthMode::ChatGPT),
+                auth_token: None,
+                requires_openai_auth: Some(true),
+            }
+        );
+    }
+
+    #[test]
+    fn parse_plan_type_is_case_insensitive() {
+        assert_eq!(parse_plan_type(Some("Pro".to_string())), PlanType::Pro);
+        assert_eq!(
+            parse_plan_type(Some("BUSINESS".to_string())),
+            PlanType::Business
+        );
+        assert_eq!(parse_plan_type(Some("mystery".to_string())), PlanType::Unknown);
+        assert_eq!(parse_plan_type(None), PlanType::Unknown);
+    }
+
+    #[test]
+    fn select_rate_limit_snapshot_prefers_matching_account() {
+        let snapshots = vec![
+            code_core::account_usage::StoredRateLimitSnapshot {
+                account_id: "acct-a".to_string(),
+                plan: Some("pro".to_string()),
+                snapshot: None,
+                observed_at: None,
+                primary_next_reset_at: None,
+                secondary_next_reset_at: None,
+                last_usage_limit_hit_at: None,
+            },
+            code_core::account_usage::StoredRateLimitSnapshot {
+                account_id: "acct-b".to_string(),
+                plan: Some("plus".to_string()),
+                snapshot: None,
+                observed_at: None,
+                primary_next_reset_at: None,
+                secondary_next_reset_at: None,
+                last_usage_limit_hit_at: None,
+            },
+        ];
+
+        let selected = select_rate_limit_snapshot(Some("acct-b".to_string()), snapshots)
+            .expect("snapshot should be selected");
+        assert_eq!(selected.account_id, "acct-b");
+    }
+
+    #[test]
+    fn rate_limit_snapshot_from_event_maps_windows() {
+        let event = code_core::protocol::RateLimitSnapshotEvent {
+            primary_used_percent: 11.0,
+            secondary_used_percent: 22.0,
+            primary_to_secondary_ratio_percent: 50.0,
+            primary_window_minutes: 60,
+            secondary_window_minutes: 1440,
+            primary_reset_after_seconds: Some(12),
+            secondary_reset_after_seconds: Some(34),
+        };
+
+        let snapshot = rate_limit_snapshot_from_event(&event, Some(PlanType::Pro));
+        assert_eq!(snapshot.plan_type, Some(PlanType::Pro));
+        assert_eq!(
+            snapshot.primary.as_ref().and_then(|window| window.window_minutes),
+            Some(60)
+        );
+        assert_eq!(
+            snapshot
+                .secondary
+                .as_ref()
+                .and_then(|window| window.window_minutes),
+            Some(1440)
+        );
+    }
+
+    #[test]
+    fn map_tool_request_user_input_response_preserves_answers() {
+        let response = ToolRequestUserInputResponse {
+            answers: std::collections::HashMap::from([(
+                "question_id".to_string(),
+                code_app_server_protocol::ToolRequestUserInputAnswer {
+                    answers: vec!["selected".to_string()],
+                },
+            )]),
+        };
+
+        let mapped = map_tool_request_user_input_response(response);
+        assert_eq!(
+            mapped
+                .answers
+                .get("question_id")
+                .expect("question_id should exist")
+                .answers,
+            vec!["selected".to_string()]
+        );
+    }
+}

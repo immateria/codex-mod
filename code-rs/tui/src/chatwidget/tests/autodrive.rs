@@ -869,7 +869,7 @@
 
     let _env_lock = crate::chatwidget::smoke_helpers::TEST_ENV_LOCK
         .lock()
-        .unwrap_or_else(|poisoned| poisoned.into_inner());
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     let _header_guard = crate::tui_env::ForceMinimalHeaderOverrideGuard::set(false);
 
     {
@@ -911,7 +911,7 @@
 
     let _env_lock = crate::chatwidget::smoke_helpers::TEST_ENV_LOCK
         .lock()
-        .unwrap_or_else(|poisoned| poisoned.into_inner());
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     let _header_guard = crate::tui_env::ForceMinimalHeaderOverrideGuard::set(false);
 
     {
@@ -990,7 +990,7 @@
     let mut harness = ChatWidgetHarness::new();
     let _env_lock = crate::chatwidget::smoke_helpers::TEST_ENV_LOCK
         .lock()
-        .unwrap_or_else(|poisoned| poisoned.into_inner());
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     let picked = std::env::temp_dir().join("picked-status-dir");
     std::fs::create_dir_all(&picked).expect("create picked directory");
     crate::native_picker::set_test_pick_result(Some(picked.clone()));
@@ -1035,7 +1035,7 @@
     let mut harness = ChatWidgetHarness::new();
     let _env_lock = crate::chatwidget::smoke_helpers::TEST_ENV_LOCK
         .lock()
-        .unwrap_or_else(|poisoned| poisoned.into_inner());
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     let picked = std::env::temp_dir().join("picked-top-status-dir");
     std::fs::create_dir_all(&picked).expect("create picked directory");
     crate::native_picker::set_test_pick_result(Some(picked.clone()));

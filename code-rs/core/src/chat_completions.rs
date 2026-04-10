@@ -38,6 +38,7 @@ use code_protocol::models::ReasoningItemContent;
 use code_protocol::models::ResponseItem;
 
 /// Implementation for the classic Chat Completions API.
+#[allow(clippy::too_many_arguments)]
 pub(crate) async fn stream_chat_completions(
     prompt: &Prompt,
     model_family: &ModelFamily,

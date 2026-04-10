@@ -62,7 +62,7 @@ pub(crate) enum PluginsDetailState {
     #[default]
     Uninitialized,
     Loading,
-    Ready(PluginReadOutcome),
+    Ready(Box<PluginReadOutcome>),
     Failed(String),
 }
 
@@ -195,7 +195,7 @@ impl ChatWidget<'_> {
 
         match result {
             Ok(outcome) => {
-                state.details.insert(key.clone(), PluginsDetailState::Ready(outcome));
+                state.details.insert(key.clone(), PluginsDetailState::Ready(Box::new(outcome)));
             }
             Err(error) => {
                 state.details.insert(key.clone(), PluginsDetailState::Failed(error));
