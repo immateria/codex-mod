@@ -90,6 +90,8 @@ const RESPONSES_BETA_HEADER_EXPERIMENTAL: &str = "responses=experimental";
 const RESPONSES_WEBSOCKETS_BETA_HEADER_V1: &str = "responses_websockets=2026-02-04";
 const RESPONSES_WEBSOCKETS_BETA_HEADER_V2: &str = "responses_websockets=2026-02-06";
 const RESPONSES_WEBSOCKET_INGRESS_BUFFER: usize = 256;
+/// Maximum chars to keep when truncating error body excerpts for logging/display.
+const MAX_ERROR_EXCERPT_CHARS: usize = 600;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum ResponsesWebsocketVersion {
@@ -1731,9 +1733,8 @@ impl ModelClient {
                                     }
                                     Err(_) => {
                                         let mut excerpt = body_text;
-                                        const MAX: usize = 600;
-                                        if excerpt.len() > MAX {
-                                            excerpt.truncate(MAX);
+                                        if excerpt.len() > MAX_ERROR_EXCERPT_CHARS {
+                                            excerpt.truncate(MAX_ERROR_EXCERPT_CHARS);
                                         }
                                         (
                                             "server error".to_string(),
@@ -2529,9 +2530,8 @@ async fn process_sse<S>(
             Err(e) => {
                 // Log parse error with data excerpt, and record it in the debug logger as well.
                 let mut excerpt = sse.data.clone();
-                const MAX: usize = 600;
-                if excerpt.len() > MAX {
-                    excerpt.truncate(MAX);
+                if excerpt.len() > MAX_ERROR_EXCERPT_CHARS {
+                    excerpt.truncate(MAX_ERROR_EXCERPT_CHARS);
                 }
                 debug!("Failed to parse SSE event: {e}, data: {excerpt}");
                 if let Ok(logger) = debug_logger.lock() {
