@@ -465,7 +465,7 @@ pub(crate) async fn handle_web_fetch(sess: &Session, ctx: &ToolCallCtx, argument
                     // Track fenced code blocks
                     if let Some(rest) = line.trim_start().strip_prefix("```") {
                         in_fence = !in_fence;
-                        let _lang = if in_fence { Some(rest.trim()) } else { None };
+                        let _lang = in_fence.then(|| rest.trim());
                         out.push(line.to_string());
                         empty_run = 0;
                         continue;

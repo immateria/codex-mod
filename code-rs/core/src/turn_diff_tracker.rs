@@ -216,7 +216,7 @@ impl TurnDiffTracker {
             return None;
         }
         let s = String::from_utf8_lossy(&output.stdout).trim().to_string();
-        if s.len() == 40 { Some(s) } else { None }
+        (s.len() == 40).then_some(s)
     }
 
     /// Recompute the aggregated unified diff by comparing all of the in-memory snapshots that were

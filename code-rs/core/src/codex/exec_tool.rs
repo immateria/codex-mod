@@ -261,7 +261,7 @@ pub(crate) async fn handle_wait(
                         let found = st
                             .background_execs
                             .iter()
-                            .find_map(|(k, v)| if crate::codex::lock_or_panic!(v.result_cell).is_some() { Some(k.clone()) } else { None });
+                            .find_map(|(k, v)| crate::codex::lock_or_panic!(v.result_cell).is_some().then(|| k.clone()));
                         found
                             .and_then(|k| st.background_execs.remove(&k))
                             .and_then(|bg| crate::codex::lock_or_panic!(bg.result_cell).clone())

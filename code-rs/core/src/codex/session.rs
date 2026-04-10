@@ -2715,7 +2715,7 @@ pub(crate) fn prune_history_items(
         removed_status,
         removed_env_baselines: env_baselines
             .len()
-            .saturating_sub(if baseline_to_keep.is_some() { 1 } else { 0 }),
+            .saturating_sub(usize::from(baseline_to_keep.is_some())),
         removed_env_deltas: env_deltas.len().saturating_sub(env_deltas_to_keep.len()),
         removed_browser_snapshots: browser_snapshot_messages
             .len()
@@ -2877,7 +2877,7 @@ fn prune_history_items_owned(current_items: Vec<ResponseItem>) -> (Vec<ResponseI
         removed_status,
         removed_env_baselines: env_baselines
             .len()
-            .saturating_sub(if baseline_to_keep.is_some() { 1 } else { 0 }),
+            .saturating_sub(usize::from(baseline_to_keep.is_some())),
         removed_env_deltas: env_deltas.len().saturating_sub(env_deltas_to_keep.len()),
         removed_browser_snapshots: browser_snapshot_messages
             .len()
