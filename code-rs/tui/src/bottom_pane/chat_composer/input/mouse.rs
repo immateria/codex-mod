@@ -86,13 +86,31 @@ pub(super) fn handle_mouse_event_inner(
         }
     }
 
-    // Not in popup area - check if click is on the textarea
-    if let MouseEventKind::Down(MouseButton::Left) = mouse_event.kind
-        && let Some(textarea_rect) = *view.last_textarea_rect.borrow()
-    {
-        let state = *view.textarea_state.borrow();
-        if view.textarea.handle_mouse_click(mx, my, textarea_rect, state) {
-            return (InputResult::None, true);
+    // Not in popup area — handle clicks and scroll on the textarea itself.
+    if let Some(textarea_rect) = *view.last_textarea_rect.borrow() {
+        let hit_textarea = mx >= textarea_rect.x
+            && mx < textarea_rect.x + textarea_rect.width
+            && my >= textarea_rect.y
+            && my < textarea_rect.y + textarea_rect.height;
+
+        if hit_textarea {
+            match mouse_event.kind {
+                MouseEventKind::Down(MouseButton::Left) => {
+                    let state = *view.textarea_state.borrow();
+                    if view.textarea.handle_mouse_click(mx, my, textarea_rect, state) {
+                        return (InputResult::None, true);
+                    }
+                }
+                MouseEventKind::ScrollUp | MouseEventKind::ScrollDown => {
+                    let up = matches!(mouse_event.kind, MouseEventKind::ScrollUp);
+                    let mut state = *view.textarea_state.borrow();
+                    if view.textarea.handle_mouse_scroll(up, textarea_rect, &mut state) {
+                        *view.textarea_state.borrow_mut() = state;
+                        return (InputResult::None, true);
+                    }
+                }
+                _ => {}
+            }
         }
     }
 

@@ -1023,12 +1023,7 @@ impl AutoDriveCardCell {
     #[allow(clippy::disallowed_methods)]
     fn celebration_background_style() -> Style {
         if palette_mode() == PaletteMode::Ansi16 {
-            let fg = if colors::is_dark_theme() {
-                Color::White
-            } else {
-                Color::Black
-            };
-            return Style::default().fg(fg);
+            return Style::default().fg(colors::text_bright());
         }
 
         Style::default().fg(EFFECT_WHITE)

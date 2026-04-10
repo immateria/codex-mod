@@ -48,7 +48,7 @@ pub(crate) struct CardTheme {
 
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct CardThemeDefinition {
-    #[allow(dead_code)]
+    #[allow(dead_code)] // identifier kept for diagnostics and future theme-picker UI
     pub(crate) name: &'static str,
     pub(crate) theme: CardTheme,
 }

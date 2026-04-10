@@ -181,6 +181,35 @@ impl TextArea {
         self.cursor_pos != old_pos
     }
 
+    /// Handle a mouse scroll event within the textarea.  Returns `true` if
+    /// the scroll was consumed (content is taller than the viewport), so the
+    /// caller can avoid propagating it further.
+    pub fn handle_mouse_scroll(
+        &self,
+        up: bool,
+        area: Rect,
+        state: &mut TextAreaState,
+    ) -> bool {
+        let lines = self.wrapped_lines(area.width);
+        let total = lines.len() as u16;
+        if total <= area.height {
+            return false; // fits entirely — nothing to scroll
+        }
+        let eff = self.effective_scroll(area.height, &lines, state.scroll);
+        let max_scroll = total.saturating_sub(area.height);
+        let new = if up {
+            eff.saturating_sub(3)
+        } else {
+            (eff + 3).min(max_scroll)
+        };
+        if new != eff {
+            state.scroll = new;
+            true
+        } else {
+            false
+        }
+    }
+
     pub fn desired_height(&self, width: u16) -> u16 {
         self.wrapped_lines(width).len() as u16
     }

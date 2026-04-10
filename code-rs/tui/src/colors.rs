@@ -282,10 +282,15 @@ fn is_light(rgb: (u8, u8, u8)) -> bool {
 }
 
 /// Rec. 709 relative luminance of an sRGB triplet, normalized to 0.0–1.0.
+// Rec. 709 luma coefficients (ITU-R BT.709).
+const REC709_R: f32 = 0.2126;
+const REC709_G: f32 = 0.7152;
+const REC709_B: f32 = 0.0722;
+
 /// This is a simplified (gamma-unaware) version used for quick UI decisions.
 /// For WCAG-compliant contrast calculations, use [`wcag_relative_luminance`].
 pub(crate) fn relative_luminance(rgb: (u8, u8, u8)) -> f32 {
-    (0.2126 * rgb.0 as f32 + 0.7152 * rgb.1 as f32 + 0.0722 * rgb.2 as f32) / 255.0
+    (REC709_R * rgb.0 as f32 + REC709_G * rgb.1 as f32 + REC709_B * rgb.2 as f32) / 255.0
 }
 
 /// WCAG 2.x relative luminance with proper sRGB gamma linearization.
@@ -299,7 +304,7 @@ pub(crate) fn wcag_relative_luminance(r: u8, g: u8, b: u8) -> f32 {
             ((c + 0.055) / 1.055).powf(2.4)
         }
     }
-    0.2126 * linearize(r) + 0.7152 * linearize(g) + 0.0722 * linearize(b)
+    REC709_R * linearize(r) + REC709_G * linearize(g) + REC709_B * linearize(b)
 }
 
 /// WCAG 2.x contrast ratio between two luminance values.

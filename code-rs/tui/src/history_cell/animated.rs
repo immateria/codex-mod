@@ -2,6 +2,9 @@ use super::*;
 use std::cell::{Cell, RefCell};
 use std::time::{Duration, Instant};
 
+const FADE_DURATION: Duration = Duration::from_millis(800);
+const INTRO_ANIMATION_DURATION: Duration = Duration::from_secs(2);
+
 pub(crate) struct AnimatedWelcomeCell {
     start_time: Instant,
     completed: Cell<bool>,
@@ -173,7 +176,7 @@ impl HistoryCell for AnimatedWelcomeCell {
             height: visible_height,
         };
 
-        let fade_duration = Duration::from_millis(800);
+        let fade_duration = FADE_DURATION;
 
         if let Some(fade_time) = self.fade_start() {
             let fade_elapsed = fade_time.elapsed();
@@ -198,7 +201,7 @@ impl HistoryCell for AnimatedWelcomeCell {
             return;
         }
 
-        let animation_duration = Duration::from_secs(2);
+        let animation_duration = INTRO_ANIMATION_DURATION;
 
         let elapsed = self.start_time.elapsed();
         let progress = if variant_changed {
@@ -225,7 +228,7 @@ impl HistoryCell for AnimatedWelcomeCell {
     }
 
     fn is_animating(&self) -> bool {
-        let animation_duration = Duration::from_secs(2);
+        let animation_duration = INTRO_ANIMATION_DURATION;
         if !self.completed.get() {
             if self.start_time.elapsed() < animation_duration {
                 return true;
@@ -235,7 +238,7 @@ impl HistoryCell for AnimatedWelcomeCell {
 
         if let Some(fade_time) = self.fade_start()
             && !self.faded_out.get() {
-                if fade_time.elapsed() < Duration::from_millis(800) {
+                if fade_time.elapsed() < FADE_DURATION {
                     return true;
                 }
                 self.faded_out.set(true);

@@ -158,11 +158,7 @@ pub(crate) fn web_search_card_style() -> CardStyle {
 }
 
 pub(crate) fn ansi16_inverse_color() -> Color {
-    if colors::is_dark_theme() {
-        Color::White
-    } else {
-        Color::Black
-    }
+    colors::text_bright()
 }
 
 fn strip_ansi16_background(style: &mut CardStyle) {
