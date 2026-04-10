@@ -60,7 +60,7 @@ impl<'a> SettingsMessagePage<'a> {
     }
 
     /// Set the vertical scroll offset (in lines) for the body content.
-    #[allow(dead_code)]
+    #[allow(dead_code)] // used in tests
     pub(crate) fn with_body_scroll(mut self, scroll: u16) -> Self {
         self.body_scroll = scroll;
         self
@@ -68,7 +68,7 @@ impl<'a> SettingsMessagePage<'a> {
 
     /// Return the number of wrapped body lines that overflow the given
     /// `body_height`.  Returns 0 when all content fits.
-    #[allow(dead_code)]
+    #[allow(dead_code)] // used in tests
     pub(crate) fn body_overflow(&self, body_width: u16, body_height: u16) -> usize {
         if self.body_lines.is_empty() || body_width == 0 || body_height == 0 {
             return 0;
@@ -79,18 +79,6 @@ impl<'a> SettingsMessagePage<'a> {
         }
         let total = paragraph.line_count(body_width);
         total.saturating_sub(body_height as usize)
-    }
-
-    /// Scroll the body content up by the given number of lines.
-    #[allow(dead_code)]
-    pub(crate) fn scroll_up(&mut self, lines: u16) {
-        self.body_scroll = self.body_scroll.saturating_sub(lines);
-    }
-
-    /// Scroll the body content down by the given number of lines.
-    #[allow(dead_code)]
-    pub(crate) fn scroll_down(&mut self, lines: u16) {
-        self.body_scroll = self.body_scroll.saturating_add(lines);
     }
 
     pub(crate) fn framed(&self) -> SettingsMessagePageFramed<'_, 'a> {

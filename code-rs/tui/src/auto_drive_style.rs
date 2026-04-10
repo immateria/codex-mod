@@ -6,7 +6,7 @@ use ratatui::widgets::BorderType;
 use crate::{card_theme, colors};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum AutoDriveVariant {
+pub(crate) enum AutoDriveVariant {
     Sentinel,
     Whisper,
     Beacon,
@@ -23,11 +23,11 @@ impl AutoDriveVariant {
         Self::Pulse,
     ];
 
-    pub fn default() -> Self {
+    pub(crate) fn default() -> Self {
         Self::Sentinel
     }
 
-    pub fn name(self) -> &'static str {
+    pub(crate) fn name(self) -> &'static str {
         match self {
             Self::Sentinel => "Sentinel",
             Self::Whisper => "Whisper",
@@ -37,7 +37,7 @@ impl AutoDriveVariant {
         }
     }
 
-    pub fn index(self) -> usize {
+    pub(crate) fn index(self) -> usize {
         match self {
             Self::Sentinel => 0,
             Self::Whisper => 1,
@@ -47,12 +47,12 @@ impl AutoDriveVariant {
         }
     }
 
-    pub fn from_index(index: usize) -> Self {
+    pub(crate) fn from_index(index: usize) -> Self {
         let clamped = index % Self::ALL.len();
         Self::ALL[clamped]
     }
 
-    pub fn from_env() -> Self {
+    pub(crate) fn from_env() -> Self {
         env::var("CODEX_AUTO_DRIVE_VARIANT")
             .ok()
             .and_then(|raw| raw.trim().parse::<usize>().ok())
@@ -60,13 +60,13 @@ impl AutoDriveVariant {
             .unwrap_or_else(Self::default)
     }
 
-    pub fn next(self) -> Self {
+    pub(crate) fn next(self) -> Self {
         let idx = self.index();
         let next = (idx + 1) % Self::ALL.len();
         Self::from_index(next)
     }
 
-    pub fn style(self) -> AutoDriveStyle {
+    pub(crate) fn style(self) -> AutoDriveStyle {
         match self {
             Self::Sentinel => sentinel_style(),
             Self::Whisper => whisper_style(),
@@ -78,38 +78,38 @@ impl AutoDriveVariant {
 }
 
 #[derive(Clone)]
-pub struct AutoDriveStyle {
-    pub frame: FrameStyle,
-    pub button: ButtonStyle,
-    pub composer: ComposerStyle,
+pub(crate) struct AutoDriveStyle {
+    pub(crate) frame: FrameStyle,
+    pub(crate) button: ButtonStyle,
+    pub(crate) composer: ComposerStyle,
 }
 
 #[derive(Clone)]
-pub struct FrameStyle {
-    pub title_text: &'static str,
-    pub title_style: Style,
-    pub border_style: Style,
+pub(crate) struct FrameStyle {
+    pub(crate) title_text: &'static str,
+    pub(crate) title_style: Style,
+    pub(crate) border_style: Style,
 }
 
 #[derive(Clone)]
-pub struct ButtonStyle {
-    pub glyphs: ButtonGlyphs,
-    pub enabled_style: Style,
-    pub disabled_style: Style,
+pub(crate) struct ButtonStyle {
+    pub(crate) glyphs: ButtonGlyphs,
+    pub(crate) enabled_style: Style,
+    pub(crate) disabled_style: Style,
 }
 
 #[derive(Clone, Copy)]
-pub struct ButtonGlyphs {
-    pub top_left: char,
-    pub top_right: char,
-    pub bottom_left: char,
-    pub bottom_right: char,
-    pub horizontal: char,
-    pub vertical: char,
+pub(crate) struct ButtonGlyphs {
+    pub(crate) top_left: char,
+    pub(crate) top_right: char,
+    pub(crate) bottom_left: char,
+    pub(crate) bottom_right: char,
+    pub(crate) horizontal: char,
+    pub(crate) vertical: char,
 }
 
 impl ButtonGlyphs {
-    pub const fn heavy() -> Self {
+    pub(crate) const fn heavy() -> Self {
         Self {
             top_left: '╭',
             top_right: '╮',
@@ -120,7 +120,7 @@ impl ButtonGlyphs {
         }
     }
 
-    pub const fn light() -> Self {
+    pub(crate) const fn light() -> Self {
         Self {
             top_left: '+',
             top_right: '+',
@@ -131,7 +131,7 @@ impl ButtonGlyphs {
         }
     }
 
-    pub const fn bold() -> Self {
+    pub(crate) const fn bold() -> Self {
         Self {
             top_left: '┏',
             top_right: '┓',
@@ -142,7 +142,7 @@ impl ButtonGlyphs {
         }
     }
 
-    pub const fn double() -> Self {
+    pub(crate) const fn double() -> Self {
         Self {
             top_left: '╔',
             top_right: '╗',
@@ -155,20 +155,20 @@ impl ButtonGlyphs {
 }
 
 #[derive(Clone)]
-pub struct ComposerStyle {
-    pub border_style: Style,
-    pub border_type: BorderType,
-    pub background_style: Style,
-    pub goal_title_prefix: &'static str,
-    pub goal_title_suffix: &'static str,
-    pub title_style: Style,
-    pub border_gradient: Option<BorderGradient>,
+pub(crate) struct ComposerStyle {
+    pub(crate) border_style: Style,
+    pub(crate) border_type: BorderType,
+    pub(crate) background_style: Style,
+    pub(crate) goal_title_prefix: &'static str,
+    pub(crate) goal_title_suffix: &'static str,
+    pub(crate) title_style: Style,
+    pub(crate) border_gradient: Option<BorderGradient>,
 }
 
 #[derive(Clone, Copy)]
-pub struct BorderGradient {
-    pub left: Color,
-    pub right: Color,
+pub(crate) struct BorderGradient {
+    pub(crate) left: Color,
+    pub(crate) right: Color,
 }
 
 /// Pure white used for celebration/glow effects in Auto Drive animations.

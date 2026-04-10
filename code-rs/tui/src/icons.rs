@@ -61,15 +61,15 @@ static OVERRIDES: OnceLock<IconOverrides> = OnceLock::new();
 
 /// A single icon with a config key and three glyph tiers.
 #[derive(Clone, Copy)]
-pub struct Icon {
+pub(crate) struct Icon {
     /// Config key used in `[tui.icons]` (matches the accessor function name).
-    pub key: &'static str,
+    pub(crate) key: &'static str,
     /// NerdFont private-use-area glyph.
-    pub nerd: &'static str,
+    pub(crate) nerd: &'static str,
     /// Standard Unicode symbol.
-    pub unicode: &'static str,
+    pub(crate) unicode: &'static str,
     /// Pure ASCII fallback.
-    pub ascii: &'static str,
+    pub(crate) ascii: &'static str,
 }
 
 impl Icon {
@@ -83,7 +83,7 @@ impl Icon {
     }
 
     /// Resolve the icon: tier-specific override → all-tier override → default.
-    pub fn resolve(self) -> &'static str {
+    pub(crate) fn resolve(self) -> &'static str {
         let mode = ICON_MODE.load(Ordering::Relaxed);
         if let Some(ovr) = OVERRIDES.get() {
             let tier_map = match mode {
@@ -106,7 +106,7 @@ impl Icon {
     }
 
     /// Check whether `symbol` matches any built-in variant or custom override.
-    pub fn matches(self, symbol: &str) -> bool {
+    pub(crate) fn matches(self, symbol: &str) -> bool {
         if symbol == self.nerd || symbol == self.unicode || symbol == self.ascii {
             return true;
         }
@@ -132,18 +132,18 @@ macro_rules! define_icon_functions {
         $fn_name:ident => $const_name:ident ($nerd:literal, $unicode:literal, $ascii:literal);
     )+) => {
         $(
-            pub const $const_name: Icon = Icon::new(
+            pub(crate) const $const_name: Icon = Icon::new(
                 stringify!($fn_name), $nerd, $unicode, $ascii,
             );
 
             $(#[$meta])*
-            pub fn $fn_name() -> &'static str {
+            pub(crate) fn $fn_name() -> &'static str {
                 $const_name.resolve()
             }
         )+
 
         /// Every registered icon, for iteration/documentation/export.
-        pub const ALL_ICONS: &[Icon] = &[$($const_name),+];
+        pub(crate) const ALL_ICONS: &[Icon] = &[$($const_name),+];
     };
 }
 
@@ -157,7 +157,7 @@ fn leak_str(s: String) -> &'static str {
 ///
 /// * `mode`      – which glyph tier to display.
 /// * `overrides` – per-key overrides from `[tui.icons]` (may be empty).
-pub fn init(mode: IconMode, overrides: HashMap<String, IconOverrideValue>) {
+pub(crate) fn init(mode: IconMode, overrides: HashMap<String, IconOverrideValue>) {
     ICON_MODE.store(mode.as_u8(), Ordering::Relaxed);
     if !overrides.is_empty() {
         let mut all     = HashMap::new();
@@ -183,29 +183,29 @@ pub fn init(mode: IconMode, overrides: HashMap<String, IconOverrideValue>) {
 }
 
 /// Change the icon mode at runtime (e.g. from the settings UI).
-pub fn set_icon_mode(mode: IconMode) {
+pub(crate) fn set_icon_mode(mode: IconMode) {
     ICON_MODE.store(mode.as_u8(), Ordering::Relaxed);
 }
 
 /// The currently active icon mode.
-pub fn icon_mode() -> IconMode {
+pub(crate) fn icon_mode() -> IconMode {
     IconMode::from_u8(ICON_MODE.load(Ordering::Relaxed))
 }
 
 /// Whether NerdFont mode is currently active (convenience wrapper).
-pub fn nerd_fonts_enabled() -> bool {
+pub(crate) fn nerd_fonts_enabled() -> bool {
     ICON_MODE.load(Ordering::Relaxed) == 0
 }
 
-pub fn ctrl_combo(key: &str) -> String {
+pub(crate) fn ctrl_combo(key: &str) -> String {
     format!("{}+{key}", control())
 }
 
-pub fn alt_combo(key: &str) -> String {
+pub(crate) fn alt_combo(key: &str) -> String {
     format!("{}+{key}", option())
 }
 
-pub fn shift_combo(key: &str) -> String {
+pub(crate) fn shift_combo(key: &str) -> String {
     format!("{}+{key}", shift())
 }
 
@@ -213,7 +213,7 @@ pub fn shift_combo(key: &str) -> String {
 ///
 /// A thin space separates the glyphs so they read as two distinct arrows
 /// rather than a single zigzag glyph.
-pub fn nav_up_down() -> String {
+pub(crate) fn nav_up_down() -> String {
     format!("{} {}", arrow_up(), arrow_down())
 }
 
@@ -221,7 +221,7 @@ pub fn nav_up_down() -> String {
 ///
 /// A thin space separates the glyphs so they read as two distinct arrows
 /// rather than a single zigzag glyph.
-pub fn nav_left_right() -> String {
+pub(crate) fn nav_left_right() -> String {
     format!("{} {}", arrow_left(), arrow_right())
 }
 
@@ -615,7 +615,7 @@ const SECTION_ICONS: &[SectionIcon] = &[
     SectionIcon { name: "Plugins",          nerd: "\u{f12e} ", unicode: "⊞ " },
 ];
 
-pub fn section_icon(section: &str) -> &'static str {
+pub(crate) fn section_icon(section: &str) -> &'static str {
     let mode = ICON_MODE.load(Ordering::Relaxed);
     // ASCII mode: no section icons (keep sidebar compact)
     if mode == 2 {
@@ -640,18 +640,18 @@ const PROGRESS_ICONS: &[Icon] = &[
     PROGRESS_FULL,
 ];
 
-pub fn is_exec_prompt(s: &str) -> bool { GUTTER_EXEC.matches(s) }
-pub fn is_patch(s:       &str) -> bool { GUTTER_PATCH.matches(s) }
-pub fn is_user(s:        &str) -> bool { GUTTER_USER.matches(s) }
-pub fn is_assistant(s:   &str) -> bool { GUTTER_ASSISTANT.matches(s) }
-pub fn is_running(s:     &str) -> bool { GUTTER_RUNNING.matches(s) }
-pub fn is_success(s:     &str) -> bool { GUTTER_SUCCESS.matches(s) || STATUS_OK.matches(s) }
-pub fn is_failure(s:     &str) -> bool { GUTTER_FAILURE.matches(s) || STATUS_FAIL.matches(s) }
-pub fn is_notice(s:      &str) -> bool { GUTTER_NOTICE.matches(s) }
-pub fn is_progress(s:    &str) -> bool { PROGRESS_ICONS.iter().any(|icon| icon.matches(s)) }
-pub fn is_spinner(s:     &str) -> bool { matches!(s, "◐" | "◓" | "◑" | "◒") }
-pub fn is_context(s:     &str) -> bool { GUTTER_CONTEXT.matches(s) }
-pub fn is_compaction(s:  &str) -> bool { GUTTER_COMPACTION.matches(s) }
+pub(crate) fn is_exec_prompt(s: &str) -> bool { GUTTER_EXEC.matches(s) }
+pub(crate) fn is_patch(s:       &str) -> bool { GUTTER_PATCH.matches(s) }
+pub(crate) fn is_user(s:        &str) -> bool { GUTTER_USER.matches(s) }
+pub(crate) fn is_assistant(s:   &str) -> bool { GUTTER_ASSISTANT.matches(s) }
+pub(crate) fn is_running(s:     &str) -> bool { GUTTER_RUNNING.matches(s) }
+pub(crate) fn is_success(s:     &str) -> bool { GUTTER_SUCCESS.matches(s) || STATUS_OK.matches(s) }
+pub(crate) fn is_failure(s:     &str) -> bool { GUTTER_FAILURE.matches(s) || STATUS_FAIL.matches(s) }
+pub(crate) fn is_notice(s:      &str) -> bool { GUTTER_NOTICE.matches(s) }
+pub(crate) fn is_progress(s:    &str) -> bool { PROGRESS_ICONS.iter().any(|icon| icon.matches(s)) }
+pub(crate) fn is_spinner(s:     &str) -> bool { matches!(s, "◐" | "◓" | "◑" | "◒") }
+pub(crate) fn is_context(s:     &str) -> bool { GUTTER_CONTEXT.matches(s) }
+pub(crate) fn is_compaction(s:  &str) -> bool { GUTTER_COMPACTION.matches(s) }
 
 // ── Selection prefix helper ──────────────────────────────────────────
 use std::borrow::Cow;
@@ -660,7 +660,7 @@ use std::borrow::Cow;
 ///
 /// Uses `Cow::Borrowed` for the unselected case to avoid a heap allocation
 /// on every unselected row in list views (the common path).
-pub fn selection_prefix(selected: bool) -> Cow<'static, str> {
+pub(crate) fn selection_prefix(selected: bool) -> Cow<'static, str> {
     if selected {
         format!("{} ", pointer_active()).into()
     } else {

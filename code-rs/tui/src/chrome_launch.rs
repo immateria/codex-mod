@@ -1,12 +1,12 @@
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum ChromeLaunchOption {
+pub(crate) enum ChromeLaunchOption {
     CloseAndUseProfile,
     UseTempProfile,
     UseInternalBrowser,
     Cancel,
 }
 
-pub const CHROME_LAUNCH_CHOICES: &[(ChromeLaunchOption, &str, &str)] = &[
+pub(crate) const CHROME_LAUNCH_CHOICES: &[(ChromeLaunchOption, &str, &str)] = &[
     (
         ChromeLaunchOption::CloseAndUseProfile,
         "Close existing Chrome & use your profile",

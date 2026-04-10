@@ -24,7 +24,7 @@ pub struct RevealConfig {
 }
 
 #[derive(Clone, Copy, Debug)]
-#[allow(dead_code)] // variants used in gradient_background match arms; kept for future card themes
+#[allow(dead_code)] // variants matched in gradient_background; constructed as themes are added
 pub enum RevealVariant {
     GlitchSweep,
     VertDrift,

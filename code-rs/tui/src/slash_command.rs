@@ -62,7 +62,7 @@ pub(crate) fn parse_slash_name(line: &str) -> Option<(&str, &str)> {
     Debug, Clone, Copy, PartialEq, Eq, Hash, EnumString, EnumIter, AsRefStr, IntoStaticStr,
 )]
 #[strum(serialize_all = "kebab-case")]
-pub enum SlashCommand {
+pub(crate) enum SlashCommand {
     // DO NOT ALPHA-SORT! Enum order is presentation order in the popup, so
     // more frequently used commands should be listed first.
     Browser,
@@ -131,7 +131,7 @@ pub enum SlashCommand {
 
 impl SlashCommand {
     /// User-visible description shown in the popup.
-    pub fn description(self) -> &'static str {
+    pub(crate) fn description(self) -> &'static str {
         match self {
             SlashCommand::Chrome => "connect to your Chrome browser",
             SlashCommand::Browser => "open internal browser",
@@ -200,19 +200,19 @@ impl SlashCommand {
 
     /// Command string without the leading '/'. Provided for compatibility with
     /// existing code that expects a method named `command()`.
-    pub fn command(self) -> &'static str {
+    pub(crate) fn command(self) -> &'static str {
         self.into()
     }
 
     /// Returns true if this command should expand into a prompt for the LLM.
-    pub fn is_prompt_expanding(self) -> bool {
+    pub(crate) fn is_prompt_expanding(self) -> bool {
         matches!(
             self,
             SlashCommand::Plan | SlashCommand::Solve | SlashCommand::Code
         )
     }
 
-    pub fn settings_section_from_args(self, args: &str) -> Option<&str> {
+    pub(crate) fn settings_section_from_args(self, args: &str) -> Option<&str> {
         if self != SlashCommand::Settings {
             return None;
         }
@@ -225,14 +225,14 @@ impl SlashCommand {
     }
 
     /// Returns true if this command requires additional arguments after the command.
-    pub fn requires_arguments(self) -> bool {
+    pub(crate) fn requires_arguments(self) -> bool {
         matches!(
             self,
             SlashCommand::Plan | SlashCommand::Solve | SlashCommand::Code
         )
     }
 
-    pub fn is_available(self) -> bool {
+    pub(crate) fn is_available(self) -> bool {
         match self {
             SlashCommand::Demo => demo_command_enabled(),
             // Chrome/CDP and the internal browser are desktop-oriented.
@@ -247,7 +247,7 @@ impl SlashCommand {
 
     /// Expands a prompt-expanding command into a full prompt for the LLM.
     /// Returns None if the command is not a prompt-expanding command.
-    pub fn expand_prompt(self, args: &str) -> Option<String> {
+    pub(crate) fn expand_prompt(self, args: &str) -> Option<String> {
         if !self.is_prompt_expanding() {
             return None;
         }
@@ -271,7 +271,7 @@ impl SlashCommand {
 }
 
 /// Return all built-in commands in a Vec paired with their command string.
-pub fn built_in_slash_commands() -> Vec<(&'static str, SlashCommand)> {
+pub(crate) fn built_in_slash_commands() -> Vec<(&'static str, SlashCommand)> {
     SlashCommand::iter()
         .filter(|c| c.is_available())
         .map(|c| (c.command(), c))
@@ -280,7 +280,7 @@ pub fn built_in_slash_commands() -> Vec<(&'static str, SlashCommand)> {
 
 /// Process a message that might contain a slash command.
 /// Returns either the expanded prompt (for prompt-expanding commands) or the original message.
-pub fn process_slash_command_message(message: &str) -> ProcessedCommand {
+pub(crate) fn process_slash_command_message(message: &str) -> ProcessedCommand {
     let trimmed = message.trim();
 
     if trimmed.is_empty() {
@@ -355,7 +355,7 @@ pub fn process_slash_command_message(message: &str) -> ProcessedCommand {
 }
 
 #[derive(Debug, Clone)]
-pub enum ProcessedCommand {
+pub(crate) enum ProcessedCommand {
     /// The message was expanded from a prompt-expanding slash command
     ExpandedPrompt(String),
     /// A regular slash command that should be handled by the TUI. The `String`

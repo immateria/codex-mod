@@ -6,23 +6,23 @@ use unicode_width::UnicodeWidthChar;
 /// - AnsiPreserving: keep CSI (ESC '[' ... final) so color/style can be parsed
 ///   later by the ANSI parser; strip OSC/DCS/APC/PM/SOS and other controls.
 #[derive(Clone, Copy)]
-pub enum Mode {
+pub(crate) enum Mode {
     Plain,
     AnsiPreserving,
 }
 
 #[derive(Clone, Copy)]
-pub struct Options {
-    pub expand_tabs: bool,
-    pub tabstop: usize,
-    pub debug_markers: bool,
+pub(crate) struct Options {
+    pub(crate) expand_tabs: bool,
+    pub(crate) tabstop: usize,
+    pub(crate) debug_markers: bool,
 }
 
 impl Default for Options {
     fn default() -> Self { Options { expand_tabs: true, tabstop: 4, debug_markers: false } }
 }
 
-pub fn sanitize_for_tui(input: &str, mode: Mode, opts: Options) -> String {
+pub(crate) fn sanitize_for_tui(input: &str, mode: Mode, opts: Options) -> String {
     // Optionally expand tabs first so that later stripping does not interact
     // with spaces we insert.
     let mut text = if opts.expand_tabs { expand_tabs_to_spaces(input, opts.tabstop) } else { input.to_string() };

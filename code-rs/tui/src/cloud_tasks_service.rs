@@ -21,11 +21,11 @@ use reqwest::header::USER_AGENT;
 use serde::Deserialize;
 
 #[derive(Clone, Debug)]
-pub struct CloudEnvironment {
-    pub id: String,
-    pub label: Option<String>,
-    pub repo_hints: Option<String>,
-    pub is_pinned: bool,
+pub(crate) struct CloudEnvironment {
+    pub(crate) id: String,
+    pub(crate) label: Option<String>,
+    pub(crate) repo_hints: Option<String>,
+    pub(crate) is_pinned: bool,
 }
 
 struct CloudTasksConfig {
@@ -35,7 +35,7 @@ struct CloudTasksConfig {
     use_mock: bool,
 }
 
-pub async fn fetch_tasks(environment: Option<String>) -> Result<Vec<TaskSummary>> {
+pub(crate) async fn fetch_tasks(environment: Option<String>) -> Result<Vec<TaskSummary>> {
     let config = load_config().await?;
     let backend = build_backend(&config)?;
     backend
@@ -44,7 +44,7 @@ pub async fn fetch_tasks(environment: Option<String>) -> Result<Vec<TaskSummary>
         .map_err(|err| anyhow!("list cloud tasks failed: {err}"))
 }
 
-pub async fn fetch_task_diff(task_id: TaskId) -> Result<Option<String>> {
+pub(crate) async fn fetch_task_diff(task_id: TaskId) -> Result<Option<String>> {
     let config = load_config().await?;
     let backend = build_backend(&config)?;
     backend
@@ -53,7 +53,7 @@ pub async fn fetch_task_diff(task_id: TaskId) -> Result<Option<String>> {
         .map_err(|err| anyhow!("fetch diff for {} failed: {err}", task_id.0))
 }
 
-pub async fn fetch_task_messages(task_id: TaskId) -> Result<Vec<String>> {
+pub(crate) async fn fetch_task_messages(task_id: TaskId) -> Result<Vec<String>> {
     let config = load_config().await?;
     let backend = build_backend(&config)?;
     backend
@@ -62,7 +62,7 @@ pub async fn fetch_task_messages(task_id: TaskId) -> Result<Vec<String>> {
         .map_err(|err| anyhow!("fetch messages for {} failed: {err}", task_id.0))
 }
 
-pub async fn apply_task(task_id: TaskId, preflight: bool) -> Result<ApplyOutcome> {
+pub(crate) async fn apply_task(task_id: TaskId, preflight: bool) -> Result<ApplyOutcome> {
     let config = load_config().await?;
     let backend = build_backend(&config)?;
     let fut = if preflight {
@@ -73,7 +73,7 @@ pub async fn apply_task(task_id: TaskId, preflight: bool) -> Result<ApplyOutcome
     fut.await.map_err(|err| anyhow!("apply task {} failed: {err}", task_id.0))
 }
 
-pub async fn create_task(env_id: String, prompt: String, best_of_n: usize) -> Result<CreatedTask> {
+pub(crate) async fn create_task(env_id: String, prompt: String, best_of_n: usize) -> Result<CreatedTask> {
     let config = load_config().await?;
     if config.use_mock {
         let backend = build_backend(&config)?;
@@ -91,7 +91,7 @@ pub async fn create_task(env_id: String, prompt: String, best_of_n: usize) -> Re
         .map_err(|err| anyhow!("create task failed: {err}"))
 }
 
-pub async fn fetch_environments() -> Result<Vec<CloudEnvironment>> {
+pub(crate) async fn fetch_environments() -> Result<Vec<CloudEnvironment>> {
     let config = load_config().await?;
     if config.use_mock {
         return Ok(vec![CloudEnvironment {

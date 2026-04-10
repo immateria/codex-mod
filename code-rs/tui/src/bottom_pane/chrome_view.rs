@@ -132,7 +132,7 @@ macro_rules! impl_chrome_view {
                 $crate::bottom_pane::chrome_view::ContentOnly::new(self)
             }
 
-            #[allow(dead_code)]
+            #[allow(dead_code)] // used in tests via framed_mut()
             pub(crate) fn framed_mut(
                 &mut self,
             ) -> $crate::bottom_pane::chrome_view::FramedMut<'_, $view> {
