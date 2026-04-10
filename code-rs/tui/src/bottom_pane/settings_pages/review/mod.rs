@@ -13,8 +13,7 @@ use std::cell::Cell;
 
 use crate::app_event_sender::AppEventSender;
 use crate::components::scroll_state::ScrollState;
-
-const DEFAULT_VISIBLE_ROWS: usize = 8;
+use crate::timing::DEFAULT_VISIBLE_ROWS;
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 enum SelectionKind {

@@ -12,7 +12,8 @@ use unicode_width::UnicodeWidthStr;
 use crate::auto_drive_strings;
 use crate::auto_drive_style::EFFECT_WHITE;
 use crate::colors;
-use crate::glitch_animation::{gradient_multi, mix_rgb};
+use crate::colors::mix_rgb;
+use crate::glitch_animation::gradient_multi;
 use crate::spinner;
 
 use super::super::{style, AutoActiveViewModel, AutoCoordinatorView};

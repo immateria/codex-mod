@@ -19,7 +19,8 @@ use super::card_style::{
 use super::{HistoryCell, HistoryCellType, ToolCellStatus};
 use crate::auto_drive_style::EFFECT_WHITE;
 use crate::card_theme;
-use crate::glitch_animation::{gradient_multi, mix_rgb};
+use crate::colors::mix_rgb;
+use crate::glitch_animation::gradient_multi;
 use crate::gradient_background::{GradientBackground, RevealRender};
 use crate::text_formatting::pad_to_display_width;
 use crate::util::buffer::fill_rect;
@@ -38,6 +39,8 @@ use std::time::{Duration, Instant};
 use std::env;
 
 const ACTION_TIME_INDENT: usize = 1;
+// Wider than card_style::ACTION_TIME_COLUMN_MIN_WIDTH — auto-drive
+// shows more detailed elapsed times (e.g. "1m 30s").
 const ACTION_TIME_COLUMN_MIN_WIDTH: usize = 6;
 const CELEBRATION_ASCII: [&str; 4] = [
     " ▗▄▄▖ ▗▄▖ ▗▖  ▗▖▗▄▄▖ ▗▖   ▗▄▄▄▖▗▄▄▄▖▗▄▄▄▖",

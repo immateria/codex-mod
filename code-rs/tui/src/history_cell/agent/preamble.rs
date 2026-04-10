@@ -36,7 +36,7 @@ use std::time::{Duration, Instant};
 const MAX_PLAN_LINES: usize = 4;
 const MAX_SUMMARY_LINES: usize = 4;
 const MAX_AGENT_DISPLAY: usize = 8;
-const ACTION_TIME_COLUMN_MIN_WIDTH: usize = 2;
+use super::card_style::ACTION_TIME_COLUMN_MIN_WIDTH;
 const ACTION_TIME_INDENT: usize = 2;
 
 #[derive(Clone, Default)]

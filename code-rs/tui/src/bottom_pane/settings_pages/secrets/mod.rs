@@ -16,7 +16,7 @@ mod render;
 #[cfg(test)]
 mod tests;
 
-const DEFAULT_LIST_VIEWPORT_ROWS: usize = 10;
+use crate::timing::DEFAULT_LIST_VIEWPORT_ROWS;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 enum Mode {

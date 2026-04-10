@@ -47,7 +47,7 @@ enum SelectionKind {
     Tool(usize),
 }
 
-const DEFAULT_VISIBLE_ROWS: usize = 8;
+use crate::timing::DEFAULT_VISIBLE_ROWS;
 
 #[derive(Clone, Debug)]
 struct ValidationListModel {

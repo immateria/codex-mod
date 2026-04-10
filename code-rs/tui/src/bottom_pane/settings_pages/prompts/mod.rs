@@ -17,7 +17,7 @@ mod render;
 #[cfg(test)]
 mod tests;
 
-const DEFAULT_LIST_VIEWPORT_ROWS: usize = 8;
+use crate::timing::DEFAULT_VISIBLE_ROWS as DEFAULT_LIST_VIEWPORT_ROWS;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum Focus {

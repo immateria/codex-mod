@@ -67,7 +67,7 @@ pub(crate) struct JsReplSettingsView {
 crate::bottom_pane::chrome_view::impl_chrome_view!(JsReplSettingsView);
 
 impl JsReplSettingsView {
-    const DEFAULT_VISIBLE_ROWS: usize = 8;
+    const DEFAULT_VISIBLE_ROWS: usize = crate::timing::DEFAULT_VISIBLE_ROWS;
     const HEADER_ROWS: u16 = 3;
 
     pub(super) fn desired_height_impl(&self, _width: u16) -> u16 {

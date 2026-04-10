@@ -49,9 +49,10 @@ pub(super) const HIGH_EVENT_BURST_MAX: u32 = 32;
 /// buffered output can catch up even if POLLOUT never flips true (e.g., tmux
 /// reattach or XON/XOFF throttling).
 pub(super) const BACKPRESSURE_FORCED_DRAW_SKIPS: u32 = 4;
-pub(super) const DEFAULT_PTY_ROWS: u16 = 24;
-pub(super) const DEFAULT_PTY_COLS: u16 = 80;
-const FRAME_TIMER_LOG_THROTTLE_SECS: u64 = 5;
+
+pub(super) use crate::timing::DEFAULT_PTY_ROWS;
+pub(super) use crate::timing::DEFAULT_PTY_COLS;
+pub(super) use crate::timing::LOG_THROTTLE_SECS as FRAME_TIMER_LOG_THROTTLE_SECS;
 
 fn now_epoch_secs() -> u64 {
     SystemTime::now()

@@ -5,7 +5,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 // modest stack while avoiding stack overflow in heavier workers.
 const STACK_SIZE_BYTES: usize = 1024 * 1024;
 const MAX_BACKGROUND_THREADS: usize = 32;
-const LIMIT_LOG_THROTTLE_SECS: u64 = 5;
+use crate::timing::LOG_THROTTLE_SECS as LIMIT_LOG_THROTTLE_SECS;
 
 static ACTIVE_THREADS: AtomicUsize = AtomicUsize::new(0);
 static LAST_LIMIT_LOG_SECS: AtomicU64 = AtomicU64::new(0);

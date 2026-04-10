@@ -1,14 +1,9 @@
 use crate::card_theme::{GradientSpec, RevealVariant};
-use crate::colors;
-use crate::glitch_animation::{gradient_multi, mix_rgb};
+use crate::colors::{self, mix_rgb, rgb};
+use crate::glitch_animation::gradient_multi;
 use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
 use ratatui::prelude::Color;
-
-#[allow(clippy::disallowed_methods)]
-const fn rgb(r: u8, g: u8, b: u8) -> Color {
-    Color::Rgb(r, g, b)
-}
 
 #[derive(Clone, Copy, Debug)]
 pub struct RevealRender {

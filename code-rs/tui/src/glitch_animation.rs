@@ -23,10 +23,7 @@ type CharGrid = Vec<Vec<char>>;
 type BoolGrid = Vec<Vec<bool>>;
 type LineMasks = (CharGrid, BoolGrid, BoolGrid, usize, usize);
 
-#[allow(clippy::disallowed_methods)]
-const fn rgb(r: u8, g: u8, b: u8) -> Color {
-    Color::Rgb(r, g, b)
-}
+use crate::colors::{mix_rgb, rgb};
 
 struct OverlayRenderInputs<'a> {
     chars: &'a [Vec<char>],
@@ -877,15 +874,6 @@ fn smoothstep(e0: f32, e1: f32, x: f32) -> f32 {
 
 fn lerp_u8(a: u8, b: u8, t: f32) -> u8 {
     (a as f32 + (b as f32 - a as f32) * t).round() as u8
-}
-
-pub(crate) fn mix_rgb(a: Color, b: Color, t: f32) -> Color {
-    match (a, b) {
-        (Color::Rgb(ar, ag, ab), Color::Rgb(br, bg, bb)) => {
-            rgb(lerp_u8(ar, br, t), lerp_u8(ag, bg, t), lerp_u8(ab, bb, t))
-        }
-        _ => b,
-    }
 }
 
 // vibrant cyan -> magenta -> amber across the word

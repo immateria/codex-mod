@@ -32,7 +32,7 @@ use std::time::Duration;
 use unicode_width::UnicodeWidthStr;
 
 const ACTION_TIME_INDENT: usize = 1;
-const ACTION_TIME_COLUMN_MIN_WIDTH: usize = 2;
+use super::card_style::ACTION_TIME_COLUMN_MIN_WIDTH;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum WebSearchStatus {

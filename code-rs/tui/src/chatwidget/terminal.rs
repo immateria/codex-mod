@@ -14,8 +14,7 @@ use crate::sanitize::{sanitize_for_tui, Mode as SanitizeMode, Options as Sanitiz
 
 pub(crate) const TERMINAL_MAX_LINES: usize = 10_000;
 pub(crate) const TERMINAL_MAX_RAW: usize = 1_048_576;
-pub(crate) const TERMINAL_PTY_ROWS: u16 = 24;
-pub(crate) const TERMINAL_PTY_COLS: u16 = 80;
+pub(crate) use crate::timing::{DEFAULT_PTY_ROWS as TERMINAL_PTY_ROWS, DEFAULT_PTY_COLS as TERMINAL_PTY_COLS};
 pub(crate) const TERMINAL_SCROLLBACK: usize = TERMINAL_MAX_LINES;
 
 #[derive(Default)]

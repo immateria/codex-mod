@@ -101,6 +101,8 @@ pub(crate) const MEDIA_LEFT_PAD: usize = 1;
 // web_search, agent runs).
 /// Space between the main content area and the time column.
 pub(crate) const ACTION_TIME_SEPARATOR_WIDTH: usize = 2;
+/// Minimum width for the elapsed-time column in card layouts.
+pub(crate) const ACTION_TIME_COLUMN_MIN_WIDTH: usize = 2;
 /// Default left indent for wrapped body text inside bordered cards.
 pub(crate) const DEFAULT_TEXT_INDENT: usize = 2;
 

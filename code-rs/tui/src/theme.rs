@@ -339,6 +339,10 @@ pub(crate) enum PaletteMode {
     Ansi256,
 }
 
+/// Tolerance for comparing relative luminance values when preserving
+/// light/dark relationships during theme contrast enforcement.
+const LUMINANCE_EPSILON: f32 = 0.02;
+
 const ANSI16_COLORS: [(u8, u8, u8); 16] = [
     (0, 0, 0),       // 0 black
     (205, 0, 0),     // 1 red
@@ -651,8 +655,7 @@ fn ensure_contrast(
     let prefer_grayscale = is_low_saturation(target);
     let background_lum = relative_luminance_color(background);
     let original_lum = relative_luminance_color(original);
-    let luminance_tolerance: f32 = 0.02;
-    let desired_relation = if (original_lum - background_lum).abs() <= luminance_tolerance {
+    let desired_relation = if (original_lum - background_lum).abs() <= LUMINANCE_EPSILON {
         None
     } else if original_lum > background_lum {
         Some(Ordering::Greater)
@@ -705,7 +708,6 @@ fn find_palette_match_with_contrast(
 ) -> Option<Color> {
     let mut best: Option<(i32, Color)> = None;
     let background_lum = relative_luminance_color(background);
-    let luminance_epsilon: f32 = 0.02;
 
     let consider_candidate = |candidate: Color, best: &mut Option<(i32, Color)>| {
         if contrast_ratio(candidate, background) < min_ratio {
@@ -714,9 +716,9 @@ fn find_palette_match_with_contrast(
         if let Some(relation) = desired_relation {
             let candidate_lum = relative_luminance_color(candidate);
             let matches = match relation {
-                Ordering::Less => candidate_lum + luminance_epsilon < background_lum,
-                Ordering::Equal => (candidate_lum - background_lum).abs() <= luminance_epsilon,
-                Ordering::Greater => candidate_lum > background_lum + luminance_epsilon,
+                Ordering::Less => candidate_lum + LUMINANCE_EPSILON < background_lum,
+                Ordering::Equal => (candidate_lum - background_lum).abs() <= LUMINANCE_EPSILON,
+                Ordering::Greater => candidate_lum > background_lum + LUMINANCE_EPSILON,
             };
             if !matches {
                 return;

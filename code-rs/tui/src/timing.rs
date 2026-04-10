@@ -15,3 +15,19 @@ pub(crate) const TERMINAL_QUERY_TIMEOUT: Duration = Duration::from_millis(100);
 /// Queue-watchdog sleep — how long the ghost-snapshot queue waits before
 /// emitting a forced `CommitTick` when no streaming activity drives it.
 pub(crate) const QUEUE_WATCHDOG_TIMEOUT: Duration = Duration::from_secs(10);
+
+/// Epoch-seconds throttle for rate-limited log messages (background threads,
+/// frame-timer budget warnings, etc.).
+pub(crate) const LOG_THROTTLE_SECS: u64 = 5;
+
+/// Default PTY rows when the real terminal size is unknown.
+pub(crate) const DEFAULT_PTY_ROWS: u16 = 24;
+
+/// Default PTY columns when the real terminal size is unknown.
+pub(crate) const DEFAULT_PTY_COLS: u16 = 80;
+
+/// Default number of visible rows for settings list viewports (compact lists).
+pub(crate) const DEFAULT_VISIBLE_ROWS: usize = 8;
+
+/// Default number of visible rows for larger settings list viewports.
+pub(crate) const DEFAULT_LIST_VIEWPORT_ROWS: usize = 10;

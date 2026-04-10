@@ -7,7 +7,7 @@ const fn indexed(i: u8) -> Color {
 }
 
 #[allow(clippy::disallowed_methods)]
-const fn rgb(r: u8, g: u8, b: u8) -> Color {
+pub(crate) const fn rgb(r: u8, g: u8, b: u8) -> Color {
     Color::Rgb(r, g, b)
 }
 
@@ -213,6 +213,19 @@ pub(crate) fn blend_rgb(a: (u8, u8, u8), b: (u8, u8, u8), t: f32) -> (u8, u8, u8
     let g = (a.1 as f32 * inv + b.1 as f32 * t).round() as u8;
     let bl = (a.2 as f32 * inv + b.2 as f32 * t).round() as u8;
     (r, g, bl)
+}
+
+/// Mix two `Color::Rgb` values by interpolation factor `t` (0.0..=1.0).
+/// Returns `b` unchanged if either input is not `Color::Rgb`.
+/// Unlike [`mix_toward`], this does **not** quantize for palette terminals.
+pub(crate) fn mix_rgb(a: Color, b: Color, t: f32) -> Color {
+    match (a, b) {
+        (Color::Rgb(ar, ag, ab), Color::Rgb(br, bg, bb)) => {
+            let (r, g, b) = blend_rgb((ar, ag, ab), (br, bg, bb), t);
+            rgb(r, g, b)
+        }
+        _ => b,
+    }
 }
 
 /// Blend `from` toward `to` by fraction `t` (0.0..=1.0) in RGB space.

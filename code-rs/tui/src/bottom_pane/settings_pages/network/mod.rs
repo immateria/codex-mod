@@ -63,7 +63,7 @@ pub(crate) struct NetworkSettingsView {
 crate::bottom_pane::chrome_view::impl_chrome_view!(NetworkSettingsView);
 
 impl NetworkSettingsView {
-    const DEFAULT_VISIBLE_ROWS: usize = 8;
+    const DEFAULT_VISIBLE_ROWS: usize = crate::timing::DEFAULT_VISIBLE_ROWS;
 
     pub(super) fn desired_height_impl(&self, _width: u16) -> u16 {
         match &self.mode {

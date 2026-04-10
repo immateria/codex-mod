@@ -29,7 +29,7 @@ const ACTION_DISPLAY_TAIL: usize = 4;
 const MIN_SCREENSHOT_ROWS: usize = 6;
 const ACTION_LABEL_GAP: usize = 2;
 const ACTION_TIME_GAP: usize = 2;
-const ACTION_TIME_COLUMN_MIN_WIDTH: usize = 2;
+use super::card_style::ACTION_TIME_COLUMN_MIN_WIDTH;
 const MAX_SCREENSHOT_HISTORY: usize = 24;
 
 #[derive(Clone)]

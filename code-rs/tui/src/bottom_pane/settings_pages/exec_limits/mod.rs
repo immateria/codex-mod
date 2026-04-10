@@ -5,7 +5,7 @@ use crate::app_event_sender::AppEventSender;
 use crate::components::form_text_field::FormTextField;
 use crate::components::scroll_state::ScrollState;
 
-const DEFAULT_VISIBLE_ROWS: usize = 8;
+use crate::timing::DEFAULT_VISIBLE_ROWS;
 
 mod input;
 mod model;
