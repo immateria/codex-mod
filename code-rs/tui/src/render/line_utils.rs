@@ -48,7 +48,5 @@ pub(crate) fn is_code_block_painted(line: &Line<'_>) -> bool {
         return true;
     }
     // Treat our hidden language sentinel as code so it groups with the block.
-    let flat: String = line.spans.iter().map(|s| s.content.as_ref()).collect();
-    if flat.contains("⟦LANG:") { return true; }
-    false
+    line.spans.iter().any(|s| s.content.contains("⟦LANG:"))
 }

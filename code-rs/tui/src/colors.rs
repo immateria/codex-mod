@@ -12,35 +12,43 @@ pub(crate) const fn rgb(r: u8, g: u8, b: u8) -> Color {
 }
 
 // Legacy color constants - now redirect to theme
+#[inline]
 pub(crate) fn light_blue() -> Color {
     current_theme().primary
 }
 
+#[inline]
 pub(crate) fn success_green() -> Color {
     current_theme().success
 }
 
+#[inline]
 pub(crate) fn success() -> Color {
     current_theme().success
 }
 
+#[inline]
 pub(crate) fn warning() -> Color {
     current_theme().warning
 }
 
+#[inline]
 pub(crate) fn error() -> Color {
     current_theme().error
 }
 
 // Convenience functions for common theme colors
+#[inline]
 pub(crate) fn primary() -> Color {
     current_theme().primary
 }
 
+#[inline]
 pub(crate) fn secondary() -> Color {
     current_theme().secondary
 }
 
+#[inline]
 pub(crate) fn border() -> Color {
     current_theme().border
 }
@@ -69,22 +77,27 @@ fn is_dark_background(color: Color) -> bool {
     matches!(color, Color::Indexed(0) | Color::Black)
 }
 
+#[inline]
 pub(crate) fn border_focused() -> Color {
     current_theme().border_focused
 }
 
+#[inline]
 pub(crate) fn text() -> Color {
     current_theme().text
 }
 
+#[inline]
 pub(crate) fn text_dim() -> Color {
     current_theme().text_dim
 }
 
+#[inline]
 pub(crate) fn text_bright() -> Color {
     current_theme().text_bright
 }
 
+#[inline]
 pub(crate) fn spinner() -> Color {
     current_theme().spinner
 }
@@ -106,45 +119,55 @@ pub(crate) fn text_mid() -> Color {
     }
 }
 
+#[inline]
 pub(crate) fn info() -> Color {
     current_theme().info
 }
 
 // Alias for text_dim
+#[inline]
 pub(crate) fn dim() -> Color {
     text_dim()
 }
 
+#[inline]
 pub(crate) fn background() -> Color {
     current_theme().background
 }
 
+#[inline]
 pub(crate) fn selection() -> Color {
     current_theme().selection
 }
 
 // Syntax/special helpers
+#[inline]
 pub(crate) fn function() -> Color {
     current_theme().function
 }
 
+#[inline]
 pub(crate) fn keyword() -> Color {
     current_theme().keyword
 }
 
 // Shortcut bar hint colors
+#[inline]
 pub(crate) fn hint_key() -> Color {
     current_theme().hint_key
 }
 
+#[inline]
 pub(crate) fn hint_dismiss() -> Color {
     current_theme().hint_dismiss
 }
 
+#[inline]
 pub(crate) fn hint_confirm() -> Color {
     current_theme().hint_confirm
 }
 
+#[inline]
 pub(crate) fn hint_nav() -> Color {
     current_theme().hint_nav
 }
@@ -308,12 +331,14 @@ pub(crate) fn wcag_relative_luminance(r: u8, g: u8, b: u8) -> f32 {
 }
 
 /// WCAG 2.x contrast ratio between two luminance values.
+#[inline]
 pub(crate) fn contrast_ratio_from_luminance(l1: f32, l2: f32) -> f32 {
     let (a, b) = if l1 > l2 { (l1, l2) } else { (l2, l1) };
     (a + 0.05) / (b + 0.05)
 }
 
 /// Returns `true` when the current terminal background is dark (luminance < 0.5).
+#[inline]
 pub(crate) fn is_dark_theme() -> bool {
     relative_luminance(color_to_rgb(background())) < 0.5
 }
@@ -399,33 +424,57 @@ pub(crate) fn assistant_hr() -> Color {
 // These eliminate `Style::default().fg(crate::colors::…())` boilerplate
 // that appears 300+ times across the TUI.
 
+#[inline]
 pub(crate) fn style_text() -> Style { Style::default().fg(text()) }
+#[inline]
 pub(crate) fn style_text_dim() -> Style { Style::default().fg(text_dim()) }
+#[inline]
 pub(crate) fn style_text_bright() -> Style { Style::default().fg(text_bright()) }
+#[inline]
 pub(crate) fn style_text_mid() -> Style { Style::default().fg(text_mid()) }
+#[inline]
 pub(crate) fn style_primary() -> Style { Style::default().fg(primary()) }
+#[inline]
 pub(crate) fn style_secondary() -> Style { Style::default().fg(secondary()) }
+#[inline]
 pub(crate) fn style_success() -> Style { Style::default().fg(success()) }
+#[inline]
 pub(crate) fn style_success_green() -> Style { Style::default().fg(success_green()) }
+#[inline]
 pub(crate) fn style_warning() -> Style { Style::default().fg(warning()) }
+#[inline]
 pub(crate) fn style_error() -> Style { Style::default().fg(error()) }
+#[inline]
 pub(crate) fn style_info() -> Style { Style::default().fg(info()) }
+#[inline]
 pub(crate) fn style_function() -> Style { Style::default().fg(function()) }
+#[inline]
 pub(crate) fn style_border() -> Style { Style::default().fg(border()) }
+#[inline]
 pub(crate) fn style_border_dim() -> Style { Style::default().fg(border_dim()) }
+#[inline]
 pub(crate) fn style_light_blue() -> Style { Style::default().fg(light_blue()) }
 
 // Background-based helpers — chain .fg() for combined styles.
+#[inline]
 pub(crate) fn style_on_background() -> Style { Style::default().bg(background()) }
+#[inline]
 pub(crate) fn style_on_overlay_scrim() -> Style { Style::default().bg(overlay_scrim()) }
+#[inline]
 pub(crate) fn style_on_selection() -> Style { Style::default().bg(selection()) }
 
 // Combined fg+bg helpers for the most common pairings.
+#[inline]
 pub(crate) fn style_text_on_bg() -> Style { Style::default().fg(text()).bg(background()) }
+#[inline]
 pub(crate) fn style_border_on_bg() -> Style { Style::default().fg(border()).bg(background()) }
+#[inline]
 pub(crate) fn style_border_dim_on_bg() -> Style { Style::default().fg(border_dim()).bg(background()) }
 
 // Bold helpers for the most common bold+color combinations.
+#[inline]
 pub(crate) fn style_text_bold() -> Style { Style::default().fg(text()).add_modifier(Modifier::BOLD) }
+#[inline]
 pub(crate) fn style_primary_bold() -> Style { Style::default().fg(primary()).add_modifier(Modifier::BOLD) }
+#[inline]
 pub(crate) fn style_error_bold() -> Style { Style::default().fg(error()).add_modifier(Modifier::BOLD) }
