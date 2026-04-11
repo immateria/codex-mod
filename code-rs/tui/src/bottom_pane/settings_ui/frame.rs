@@ -3,7 +3,7 @@ use std::borrow::Cow;
 use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
 use ratatui::style::Style;
-use ratatui::text::Line;
+use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Clear, Paragraph, Widget};
 
 use crate::colors;
@@ -16,6 +16,7 @@ pub(crate) struct SettingsFrame<'a> {
     pub(crate) title: Cow<'a, str>,
     pub(crate) header_lines: Vec<Line<'static>>,
     pub(crate) footer_lines: Vec<Line<'static>>,
+    pub(crate) position_text: Option<Cow<'a, str>>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -37,14 +38,33 @@ impl<'a> SettingsFrame<'a> {
             title: title.into(),
             header_lines,
             footer_lines,
+            position_text: None,
         }
     }
 
+    #[allow(dead_code)]
+    pub(crate) fn with_position_text(mut self, text: impl Into<Cow<'a, str>>) -> Self {
+        self.position_text = Some(text.into());
+        self
+    }
+
     fn make_block(&self) -> Block<'_> {
-        Block::bordered()
+        let mut block = Block::bordered()
             .border_style(Style::new().fg(colors::border()))
             .style(Style::new().bg(colors::background()).fg(colors::text()))
-            .title_top(Line::from(self.title.as_ref()).centered())
+            .title_top(Line::from(self.title.as_ref()).centered());
+
+        if let Some(pos) = &self.position_text {
+            let pos_span = Span::styled(
+                format!(" {pos} "),
+                Style::new().fg(colors::text_dim()),
+            );
+            block = block.title_top(
+                Line::from(vec![pos_span]).right_aligned(),
+            );
+        }
+
+        block
     }
 
     fn inner_for_block(block: &Block<'_>, area: Rect) -> Option<Rect> {

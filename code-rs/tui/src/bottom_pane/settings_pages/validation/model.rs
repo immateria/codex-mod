@@ -68,9 +68,9 @@ impl ValidationSettingsView {
                 ValidationGroup::Stylistic => "Formatting and style linting",
             };
             let group_hint = if *enabled {
-                "(press Enter to disable)"
+                "Enter to disable"
             } else {
-                "(press Enter to enable)"
+                "Enter to enable"
             };
             runs.push(
                 SettingsMenuRow::new(group_sel_idx, status.name)
@@ -111,9 +111,9 @@ impl ValidationSettingsView {
                     };
 
                     let tool_hint = if row.status.installed {
-                        "(press Enter to toggle)"
+                        "Enter to toggle"
                     } else {
-                        "(press Enter to install)"
+                        "Enter to install"
                     };
                     tool_row = tool_row.with_selected_hint(tool_hint);
 

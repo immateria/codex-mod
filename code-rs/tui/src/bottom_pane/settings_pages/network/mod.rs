@@ -97,7 +97,7 @@ impl NetworkSettingsView {
             dirty: false,
             mode: ViewMode::Main { show_advanced: false },
             state,
-            viewport_rows: Cell::new(0),
+            viewport_rows: Cell::new(1),
         }
     }
 

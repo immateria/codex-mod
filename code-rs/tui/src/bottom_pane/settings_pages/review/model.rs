@@ -99,9 +99,9 @@ impl ReviewSettingsView {
         )])]));
 
         let review_enabled_hint = if self.review_auto_resolve_enabled {
-            "(press Enter to disable)"
+            "Enter to disable"
         } else {
-            "(press Enter to enable)"
+            "Enter to enable"
         };
         runs.push(
             SettingsMenuRow::new(selection_idx, "Enabled")
@@ -192,9 +192,9 @@ impl ReviewSettingsView {
         )])]));
 
         let auto_review_enabled_hint = if self.auto_review_enabled {
-            "(press Enter to disable)"
+            "Enter to disable"
         } else {
-            "(press Enter to enable)"
+            "Enter to enable"
         };
         runs.push(
             SettingsMenuRow::new(selection_idx, "Enabled")

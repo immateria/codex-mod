@@ -90,7 +90,7 @@ impl ValidationSettingsView {
             state,
             is_complete: false,
             tool_label_pad_cols,
-            viewport_rows: Cell::new(0),
+            viewport_rows: Cell::new(1),
             pending_notice: None,
         }
     }

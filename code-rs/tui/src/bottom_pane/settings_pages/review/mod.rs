@@ -205,7 +205,7 @@ impl ReviewSettingsView {
             app_event_tx,
             state,
             is_complete: false,
-            viewport_rows: Cell::new(0),
+            viewport_rows: Cell::new(1),
             pending_notice: None,
         }
     }

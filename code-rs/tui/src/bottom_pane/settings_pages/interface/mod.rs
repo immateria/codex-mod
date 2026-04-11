@@ -234,7 +234,7 @@ impl InterfaceSettingsView {
             status: None,
             mode: ViewMode::Main,
             state,
-            main_viewport_rows: Cell::new(0),
+            main_viewport_rows: Cell::new(1),
         }
     }
 

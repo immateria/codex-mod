@@ -99,7 +99,7 @@ impl ShellEscalationSettingsView {
             dirty: false,
             mode: ViewMode::Main,
             state,
-            viewport_rows: Cell::new(0),
+            viewport_rows: Cell::new(1),
             editor_notice: None,
         }
     }

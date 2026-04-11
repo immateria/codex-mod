@@ -86,7 +86,7 @@ impl UpdateSettingsView {
                 "checks on launch",
                 Style::new().fg(colors::text_dim()),
             ))
-            .with_selected_hint("(press Enter/Space to toggle)")
+            .with_selected_hint("Enter/Space to toggle")
     }
 
     pub(super) fn rows(&self) -> Vec<SettingsMenuRow<'static, usize>> {
@@ -99,9 +99,9 @@ impl UpdateSettingsView {
                     Style::new().fg(colors::text_dim()),
                 ))
                 .with_selected_hint(if self.command.is_some() {
-                    "(press Enter to start)"
+                    "Enter to start"
                 } else {
-                    "(press Enter for instructions)"
+                    "Enter for instructions"
                 }),
             Self::auto_upgrade_row(self.auto_enabled),
             SettingsMenuRow::new(2usize, "Close"),

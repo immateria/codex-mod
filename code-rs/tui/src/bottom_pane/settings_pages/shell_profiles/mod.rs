@@ -150,8 +150,8 @@ impl ShellProfilesSettingsView {
             status: None,
             mode: ViewMode::Main,
             scroll: ScrollState::new(),
-            viewport_rows: Cell::new(0),
-            pick_viewport_rows: Cell::new(0),
+            viewport_rows: Cell::new(1),
+            pick_viewport_rows: Cell::new(1),
         };
         view.scroll.selected_idx = Some(0);
         view.load_fields_for_style(selected_style);

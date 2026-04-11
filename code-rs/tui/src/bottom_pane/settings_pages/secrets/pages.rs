@@ -153,7 +153,7 @@ impl SecretsSettingsView {
                 };
                 let mut row = SettingsMenuRow::new(idx, entry.name.as_str().to_owned())
                     .with_value(StyledText::new(scope_label.to_owned(), value_style))
-                    .with_selected_hint("Del delete");
+                    .with_selected_hint("Del to delete");
                 if deleting {
                     row = row.disabled();
                 }

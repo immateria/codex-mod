@@ -118,7 +118,7 @@ impl PluginsSettingsView {
                 if let Some(err) = remote_sync_error.as_ref() {
                     header_lines.push(Line::from(Span::styled(
                         format!("Remote sync error: {err}"),
-                        Style::new().fg(colors::warning()),
+                        Style::new().fg(colors::error()),
                     )));
                     show_auth_recovery_actions = *remote_sync_needs_auth;
                 }
@@ -132,7 +132,7 @@ impl PluginsSettingsView {
                     let error_count = marketplace_load_errors.len();
                     header_lines.push(Line::from(Span::styled(
                         format!("{error_count} marketplace(s) failed to load."),
-                        Style::new().fg(colors::warning()),
+                        Style::new().fg(colors::error()),
                     )));
                     for error in marketplace_load_errors.iter().take(2) {
                         header_lines.push(Line::from(Span::styled(
@@ -344,7 +344,7 @@ impl PluginsSettingsView {
         if let Some(err) = snapshot.sources_sync_error.as_ref() {
             header_lines.push(Line::from(Span::styled(
                 format!("Marketplace sync error: {err}"),
-                Style::new().fg(colors::warning()),
+                Style::new().fg(colors::error()),
             )));
         }
 
@@ -469,7 +469,7 @@ impl PluginsSettingsView {
         } else if let Some(err) = snapshot.sources_sync_error.as_ref() {
             Some(StyledText::new(
                 format!("Marketplace sync error: {err}"),
-                Style::new().fg(colors::warning()),
+                Style::new().fg(colors::error()),
             ))
         } else if snapshot.sources_sync_in_progress {
             Some(StyledText::new(
@@ -532,7 +532,7 @@ impl PluginsSettingsView {
         let status = snapshot.sources_sync_error.as_ref().map(|err| {
             StyledText::new(
                 format!("Marketplace sync error: {err}"),
-                Style::new().fg(colors::warning()),
+                Style::new().fg(colors::error()),
             )
         });
         let shortcuts = [
