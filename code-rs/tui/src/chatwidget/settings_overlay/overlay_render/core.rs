@@ -1,6 +1,6 @@
 impl SettingsOverlayView {
     pub(crate) fn render(&self, area: Rect, buf: &mut Buffer) {
-        if area.width == 0 || area.height == 0 {
+        if area.is_empty() {
             return;
         }
 
@@ -192,7 +192,7 @@ impl SettingsOverlayView {
     }
 
     fn render_overview(&self, area: Rect, buf: &mut Buffer) {
-        if area.width == 0 || area.height == 0 {
+        if area.is_empty() {
             return;
         }
 
@@ -213,7 +213,7 @@ impl SettingsOverlayView {
     }
 
     fn render_overview_list(&self, area: Rect, buf: &mut Buffer) {
-        if area.width == 0 || area.height == 0 {
+        if area.is_empty() {
             return;
         }
 

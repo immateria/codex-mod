@@ -391,7 +391,7 @@ impl ShellProfilesSettingsView {
     }
 
     pub(super) fn render_pick_list(&self, area: Rect, buf: &mut Buffer, state: &PickListState) {
-        if area.width == 0 || area.height == 0 {
+        if area.is_empty() {
             return;
         }
 

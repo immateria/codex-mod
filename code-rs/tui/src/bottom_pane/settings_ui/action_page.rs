@@ -191,7 +191,7 @@ impl<'a> SettingsActionPage<'a> {
     }
 
     fn render_lines(&self, area: Rect, buf: &mut Buffer, lines: &[Line<'static>]) {
-        if area.width == 0 || area.height == 0 || lines.is_empty() {
+        if area.is_empty() || lines.is_empty() {
             return;
         }
 

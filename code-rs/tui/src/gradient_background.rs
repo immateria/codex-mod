@@ -22,7 +22,7 @@ impl GradientBackground {
         fg: Color,
         reveal: Option<RevealRender>,
     ) {
-        if area.width == 0 || area.height == 0 {
+        if area.is_empty() {
             return;
         }
 

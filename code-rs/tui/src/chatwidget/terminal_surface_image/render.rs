@@ -13,7 +13,7 @@ impl ChatWidget<'_> {
         area: Rect,
         buf: &mut Buffer,
     ) {
-        if area.width == 0 || area.height == 0 {
+        if area.is_empty() {
             render_image_placeholder(path, area, buf, "Browser");
             return;
         }

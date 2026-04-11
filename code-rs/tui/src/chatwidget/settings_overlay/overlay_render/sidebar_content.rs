@@ -1,6 +1,6 @@
 impl SettingsOverlayView {
     fn render_sidebar(&self, area: Rect, buf: &mut Buffer) {
-        if area.width == 0 || area.height == 0 {
+        if area.is_empty() {
             return;
         }
 
@@ -119,7 +119,7 @@ impl SettingsOverlayView {
     }
 
     fn render_content(&self, area: Rect, buf: &mut Buffer) {
-        if area.width == 0 || area.height == 0 {
+        if area.is_empty() {
             return;
         }
         // Cache the panel inner area for mouse event forwarding

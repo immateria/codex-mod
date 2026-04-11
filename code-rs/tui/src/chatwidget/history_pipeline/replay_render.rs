@@ -198,7 +198,7 @@ impl ChatWidget<'_> {
         buf: &mut Buffer,
         skip_rows: u16,
     ) {
-        if area.width == 0 || area.height == 0 {
+        if area.is_empty() {
             return;
         }
 

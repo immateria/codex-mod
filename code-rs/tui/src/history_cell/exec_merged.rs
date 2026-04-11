@@ -349,7 +349,7 @@ impl HistoryCell for MergedExecCell {
     fn custom_render_with_skip(&self, area: Rect, buf: &mut Buffer, mut skip_rows: u16) {
         let bg = crate::colors::style_text_on_bg();
         fill_bg(buf, area, bg);
-        if area.width == 0 || area.height == 0 {
+        if area.is_empty() {
             return;
         }
 

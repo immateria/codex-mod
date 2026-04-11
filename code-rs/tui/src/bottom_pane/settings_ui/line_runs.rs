@@ -81,7 +81,7 @@ fn render_selectable_runs_inner<Id: Copy>(
     base_style: Style,
     mut out_rects: Option<&mut Vec<(Id, Rect)>>,
 ) {
-    if area.width == 0 || area.height == 0 {
+    if area.is_empty() {
         return;
     }
 

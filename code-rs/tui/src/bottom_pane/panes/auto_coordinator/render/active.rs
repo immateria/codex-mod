@@ -26,7 +26,7 @@ pub(super) fn render_active_inner(
     model: &AutoActiveViewModel,
     composer: Option<&ChatComposer>,
 ) {
-    if area.width == 0 || area.height == 0 {
+    if area.is_empty() {
         return;
     }
 

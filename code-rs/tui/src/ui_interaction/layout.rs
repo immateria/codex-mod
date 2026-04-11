@@ -22,7 +22,7 @@ pub(crate) fn split_header_body_footer(
     footer_rows: usize,
     min_body_rows: u16,
 ) -> Option<HeaderBodyFooterLayout> {
-    if area.width == 0 || area.height == 0 {
+    if area.is_empty() {
         return None;
     }
 
@@ -93,7 +93,7 @@ pub(crate) fn split_pinned_footer_layout(
     status_rows: u16,
     min_viewport_rows_for_status: u16,
 ) -> PinnedFooterLayout {
-    if area.width == 0 || area.height == 0 {
+    if area.is_empty() {
         return PinnedFooterLayout {
             viewport: Rect::default(),
             action_row: Rect::default(),

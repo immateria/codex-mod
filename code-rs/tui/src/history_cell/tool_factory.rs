@@ -629,7 +629,7 @@ impl HistoryCell for WebFetchToolCell {
         self.layout_for_width(width).total_rows
     }
     fn custom_render_with_skip(&self, area: Rect, buf: &mut Buffer, skip_rows: u16) {
-        if area.width == 0 || area.height == 0 {
+        if area.is_empty() {
             return;
         }
 

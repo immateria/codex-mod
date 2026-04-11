@@ -246,7 +246,7 @@ impl AssistantMarkdownCell {
         let bg_style = Style::default().bg(cell_bg);
         fill_bg(buf, area, bg_style);
 
-        if area.width == 0 || area.height == 0 {
+        if area.is_empty() {
             return;
         }
 

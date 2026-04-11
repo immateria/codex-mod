@@ -206,7 +206,7 @@ pub(super) fn render_header(view: &AutoCoordinatorView, buf: &mut Buffer, params
         full_title,
         intro,
     } = params;
-    if area.width == 0 || area.height == 0 {
+    if area.is_empty() {
         return;
     }
 

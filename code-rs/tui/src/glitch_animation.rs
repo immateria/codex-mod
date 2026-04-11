@@ -90,7 +90,7 @@ pub(crate) fn render_intro_animation_with_size_and_alpha_offset(
     buf: &mut Buffer,
     params: IntroAnimationRenderParams<'_>,
 ) {
-    if area.width == 0 || area.height == 0 {
+    if area.is_empty() {
         return;
     }
 

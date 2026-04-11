@@ -9,7 +9,7 @@ impl AgentsSettingsContent {
         area: Rect,
         mouse_event: MouseEvent,
     ) -> Option<usize> {
-        if area.width == 0 || area.height == 0 {
+        if area.is_empty() {
             return None;
         }
         if mouse_event.column < area.x

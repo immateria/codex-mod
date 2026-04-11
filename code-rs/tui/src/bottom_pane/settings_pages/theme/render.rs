@@ -115,7 +115,7 @@ impl ThemeSelectionView {
     }
 
     fn render_content_only_shell(&self, area: Rect, buf: &mut Buffer) -> Rect {
-        if area.width == 0 || area.height == 0 {
+        if area.is_empty() {
             return Rect::default();
         }
 

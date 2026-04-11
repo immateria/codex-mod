@@ -1,6 +1,6 @@
 impl SettingsContent for LimitsSettingsContent {
     fn render(&self, area: Rect, buf: &mut Buffer) {
-        if area.width == 0 || area.height == 0 {
+        if area.is_empty() {
             self.overlay.set_visible_rows(0);
             self.overlay.set_max_scroll(0);
             self.set_wide_active(false);

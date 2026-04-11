@@ -90,7 +90,7 @@ impl<'a> SettingsPanel<'a> {
     }
 
     fn layout_from_block(&self, block: &Block<'_>, area: Rect) -> Option<SettingsPanelLayout> {
-        if area.width == 0 || area.height == 0 {
+        if area.is_empty() {
             return None;
         }
 

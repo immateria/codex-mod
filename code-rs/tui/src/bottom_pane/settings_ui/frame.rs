@@ -48,7 +48,7 @@ impl<'a> SettingsFrame<'a> {
     }
 
     fn inner_for_block(block: &Block<'_>, area: Rect) -> Option<Rect> {
-        if area.width == 0 || area.height == 0 {
+        if area.is_empty() {
             return None;
         }
 
@@ -118,7 +118,7 @@ impl<'a> SettingsFrame<'a> {
     }
 
     pub(crate) fn layout_content(&self, area: Rect) -> Option<SettingsFrameLayout> {
-        if area.width == 0 || area.height == 0 {
+        if area.is_empty() {
             return None;
         }
         Some(self.layout_from_inner(area))

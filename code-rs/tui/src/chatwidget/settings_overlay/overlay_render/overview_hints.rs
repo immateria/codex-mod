@@ -64,7 +64,7 @@ impl SettingsOverlayView {
     }
 
     fn render_footer_hints_overview(&self, area: Rect, buf: &mut Buffer) {
-        if area.width == 0 || area.height == 0 {
+        if area.is_empty() {
             self.last_hint_hit_areas.borrow_mut().clear();
             return;
         }
@@ -91,7 +91,7 @@ impl SettingsOverlayView {
     }
 
     fn render_footer_hints_section(&self, area: Rect, buf: &mut Buffer) {
-        if area.width == 0 || area.height == 0 {
+        if area.is_empty() {
             self.last_hint_hit_areas.borrow_mut().clear();
             return;
         }

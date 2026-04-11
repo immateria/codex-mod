@@ -446,7 +446,7 @@ impl<'p, 'a> SettingsMenuPageContentOnly<'p, 'a> {
 }
 
 fn render_lines(area: Rect, buf: &mut Buffer, lines: &[Line<'_>], base_style: Style) {
-    if area.width == 0 || area.height == 0 {
+    if area.is_empty() {
         return;
     }
 
@@ -471,7 +471,7 @@ fn render_menu_detail_pane<Id: Copy + PartialEq>(
     rows: &[SettingsMenuRow<'_, Id>],
     base_style: Style,
 ) {
-    if area.width == 0 || area.height == 0 {
+    if area.is_empty() {
         return;
     }
 

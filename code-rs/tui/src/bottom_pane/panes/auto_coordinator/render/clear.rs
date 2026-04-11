@@ -13,7 +13,7 @@ pub(super) fn clear_row(area: Rect, buf: &mut Buffer) {
 }
 
 pub(super) fn clear_rect(area: Rect, buf: &mut Buffer) {
-    if area.width == 0 || area.height == 0 {
+    if area.is_empty() {
         return;
     }
     for offset in 0..area.height {

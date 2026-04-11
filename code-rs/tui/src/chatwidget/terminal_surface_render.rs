@@ -215,7 +215,7 @@ impl ChatWidget<'_> {
         use ratatui::widgets::Borders;
         use ratatui::widgets::Paragraph;
 
-        if area.width == 0 || area.height == 0 {
+        if area.is_empty() {
             self.clickable_regions.borrow_mut().clear();
             return;
         }

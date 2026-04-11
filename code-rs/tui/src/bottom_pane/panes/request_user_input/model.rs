@@ -179,7 +179,7 @@ impl RequestUserInputView {
     }
 
     pub(super) fn option_hit_test(&self, area: Rect, x: u16, y: u16) -> Option<usize> {
-        if area.width == 0 || area.height == 0 {
+        if area.is_empty() {
             return None;
         }
         if !crate::ui_interaction::contains_point(area, x, y) {

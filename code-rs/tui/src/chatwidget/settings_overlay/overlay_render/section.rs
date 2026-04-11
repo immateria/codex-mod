@@ -1,6 +1,6 @@
 impl SettingsOverlayView {
     fn render_section_layout(&self, area: Rect, buf: &mut Buffer) {
-        if area.width == 0 || area.height == 0 {
+        if area.is_empty() {
             return;
         }
 
@@ -19,7 +19,7 @@ impl SettingsOverlayView {
     }
 
     fn render_section_main(&self, area: Rect, buf: &mut Buffer) {
-        if area.width == 0 || area.height == 0 {
+        if area.is_empty() {
             return;
         }
 
@@ -60,7 +60,7 @@ impl SettingsOverlayView {
     }
 
     fn render_sidebar_toggle(&self, area: Rect, buf: &mut Buffer, collapsed: bool) {
-        if area.width == 0 || area.height == 0 {
+        if area.is_empty() {
             *self.last_sidebar_toggle_area.borrow_mut() = Rect::default();
             return;
         }
@@ -87,7 +87,7 @@ impl SettingsOverlayView {
     }
 
     fn render_section_panel(&self, area: Rect, buf: &mut Buffer) {
-        if area.width == 0 || area.height == 0 {
+        if area.is_empty() {
             return;
         }
 
@@ -157,7 +157,7 @@ impl SettingsOverlayView {
     }
 
     fn strip_child_border(&self, area: Rect, buf: &mut Buffer) {
-        if area.width == 0 || area.height == 0 {
+        if area.is_empty() {
             return;
         }
 

@@ -20,7 +20,7 @@ impl PluginsSettingsView {
         mouse_event: MouseEvent,
         area: Rect,
     ) -> bool {
-        if self.is_complete || area.width == 0 || area.height == 0 {
+        if self.is_complete || area.is_empty() {
             return false;
         }
         self.handle_mouse_event_direct_in_chrome(ChromeMode::ContentOnly, mouse_event, area)

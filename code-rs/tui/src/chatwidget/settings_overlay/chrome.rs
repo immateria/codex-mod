@@ -62,7 +62,7 @@ mod imp {
         }
 
         fn option_at(&self, area: Rect, mouse_event: MouseEvent) -> Option<usize> {
-            if area.width == 0 || area.height == 0 {
+            if area.is_empty() {
                 return None;
             }
 
@@ -95,7 +95,7 @@ mod imp {
 
     impl SettingsContent for ChromeSettingsContent {
         fn render(&self, area: Rect, buf: &mut Buffer) {
-            if area.width == 0 || area.height == 0 {
+            if area.is_empty() {
                 return;
             }
 
@@ -260,7 +260,7 @@ mod android_stub {
 
     impl SettingsContent for ChromeSettingsContent {
         fn render(&self, area: Rect, buf: &mut Buffer) {
-            if area.width == 0 || area.height == 0 {
+            if area.is_empty() {
                 return;
             }
 

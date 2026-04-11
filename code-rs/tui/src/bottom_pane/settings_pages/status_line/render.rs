@@ -9,7 +9,7 @@ use super::StatusLineSetupView;
 
 impl StatusLineSetupView {
     pub(super) fn render_direct(&self, area: Rect, buf: &mut Buffer) {
-        if area.width == 0 || area.height == 0 {
+        if area.is_empty() {
             return;
         }
 

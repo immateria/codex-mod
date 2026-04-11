@@ -24,7 +24,7 @@ impl AutoDriveSettingsView {
         mouse_pos: (u16, u16),
         area: Rect,
     ) -> bool {
-        if area.width == 0 || area.height == 0 {
+        if area.is_empty() {
             return false;
         }
 
@@ -101,7 +101,7 @@ impl AutoDriveSettingsView {
         mouse_event: MouseEvent,
         area: Rect,
     ) -> bool {
-        if area.width == 0 || area.height == 0 {
+        if area.is_empty() {
             return false;
         }
 

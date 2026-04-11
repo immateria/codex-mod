@@ -147,7 +147,7 @@ impl LimitsTabsRowWidget<'_> {
 
 impl Widget for LimitsTabsRowWidget<'_> {
     fn render(self, area: Rect, buf: &mut Buffer) {
-        if area.width == 0 || area.height == 0 {
+        if area.is_empty() {
             return;
         }
 
@@ -209,7 +209,7 @@ struct LimitsPaneWidget {
 
 impl Widget for LimitsPaneWidget {
     fn render(self, area: Rect, buf: &mut Buffer) {
-        if area.width == 0 || area.height == 0 {
+        if area.is_empty() {
             return;
         }
 
