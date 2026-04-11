@@ -332,12 +332,11 @@ pub async fn list_environments(
         Err(e) => {
             if map.is_empty() {
                 return Err(e);
-            } else {
-                warn!(
-                    "env_tui: global list failed; using by-repo results only: {}",
-                    e
-                );
             }
+            warn!(
+                "env_tui: global list failed; using by-repo results only: {}",
+                e
+            );
         }
     }
 

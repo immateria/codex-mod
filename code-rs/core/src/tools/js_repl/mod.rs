@@ -322,7 +322,7 @@ impl JsReplManager {
                     .await;
                 }
                 msg = &mut rx => {
-                    if let Ok(msg) = msg { break msg } else {
+                    let Ok(msg) = msg else {
                         {
                             let mut active = active_exec_id.lock().await;
                             *active = None;
@@ -332,7 +332,8 @@ impl JsReplManager {
                             output: String::new(),
                             error: "js_repl kernel stopped before returning a result".to_owned(),
                         });
-                    }
+                    };
+                    break msg;
                 }
             }
         };

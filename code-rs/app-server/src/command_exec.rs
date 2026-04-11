@@ -535,9 +535,8 @@ async fn run_command(params: RunCommandParams) {
             exit = &mut exit_rx => {
                 if timed_out {
                     break EXEC_TIMEOUT_EXIT_CODE;
-                } else {
-                    break exit.unwrap_or(-1);
                 }
+                break exit.unwrap_or(-1);
             }
         }
     };

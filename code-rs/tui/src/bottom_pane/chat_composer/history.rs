@@ -211,14 +211,13 @@ impl ChatComposerHistory {
                     }
                     None => return None, // async fetch pending
                 }
-            } else {
-                // Past newest – restore original text and exit browsing mode.
-                let result = self.original_text.clone().unwrap_or_default();
-                self.history_cursor = None;
-                self.last_history_text = None;
-                self.original_text = None;
-                return Some(result);
             }
+            // Past newest – restore original text and exit browsing mode.
+            let result = self.original_text.clone().unwrap_or_default();
+            self.history_cursor = None;
+            self.last_history_text = None;
+            self.original_text = None;
+            return Some(result);
         }
     }
 

@@ -144,9 +144,8 @@ impl ProgramSpec {
                             continue;
                         }
                     }
-                } else {
-                    // It could be an --option=value style flag...
                 }
+                // It could be an --option=value style flag...
 
                 return Err(Error::UnknownOption {
                     program: self.program.clone(),

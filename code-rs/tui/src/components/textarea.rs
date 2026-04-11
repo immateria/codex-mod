@@ -712,12 +712,11 @@ impl TextArea {
                 }
                 self.move_to_display_col_on_line(line_start, line_end, target_col);
                 return;
-            } else {
-                // Already at first visual line -> move to start
-                self.cursor_pos = 0;
-                self.preferred_col = None;
-                return;
             }
+            // Already at first visual line -> move to start
+            self.cursor_pos = 0;
+            self.preferred_col = None;
+            return;
         }
 
         // Fallback to logical line navigation if we don't have wrapping info yet.
@@ -768,12 +767,11 @@ impl TextArea {
                 }
                 self.move_to_display_col_on_line(line_start, line_end, target_col);
                 return;
-            } else {
-                // Already on last visual line -> move to end
-                self.cursor_pos = self.text.len();
-                self.preferred_col = None;
-                return;
             }
+            // Already on last visual line -> move to end
+            self.cursor_pos = self.text.len();
+            self.preferred_col = None;
+            return;
         }
 
         // Fallback to logical line navigation if we don't have wrapping info yet.

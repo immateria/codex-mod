@@ -31,12 +31,11 @@ impl Page {
                 .unwrap_or("").to_owned();
             if status == "ok" {
                 return Ok(());
-            } else {
-                warn!("Virtual cursor injection reported: {}", status);
-                return Err(BrowserError::CdpError(format!(
-                    "Virtual cursor injection failed: {status}"
-                )));
             }
+            warn!("Virtual cursor injection reported: {}", status);
+            return Err(BrowserError::CdpError(format!(
+                "Virtual cursor injection failed: {status}"
+            )));
         }
         warn!("Virtual cursor injection failed: no response");
         Err(BrowserError::CdpError("Virtual cursor injection failed: no response".into()))

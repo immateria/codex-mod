@@ -743,11 +743,11 @@ async fn build_turn_status_items_v2(sess: &Session) -> Vec<ResponseItem> {
                     role: "user".to_owned(),
                     content: vec![ContentItem::InputText { text: idle_text }], end_turn: None, phase: None});
                 return items;
-            } else {
-                let url = browser_manager
-                    .get_current_url()
-                    .await
-                    .unwrap_or_else(|| "unknown".to_owned());
+            }
+            let url = browser_manager
+                .get_current_url()
+                .await
+                .unwrap_or_else(|| "unknown".to_owned());
 
             let title = match browser_manager.get_or_create_page().await {
                 Ok(page) => page.get_title().await,
@@ -796,12 +796,12 @@ async fn build_turn_status_items_v2(sess: &Session) -> Vec<ResponseItem> {
                 }
             }
 
-                if let Some(path) = screenshot_path {
-                    let captured_at = OffsetDateTime::now_utc()
-                        .format(&Rfc3339)
-                        .unwrap_or_else(|_| "1970-01-01T00:00:00Z".to_owned());
+            if let Some(path) = screenshot_path {
+                let captured_at = OffsetDateTime::now_utc()
+                    .format(&Rfc3339)
+                    .unwrap_or_else(|_| "1970-01-01T00:00:00Z".to_owned());
 
-                    let mut snapshot = BrowserSnapshot::new(url.clone(), captured_at);
+                let mut snapshot = BrowserSnapshot::new(url.clone(), captured_at);
                 snapshot.title = title.clone();
                 snapshot.viewport = viewport;
                 if !metadata.is_empty() {
@@ -833,7 +833,6 @@ async fn build_turn_status_items_v2(sess: &Session) -> Vec<ResponseItem> {
                         "env_ctx_v2: failed to read screenshot file {}: {err}",
                         path.display()
                     ),
-                }
                 }
             }
         }
