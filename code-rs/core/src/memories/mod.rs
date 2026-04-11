@@ -780,6 +780,18 @@ pub fn read_rollout_summary(code_home: &Path, slug: &str) -> io::Result<Option<S
     read_optional_text_file(&file)
 }
 
+/// Delete a single rollout summary file by slug. Returns `true` if removed,
+/// `false` if the file did not exist.
+pub fn delete_rollout_summary(code_home: &Path, slug: &str) -> io::Result<bool> {
+    let paths = published_artifact_paths(code_home)?;
+    let file = paths.rollout_summaries_dir.join(format!("{slug}.md"));
+    match std::fs::remove_file(&file) {
+        Ok(()) => Ok(true),
+        Err(e) if e.kind() == io::ErrorKind::NotFound => Ok(false),
+        Err(e) => Err(e),
+    }
+}
+
 fn read_optional_text_file(path: &Path) -> io::Result<Option<String>> {
     match std::fs::read_to_string(path) {
         Ok(content) => Ok(Some(content)),

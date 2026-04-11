@@ -1,6 +1,6 @@
 use super::*;
 
-use ratatui::style::Style;
+use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
 
 use crate::bottom_pane::settings_ui::editor_page::SettingsEditorPage;
@@ -182,6 +182,27 @@ impl MemoriesSettingsView {
         .with_field_margin(crate::ui_consts::NESTED_HPAD)
     }
 
+    pub(super) fn search_page(viewer_title: &'static str) -> SettingsEditorPage<'static> {
+        let dim = Style::default().fg(colors::text_dim());
+        SettingsEditorPage::new(
+            viewer_title,
+            SettingsPanelStyle::bottom_pane(),
+            "Search",
+            vec![
+                Line::from(Span::styled(
+                    "Type a search term (case-insensitive).",
+                    dim,
+                )),
+                Line::from(""),
+            ],
+            vec![Line::from(Span::styled(
+                "Enter to search · Esc to cancel",
+                dim,
+            ))],
+        )
+        .with_field_margin(crate::ui_consts::NESTED_HPAD)
+    }
+
     pub(super) fn main_page(&self) -> SettingsRowPage<'_> {
         SettingsRowPage::new(
             " Memories ",
@@ -195,31 +216,80 @@ impl MemoriesSettingsView {
         let visible = viewer.viewport_rows.get();
         let scroll = viewer.scroll_top.get();
 
+        let dim = Style::default().fg(colors::text_dim());
+        let match_style = Style::default()
+            .fg(colors::warning())
+            .add_modifier(Modifier::BOLD);
+        let current_match_style = Style::default()
+            .fg(colors::text_bright())
+            .bg(colors::selection())
+            .add_modifier(Modifier::BOLD);
+
         let position = if total > visible {
             format!(" {}/{total} ", scroll + 1)
         } else {
             String::new()
         };
 
-        let dim = Style::default().fg(colors::text_dim());
-        let header_lines = if !position.is_empty() {
-            vec![Line::from(Span::styled(position, dim))]
-        } else {
-            Vec::new()
-        };
+        let search_info = viewer.search.as_ref().map(|s| {
+            if s.matches.is_empty() {
+                format!("\"{}\" — no matches", s.query)
+            } else {
+                format!(
+                    "\"{}\" — {}/{} matches",
+                    s.query,
+                    s.current + 1,
+                    s.matches.len()
+                )
+            }
+        });
+
+        let mut header_lines = Vec::new();
+        if !position.is_empty() || search_info.is_some() {
+            let mut parts = Vec::new();
+            if !position.is_empty() {
+                parts.push(position);
+            }
+            if let Some(info) = search_info {
+                parts.push(info);
+            }
+            header_lines.push(Line::from(Span::styled(parts.join("  "), dim)));
+        }
+
+        // Build highlighted match set for the current search.
+        let match_lines: std::collections::HashSet<usize> = viewer
+            .search
+            .as_ref()
+            .map(|s| s.matches.iter().copied().collect())
+            .unwrap_or_default();
+        let current_match_line = viewer
+            .search
+            .as_ref()
+            .and_then(|s| s.matches.get(s.current).copied());
 
         let body_lines: Vec<Line<'static>> = viewer
             .lines
             .iter()
-            .map(|line| Line::from(Span::styled(line.clone(), dim)))
+            .enumerate()
+            .map(|(idx, line)| {
+                let style = if Some(idx) == current_match_line {
+                    current_match_style
+                } else if match_lines.contains(&idx) {
+                    match_style
+                } else {
+                    dim
+                };
+                Line::from(Span::styled(line.clone(), style))
+            })
             .collect();
 
         let back_label = match viewer.parent {
-            TextViewerParent::Main => " back to settings",
+            TextViewerParent::Main => " back",
             TextViewerParent::RolloutList(_) => " back to list",
         };
         let footer_lines = vec![shortcut_line(&[
             hint_nav(" scroll"),
+            KeyHint::new("/", " search"),
             hint_esc(back_label),
         ])];
 
@@ -238,10 +308,14 @@ impl MemoriesSettingsView {
             .iter()
             .enumerate()
             .map(|(idx, entry)| {
-                let detail = if entry.size_bytes < 1024 {
+                let size = if entry.size_bytes < 1024 {
                     format!("{}B", entry.size_bytes)
                 } else {
                     format!("{:.1}KB", entry.size_bytes as f64 / 1024.0)
+                };
+                let detail = match entry.modified_at.as_deref() {
+                    Some(ts) => format!("{size}  {ts}"),
+                    None => size,
                 };
                 SettingsMenuRow::new(idx, entry.slug.clone())
                     .with_detail(crate::bottom_pane::settings_ui::rows::StyledText::new(
@@ -258,16 +332,28 @@ impl MemoriesSettingsView {
         let idx = state.selected_idx.unwrap_or(0).min(total.saturating_sub(1));
 
         let dim = Style::default().fg(colors::text_dim());
-        let header = vec![Line::from(Span::styled(
-            format!("{total} rollout summaries"),
-            dim,
-        ))];
 
-        let footer = vec![shortcut_line(&[
+        let header_text = if let Some(ref slug) = list.pending_delete {
+            format!("Delete {slug}.md? [y]es / [n]o")
+        } else {
+            format!("{total} rollout summaries")
+        };
+        let header_style = if list.pending_delete.is_some() {
+            Style::default().fg(colors::warning())
+        } else {
+            dim
+        };
+        let header = vec![Line::from(Span::styled(header_text, header_style))];
+
+        let mut hints: Vec<KeyHint<'static>> = vec![
             hint_nav(" navigate"),
             hint_enter(" view"),
-            hint_esc(" back"),
-        ])];
+        ];
+        if list.pending_delete.is_none() {
+            hints.push(KeyHint::new("d", " delete"));
+        }
+        hints.push(hint_esc(" back"));
+        let footer = vec![shortcut_line(&hints)];
 
         SettingsMenuPage::new(
             " Rollout Summaries ",

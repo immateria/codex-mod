@@ -109,6 +109,17 @@ impl MemoriesSettingsView {
         }
     }
 
+    fn render_search_input_with(
+        title: &'static str,
+        field: &FormTextField,
+        area: Rect,
+        buf: &mut Buffer,
+        chrome: ChromeMode,
+    ) {
+        let page = Self::search_page(title);
+        let _ = page.render_in_chrome(chrome, area, buf, field);
+    }
+
     pub(super) fn render_content_only(&self, area: Rect, buf: &mut Buffer) {
         match &self.mode {
             ViewMode::Main | ViewMode::Transition => {
@@ -130,6 +141,9 @@ impl MemoriesSettingsView {
             ViewMode::RolloutList(list) => {
                 Self::render_rollout_list_with(list, area, buf, ChromeMode::ContentOnly);
             }
+            ViewMode::SearchInput { viewer, field } => {
+                Self::render_search_input_with(viewer.title, field, area, buf, ChromeMode::ContentOnly);
+            }
         }
     }
 
@@ -144,6 +158,9 @@ impl MemoriesSettingsView {
             }
             ViewMode::RolloutList(list) => {
                 Self::render_rollout_list_with(list, area, buf, ChromeMode::Framed);
+            }
+            ViewMode::SearchInput { viewer, field } => {
+                Self::render_search_input_with(viewer.title, field, area, buf, ChromeMode::Framed);
             }
         }
     }

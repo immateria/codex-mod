@@ -442,6 +442,13 @@ impl MemoriesSettingsView {
     }
 
     fn process_text_viewer_key_event(&mut self, key_event: KeyEvent) -> bool {
+        // Handle `n`/`N` for search navigation — needs `&mut self.mode`.
+        match key_event.code {
+            KeyCode::Char('n') => return self.advance_search_match(true),
+            KeyCode::Char('N') => return self.advance_search_match(false),
+            _ => {}
+        }
+
         let ViewMode::TextViewer(ref viewer) = self.mode else {
             return false;
         };
@@ -451,7 +458,6 @@ impl MemoriesSettingsView {
 
         match key_event.code {
             KeyCode::Esc => {
-                // Take ownership to extract parent.
                 let ViewMode::TextViewer(viewer) = std::mem::replace(&mut self.mode, ViewMode::Transition) else {
                     return false;
                 };
@@ -459,6 +465,20 @@ impl MemoriesSettingsView {
                     TextViewerParent::Main => self.mode = ViewMode::Main,
                     TextViewerParent::RolloutList(list) => self.mode = ViewMode::RolloutList(list),
                 }
+                return true;
+            }
+            KeyCode::Char('/') | KeyCode::Char('f')
+                if key_event.code == KeyCode::Char('/')
+                    || key_event.modifiers.contains(KeyModifiers::CONTROL) =>
+            {
+                let ViewMode::TextViewer(viewer) = std::mem::replace(&mut self.mode, ViewMode::Transition) else {
+                    return false;
+                };
+                let mut field = FormTextField::new_single_line();
+                if let Some(ref search) = viewer.search {
+                    field.set_text(&search.query);
+                }
+                self.mode = ViewMode::SearchInput { viewer, field };
                 return true;
             }
             KeyCode::Up | KeyCode::Char('k') => {
@@ -487,7 +507,85 @@ impl MemoriesSettingsView {
         true
     }
 
+    /// Move to the next (forward=true) or previous (forward=false) search match.
+    fn advance_search_match(&mut self, forward: bool) -> bool {
+        let ViewMode::TextViewer(ref mut viewer) = self.mode else {
+            return false;
+        };
+        let Some(ref mut search) = viewer.search else {
+            return false;
+        };
+        if search.matches.is_empty() {
+            return false;
+        }
+        if forward {
+            search.current = (search.current + 1) % search.matches.len();
+        } else {
+            search.current = if search.current == 0 {
+                search.matches.len() - 1
+            } else {
+                search.current - 1
+            };
+        }
+        let total = viewer.lines.len();
+        let visible = viewer.viewport_rows.get().max(1);
+        let line = search.matches[search.current];
+        let scroll = line.saturating_sub(visible / 2).min(total.saturating_sub(visible));
+        viewer.scroll_top.set(scroll);
+        true
+    }
+
+    fn process_search_input_key_event(&mut self, key_event: KeyEvent) -> bool {
+        let ViewMode::SearchInput { viewer: _, ref mut field } = self.mode else {
+            return false;
+        };
+        match key_event.code {
+            KeyCode::Esc => {
+                let ViewMode::SearchInput { viewer, .. } = std::mem::replace(&mut self.mode, ViewMode::Transition) else {
+                    return false;
+                };
+                self.mode = ViewMode::TextViewer(viewer);
+                true
+            }
+            KeyCode::Enter => {
+                let query = field.text().to_owned();
+                let ViewMode::SearchInput { mut viewer, .. } = std::mem::replace(&mut self.mode, ViewMode::Transition) else {
+                    return false;
+                };
+                viewer.search = Self::execute_search(&viewer.lines, &query);
+                if let Some(ref search) = viewer.search {
+                    let total = viewer.lines.len();
+                    let visible = viewer.viewport_rows.get().max(1);
+                    let line = search.matches[search.current];
+                    let scroll = line.saturating_sub(visible / 2).min(total.saturating_sub(visible));
+                    viewer.scroll_top.set(scroll);
+                } else if !query.is_empty() {
+                    self.status = Some((format!("No matches for \"{query}\""), true));
+                }
+                self.mode = ViewMode::TextViewer(viewer);
+                true
+            }
+            _ => field.handle_key(key_event),
+        }
+    }
+
     fn process_rollout_list_key_event(&mut self, key_event: KeyEvent) -> bool {
+        // Handle delete confirmation first.
+        if let ViewMode::RolloutList(ref mut list) = self.mode
+            && let Some(slug) = list.pending_delete.clone()
+        {
+            match key_event.code {
+                KeyCode::Char('y') | KeyCode::Char('Y') => {
+                    self.delete_rollout(&slug);
+                    return true;
+                }
+                _ => {
+                    list.pending_delete = None;
+                    return true;
+                }
+            }
+        }
+
         let ViewMode::RolloutList(ref list) = self.mode else {
             return false;
         };
@@ -521,11 +619,18 @@ impl MemoriesSettingsView {
             KeyCode::Enter | KeyCode::Char(' ') => {
                 let idx = state.selected_idx.unwrap_or(0).min(total.saturating_sub(1));
                 let slug = list.entries[idx].slug.clone();
-                // Take ownership of list state for the detail view.
                 let ViewMode::RolloutList(list_state) = std::mem::replace(&mut self.mode, ViewMode::Transition) else {
                     return false;
                 };
                 self.open_rollout_detail(list_state, &slug);
+                return true;
+            }
+            KeyCode::Char('d') | KeyCode::Delete => {
+                let idx = state.selected_idx.unwrap_or(0).min(total.saturating_sub(1));
+                let slug = list.entries[idx].slug.clone();
+                if let ViewMode::RolloutList(ref mut list) = self.mode {
+                    list.pending_delete = Some(slug);
+                }
                 return true;
             }
             _ => return false,
@@ -541,6 +646,7 @@ impl MemoriesSettingsView {
             ViewMode::Edit { .. } => self.process_edit_key_event(key_event),
             ViewMode::TextViewer(_) => self.process_text_viewer_key_event(key_event),
             ViewMode::RolloutList(_) => self.process_rollout_list_key_event(key_event),
+            ViewMode::SearchInput { .. } => self.process_search_input_key_event(key_event),
             ViewMode::Transition => {
                 self.mode = ViewMode::Main;
                 false

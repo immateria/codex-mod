@@ -174,7 +174,7 @@ impl MemoriesSettingsView {
                 MouseEventKind::ScrollUp => field.handle_mouse_scroll(false),
                 _ => false,
             },
-            ViewMode::Main | ViewMode::Transition | ViewMode::TextViewer(_) | ViewMode::RolloutList(_) => false,
+            ViewMode::Main | ViewMode::Transition | ViewMode::TextViewer(_) | ViewMode::RolloutList(_) | ViewMode::SearchInput { .. } => false,
         }
     }
 
@@ -212,7 +212,7 @@ impl MemoriesSettingsView {
                 MouseEventKind::ScrollUp => field.handle_mouse_scroll(false),
                 _ => false,
             },
-            ViewMode::Main | ViewMode::Transition | ViewMode::TextViewer(_) | ViewMode::RolloutList(_) => false,
+            ViewMode::Main | ViewMode::Transition | ViewMode::TextViewer(_) | ViewMode::RolloutList(_) | ViewMode::SearchInput { .. } => false,
         }
     }
 }

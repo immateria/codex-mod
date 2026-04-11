@@ -60,6 +60,16 @@ enum TextViewerParent {
     RolloutList(Box<RolloutListState>),
 }
 
+/// Persistent search state for the text viewer.
+#[derive(Debug)]
+struct TextSearchState {
+    query: String,
+    /// Line indices that match the query (case-insensitive).
+    matches: Vec<usize>,
+    /// Index into `matches` for the current highlighted match.
+    current: usize,
+}
+
 #[derive(Debug)]
 struct TextViewerState {
     title: &'static str,
@@ -67,6 +77,7 @@ struct TextViewerState {
     scroll_top: Cell<usize>,
     viewport_rows: Cell<usize>,
     parent: TextViewerParent,
+    search: Option<TextSearchState>,
 }
 
 #[derive(Debug)]
@@ -74,6 +85,8 @@ struct RolloutListState {
     entries: Vec<RolloutSummaryEntry>,
     list_state: Cell<ScrollState>,
     viewport_rows: Cell<usize>,
+    /// Slug of rollout pending deletion (confirmation required).
+    pending_delete: Option<String>,
 }
 
 #[derive(Debug)]
@@ -86,6 +99,11 @@ enum ViewMode {
     },
     TextViewer(Box<TextViewerState>),
     RolloutList(Box<RolloutListState>),
+    /// Transient search input inside a text viewer.
+    SearchInput {
+        viewer: Box<TextViewerState>,
+        field: FormTextField,
+    },
     Transition,
 }
 

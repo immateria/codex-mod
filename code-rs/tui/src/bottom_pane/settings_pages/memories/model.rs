@@ -403,6 +403,7 @@ impl MemoriesSettingsView {
             scroll_top: Cell::new(0),
             viewport_rows: Cell::new(DEFAULT_VISIBLE_ROWS),
             parent,
+            search: None,
         }));
     }
 
@@ -445,6 +446,7 @@ impl MemoriesSettingsView {
                     entries,
                     list_state: Cell::new(ScrollState::with_first_selected()),
                     viewport_rows: Cell::new(DEFAULT_VISIBLE_ROWS),
+                    pending_delete: None,
                 }));
             }
             Err(err) => {
@@ -475,5 +477,58 @@ impl MemoriesSettingsView {
                 self.status = Some((format!("Error reading rollout: {err}"), true));
             }
         }
+    }
+
+    /// Delete a rollout from the list and filesystem.
+    pub(super) fn delete_rollout(&mut self, slug: &str) {
+        match code_core::delete_rollout_summary(&self.code_home, slug) {
+            Ok(true) => {
+                self.status = Some((format!("Deleted {slug}.md"), false));
+                if let ViewMode::RolloutList(ref mut list) = self.mode {
+                    list.entries.retain(|e| e.slug != slug);
+                    list.pending_delete = None;
+                    let mut state = list.list_state.get();
+                    state.clamp_selection(list.entries.len());
+                    list.list_state.set(state);
+                    if list.entries.is_empty() {
+                        self.mode = ViewMode::Main;
+                    }
+                }
+            }
+            Ok(false) => {
+                self.status = Some((format!("{slug}.md already removed."), true));
+                if let ViewMode::RolloutList(ref mut list) = self.mode {
+                    list.pending_delete = None;
+                }
+            }
+            Err(err) => {
+                self.status = Some((format!("Delete failed: {err}"), true));
+                if let ViewMode::RolloutList(ref mut list) = self.mode {
+                    list.pending_delete = None;
+                }
+            }
+        }
+    }
+
+    /// Build search state from a query against the viewer's lines.
+    pub(super) fn execute_search(lines: &[String], query: &str) -> Option<TextSearchState> {
+        if query.is_empty() {
+            return None;
+        }
+        let lower = query.to_ascii_lowercase();
+        let matches: Vec<usize> = lines
+            .iter()
+            .enumerate()
+            .filter(|(_, line)| line.to_ascii_lowercase().contains(&lower))
+            .map(|(idx, _)| idx)
+            .collect();
+        if matches.is_empty() {
+            return None;
+        }
+        Some(TextSearchState {
+            query: query.to_owned(),
+            matches,
+            current: 0,
+        })
     }
 }
