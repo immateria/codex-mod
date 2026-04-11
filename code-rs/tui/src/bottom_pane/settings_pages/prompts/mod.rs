@@ -30,9 +30,16 @@ enum Focus {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum ConfirmAction {
+    Delete,
+    Cancel,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
 enum Mode {
     List,
     Edit,
+    ConfirmDelete { name: String, selected_idx: usize },
 }
 
 pub(crate) struct PromptsSettingsView {
@@ -46,6 +53,8 @@ pub(crate) struct PromptsSettingsView {
     app_event_tx: AppEventSender,
     is_complete: bool,
     mode: Mode,
+    focused_confirm_button: ConfirmAction,
+    hovered_confirm_button: Option<ConfirmAction>,
 }
 
 crate::bottom_pane::chrome_view::impl_chrome_view!(PromptsSettingsView);

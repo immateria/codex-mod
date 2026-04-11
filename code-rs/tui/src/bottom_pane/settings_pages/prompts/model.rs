@@ -22,6 +22,8 @@ impl PromptsSettingsView {
             app_event_tx,
             is_complete: false,
             mode: Mode::List,
+            focused_confirm_button: ConfirmAction::Cancel,
+            hovered_confirm_button: None,
         }
     }
 

@@ -93,6 +93,10 @@ impl SecretsSettingsView {
         .with_shortcuts(crate::bottom_pane::settings_ui::hints::ShortcutPlacement::Bottom, 
             self.list_shortcuts(deleting),
         )
+        .with_scroll_position(
+            self.list_state.get().selected_idx.map_or(0, |i| i + 1),
+            Self::list_entries(snapshot).map_or(0, <[_]>::len),
+        )
     }
 
     fn list_shortcuts(&self, deleting: bool) -> Vec<KeyHint<'static>> {

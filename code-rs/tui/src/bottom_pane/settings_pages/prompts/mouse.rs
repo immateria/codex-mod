@@ -54,9 +54,13 @@ impl PromptsSettingsView {
         mouse_event: MouseEvent,
         area: Rect,
     ) -> bool {
-        match self.mode {
+        match &self.mode {
             Mode::List => self.handle_list_mouse_event_in_chrome(chrome, mouse_event, area),
             Mode::Edit => self.handle_edit_mouse_event_in_chrome(chrome, mouse_event, area),
+            Mode::ConfirmDelete { name: _, selected_idx } => {
+                let selected_idx = *selected_idx;
+                self.handle_confirm_delete_mouse_in_chrome(chrome, mouse_event, area, selected_idx)
+            }
         }
     }
 
@@ -141,7 +145,7 @@ impl PromptsSettingsView {
                     self.focus = focus;
                     match focus {
                         Focus::Save => self.save_current(),
-                        Focus::Delete => self.delete_current(),
+                        Focus::Delete => self.begin_confirm_delete(),
                         Focus::Cancel => {
                             self.mode = Mode::List;
                             self.focus = Focus::List;
@@ -164,6 +168,58 @@ impl PromptsSettingsView {
                 if layout.sections[1].outer.contains(Position { x: mouse_event.column, y: mouse_event.row }) {
                     self.focus = Focus::Body;
                     return self.body_field.handle_mouse_scroll(true);
+                }
+                false
+            }
+            _ => false,
+        }
+    }
+
+    fn handle_confirm_delete_mouse_in_chrome(
+        &mut self,
+        chrome: ChromeMode,
+        mouse_event: MouseEvent,
+        area: Rect,
+        selected_idx: usize,
+    ) -> bool {
+        let page = self.confirm_delete_page();
+        let Some(layout) = page.layout_in_chrome(chrome, area) else {
+            return false;
+        };
+
+        let buttons = self.confirm_delete_button_specs();
+
+        match mouse_event.kind {
+            MouseEventKind::Moved => {
+                let hovered = page.standard_action_at_end(
+                    &layout,
+                    mouse_event.column,
+                    mouse_event.row,
+                    &buttons,
+                );
+                if hovered == self.hovered_confirm_button {
+                    return false;
+                }
+                self.hovered_confirm_button = hovered;
+                true
+            }
+            MouseEventKind::Down(MouseButton::Left) => {
+                if let Some(action) = page.standard_action_at_end(
+                    &layout,
+                    mouse_event.column,
+                    mouse_event.row,
+                    &buttons,
+                ) {
+                    self.focused_confirm_button = action;
+                    match action {
+                        ConfirmAction::Cancel => {
+                            self.mode = Mode::Edit;
+                        }
+                        ConfirmAction::Delete => {
+                            self.execute_delete(selected_idx);
+                        }
+                    }
+                    return true;
                 }
                 false
             }

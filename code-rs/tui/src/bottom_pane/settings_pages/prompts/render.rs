@@ -2,8 +2,12 @@ use super::*;
 
 use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
+use ratatui::style::Style;
+use ratatui::text::Line;
+use ratatui::widgets::{Paragraph, Widget, Wrap};
 
 use crate::bottom_pane::chrome::ChromeMode;
+use crate::colors;
 
 impl PromptsSettingsView {
     pub(super) fn render_content_only(&self, area: Rect, buf: &mut Buffer) {
@@ -18,9 +22,12 @@ impl PromptsSettingsView {
         if area.is_empty() {
             return;
         }
-        match self.mode {
+        match &self.mode {
             Mode::List => self.render_list_in_chrome(chrome, area, buf),
             Mode::Edit => self.render_form_in_chrome(chrome, area, buf),
+            Mode::ConfirmDelete { name, .. } => {
+                self.render_confirm_delete_in_chrome(chrome, area, buf, name.clone());
+            }
         }
     }
 
@@ -50,5 +57,33 @@ impl PromptsSettingsView {
             &[&self.name_field, &self.body_field],
             &buttons,
         );
+    }
+
+    fn render_confirm_delete_in_chrome(
+        &self,
+        chrome: ChromeMode,
+        area: Rect,
+        buf: &mut Buffer,
+        name: String,
+    ) {
+        let page = self.confirm_delete_page();
+        let buttons = self.confirm_delete_button_specs();
+        let Some(layout) =
+            page.render_with_standard_actions_end_in_chrome(chrome, area, buf, &buttons)
+        else {
+            return;
+        };
+
+        let lines = vec![
+            Line::from(format!("Delete prompt `/{name}`?")),
+            Line::from(""),
+            Line::from("This will permanently remove the prompt file."),
+            Line::from("You can re-create it later with Ctrl+N."),
+        ];
+
+        let paragraph = Paragraph::new(lines)
+            .style(Style::new().bg(colors::background()).fg(colors::text()))
+            .wrap(Wrap { trim: false });
+        paragraph.render(layout.body, buf);
     }
 }

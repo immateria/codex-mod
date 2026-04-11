@@ -17,7 +17,7 @@ impl PromptsSettingsView {
         if self.is_complete {
             return true;
         }
-        match self.mode {
+        match &self.mode {
             Mode::List => match key {
                 KeyEvent { code: KeyCode::Esc, .. } => {
                     self.is_complete = true;
@@ -53,7 +53,7 @@ impl PromptsSettingsView {
                 KeyEvent { code: KeyCode::Enter, modifiers: KeyModifiers::NONE, .. } => {
                     match self.focus {
                         Focus::Save => self.save_current(),
-                        Focus::Delete => self.delete_current(),
+                        Focus::Delete => self.begin_confirm_delete(),
                         Focus::Cancel => {
                             self.mode = Mode::List;
                             self.focus = Focus::List;
@@ -82,6 +82,10 @@ impl PromptsSettingsView {
                     Focus::List => self.handle_list_key(key),
                 },
             },
+            Mode::ConfirmDelete { name: _, selected_idx } => {
+                let selected_idx = *selected_idx;
+                self.handle_key_confirm_delete(key, selected_idx)
+            }
         }
     }
 
@@ -273,7 +277,7 @@ impl PromptsSettingsView {
             .send(AppEvent::codex_op(Op::ListCustomPrompts));
     }
 
-    pub(super) fn delete_current(&mut self) {
+    pub(super) fn begin_confirm_delete(&mut self) {
         let Some(selected) = self.selected_prompt_index() else {
             self.status = Some((
                 "Nothing to delete".to_owned(),
@@ -283,6 +287,40 @@ impl PromptsSettingsView {
             self.focus = Focus::List;
             return;
         };
+        let name = self.prompts[selected].name.clone();
+        self.mode = Mode::ConfirmDelete { name, selected_idx: selected };
+        self.focused_confirm_button = ConfirmAction::Cancel;
+        self.hovered_confirm_button = None;
+    }
+
+    fn handle_key_confirm_delete(&mut self, key: KeyEvent, selected_idx: usize) -> bool {
+        match key.code {
+            KeyCode::Esc => {
+                self.mode = Mode::Edit;
+                true
+            }
+            KeyCode::Tab | KeyCode::Right | KeyCode::Left => {
+                self.focused_confirm_button = match self.focused_confirm_button {
+                    ConfirmAction::Delete => ConfirmAction::Cancel,
+                    ConfirmAction::Cancel => ConfirmAction::Delete,
+                };
+                true
+            }
+            KeyCode::Enter | KeyCode::Char(' ') => match self.focused_confirm_button {
+                ConfirmAction::Cancel => {
+                    self.mode = Mode::Edit;
+                    true
+                }
+                ConfirmAction::Delete => {
+                    self.execute_delete(selected_idx);
+                    true
+                }
+            },
+            _ => false,
+        }
+    }
+
+    pub(super) fn execute_delete(&mut self, selected: usize) {
         let prompt = self.prompts[selected].clone();
         if let Err(e) = fs::remove_file(&prompt.path) {
             // Ignore missing file but surface other errors

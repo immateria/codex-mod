@@ -29,7 +29,7 @@ impl SettingsOverviewView {
                         Style::new().fg(colors::text_dim()),
                     ));
                 }
-                item
+                item.with_selected_hint("Enter to open")
             })
             .collect()
     }

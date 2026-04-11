@@ -219,6 +219,10 @@ impl PluginsSettingsView {
             Vec::new(),
         )
         .with_shortcuts(crate::bottom_pane::settings_ui::hints::ShortcutPlacement::Bottom, shortcuts)
+        .with_scroll_position(
+            self.list_state.get().selected_idx.map_or(0, |i| i + 1),
+            Self::plugin_rows_from_snapshot(snapshot).len(),
+        )
     }
 
     pub(super) fn list_rows(&self, snapshot: &PluginsSharedState) -> Vec<SettingsMenuRow<'static, usize>> {
@@ -256,6 +260,7 @@ impl PluginsSettingsView {
                 SettingsMenuRow::new(idx, label)
                     .with_value(StyledText::new(status_text.to_owned(), status_style))
                     .with_detail(StyledText::new(detail, Style::new().fg(colors::text_dim())))
+                    .with_selected_hint("Enter for details")
             })
             .collect()
     }

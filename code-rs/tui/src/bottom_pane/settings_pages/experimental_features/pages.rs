@@ -47,6 +47,10 @@ impl ExperimentalFeaturesSettingsView {
         )
         .with_shortcuts(crate::bottom_pane::settings_ui::hints::ShortcutPlacement::Bottom, shortcuts)
         .with_detail_pane()
+        .with_scroll_position(
+            self.list_state.get().selected_idx.map_or(0, |i| i + 1),
+            self.feature_count(),
+        )
     }
 
     pub(super) fn overview_rows(&self) -> Vec<SettingsMenuRow<'static, usize>> {
@@ -83,6 +87,7 @@ impl ExperimentalFeaturesSettingsView {
                         description,
                         Style::new().fg(colors::text_dim()),
                     ))
+                    .with_selected_hint("Space to toggle")
             })
             .collect()
     }

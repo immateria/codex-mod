@@ -95,7 +95,7 @@ fn build_account_detail_lines(snapshot: &AppsSharedState, account_id: &str) -> V
         Some(crate::chatwidget::AppsAccountStatusState::Failed { error, needs_login }) => {
             let mut lines = vec![Line::from(Span::styled(
                 format!("Error: {error}"),
-                Style::new().fg(colors::warning()),
+                Style::new().fg(colors::error()),
             ))];
             if *needs_login {
                 lines.push(Line::from(Span::styled(

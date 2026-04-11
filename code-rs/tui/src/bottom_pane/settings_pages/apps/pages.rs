@@ -129,6 +129,10 @@ impl AppsSettingsView {
             crate::bottom_pane::settings_ui::hints::ShortcutPlacement::Bottom,
             shortcuts,
         )
+        .with_scroll_position(
+            self.list_state.get().selected_idx.map_or(0, |i| i + 1),
+            snapshot.accounts_snapshot.len(),
+        )
     }
 
     pub(super) fn overview_rows(
@@ -195,7 +199,7 @@ impl AppsSettingsView {
                     Some(crate::chatwidget::AppsAccountStatusState::Failed { error, .. }) => {
                         Some(StyledText::new(
                             format!("error: {error}"),
-                            Style::new().fg(colors::warning()),
+                            Style::new().fg(colors::error()),
                         ))
                     }
                     _ => None,
@@ -217,7 +221,7 @@ impl AppsSettingsView {
                         ))
                         .disabled();
                 }
-                row
+                row.with_selected_hint("Enter for details")
             })
             .collect()
     }
@@ -268,7 +272,7 @@ impl AppsSettingsView {
                 crate::chatwidget::AppsAccountStatusState::Failed { error, needs_login } => {
                     header_lines.push(Line::from(Span::styled(
                         format!("Error: {error}"),
-                        Style::new().fg(colors::warning()),
+                        Style::new().fg(colors::error()),
                     )));
                     if *needs_login {
                         header_lines.push(Line::from(Span::styled(

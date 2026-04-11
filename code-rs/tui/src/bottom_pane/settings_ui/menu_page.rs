@@ -33,6 +33,7 @@ pub(crate) struct SettingsMenuPage<'a> {
     footer_lines: Vec<Line<'static>>,
     shortcut_bar: Option<ShortcutBar>,
     render_detail_pane: bool,
+    position_text: Option<String>,
 }
 
 pub(crate) struct SettingsMenuPageFramed<'p, 'a> {
@@ -57,6 +58,7 @@ impl<'a> SettingsMenuPage<'a> {
             footer_lines,
             shortcut_bar: None,
             render_detail_pane: false,
+            position_text: None,
         }
     }
 
@@ -77,6 +79,15 @@ impl<'a> SettingsMenuPage<'a> {
         self
     }
 
+    /// Show a "selected/total" position indicator in the title bar (right-aligned).
+    /// Pass 1-based selected index and total count.
+    pub(crate) fn with_scroll_position(mut self, selected_1based: usize, total: usize) -> Self {
+        if total > 0 {
+            self.position_text = Some(format!("{selected_1based}/{total}"));
+        }
+        self
+    }
+
     pub(crate) fn framed(&self) -> SettingsMenuPageFramed<'_, 'a> {
         SettingsMenuPageFramed { page: self }
     }
@@ -87,13 +98,17 @@ impl<'a> SettingsMenuPage<'a> {
 
     /// Build the sectioned panel using width-aware shortcut bar line counts.
     fn sectioned_panel_for_width(&self, content_width: u16) -> SettingsSectionedPanel<'_> {
-        SettingsSectionedPanel::new(
+        let mut panel = SettingsSectionedPanel::new(
             self.title.clone(),
             self.style,
             self.header_line_count_for_width(content_width),
             self.footer_line_count_for_width(content_width),
         )
-        .with_min_body_rows(2)
+        .with_min_body_rows(2);
+        if let Some(pos) = &self.position_text {
+            panel = panel.with_position_text(pos.as_str());
+        }
+        panel
     }
 
     fn layout_framed(&self, area: Rect) -> Option<SettingsSectionedPanelLayout> {

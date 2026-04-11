@@ -59,6 +59,7 @@ impl SettingsPanelStyle {
 pub(crate) struct SettingsPanel<'a> {
     pub(crate) title: Cow<'a, str>,
     pub(crate) style: SettingsPanelStyle,
+    pub(crate) position_text: Option<Cow<'a, str>>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -72,6 +73,7 @@ impl<'a> SettingsPanel<'a> {
         Self {
             title: title.into(),
             style,
+            position_text: None,
         }
     }
 
@@ -84,6 +86,16 @@ impl<'a> SettingsPanel<'a> {
         if !self.title.is_empty() {
             let title_span = Span::styled(format!(" {} ", self.title), self.style.title_style);
             block = block.title(Line::from(vec![title_span]));
+        }
+
+        if let Some(pos) = &self.position_text {
+            let pos_span = Span::styled(
+                format!(" {pos} "),
+                Style::new().fg(colors::text_dim()),
+            );
+            block = block.title(
+                Line::from(vec![pos_span]).alignment(Alignment::Right),
+            );
         }
 
         block

@@ -51,6 +51,11 @@ impl<'a> SettingsSectionedPanel<'a> {
         self
     }
 
+    pub(crate) fn with_position_text(mut self, text: impl Into<Cow<'a, str>>) -> Self {
+        self.panel.position_text = Some(text.into());
+        self
+    }
+
     fn layout_from_content(&self, content: Rect) -> Option<SettingsSectionedPanelLayout> {
         if content.width == 0 || content.height == 0 {
             return None;

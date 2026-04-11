@@ -18,6 +18,7 @@ use crate::bottom_pane::settings_ui::hints::{
     hint_enter,
     hint_esc,
     hint_nav,
+    hint_nav_horizontal,
     status_and_shortcuts_split,
     title_line,
     KeyHint,
@@ -112,6 +113,10 @@ impl PromptsSettingsView {
                 hint_esc(" close"),
             ],
         )
+        .with_scroll_position(
+            self.selected_list_idx() + 1,
+            self.list_row_count(),
+        )
     }
 
     pub(super) fn list_rows(&self) -> Vec<SettingsMenuRow<'static, usize>> {
@@ -134,7 +139,7 @@ impl PromptsSettingsView {
                         Style::new().fg(colors::text_dim()),
                     ));
                 }
-                row
+                row.with_selected_hint("Enter to edit")
             })
             .collect::<Vec<_>>();
 
@@ -161,6 +166,38 @@ impl PromptsSettingsView {
                 _ => None,
             },
             None,
+        )
+    }
+
+    pub(super) fn confirm_delete_page(&self) -> SettingsActionPage<'static> {
+        let shortcuts = [
+            hint_nav_horizontal(" actions"),
+            hint_enter(" activate"),
+            hint_esc(" back"),
+        ];
+        let (status_lines, footer_lines) =
+            status_and_shortcuts_split(None, &shortcuts);
+
+        SettingsActionPage::new(
+            "Custom Prompts",
+            SettingsPanelStyle::bottom_pane(),
+            vec![title_line("Confirm delete")],
+            footer_lines,
+        )
+        .with_status_lines(status_lines)
+        .with_wrap_lines(true)
+        .with_min_body_rows(4)
+        .with_action_rows(1)
+    }
+
+    pub(super) fn confirm_delete_button_specs(&self) -> Vec<StandardButtonSpec<ConfirmAction>> {
+        standard_button_specs(
+            &[
+                (ConfirmAction::Delete, SettingsButtonKind::Delete),
+                (ConfirmAction::Cancel, SettingsButtonKind::Cancel),
+            ],
+            Some(self.focused_confirm_button),
+            self.hovered_confirm_button,
         )
     }
 }
