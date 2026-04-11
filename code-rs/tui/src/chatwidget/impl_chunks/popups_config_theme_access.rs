@@ -104,9 +104,7 @@ impl ChatWidget<'_> {
             // Tab title: file name only
             let title = path
                 .file_name()
-                .and_then(|s| s.to_str())
-                .map(ToString::to_string)
-                .unwrap_or_else(|| path.display().to_string());
+                .and_then(|s| s.to_str()).map_or_else(|| path.display().to_string(), ToString::to_string);
             tabs.push((title, blocks));
         }
         if tabs.is_empty() {

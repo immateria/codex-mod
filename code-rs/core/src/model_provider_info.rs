@@ -571,14 +571,12 @@ impl ModelProviderInfo {
     /// Effective idle timeout for streaming responses.
     pub fn stream_idle_timeout(&self) -> Duration {
         self.stream_idle_timeout_ms
-            .map(Duration::from_millis)
-            .unwrap_or(Duration::from_millis(DEFAULT_STREAM_IDLE_TIMEOUT_MS))
+            .map_or(Duration::from_millis(DEFAULT_STREAM_IDLE_TIMEOUT_MS), Duration::from_millis)
     }
 
     pub fn websocket_connect_timeout(&self) -> Duration {
         self.websocket_connect_timeout_ms
-            .map(Duration::from_millis)
-            .unwrap_or(Duration::from_millis(DEFAULT_WEBSOCKET_CONNECT_TIMEOUT_MS))
+            .map_or(Duration::from_millis(DEFAULT_WEBSOCKET_CONNECT_TIMEOUT_MS), Duration::from_millis)
     }
 
     pub fn base_url_for_probe(&self) -> String {

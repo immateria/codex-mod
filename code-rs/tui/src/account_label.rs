@@ -33,14 +33,10 @@ pub(crate) fn account_display_label(account: &StoredAccount) -> String {
         AuthMode::ChatGPT | AuthMode::ChatgptAuthTokens => account
             .tokens
             .as_ref()
-            .and_then(|tokens| tokens.id_token.email.clone())
-            .map(|email| format!("ChatGPT ({email})"))
-            .unwrap_or_else(|| "ChatGPT".to_string()),
+            .and_then(|tokens| tokens.id_token.email.clone()).map_or_else(|| "ChatGPT".to_string(), |email| format!("ChatGPT ({email})")),
         AuthMode::ApiKey => account
             .openai_api_key
-            .as_ref()
-            .map(|key| format!("API key (…{})", key_suffix(key)))
-            .unwrap_or_else(|| "API key".to_string()),
+            .as_ref().map_or_else(|| "API key".to_string(), |key| format!("API key (…{})", key_suffix(key))),
     }
 }
 

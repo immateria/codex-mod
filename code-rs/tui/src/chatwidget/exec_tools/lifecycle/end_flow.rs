@@ -273,7 +273,7 @@ pub(in super::super::super) fn handle_exec_end_now(
                 let is_match = chat.history_cells[idx]
                     .as_any()
                     .downcast_ref::<history_cell::ExecCell>()
-                    .map(|e| {
+                    .is_some_and(|e| {
                         if let Some(ref c) = completed_opt {
                             // Match by command OR call_id to reliably update the correct cell
                             let command_matches = e.command == c.command;
@@ -282,8 +282,7 @@ pub(in super::super::super) fn handle_exec_end_now(
                         } else {
                             false
                         }
-                    })
-                    .unwrap_or(false);
+                    });
                 if is_match {
                     if let Some(c) = completed_opt.take() {
                         chat.history_replace_and_maybe_merge(idx, Box::new(c));

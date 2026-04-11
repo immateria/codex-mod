@@ -298,9 +298,7 @@ impl ModelSelectionData {
     pub(crate) fn current_model_display_name(&self) -> String {
         self.flat_presets
             .iter()
-            .find(|preset| preset.model.eq_ignore_ascii_case(&self.current.current_model))
-            .map(|preset| preset.display_name.clone())
-            .unwrap_or_else(|| self.current.current_model.clone())
+            .find(|preset| preset.model.eq_ignore_ascii_case(&self.current.current_model)).map_or_else(|| self.current.current_model.clone(), |preset| preset.display_name.clone())
     }
 
     pub(crate) fn entries(&self) -> Vec<EntryKind> {

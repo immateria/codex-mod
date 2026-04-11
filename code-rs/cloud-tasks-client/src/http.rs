@@ -744,9 +744,7 @@ mod api {
         let lines = patch.lines().count();
         let chars = patch.len();
         let cwd = std::env::current_dir()
-            .ok()
-            .map(|p| p.display().to_string())
-            .unwrap_or_else(|| "<unknown>".to_string());
+            .ok().map_or_else(|| "<unknown>".to_string(), |p| p.display().to_string());
         let head: String = patch.lines().take(20).collect::<Vec<&str>>().join("\n");
         let head_trunc = if head.len() > 800 {
             format!("{}…", &head[..800])

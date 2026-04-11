@@ -41,9 +41,7 @@ fn normalize_agent(mut agent: AgentConfig) -> AgentConfig {
 
 fn canonical_agent_key(agent: &AgentConfig) -> String {
     agent_model_spec(&agent.name)
-        .or_else(|| agent_model_spec(&agent.command))
-        .map(|spec| spec.slug.to_ascii_lowercase())
-        .unwrap_or_else(|| agent.name.to_ascii_lowercase())
+        .or_else(|| agent_model_spec(&agent.command)).map_or_else(|| agent.name.to_ascii_lowercase(), |spec| spec.slug.to_ascii_lowercase())
 }
 
 pub(crate) fn merge_with_default_agents(agents: Vec<AgentConfig>) -> Vec<AgentConfig> {

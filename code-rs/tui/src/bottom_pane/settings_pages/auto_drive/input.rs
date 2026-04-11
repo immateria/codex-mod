@@ -81,7 +81,7 @@ impl AutoDriveSettingsView {
                 }
                 true
             }
-            KeyCode::Char('a') | KeyCode::Char('A') => {
+            KeyCode::Char('a' | 'A') => {
                 self.open_routing_editor(None);
                 true
             }
@@ -98,7 +98,7 @@ impl AutoDriveSettingsView {
                     false
                 }
             }
-            KeyCode::Delete | KeyCode::Backspace | KeyCode::Char('d') | KeyCode::Char('D') => {
+            KeyCode::Delete | KeyCode::Backspace | KeyCode::Char('d' | 'D') => {
                 let idx = self
                     .routing_state
                     .selected_idx
@@ -316,7 +316,7 @@ impl AutoDriveSettingsView {
 
     pub(super) fn handle_key_event_internal(&mut self, key_event: KeyEvent) -> bool {
         if key_event.modifiers.contains(KeyModifiers::CONTROL)
-            && matches!(key_event.code, KeyCode::Char('s') | KeyCode::Char('S'))
+            && matches!(key_event.code, KeyCode::Char('s' | 'S'))
         {
             self.close();
             return true;

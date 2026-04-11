@@ -348,8 +348,7 @@ impl ChatWidget<'_> {
                 .answers
                 .get(&question.id)
                 .and_then(|a| a.answers.first())
-                .map(String::as_str)
-                .unwrap_or("(skipped)");
+                .map_or("(skipped)", String::as_str);
             if questions.len() == 1 {
                 parts.push(label.to_string());
             } else {

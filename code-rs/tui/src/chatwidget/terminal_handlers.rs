@@ -65,7 +65,7 @@ pub(super) fn handle_terminal_key(chat: &mut ChatWidget<'_>, key_event: KeyEvent
                 true
             }
         }
-        KeyCode::Char('r') | KeyCode::Char('R') => {
+        KeyCode::Char('r' | 'R') => {
             if running {
                 true
             } else if chat.terminal_prepare_rerun(id) {

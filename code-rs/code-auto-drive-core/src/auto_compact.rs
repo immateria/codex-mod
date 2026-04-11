@@ -448,8 +448,7 @@ fn chunk_text(text: &str) -> Vec<String> {
                     + text[start..]
                         .chars()
                         .next()
-                        .map(char::len_utf8)
-                        .unwrap_or(len - start);
+                        .map_or(len - start, char::len_utf8);
             }
         }
 
@@ -507,7 +506,7 @@ pub(crate) fn estimate_item_tokens(item: &ResponseItem) -> usize {
                 .sum::<usize>()
                 + content
                     .as_ref()
-                    .map(|segments| {
+                    .map_or(0, |segments| {
                         segments
                             .iter()
                             .map(|segment| match segment {
@@ -516,7 +515,6 @@ pub(crate) fn estimate_item_tokens(item: &ResponseItem) -> usize {
                             })
                             .sum::<usize>()
                     })
-                    .unwrap_or(0)
         }
         _ => 0,
     };

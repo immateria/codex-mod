@@ -5,7 +5,7 @@ use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 impl ExperimentalFeaturesSettingsView {
     pub(crate) fn handle_key_event_direct(&mut self, key_event: KeyEvent) -> bool {
         if key_event.modifiers.contains(KeyModifiers::CONTROL)
-            && !matches!(key_event.code, KeyCode::Char('s') | KeyCode::Char('S'))
+            && !matches!(key_event.code, KeyCode::Char('s' | 'S'))
         {
             return false;
         }

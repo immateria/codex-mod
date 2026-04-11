@@ -209,8 +209,7 @@ fn parse_markdown_table(lines: &[&str]) -> Option<(usize, Vec<Line<'static>>)> {
         for (i, align) in aligns.iter_mut().enumerate().take(cols) {
             let seg = sep_segments
                 .get(i)
-                .map(std::string::String::as_str)
-                .unwrap_or("");
+                .map_or("", std::string::String::as_str);
             let left_colon = seg.starts_with(':');
             let right_colon = seg.ends_with(':');
             *align = if right_colon && !left_colon {

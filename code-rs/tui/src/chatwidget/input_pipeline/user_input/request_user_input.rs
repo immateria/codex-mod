@@ -72,8 +72,7 @@ impl ChatWidget<'_> {
             let answer: &[String] = response
                 .answers
                 .get(&question.id)
-                .map(|a| a.answers.as_slice())
-                .unwrap_or(&[]);
+                .map_or(&[], |a| a.answers.as_slice());
             let value = answer.first().map_or("", String::as_str);
             let value = if value.trim().is_empty() {
                 "(skipped)"

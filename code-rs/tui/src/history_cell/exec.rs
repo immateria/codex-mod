@@ -360,8 +360,7 @@ impl ExecCell {
         self
             .parsed_meta
             .as_ref()
-            .map(|meta| meta.action)
-            .unwrap_or(ExecAction::Run)
+            .map_or(ExecAction::Run, |meta| meta.action)
     }
 
     pub(crate) fn toggle_output_collapsed(&self) {

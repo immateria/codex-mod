@@ -75,8 +75,7 @@ impl RequestUserInputView {
     pub(super) fn current_options_len(&self) -> usize {
         self.current_question()
             .and_then(|q| q.options.as_ref())
-            .map(std::vec::Vec::len)
-            .unwrap_or(0)
+            .map_or(0, std::vec::Vec::len)
     }
 
     pub(super) fn current_is_other(&self) -> bool {

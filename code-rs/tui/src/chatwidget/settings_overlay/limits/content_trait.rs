@@ -38,9 +38,9 @@ impl SettingsContent for LimitsSettingsContent {
             KeyCode::End => self.jump_scroll(scroll_target, true),
             KeyCode::Left | KeyCode::Char('[') => self.overlay.select_prev_tab(),
             KeyCode::Right | KeyCode::Char(']') => self.overlay.select_next_tab(),
-            KeyCode::Char('v') | KeyCode::Char('V') => self.toggle_layout_mode(),
-            KeyCode::Char('f') | KeyCode::Char('F') => self.cycle_focus_mode(),
-            KeyCode::Char('s') | KeyCode::Char('S') => {
+            KeyCode::Char('v' | 'V') => self.toggle_layout_mode(),
+            KeyCode::Char('f' | 'F') => self.cycle_focus_mode(),
+            KeyCode::Char('s' | 'S') => {
                 // Switch active account to the one shown in the current tab.
                 if let Some(account_id) = self.current_tab_account_id() {
                     self.app_event_tx.send(
@@ -51,12 +51,12 @@ impl SettingsContent for LimitsSettingsContent {
                     false
                 }
             }
-            KeyCode::Char('w') | KeyCode::Char('W') => {
+            KeyCode::Char('w' | 'W') => {
                 // Warm all non-active accounts (start their usage timers).
                 self.app_event_tx.send(crate::app_event::AppEvent::WarmAllAccounts);
                 true
             }
-            KeyCode::Char('r') | KeyCode::Char('R') => {
+            KeyCode::Char('r' | 'R') => {
                 // Refresh rate limits for all accounts.
                 self.app_event_tx.send(crate::app_event::AppEvent::WarmAllAccounts);
                 true

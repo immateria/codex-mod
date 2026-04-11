@@ -1542,9 +1542,7 @@ impl McpConnectionManager {
         if let Some(cfg) = override_cfg.as_ref() {
             let server_max = self
                 .server_scheduling_read()
-                .get(server)
-                .map(|cfg| cfg.max_concurrent)
-                .unwrap_or_else(|| McpServerSchedulingToml::default().max_concurrent);
+                .get(server).map_or_else(|| McpServerSchedulingToml::default().max_concurrent, |cfg| cfg.max_concurrent);
             self.tool_scheduling_write().insert(key.clone(), cfg.clone());
             self.tool_limiters_write().insert(
                 key,

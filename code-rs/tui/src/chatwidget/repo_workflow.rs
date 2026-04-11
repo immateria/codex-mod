@@ -482,9 +482,7 @@ impl ChatWidget<'_> {
             if let Some(meta) = code_core::git_worktree::load_branch_metadata(&new_cwd) {
                 let branch_name = new_cwd
                     .file_name()
-                    .and_then(|n| n.to_str())
-                    .map(ToString::to_string)
-                    .unwrap_or_else(|| new_cwd.display().to_string());
+                    .and_then(|n| n.to_str()).map_or_else(|| new_cwd.display().to_string(), ToString::to_string);
                 let base_descriptor = meta
                     .remote_ref
                     .clone()

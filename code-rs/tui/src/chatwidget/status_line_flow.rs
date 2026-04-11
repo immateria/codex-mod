@@ -225,9 +225,7 @@ impl ChatWidget<'_> {
             StatusLineItem::CurrentDir => Some(Self::status_line_format_cwd(&self.config.cwd)),
             StatusLineItem::ProjectRoot => code_core::git_info::get_git_repo_root(&self.config.cwd)
                 .map(|root| {
-                    root.file_name()
-                        .map(|name| name.to_string_lossy().into_owned())
-                        .unwrap_or_else(|| root.display().to_string())
+                    root.file_name().map_or_else(|| root.display().to_string(), |name| name.to_string_lossy().into_owned())
                 }),
             StatusLineItem::GitBranch => self.get_git_branch(),
             #[cfg(feature = "managed-network-proxy")]

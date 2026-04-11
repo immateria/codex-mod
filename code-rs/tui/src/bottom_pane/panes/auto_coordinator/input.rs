@@ -36,7 +36,7 @@ impl AutoCoordinatorView {
         }
 
         if key_event.modifiers.contains(KeyModifiers::CONTROL)
-            && matches!(key_event.code, KeyCode::Char('s') | KeyCode::Char('S'))
+            && matches!(key_event.code, KeyCode::Char('s' | 'S'))
         {
             self.app_event_tx.send(AppEvent::ShowAutoDriveSettings);
             return true;
@@ -51,11 +51,7 @@ impl AutoCoordinatorView {
             // Allow approval keys to bubble so ChatWidget handles them.
             let allow_passthrough = matches!(
                 key_event.code,
-                KeyCode::Esc
-                    | KeyCode::Enter
-                    | KeyCode::Char(' ')
-                    | KeyCode::Char('e')
-                    | KeyCode::Char('E')
+                KeyCode::Esc | KeyCode::Enter | KeyCode::Char(' ' | 'e' | 'E')
             );
             if !allow_passthrough {
                 return true;
@@ -78,7 +74,7 @@ impl AutoCoordinatorView {
         }
 
         if key_event.modifiers.contains(KeyModifiers::CONTROL)
-            && matches!(key_event.code, KeyCode::Char('s') | KeyCode::Char('S'))
+            && matches!(key_event.code, KeyCode::Char('s' | 'S'))
         {
             self.app_event_tx.send(AppEvent::ShowAutoDriveSettings);
             return true;

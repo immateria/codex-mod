@@ -53,8 +53,7 @@ pub(in crate::codex::streaming) fn inject_scratchpad_into_attempt_input(
                 s.char_indices()
                     .rev()
                     .nth(crate::util::MAX_SNIPPET_CHARS - 1)
-                    .map(|(i, _)| i)
-                    .unwrap_or(0)
+                    .map_or(0, |(i, _)| i)
             } else {
                 0
             };
@@ -67,8 +66,7 @@ pub(in crate::codex::streaming) fn inject_scratchpad_into_attempt_input(
                 s.char_indices()
                     .rev()
                     .nth(crate::util::MAX_SNIPPET_CHARS - 1)
-                    .map(|(i, _)| i)
-                    .unwrap_or(0)
+                    .map_or(0, |(i, _)| i)
             } else {
                 0
             };

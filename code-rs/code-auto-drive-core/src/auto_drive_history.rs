@@ -380,10 +380,10 @@ fn estimate_item_tokens(item: &ResponseItem) -> usize {
             summary.iter().map(|s| match s {
                 code_protocol::models::ReasoningItemReasoningSummary::SummaryText { text } => text.len(),
             }).sum::<usize>()
-                + content.as_ref().map(|c| c.iter().map(|item| match item {
+                + content.as_ref().map_or(0, |c| c.iter().map(|item| match item {
                     code_protocol::models::ReasoningItemContent::ReasoningText { text } |
                     code_protocol::models::ReasoningItemContent::Text { text } => text.len(),
-                }).sum()).unwrap_or(0)
+                }).sum())
         }
         // Catch-all for other types: Other, LocalShellCall, WebSearchCall, etc.
         _ => 0,

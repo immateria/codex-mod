@@ -16,8 +16,7 @@ impl SettingsOverviewView {
             Vec::new(),
             vec![Line::from(vec![Span::styled(
                 self.selected_section()
-                    .map(crate::bottom_pane::SettingsSection::help_line)
-                    .unwrap_or(""),
+                    .map_or("", crate::bottom_pane::SettingsSection::help_line),
                 Style::new().fg(colors::text_dim()),
             )])],
         )

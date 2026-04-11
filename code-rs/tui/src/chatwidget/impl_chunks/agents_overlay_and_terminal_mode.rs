@@ -565,11 +565,10 @@ impl ChatWidget<'_> {
     ) {
         if lines
             .last()
-            .map(|line| {
+            .is_some_and(|line| {
                 line.spans.is_empty()
                     || (line.spans.len() == 1 && line.spans[0].content.is_empty())
             })
-            .unwrap_or(false)
         {
             return;
         }

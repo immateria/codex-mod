@@ -271,8 +271,7 @@ pub(super) async fn run_turn(
                             });
                             let current_auth_mode = auth
                                 .as_ref()
-                                .map(|current| current.mode)
-                                .unwrap_or(AppAuthMode::ApiKey);
+                                .map_or(AppAuthMode::ApiKey, |current| current.mode);
                             match crate::account_switching::switch_active_account_on_rate_limit(
                                 crate::account_switching::SwitchActiveAccountOnRateLimitParams {
                                     code_home: sess.client.code_home(),

@@ -89,7 +89,7 @@ pub(super) fn handle_key_event(state: &mut LoginAddAccountState, key_event: KeyE
                 state.app_event_tx.send(AppEvent::LoginCancelChatGpt);
                 true
             }
-            KeyCode::Char('c') | KeyCode::Char('C') => {
+            KeyCode::Char('c' | 'C') => {
                 state.feedback = Some(Feedback {
                     message: "Switching to code authentication…".to_string(),
                     is_error: false,

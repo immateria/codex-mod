@@ -373,9 +373,7 @@ fn explore_lines_with_truncation(
                     (ExecAction::Search, _) => " (search error)".to_string(),
                     (ExecAction::List, _) => " (list error)".to_string(),
                     (ExecAction::Read, _) => " (read error)".to_string(),
-                    _ => exit_code
-                        .map(|code| format!(" (exit {code})"))
-                        .unwrap_or_else(|| " (failed)".to_string()),
+                    _ => exit_code.map_or_else(|| " (failed)".to_string(), |code| format!(" (exit {code})")),
                 };
                 spans.push(Span::styled(
                     msg,
@@ -914,7 +912,7 @@ fn format_list_target(path: Option<&str>, cwd: &Path, session_root: &Path) -> Op
     });
 
     let display = match trimmed {
-        Some(".") | Some("./") => format_cwd_display(cwd, session_root),
+        Some("." | "./") => format_cwd_display(cwd, session_root),
         Some("/") => normalize_separators("/".to_string()),
         Some(raw) => {
             let stripped = raw.trim_end_matches('/');

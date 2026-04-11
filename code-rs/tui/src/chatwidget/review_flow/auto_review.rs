@@ -802,9 +802,7 @@ impl ChatWidget<'_> {
         let snapshot_note = inflight_snapshot
             .as_deref()
             .map(str::trim)
-            .filter(|s| !s.is_empty())
-            .map(|s| format!("Snapshot: {s} (review target)"))
-            .unwrap_or_else(|| "Snapshot: (unknown)".to_string());
+            .filter(|s| !s.is_empty()).map_or_else(|| "Snapshot: (unknown)".to_string(), |s| format!("Snapshot: {s} (review target)"));
         let agent_note = agent_id
             .as_deref()
             .map(str::trim)
@@ -846,8 +844,7 @@ impl ChatWidget<'_> {
             matches!(indicator_status, AutoReviewIndicatorStatus::Fixed).then_some(findings.max(1));
         let phase = self
             .auto_review_status
-            .map(|s| s.phase)
-            .unwrap_or(AutoReviewPhase::Reviewing);
+            .map_or(AutoReviewPhase::Reviewing, |s| s.phase);
         self.set_auto_review_indicator(indicator_status, findings_for_indicator, phase);
         if matches!(indicator_status, AutoReviewIndicatorStatus::Fixed) {
             self.insert_auto_review_notice(

@@ -617,14 +617,12 @@ pub fn clamp_reasoning_effort_for_model(
             let rank = reasoning_effort_rank(opt.effort);
             (requested_rank.abs_diff(rank), u8::MAX - rank)
         })
-        .map(|opt| opt.effort)
-        .unwrap_or(requested)
+        .map_or(requested, |opt| opt.effort)
 }
 
 pub fn allowed_text_verbosity_for_model(model: &str) -> &'static [TextVerbosityConfig] {
     find_preset_for_model(model)
-        .map(|preset| preset.supported_text_verbosity)
-        .unwrap_or(ALL_TEXT_VERBOSITY)
+        .map_or(ALL_TEXT_VERBOSITY, |preset| preset.supported_text_verbosity)
 }
 
 #[cfg(test)]

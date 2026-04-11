@@ -192,8 +192,7 @@ impl ChatWidget<'_> {
         let end = lines
             .iter()
             .rposition(|line| !line.trim().is_empty())
-            .map(|idx| idx + 1)
-            .unwrap_or(start);
+            .map_or(start, |idx| idx + 1);
 
         lines[start..end].join("\n")
     }

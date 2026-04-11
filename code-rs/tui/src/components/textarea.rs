@@ -274,8 +274,7 @@ impl TextArea {
     fn end_of_line(&self, pos: usize) -> usize {
         self.text[pos..]
             .find('\n')
-            .map(|i| i + pos)
-            .unwrap_or(self.text.len())
+            .map_or(self.text.len(), |i| i + pos)
     }
     fn end_of_current_line(&self) -> usize {
         self.end_of_line(self.cursor_pos)
@@ -802,8 +801,7 @@ impl TextArea {
             let next_line_start = next_nl + 1;
             let next_line_end = self.text[next_line_start..]
                 .find('\n')
-                .map(|i| i + next_line_start)
-                .unwrap_or(self.text.len());
+                .map_or(self.text.len(), |i| i + next_line_start);
             self.move_to_display_col_on_line(next_line_start, next_line_end, target_col);
         } else {
             self.cursor_pos = self.text.len();
@@ -899,15 +897,13 @@ impl TextArea {
         {
             self.text[..first_non_ws]
                 .rfind(|c: char| c.is_whitespace())
-                .map(|i| {
+                .map_or(0, |i| {
                     let char_len = self.text[i..]
                         .chars()
                         .next()
-                        .map(char::len_utf8)
-                        .unwrap_or(1);
+                        .map_or(1, char::len_utf8);
                     i + char_len
                 })
-                .unwrap_or(0)
         } else {
             0
         }

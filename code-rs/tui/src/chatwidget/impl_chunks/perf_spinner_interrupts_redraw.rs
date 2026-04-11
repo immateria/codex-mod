@@ -331,14 +331,13 @@ impl ChatWidget<'_> {
                 && cell
                     .as_any()
                     .downcast_ref::<PlainHistoryCell>()
-                    .map(|plain| {
+                    .is_some_and(|plain| {
                         plain.state().lines.iter().any(|line| {
                             line.spans
                                 .iter()
                                 .any(|span| span.text.contains(call_id))
                         })
                     })
-                    .unwrap_or(false)
         }) {
             self.history_remove_at(idx);
         }

@@ -29,10 +29,8 @@ impl ChatWidget<'_> {
             matches!(
                 cell.kind(),
                 crate::history_cell::HistoryCellType::Patch {
-                    kind: crate::history_cell::PatchKind::ApplyBegin
-                } | crate::history_cell::HistoryCellType::Patch {
-                    kind: crate::history_cell::PatchKind::Proposed
-                }
+kind: crate::history_cell::PatchKind::ApplyBegin |
+    crate::history_cell::PatchKind::Proposed }
             )
         })
     }

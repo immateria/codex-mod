@@ -1296,8 +1296,7 @@ impl HistoryUsageTracker {
         let chunk_count = state.deltas.len().max(self
             .assistant
             .get(&state.id)
-            .map(|entry| entry.total_chunks)
-            .unwrap_or(0));
+            .map_or(0, |entry| entry.total_chunks));
         let byte_count: usize = state.deltas.iter().map(|delta| delta.delta.len()).sum();
         let tracker = self.assistant.entry(state.id).or_default();
         tracker.total_chunks = tracker.total_chunks.max(chunk_count);

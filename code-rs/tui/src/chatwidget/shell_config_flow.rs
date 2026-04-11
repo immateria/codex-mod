@@ -14,9 +14,7 @@ impl ChatWidget<'_> {
             let current_shell = self
                 .config
                 .shell
-                .as_ref()
-                .map(Self::format_shell_config)
-                .unwrap_or_else(|| "auto-detected".to_string());
+                .as_ref().map_or_else(|| "auto-detected".to_string(), Self::format_shell_config);
             self.history_push_plain_paragraphs(
                 crate::history::state::PlainMessageKind::Notice,
                 vec![format!("Current shell: {current_shell}")],
@@ -133,8 +131,7 @@ impl ChatWidget<'_> {
         current_shell: Option<&ShellConfig>,
     ) -> ShellConfig {
         let (command_safety, dangerous_command_detection) = current_shell
-            .map(|shell| (shell.command_safety.clone(), shell.dangerous_command_detection))
-            .unwrap_or((code_core::config_types::CommandSafetyProfileConfig::default(), None));
+            .map_or((code_core::config_types::CommandSafetyProfileConfig::default(), None), |shell| (shell.command_safety.clone(), shell.dangerous_command_detection));
 
         ShellConfig {
             path,

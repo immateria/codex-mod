@@ -136,7 +136,7 @@ fn strip_specials(input: String, mode: Mode, debug_markers: bool) -> String {
                     }
                     // OSC and other string types: strip in all modes
                     Some(']') => { it.next(); if debug_markers { out.push('·'); } consume_until_st_or_bel(&mut it); }
-                    Some('P') | Some('X') | Some('^') | Some('_') => { it.next(); if debug_markers { out.push('·'); } consume_until_st_or_bel(&mut it); }
+                    Some('P' | 'X' | '^' | '_') => { it.next(); if debug_markers { out.push('·'); } consume_until_st_or_bel(&mut it); }
                     // Other ESC sequences: drop
                     Some(_) | None => {
                         // intermediates 0x20..0x2F then a final 0x40..0x7E

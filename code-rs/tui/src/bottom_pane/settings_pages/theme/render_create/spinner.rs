@@ -14,7 +14,7 @@ pub(super) fn render_create_spinner_mode_inner(
         for _ in 0..100 {
             // Limit per render to keep UI responsive.
             match rx.try_recv() {
-                Ok(ProgressMsg::ThinkingDelta(delta)) | Ok(ProgressMsg::OutputDelta(delta)) => {
+                Ok(ProgressMsg::ThinkingDelta(delta) | ProgressMsg::OutputDelta(delta)) => {
                     if let Mode::CreateSpinner(state) = &view.mode {
                         let mut current = state.thinking_current.borrow_mut();
                         let mut history = state.thinking_lines.borrow_mut();

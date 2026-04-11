@@ -149,9 +149,7 @@ impl ThemeSelectionView {
         }
         Self::builtin_theme_options()
             .iter()
-            .find(|(candidate, _, _)| *candidate == theme_name)
-            .map(|(_, name, _)| (*name).to_string())
-            .unwrap_or_else(|| "Theme".to_string())
+            .find(|(candidate, _, _)| *candidate == theme_name).map_or_else(|| "Theme".to_string(), |(_, name, _)| (*name).to_string())
     }
 
     pub(in crate::bottom_pane::settings_pages::theme) fn render_theme_option_lines_for_palette(

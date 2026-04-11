@@ -299,9 +299,7 @@ impl ChatWidget<'_> {
         };
         let reasoning_display = Self::format_reasoning_effort(self.config.model_reasoning_effort);
         let mcp_display = mcp_indicator
-            .as_ref()
-            .map(|(_, value)| value.clone())
-            .unwrap_or_else(|| "ok".to_string());
+            .as_ref().map_or_else(|| "ok".to_string(), |(_, value)| value.clone());
         let branch_display = branch_opt.clone().unwrap_or_default();
         let hovered_action = self.hovered_clickable_action.borrow().clone();
         let hover_style = header_cfg.hover_style;

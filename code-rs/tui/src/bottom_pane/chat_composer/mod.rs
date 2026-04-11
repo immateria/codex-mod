@@ -303,8 +303,7 @@ impl ChatComposer {
         let head_end = first_line
             .char_indices()
             .find(|(_, c)| c.is_whitespace())
-            .map(|(i, _)| i)
-            .unwrap_or(first_line_end);
+            .map_or(first_line_end, |(i, _)| i);
         cursor <= head_end
     }
 

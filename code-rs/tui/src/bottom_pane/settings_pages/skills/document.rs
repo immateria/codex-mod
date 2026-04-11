@@ -7,9 +7,7 @@ pub(super) fn skill_slug(skill: &Skill) -> String {
         .path
         .parent()
         .and_then(|path| path.file_name())
-        .and_then(|name| name.to_str())
-        .map(str::to_string)
-        .unwrap_or_else(|| skill.name.clone())
+        .and_then(|name| name.to_str()).map_or_else(|| skill.name.clone(), str::to_string)
 }
 
 pub(super) fn extract_frontmatter(body: &str) -> Option<String> {

@@ -70,7 +70,7 @@ pub(super) fn prepare_model_execution(
     let model_lower = model.to_lowercase();
     let command_lower = command_for_spawn.to_ascii_lowercase();
 
-    let slug_for_defaults = spec_opt.map(|spec| spec.slug).unwrap_or(model);
+    let slug_for_defaults = spec_opt.map_or(model, |spec| spec.slug);
     let spec_family = spec_opt.map(|spec| spec.family);
     let family = if let Some(spec_family) = spec_family {
         spec_family
@@ -146,14 +146,13 @@ pub(super) fn prepare_model_execution(
         }
         "codex" | "code" => {
             let have_mode_args = config
-                .map(|cfg| {
+                .is_some_and(|cfg| {
                     if read_only {
                         cfg.args_read_only.is_some()
                     } else {
                         cfg.args_write.is_some()
                     }
-                })
-                .unwrap_or(false);
+                });
             if !have_mode_args {
                 let mut defaults = default_params_for(slug_for_defaults, read_only);
                 command::strip_model_flags(&mut defaults);
@@ -171,14 +170,13 @@ pub(super) fn prepare_model_execution(
                 final_args.extend(["cloud", "submit", "--wait"].map(String::from));
             }
             let have_mode_args = config
-                .map(|cfg| {
+                .is_some_and(|cfg| {
                     if read_only {
                         cfg.args_read_only.is_some()
                     } else {
                         cfg.args_write.is_some()
                     }
-                })
-                .unwrap_or(false);
+                });
             if !have_mode_args {
                 let mut defaults = default_params_for(slug_for_defaults, read_only);
                 command::strip_model_flags(&mut defaults);
@@ -202,9 +200,7 @@ pub(super) fn prepare_model_execution(
         && matches!(source_kind, Some(AgentSourceKind::AutoReview));
     let child_log_tag: Option<String> = if debug_subagent {
         Some(
-            log_tag
-                .map(str::to_string)
-                .unwrap_or_else(|| format!("agents/{agent_id}")),
+            log_tag.map_or_else(|| format!("agents/{agent_id}"), str::to_string),
         )
     } else {
         log_tag_owned

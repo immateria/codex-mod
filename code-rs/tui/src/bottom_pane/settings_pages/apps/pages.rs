@@ -73,8 +73,7 @@ impl AppsSettingsView {
                     .accounts_snapshot
                     .iter()
                     .find(|acc| &acc.id == id)
-                    .map(|acc| acc.label.as_str())
-                    .unwrap_or(id.as_str());
+                    .map_or(id.as_str(), |acc| acc.label.as_str());
                 labels.push(label.to_string());
             }
             header_lines.push(Line::from(Span::styled(
@@ -232,8 +231,7 @@ impl AppsSettingsView {
             .accounts_snapshot
             .iter()
             .find(|acc| acc.id == account_id)
-            .map(|acc| acc.label.as_str())
-            .unwrap_or(account_id);
+            .map_or(account_id, |acc| acc.label.as_str());
 
         let mut header_lines = vec![
             Line::from(Span::styled(

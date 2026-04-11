@@ -99,9 +99,7 @@ async fn handle_image_view(sess: &Session, ctx: &ToolCallCtx, arguments: String)
                 }
             };
             let mime = mime_guess::from_path(&resolved)
-                .first()
-                .map(|m| m.essence_str().to_owned())
-                .unwrap_or_else(|| crate::util::MIME_OCTET_STREAM.to_string());
+                .first().map_or_else(|| crate::util::MIME_OCTET_STREAM.to_string(), |m| m.essence_str().to_owned());
             if !mime.starts_with("image/") {
                 return tool_error(
                     call_id,

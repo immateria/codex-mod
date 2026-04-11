@@ -80,8 +80,7 @@ impl ShellProfilesSettingsView {
                 let count = self
                     .shell_style_profiles
                     .get(&self.selected_style)
-                    .map(|profile| profile.skills.len())
-                    .unwrap_or(0);
+                    .map_or(0, |profile| profile.skills.len());
                 if count == 0 {
                     Some("all (no filter)".to_string())
                 } else {
@@ -92,15 +91,13 @@ impl ShellProfilesSettingsView {
                 "{} disabled",
                 self.shell_style_profiles
                     .get(&self.selected_style)
-                    .map(|profile| profile.disabled_skills.len())
-                    .unwrap_or(0)
+                    .map_or(0, |profile| profile.disabled_skills.len())
             )),
             RowKind::McpInclude => {
                 let count = self
                     .shell_style_profiles
                     .get(&self.selected_style)
-                    .map(|profile| profile.mcp_servers.include.len())
-                    .unwrap_or(0);
+                    .map_or(0, |profile| profile.mcp_servers.include.len());
                 if count == 0 {
                     Some("all (no filter)".to_string())
                 } else {
@@ -111,8 +108,7 @@ impl ShellProfilesSettingsView {
                 "{} excluded",
                 self.shell_style_profiles
                     .get(&self.selected_style)
-                    .map(|profile| profile.mcp_servers.exclude.len())
-                    .unwrap_or(0)
+                    .map_or(0, |profile| profile.mcp_servers.exclude.len())
             )),
             RowKind::OpenSkills | RowKind::Apply | RowKind::Close => None,
         }
@@ -216,9 +212,7 @@ impl ShellProfilesSettingsView {
             .filter(|path| !path.is_empty())
             .unwrap_or("auto");
         let active_style = self
-            .active_style
-            .map(|style| style.to_string())
-            .unwrap_or_else(|| "auto".to_string());
+            .active_style.map_or_else(|| "auto".to_string(), |style| style.to_string());
         let selected_style = self.selected_style.to_string();
         let styles_summary = if selected_style == active_style {
             format!("style: {active_style}")

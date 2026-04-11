@@ -89,8 +89,7 @@ fn run_guided_loop(runtime: &tokio::runtime::Runtime, args: GuidedLoopArgs<'_>) 
         } => {
             let latest = latest_version
                 .as_ref()
-                .map(String::as_str)
-                .unwrap_or("unknown");
+                .map_or("unknown", String::as_str);
             (
                 "Upgrade helper",
                 format!(
@@ -236,9 +235,7 @@ fn run_guided_loop(runtime: &tokio::runtime::Runtime, args: GuidedLoopArgs<'_>) 
         let truncated = tail_chars(&output, MAX_OUTPUT_CHARS);
         let summary = format!(
             "Command: {command}\nExit code: {}\nOutput (last {} chars):\n{}",
-            exit_code
-                .map(|c| c.to_string())
-                .unwrap_or_else(|| "unknown".to_string()),
+            exit_code.map_or_else(|| "unknown".to_string(), |c| c.to_string()),
             truncated.chars().count(),
             truncated
         );
@@ -309,9 +306,7 @@ fn run_guided_loop(runtime: &tokio::runtime::Runtime, args: GuidedLoopArgs<'_>) 
         let truncated = tail_chars(&output, MAX_OUTPUT_CHARS);
         let summary = format!(
             "Command: {initial_command}\nExit code: {}\nOutput (last {} chars):\n{}",
-            exit_code
-                .map(|c| c.to_string())
-                .unwrap_or_else(|| "unknown".to_string()),
+            exit_code.map_or_else(|| "unknown".to_string(), |c| c.to_string()),
             truncated.chars().count(),
             truncated
         );
@@ -438,9 +433,7 @@ fn run_guided_loop(runtime: &tokio::runtime::Runtime, args: GuidedLoopArgs<'_>) 
                 let truncated = tail_chars(&output, MAX_OUTPUT_CHARS);
                 let summary = format!(
                     "Command: {final_command}\nExit code: {}\nOutput (last {} chars):\n{}",
-                    exit_code
-                        .map(|c| c.to_string())
-                        .unwrap_or_else(|| "unknown".to_string()),
+                    exit_code.map_or_else(|| "unknown".to_string(), |c| c.to_string()),
                     truncated.chars().count(),
                     truncated
                 );

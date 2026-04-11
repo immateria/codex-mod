@@ -293,9 +293,7 @@ pub(crate) fn rows_to_lines(rows: Vec<CardRow>, _style: &CardStyle, total_width:
         }
         if used_width < body_width {
             let filler = " ".repeat(body_width - used_width);
-            let filler_style = row_bg
-                .map(|bg| Style::default().bg(bg))
-                .unwrap_or_else(Style::default);
+            let filler_style = row_bg.map_or_else(Style::default, |bg| Style::default().bg(bg));
             spans.push(Span::styled(filler, filler_style));
         }
         lines.push(Line::from(spans));

@@ -12,13 +12,11 @@ fn token_cursor_context(textarea: &TextArea) -> TokenCursorContext<'_> {
     let start_idx = before_cursor
         .char_indices()
         .rfind(|(_, c)| c.is_whitespace())
-        .map(|(idx, c)| idx + c.len_utf8())
-        .unwrap_or(0);
+        .map_or(0, |(idx, c)| idx + c.len_utf8());
     let end_rel_idx = after_cursor
         .char_indices()
         .find(|(_, c)| c.is_whitespace())
-        .map(|(idx, _)| idx)
-        .unwrap_or(after_cursor.len());
+        .map_or(after_cursor.len(), |(idx, _)| idx);
     let end_idx = safe_cursor + end_rel_idx;
 
     TokenCursorContext {
@@ -61,8 +59,7 @@ fn current_at_token(textarea: &TextArea) -> Option<String> {
     let end_right_rel = ctx.text[start_right..]
         .char_indices()
         .find(|(_, c)| c.is_whitespace())
-        .map(|(idx, _)| idx)
-        .unwrap_or(ctx.text.len() - start_right);
+        .map_or(ctx.text.len() - start_right, |(idx, _)| idx);
     let end_right = start_right + end_right_rel;
     let token_right = if start_right < end_right {
         Some(&ctx.text[start_right..end_right])

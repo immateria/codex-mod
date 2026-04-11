@@ -106,8 +106,7 @@ impl InterfaceSettingsView {
             .iter()
             .map(|kind| label_for_row(*kind).width())
             .max()
-            .map(|cols| u16::try_from(cols).unwrap_or(u16::MAX))
-            .unwrap_or(0);
+            .map_or(0, |cols| u16::try_from(cols).unwrap_or(u16::MAX));
 
         kinds
             .iter()

@@ -332,14 +332,12 @@ fn context_key_from_snapshot(
         .operating_system
         .as_ref()
         .and_then(|info| info.family.as_deref())
-        .map(memory_platform_family_from_os_family)
-        .unwrap_or(MemoryPlatformFamily::Unknown);
+        .map_or(MemoryPlatformFamily::Unknown, memory_platform_family_from_os_family);
     let shell_style = snapshot
         .shell
         .as_ref()
         .and_then(crate::shell::Shell::script_style)
-        .map(memory_shell_style_from_script_style)
-        .unwrap_or(MemoryShellStyle::Unknown);
+        .map_or(MemoryShellStyle::Unknown, memory_shell_style_from_script_style);
     let shell_program = snapshot.shell.as_ref().and_then(crate::shell::Shell::name);
     let workspace_root = snapshot
         .git_project_root
@@ -803,9 +801,7 @@ fn parse_timestamp(raw: &str) -> Option<DateTime<Utc>> {
 }
 
 fn iso_timestamp(timestamp: i64) -> String {
-    DateTime::<Utc>::from_timestamp_secs(timestamp)
-        .map(|value| value.to_rfc3339())
-        .unwrap_or_else(|| timestamp.to_string())
+    DateTime::<Utc>::from_timestamp_secs(timestamp).map_or_else(|| timestamp.to_string(), |value| value.to_rfc3339())
 }
 
 fn parse_timestamp_with_label(entry: &SessionIndexEntry) -> Option<(DateTime<Utc>, String)> {

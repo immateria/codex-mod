@@ -993,9 +993,7 @@ fn reclaim_worktrees_from_file(path: &std::path::Path, label: &str) {
 
         if acquired.is_none() && !lock_is_self {
             let detail = lock_info
-                .as_ref()
-                .map(|info| format!("pid {} (intent: {})", info.pid, info.intent))
-                .unwrap_or_else(|| "unknown holder".to_string());
+                .as_ref().map_or_else(|| "unknown holder".to_string(), |info| format!("pid {} (intent: {})", info.pid, info.intent));
             tracing::warn!(
                 "Deferring cleanup of {} — cleanup lock busy ({detail}); will retry on next shutdown",
                 worktree.display()

@@ -54,9 +54,7 @@ pub(super) fn format_secs_compact(duration: Duration) -> String {
 }
 
 pub(super) fn format_opt_secs_compact(duration: Option<Duration>) -> String {
-    duration
-        .map(format_secs_compact)
-        .unwrap_or_else(|| "none".to_owned())
+    duration.map_or_else(|| "none".to_owned(), format_secs_compact)
 }
 
 pub(super) fn format_secs_for_edit(duration: Duration) -> String {

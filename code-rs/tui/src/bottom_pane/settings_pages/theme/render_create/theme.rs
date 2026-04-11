@@ -13,7 +13,7 @@ pub(super) fn render_create_theme_mode_inner(
     if let Some(rx) = &s.rx {
         for _ in 0..100 {
             match rx.try_recv() {
-                Ok(ProgressMsg::ThinkingDelta(delta)) | Ok(ProgressMsg::OutputDelta(delta)) => {
+                Ok(ProgressMsg::ThinkingDelta(delta) | ProgressMsg::OutputDelta(delta)) => {
                     if let Mode::CreateTheme(state) = &view.mode {
                         let mut current = state.thinking_current.borrow_mut();
                         let mut history = state.thinking_lines.borrow_mut();

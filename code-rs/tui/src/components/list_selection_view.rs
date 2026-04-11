@@ -76,8 +76,7 @@ impl ListSelectionView {
         let subtitle_rows = self
             .subtitle
             .as_ref()
-            .map(|s| Self::wrapped_lines_for(s, content_width))
-            .unwrap_or(0);
+            .map_or(0, |s| Self::wrapped_lines_for(s, content_width));
 
         // Always include one spacer row between subtitle/title and the list
         let spacer_top_rows: u16 = 1;

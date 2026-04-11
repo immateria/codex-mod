@@ -48,7 +48,7 @@ impl App<'_> {
 
     pub(super) fn normalize_non_enhanced_release_code(code: KeyCode) -> KeyCode {
         match code {
-            KeyCode::Char('\r') | KeyCode::Char('\n') => KeyCode::Enter,
+            KeyCode::Char('\r' | '\n') => KeyCode::Enter,
             KeyCode::Char('\t') => KeyCode::Tab,
             KeyCode::Char('\u{1b}') => KeyCode::Esc,
             other => other,

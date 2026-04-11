@@ -162,7 +162,6 @@ fn selected_tab_max_scroll(overlay: &super::diff_ui::DiffOverlay, visible_rows: 
     let total_lines: usize = overlay
         .tabs
         .get(overlay.selected)
-        .map(|(_, blocks)| blocks.iter().map(|block| block.lines.len()).sum())
-        .unwrap_or(0);
+        .map_or(0, |(_, blocks)| blocks.iter().map(|block| block.lines.len()).sum());
     total_lines.saturating_sub(visible_rows.max(1))
 }

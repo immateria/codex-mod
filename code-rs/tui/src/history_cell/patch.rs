@@ -100,7 +100,7 @@ fn diff_contains_line_edits(diff: &str) -> bool {
             continue;
         }
         match line.as_bytes().first() {
-            Some(b'+') | Some(b'-') => return true,
+            Some(b'+' | b'-') => return true,
             _ => {}
         }
     }

@@ -54,14 +54,13 @@ impl ChatWidget<'_> {
                 let existing_prefers_hydrate = self
                     .history_cells
                     .get(idx)
-                    .map(|cell_slot| {
+                    .is_some_and(|cell_slot| {
                         cell_slot.as_any().is::<crate::history_cell::JsReplCell>()
                             || cell_slot.as_any().is::<crate::history_cell::ExecCell>()
                             || cell_slot.as_any().is::<crate::history_cell::PatchSummaryCell>()
                             || cell_slot.as_any().is::<crate::history_cell::ToolCallCell>()
                             || cell_slot.as_any().is::<crate::history_cell::RunningToolCallCell>()
-                    })
-                    .unwrap_or(false);
+                    });
 
                 // Build any replacement cell up-front so we don't borrow `self`
                 // immutably while holding a mutable reference to `history_cells`.
@@ -132,14 +131,13 @@ impl ChatWidget<'_> {
             let existing_prefers_hydrate = self
                 .history_cells
                 .get(idx)
-                .map(|c| {
+                .is_some_and(|c| {
                     c.as_any().is::<crate::history_cell::JsReplCell>()
                         || c.as_any().is::<crate::history_cell::ExecCell>()
                         || c.as_any().is::<crate::history_cell::PatchSummaryCell>()
                         || c.as_any().is::<crate::history_cell::ToolCallCell>()
                         || c.as_any().is::<crate::history_cell::RunningToolCallCell>()
-                })
-                .unwrap_or(false);
+                });
             if existing_prefers_hydrate {
                 if let Some(cell_slot) = self.history_cells.get_mut(idx) {
                     Self::hydrate_cell_from_record_inner(cell_slot, &record, &self.config);

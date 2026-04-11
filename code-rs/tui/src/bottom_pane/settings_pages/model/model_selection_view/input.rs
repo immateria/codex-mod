@@ -109,16 +109,10 @@ impl ModelSelectionView {
                 modifiers: KeyModifiers::NONE,
                 ..
             } => self.adjust_selected_numeric_value(-1),
-            KeyEvent {
-                code: KeyCode::Right,
-                modifiers: KeyModifiers::NONE,
-                ..
-            }
-            | KeyEvent {
-                code: KeyCode::Char('+') | KeyCode::Char('='),
-                modifiers: KeyModifiers::NONE | KeyModifiers::SHIFT,
-                ..
-            } => self.adjust_selected_numeric_value(1),
+            KeyEvent { code: KeyCode::Right, modifiers: KeyModifiers::NONE, .. } |
+KeyEvent {
+code: KeyCode::Char('+' | '='),
+modifiers: KeyModifiers::NONE | KeyModifiers::SHIFT, .. } => self.adjust_selected_numeric_value(1),
             KeyEvent {
                 code: KeyCode::Char(c),
                 modifiers: KeyModifiers::NONE,

@@ -2831,15 +2831,12 @@ fn is_network_likely_command(argv: &[String]) -> bool {
     let sub = argv.get(1).map(|s| s.to_ascii_lowercase());
     matches!(
         (program.as_str(), sub.as_deref()),
-        ("git", Some("clone" | "fetch" | "pull" | "push"))
-            | ("npm", Some("install" | "add" | "update" | "ci"))
-            | ("pnpm", Some("install" | "add" | "update"))
-            | ("yarn", Some("install" | "add" | "upgrade"))
-            | ("bun", Some("install" | "add" | "update"))
-            | ("pip" | "pip3", Some("install"))
-            | ("go", Some("get" | "install"))
-            | ("cargo", Some("build" | "test" | "install"))
-            | ("curl" | "wget", _)
+        ("git", Some("clone" | "fetch" | "pull" | "push")) |
+("npm", Some("install" | "add" | "update" | "ci")) |
+("pnpm" | "bun", Some("install" | "add" | "update")) |
+("yarn", Some("install" | "add" | "upgrade")) |
+("pip" | "pip3", Some("install")) | ("go", Some("get" | "install")) |
+("cargo", Some("build" | "test" | "install")) | ("curl" | "wget", _)
     )
 }
 
@@ -3033,11 +3030,10 @@ fn is_python_command(cmd: &str) -> bool {
     std::path::Path::new(cmd)
         .file_name()
         .and_then(|s| s.to_str())
-        .map(|name| {
+        .is_some_and(|name| {
             let lower = name.to_ascii_lowercase();
             matches!(lower.as_str(), "python" | "python3" | "python2")
         })
-        .unwrap_or(false)
 }
 
 fn guidance_for_python_write(suggestion: &PythonWriteSuggestion) -> String {

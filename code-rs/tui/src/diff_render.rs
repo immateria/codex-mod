@@ -534,9 +534,7 @@ fn push_wrapped_diff_line_with_width(
             .max(1);
         let split_at_byte_index = remaining_text
             .char_indices()
-            .nth(available_content_cols)
-            .map(|(i, _)| i)
-            .unwrap_or_else(|| remaining_text.len());
+            .nth(available_content_cols).map_or_else(|| remaining_text.len(), |(i, _)| i);
         let (chunk, rest) = remaining_text.split_at(split_at_byte_index);
         remaining_text = rest;
 

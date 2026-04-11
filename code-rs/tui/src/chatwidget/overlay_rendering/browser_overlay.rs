@@ -108,9 +108,7 @@ impl ChatWidget<'_> {
                     }
                 }
 
-        let summary_label = cell_opt
-            .map(crate::history_cell::BrowserSessionCell::summary_label)
-            .unwrap_or_else(|| self.browser_title().to_string());
+        let summary_label = cell_opt.map_or_else(|| self.browser_title().to_string(), crate::history_cell::BrowserSessionCell::summary_label);
         let summary_value = screenshot_url
             
             .filter(|value| !value.is_empty())
@@ -241,13 +239,9 @@ impl ChatWidget<'_> {
         }
 
         let current_time = screenshot_history
-            .and_then(|history| history.get(selected_index))
-            .map(|record| record.timestamp)
-            .unwrap_or_else(|| Duration::ZERO);
+            .and_then(|history| history.get(selected_index)).map_or_else(|| Duration::ZERO, |record| record.timestamp);
         let mut total_time = overlay_tracker
-            .as_ref()
-            .map(|(_, tracker)| tracker.elapsed)
-            .unwrap_or_else(|| Duration::ZERO);
+            .as_ref().map_or_else(|| Duration::ZERO, |(_, tracker)| tracker.elapsed);
         if let Some(history) = screenshot_history
             && let Some(last) = history.last() {
                 total_time = total_time.max(last.timestamp);

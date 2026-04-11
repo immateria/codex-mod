@@ -186,8 +186,7 @@ pub(super) fn handle_custom_tool_end(
     let Some(mut tracker) = chat.tools_state.browser_sessions.remove(&key) else { return false };
 
     let order_key = order
-        .map(|meta| chat.provider_order_key_from_order_meta(meta))
-        .unwrap_or(tracker.slot.order_key);
+        .map_or(tracker.slot.order_key, |meta| chat.provider_order_key_from_order_meta(meta));
 
     tracker.slot.set_order_key(order_key);
 
@@ -259,8 +258,7 @@ pub(super) fn handle_background_event(
     let Some(mut tracker) = chat.tools_state.browser_sessions.remove(&key) else { return false };
 
     let order_key = order
-        .map(|meta| chat.provider_order_key_from_order_meta(meta))
-        .unwrap_or(tracker.slot.order_key);
+        .map_or(tracker.slot.order_key, |meta| chat.provider_order_key_from_order_meta(meta));
     tracker.slot.set_order_key(order_key);
 
     let console_lines = parse_console_output(payload);
@@ -310,8 +308,7 @@ pub(super) fn handle_screenshot_update(
     let Some(mut tracker) = chat.tools_state.browser_sessions.remove(&key) else { return result };
 
     let order_key = order
-        .map(|meta| chat.provider_order_key_from_order_meta(meta))
-        .unwrap_or(tracker.slot.order_key);
+        .map_or(tracker.slot.order_key, |meta| chat.provider_order_key_from_order_meta(meta));
     tracker.slot.set_order_key(order_key);
 
     tracker.cell.set_url(url.to_string());

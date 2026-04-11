@@ -59,10 +59,9 @@ impl Runner<'_> {
         let effort_changed = updated_config.model_reasoning_effort != model_reasoning_effort;
         let preferred_effort_changed = preferred_model_reasoning_effort
             .as_ref()
-            .map(|preferred| {
+            .is_some_and(|preferred| {
                 updated_config.preferred_model_reasoning_effort != Some(*preferred)
-            })
-            .unwrap_or(false);
+            });
 
         let old_model_family = updated_config.model_family.clone();
         let old_tool_output_max_bytes = updated_config.tool_output_max_bytes;

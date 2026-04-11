@@ -266,8 +266,7 @@ pub(super) fn flatten_draw_result(res: std::io::Result<Result<()>>) -> std::io::
         let kind = err
             .downcast_ref::<std::io::Error>()
             .or_else(|| err.root_cause().downcast_ref::<std::io::Error>())
-            .map(std::io::Error::kind)
-            .unwrap_or(std::io::ErrorKind::Other);
+            .map_or(std::io::ErrorKind::Other, std::io::Error::kind);
         std::io::Error::new(kind, err)
     })
 }

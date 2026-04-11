@@ -23,12 +23,10 @@ const SYSTEM_SKILLS_MARKER_SALT: &str = "v1";
 pub fn system_cache_root_dir(code_home: &Path) -> PathBuf {
     AbsolutePathBuf::try_from(code_home)
         .and_then(|code_home| system_cache_root_dir_abs(&code_home))
-        .map(AbsolutePathBuf::into_path_buf)
-        .unwrap_or_else(|_| {
-            code_home
-                .join(SKILLS_DIR_NAME)
-                .join(SYSTEM_SKILLS_DIR_NAME)
-        })
+        .map_or_else(
+            |_| code_home.join(SKILLS_DIR_NAME).join(SYSTEM_SKILLS_DIR_NAME),
+            AbsolutePathBuf::into_path_buf,
+        )
 }
 
 fn system_cache_root_dir_abs(code_home: &AbsolutePathBuf) -> std::io::Result<AbsolutePathBuf> {

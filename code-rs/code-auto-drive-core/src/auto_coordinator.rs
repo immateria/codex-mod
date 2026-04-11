@@ -2389,12 +2389,14 @@ fn run_auto_loop(inputs: AutoLoopInputs) -> Result<()> {
                             }
                             let retry_snapshot = retry_conversation
                                 .take()
-                                .map(|conversation| {
-                                    Arc::<[ResponseItem]>::from(enforce_hard_message_limit(
-                                        filter_popular_commands(conversation),
-                                    ))
-                                })
-                                .unwrap_or_else(|| Arc::clone(&conv));
+                                .map_or_else(
+                                    || Arc::clone(&conv),
+                                    |conversation| {
+                                        Arc::<[ResponseItem]>::from(enforce_hard_message_limit(
+                                            filter_popular_commands(conversation),
+                                        ))
+                                    },
+                                );
                             // Keep the model and UI in sync with the full conversation, but avoid spamming a compaction notice.
                             event_tx.send(AutoCoordinatorEvent::CompactedHistory {
                                 conversation: Arc::clone(&retry_snapshot),
@@ -2692,9 +2694,7 @@ fn build_initial_planning_seed(goal_text: &str, include_agents: bool) -> Option<
 }
 
 fn format_environment_details(sandbox: &str) -> String {
-    let cwd = std::env::current_dir()
-        .map(|dir| dir.display().to_string())
-        .unwrap_or_else(|_| "<unknown>".to_string());
+    let cwd = std::env::current_dir().map_or_else(|_| "<unknown>".to_string(), |dir| dir.display().to_string());
     let branch = run_git_command(["rev-parse", "--abbrev-ref", "HEAD"]).unwrap_or_else(|| "<unknown>".to_string());
     let git_status_raw = run_git_command(["status", "--short"]);
     let git_status = match git_status_raw {
@@ -3198,9 +3198,7 @@ fn request_decision_with_model(
         if !did_usage_limit_model_fallback && error_mentions_usage_limit(error) {
             let active_model = selected_model_for_retry
                 .lock()
-                .ok()
-                .map(|guard| guard.clone())
-                .unwrap_or_else(|| model_slug_fallback.clone());
+                .ok().map_or_else(|| model_slug_fallback.clone(), |guard| guard.clone());
             if let Some(fallback_model) = spark_fallback_model(&active_model) {
                 did_usage_limit_model_fallback = true;
                 if let Ok(mut guard) = selected_model_for_retry.lock() {
@@ -3233,9 +3231,7 @@ fn request_decision_with_model(
                 let conversation = Arc::clone(&conversation);
                 let model_slug_for_attempt = selected_model_for_run
                     .lock()
-                    .ok()
-                    .map(|guard| guard.clone())
-                    .unwrap_or_else(|| model_slug.clone());
+                    .ok().map_or_else(|| model_slug.clone(), |guard| guard.clone());
                 let prompt = build_user_turn_prompt(BuildUserTurnPromptInput {
                     developer_intro: &developer_intro,
                     primary_goal: &primary_goal,
@@ -3338,9 +3334,7 @@ fn request_decision_with_model(
             &cancel,
             |status| {
                 let human_delay = status
-                    .sleep
-                    .map(format_duration)
-                    .unwrap_or_else(|| "0s".to_string());
+                    .sleep.map_or_else(|| "0s".to_string(), format_duration);
                 let elapsed = format_duration(status.elapsed);
                 let prefix = if status.is_rate_limit {
                     "Rate limit"
@@ -3969,9 +3963,7 @@ fn classify_recoverable_decision_error(err: &anyhow::Error) -> Option<Recoverabl
         let extracted = text
             .split('\'')
             .nth(1)
-            .filter(|value| !value.is_empty())
-            .map(|value| format!("unexpected finish_status '{value}'"))
-            .unwrap_or_else(|| "unexpected finish_status".to_string());
+            .filter(|value| !value.is_empty()).map_or_else(|| "unexpected finish_status".to_string(), |value| format!("unexpected finish_status '{value}'"));
         return Some(RecoverableDecisionError {
             summary: extracted,
             guidance: Some(

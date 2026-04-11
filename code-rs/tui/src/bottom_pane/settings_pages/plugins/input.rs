@@ -7,9 +7,9 @@ impl PluginsSettingsView {
         if key_event.modifiers.contains(KeyModifiers::CONTROL) {
             let allow_ctrl_s = matches!(
                 &self.mode,
-                Mode::Sources(SourcesMode::EditCurated)
-                    | Mode::Sources(SourcesMode::EditMarketplaceRepo { .. })
-            ) && matches!(key_event.code, KeyCode::Char('s') | KeyCode::Char('S'));
+                Mode::Sources(SourcesMode::EditCurated | SourcesMode::EditMarketplaceRepo { ..
+})
+            ) && matches!(key_event.code, KeyCode::Char('s' | 'S'));
             if !allow_ctrl_s {
                 return false;
             }
@@ -381,7 +381,7 @@ impl PluginsSettingsView {
 
     fn handle_key_sources_editor(&mut self, key_event: KeyEvent, mode: SourcesMode) -> bool {
         let is_ctrl_s = key_event.modifiers.contains(KeyModifiers::CONTROL)
-            && matches!(key_event.code, KeyCode::Char('s') | KeyCode::Char('S'));
+            && matches!(key_event.code, KeyCode::Char('s' | 'S'));
         if is_ctrl_s {
             return self.save_sources_editor(mode);
         }

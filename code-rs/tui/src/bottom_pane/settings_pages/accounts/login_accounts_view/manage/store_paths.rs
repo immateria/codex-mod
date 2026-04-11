@@ -164,7 +164,7 @@ impl LoginAccountsState {
                 3 => (false, true),
                 _ => (true, false),
             },
-            KeyCode::Char('s') | KeyCode::Char('S') if editor.selected_row >= 2 => {
+            KeyCode::Char('s' | 'S') if editor.selected_row >= 2 => {
                 if self.save_store_paths_editor(editor) {
                     (false, true)
                 } else {

@@ -1692,8 +1692,7 @@ impl AuthManager {
             guard.auth = new_auth;
             guard.preferred_auth_mode = env_auth
                 .as_ref()
-                .map(|auth| auth.mode)
-                .unwrap_or(preferred);
+                .map_or(preferred, |auth| auth.mode);
             changed
         } else {
             false
@@ -1739,8 +1738,7 @@ impl AuthManager {
             guard.auth = new_auth;
             guard.preferred_auth_mode = env_auth
                 .as_ref()
-                .map(|auth| auth.mode)
-                .unwrap_or(preferred);
+                .map_or(preferred, |auth| auth.mode);
             if changed {
                 ReloadOutcome::ReloadedChanged
             } else {

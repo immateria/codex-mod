@@ -330,15 +330,11 @@ impl ChatWidget<'_> {
 
         let window_label = self
             .config
-            .model_context_window
-            .map(code_protocol::num_format::format_with_separators_u64)
-            .unwrap_or_else(|| "default".to_string());
+            .model_context_window.map_or_else(|| "default".to_string(), code_protocol::num_format::format_with_separators_u64);
         let compact_label = self
             .config
             .model_auto_compact_token_limit
-            .map(|value| value.max(0) as u64)
-            .map(code_protocol::num_format::format_with_separators_u64)
-            .unwrap_or_else(|| "auto".to_string());
+            .map(|value| value.max(0) as u64).map_or_else(|| "auto".to_string(), code_protocol::num_format::format_with_separators_u64);
 
         self.bottom_pane.flash_footer_notice(format!(
             "Context window {window_label} tokens; auto-compact at {compact_label}."
@@ -358,15 +354,11 @@ impl ChatWidget<'_> {
         if trimmed.is_empty() {
             let window_label = self
                 .config
-                .model_context_window
-                .map(code_protocol::num_format::format_with_separators_u64)
-                .unwrap_or_else(|| "default".to_string());
+                .model_context_window.map_or_else(|| "default".to_string(), code_protocol::num_format::format_with_separators_u64);
             let compact_label = self
                 .config
                 .model_auto_compact_token_limit
-                .map(|value| value.max(0) as u64)
-                .map(code_protocol::num_format::format_with_separators_u64)
-                .unwrap_or_else(|| "auto".to_string());
+                .map(|value| value.max(0) as u64).map_or_else(|| "auto".to_string(), code_protocol::num_format::format_with_separators_u64);
             self.push_background_tail(format!(
                 "Context window is {window_label} tokens; auto-compact at {compact_label}. Use /context-window auto|1m|disabled|500k."
             ));
@@ -419,9 +411,7 @@ impl ChatWidget<'_> {
             let compact_label = self
                 .config
                 .model_auto_compact_token_limit
-                .map(|value| value.max(0) as u64)
-                .map(code_protocol::num_format::format_with_separators_u64)
-                .unwrap_or_else(|| "auto".to_string());
+                .map(|value| value.max(0) as u64).map_or_else(|| "auto".to_string(), code_protocol::num_format::format_with_separators_u64);
             self.push_background_tail(format!(
                 "Auto-compact threshold is {compact_label}. Use /auto-compact auto|450k."
             ));

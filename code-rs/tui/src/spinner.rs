@@ -149,9 +149,7 @@ pub(crate) fn spinner_names() -> Vec<String> {
 }
 
 pub(crate) fn spinner_label_for(name: &str) -> String {
-    find_spinner_by_name(name)
-        .map(|s| s.label.clone())
-        .unwrap_or_else(|| humanize(name))
+    find_spinner_by_name(name).map_or_else(|| humanize(name), |s| s.label.clone())
 }
 
 pub(crate) fn frame_at_time(def: &Spinner, now_ms: u128) -> String {

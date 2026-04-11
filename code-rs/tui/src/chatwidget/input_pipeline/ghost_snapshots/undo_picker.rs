@@ -3,9 +3,7 @@ impl ChatWidget<'_> {
         if self.ghost_snapshots_disabled {
             let reason = self
                 .ghost_snapshots_disabled_reason
-                .as_ref()
-                .map(|reason| reason.message.clone())
-                .unwrap_or_else(|| "Snapshots are currently disabled.".to_string());
+                .as_ref().map_or_else(|| "Snapshots are currently disabled.".to_string(), |reason| reason.message.clone());
             self.push_background_tail(format!("/undo unavailable: {reason}"));
             self.show_undo_snapshots_disabled();
             return;

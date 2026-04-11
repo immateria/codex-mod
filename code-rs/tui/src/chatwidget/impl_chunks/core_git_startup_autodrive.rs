@@ -54,9 +54,7 @@ impl ChatWidget<'_> {
                 } else {
                     let code = out
                         .status
-                        .code()
-                        .map(|c| format!("exit status {c}"))
-                        .unwrap_or_else(|| "terminated by signal".to_string());
+                        .code().map_or_else(|| "terminated by signal".to_string(), |c| format!("exit status {c}"));
                     Err(format!("{label} failed: {code}"))
                 }
             }

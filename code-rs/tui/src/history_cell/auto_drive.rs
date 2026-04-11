@@ -676,8 +676,7 @@ impl AutoDriveCardCell {
 
         let frame = self
             .celebration_started_at
-            .map(|started| Self::celebration_frame_index_at(started, now, reduced_motion))
-            .unwrap_or(0);
+            .map_or(0, |started| Self::celebration_frame_index_at(started, now, reduced_motion));
 
         let mut lines: Vec<String> = Vec::with_capacity(CELEBRATION_ASCII.len() + 4);
         lines.push(pad_to_display_width("", body_width));

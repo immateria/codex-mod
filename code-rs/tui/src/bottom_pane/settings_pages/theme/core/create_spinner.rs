@@ -231,9 +231,7 @@ impl ThemeSelectionView {
                             }
                         } else {
                             // Prefer a clearer message if we saw a transport error
-                            let msg = last_err
-                                .map(|le| format!("model stream error: {le}"))
-                                .unwrap_or_else(|| e.to_string());
+                            let msg = last_err.map_or_else(|| e.to_string(), |le| format!("model stream error: {le}"));
                             let _ = progress_tx.send(ProgressMsg::CompletedErr {
                                 error: msg,
                                 _raw_snippet: out.chars().take(200).collect::<String>(),

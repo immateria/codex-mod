@@ -211,9 +211,7 @@ impl UserMessageItem {
 impl HookPromptItem {
     pub fn from_fragments(id: Option<&str>, fragments: Vec<HookPromptFragment>) -> Self {
         Self {
-            id: id
-                .map(str::to_string)
-                .unwrap_or_else(|| uuid::Uuid::new_v4().to_string()),
+            id: id.map_or_else(|| uuid::Uuid::new_v4().to_string(), str::to_string),
             fragments,
         }
     }

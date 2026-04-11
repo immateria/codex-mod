@@ -316,15 +316,17 @@ pub fn maybe_parse_apply_patch_verified(argv: &[String], cwd: &Path) -> MaybeApp
         }) => {
             let effective_cwd = workdir
                 .as_ref()
-                .map(|dir| {
-                    let path = Path::new(dir);
-                    if path.is_absolute() {
-                        path.to_path_buf()
-                    } else {
-                        cwd.join(path)
-                    }
-                })
-                .unwrap_or_else(|| cwd.to_path_buf());
+                .map_or_else(
+                    || cwd.to_path_buf(),
+                    |dir| {
+                        let path = Path::new(dir);
+                        if path.is_absolute() {
+                            path.to_path_buf()
+                        } else {
+                            cwd.join(path)
+                        }
+                    },
+                );
             let mut changes = HashMap::new();
             for hunk in hunks {
                 let path = hunk.resolve_path(&effective_cwd);

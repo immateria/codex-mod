@@ -98,15 +98,15 @@ impl BottomPaneView<'_> for CloudTasksView {
             KeyCode::Esc => {
                 self.complete = true;
             }
-            KeyCode::Char('r') | KeyCode::Char('R') => {
+            KeyCode::Char('r' | 'R') => {
                 self.app_event_tx.send(AppEvent::FetchCloudTasks {
                     environment: self.env_filter.clone(),
                 });
             }
-            KeyCode::Char('n') | KeyCode::Char('N') => {
+            KeyCode::Char('n' | 'N') => {
                 self.app_event_tx.send(AppEvent::OpenCloudTaskCreate);
             }
-            KeyCode::Char('e') | KeyCode::Char('E') => {
+            KeyCode::Char('e' | 'E') => {
                 self.app_event_tx.send(AppEvent::FetchCloudEnvironments);
             }
             _ => {}

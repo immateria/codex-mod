@@ -69,8 +69,7 @@ fn autolink_spans(spans: Vec<Span<'static>>) -> Vec<Span<'static>> {
         // Extract the final label (candidate TLD) and normalize.
         let tld = dom
             .rsplit_once('.')
-            .map(|(_, t)| t)
-            .unwrap_or("")
+            .map_or("", |(_, t)| t)
             .trim_matches(|c: char| !c.is_ascii_alphanumeric())
             .to_ascii_lowercase();
 

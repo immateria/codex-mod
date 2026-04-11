@@ -216,8 +216,7 @@ pub(super) fn render_header(view: &AutoCoordinatorView, buf: &mut Buffer, params
 
     let border_gradient = view.style.composer.border_gradient;
     let (text_left, text_right) = border_gradient
-        .map(style::text_gradient_colors)
-        .unwrap_or((colors::primary(), colors::text_dim()));
+        .map_or((colors::primary(), colors::text_dim()), style::text_gradient_colors);
     let fallback_color = if border_gradient.is_some() {
         text_left
     } else {

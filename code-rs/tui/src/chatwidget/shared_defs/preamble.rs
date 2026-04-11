@@ -1535,13 +1535,11 @@ impl AgentsTerminalState {
                     let sa = self
                         .entries
                         .get(a)
-                        .map(|e| agent_running_priority(e.status))
-                        .unwrap_or(usize::MAX);
+                        .map_or(usize::MAX, |e| agent_running_priority(e.status));
                     let sb = self
                         .entries
                         .get(b)
-                        .map(|e| agent_running_priority(e.status))
-                        .unwrap_or(usize::MAX);
+                        .map_or(usize::MAX, |e| agent_running_priority(e.status));
                     sa.cmp(&sb).then_with(|| positions[a].cmp(&positions[b]))
                 });
             }

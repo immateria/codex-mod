@@ -478,8 +478,7 @@ pub(in super::super::super) fn handle_exec_begin_now(
         chat.last_assigned_order = Some(
             chat
                 .last_assigned_order
-                .map(|prev| prev.max(key))
-                .unwrap_or(key),
+                .map_or(key, |prev| prev.max(key)),
         );
         chat.bottom_pane.set_has_chat_history(true);
         idx
@@ -528,9 +527,7 @@ pub(in super::super::super) fn handle_exec_begin_now(
         let preview = chat
             .exec
             .running_commands
-            .get(&super::ExecCallId(ev.call_id.clone()))
-            .map(|rc| rc.command.join(" "))
-            .unwrap_or_else(|| "command".to_string());
+            .get(&super::ExecCallId(ev.call_id.clone())).map_or_else(|| "command".to_string(), |rc| rc.command.join(" "));
         let preview_short = if preview.chars().count() > 40 {
             let mut truncated: String = preview.chars().take(40).collect();
             truncated.push('…');

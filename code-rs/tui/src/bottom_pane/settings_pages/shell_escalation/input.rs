@@ -207,7 +207,7 @@ impl ShellEscalationSettingsView {
         // Only reserve Ctrl+S; allow other control chords to bubble so global
         // bindings (and text fields) stay predictable.
         if key_event.modifiers.contains(KeyModifiers::CONTROL)
-            && !matches!(key_event.code, KeyCode::Char('s') | KeyCode::Char('S'))
+            && !matches!(key_event.code, KeyCode::Char('s' | 'S'))
         {
             return false;
         }

@@ -225,9 +225,7 @@ fn format_action_entry(action: &BrowserAction, time_label: String) -> ActionEntr
                     format_action_summary(action)
                         .strip_prefix(other)
                         .map(|suffix| suffix.trim_start_matches([' ', ':', '-']))
-                        .filter(|suffix| !suffix.is_empty())
-                        .map(ToString::to_string)
-                        .unwrap_or_else(|| format_action_summary(action))
+                        .filter(|suffix| !suffix.is_empty()).map_or_else(|| format_action_summary(action), ToString::to_string)
                 });
             ActionEntry {
                 label: "Scrolled".to_string(),
@@ -241,9 +239,7 @@ fn format_action_entry(action: &BrowserAction, time_label: String) -> ActionEntr
             let trimmed = summary
                 .strip_prefix(action.action.as_str())
                 .map(|suffix| suffix.trim_start_matches([' ', ':', '-']))
-                .filter(|suffix| !suffix.is_empty())
-                .map(ToString::to_string)
-                .unwrap_or_else(|| summary.clone());
+                .filter(|suffix| !suffix.is_empty()).map_or_else(|| summary.clone(), ToString::to_string);
             ActionEntry {
                 label,
                 detail: trimmed,

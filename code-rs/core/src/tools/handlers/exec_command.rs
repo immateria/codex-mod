@@ -81,9 +81,7 @@ impl ToolHandler for ExecCommandToolHandler {
                         .workdir
                         .as_deref()
                         .map(str::trim)
-                        .filter(|s| !s.is_empty())
-                        .map(PathBuf::from)
-                        .unwrap_or_else(|| cwd.clone());
+                        .filter(|s| !s.is_empty()).map_or_else(|| cwd.clone(), PathBuf::from);
                     if !effective_workdir.is_absolute() {
                         effective_workdir = cwd.join(&effective_workdir);
                     }

@@ -127,9 +127,7 @@ impl ModelSelectionView {
         self.data
             .current
             .current_context_window
-            .map(format_with_separators_u64)
-            .map(|value| format!("{value} tokens"))
-            .unwrap_or_else(|| "default".to_string())
+            .map(format_with_separators_u64).map_or_else(|| "default".to_string(), |value| format!("{value} tokens"))
     }
 
     pub(super) fn current_auto_compact_label(&self) -> String {
@@ -137,9 +135,7 @@ impl ModelSelectionView {
             .current
             .current_auto_compact_token_limit
             .and_then(|value| u64::try_from(value).ok())
-            .map(format_with_separators_u64)
-            .map(|value| format!("{value} tokens"))
-            .unwrap_or_else(|| "auto".to_string())
+            .map(format_with_separators_u64).map_or_else(|| "auto".to_string(), |value| format!("{value} tokens"))
     }
 
     pub(super) fn open_edit_for(&mut self, target: EditTarget, clear_existing: bool) {
@@ -403,10 +399,9 @@ impl ModelSelectionView {
                         self.data
                             .current
                             .current_context_window
-                            .map(|window| {
+                            .map_or(STEP, |window| {
                                 default_auto_compact_limit_for_context_window(window) as u64
                             })
-                            .unwrap_or(STEP)
                     });
                 let next = if delta.is_negative() {
                     current.saturating_sub(STEP).max(1)

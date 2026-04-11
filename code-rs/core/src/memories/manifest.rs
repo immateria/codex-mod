@@ -76,8 +76,7 @@ pub(crate) fn current_context_from_runtime(
     let platform_family = snapshot
         .and_then(|snap| snap.operating_system.as_ref())
         .and_then(|os| os.family.as_deref())
-        .map(memory_platform_family_from_os_family)
-        .unwrap_or(fallback_platform_family);
+        .map_or(fallback_platform_family, memory_platform_family_from_os_family);
     let shell_style = snapshot
         .and_then(|snap| snap.shell.as_ref())
         .and_then(Shell::script_style)

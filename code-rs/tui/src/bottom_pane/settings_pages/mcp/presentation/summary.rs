@@ -103,9 +103,7 @@ impl McpSettingsView {
                     &mut lines,
                     "Min interval: ",
                     row.scheduling
-                        .min_interval_sec
-                        .map(Self::format_duration)
-                        .unwrap_or_else(|| "none".to_string()),
+                        .min_interval_sec.map_or_else(|| "none".to_string(), Self::format_duration),
                     key_style,
                     value_style,
                 );
@@ -113,9 +111,7 @@ impl McpSettingsView {
                     &mut lines,
                     "Queue timeout: ",
                     row.scheduling
-                        .queue_timeout_sec
-                        .map(Self::format_duration)
-                        .unwrap_or_else(|| "none".to_string()),
+                        .queue_timeout_sec.map_or_else(|| "none".to_string(), Self::format_duration),
                     key_style,
                     value_style,
                 );
@@ -123,9 +119,7 @@ impl McpSettingsView {
                     &mut lines,
                     "Max queue depth: ",
                     row.scheduling
-                        .max_queue_depth
-                        .map(|v| v.to_string())
-                        .unwrap_or_else(|| "none".to_string()),
+                        .max_queue_depth.map_or_else(|| "none".to_string(), |v| v.to_string()),
                     key_style,
                     value_style,
                 );
@@ -210,9 +204,7 @@ impl McpSettingsView {
                                 &mut lines,
                                 "Max concurrent: ",
                                 tool_override
-                                    .max_concurrent
-                                    .map(|v| v.to_string())
-                                    .unwrap_or_else(|| "inherit".to_string()),
+                                    .max_concurrent.map_or_else(|| "inherit".to_string(), |v| v.to_string()),
                                 key_style,
                                 value_style,
                             );
@@ -220,9 +212,7 @@ impl McpSettingsView {
                                 &mut lines,
                                 "Min interval: ",
                                 tool_override
-                                    .min_interval_sec
-                                    .map(Self::format_duration)
-                                    .unwrap_or_else(|| "inherit".to_string()),
+                                    .min_interval_sec.map_or_else(|| "inherit".to_string(), Self::format_duration),
                                 key_style,
                                 value_style,
                             );

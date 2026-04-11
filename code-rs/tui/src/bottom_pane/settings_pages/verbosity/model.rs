@@ -16,8 +16,7 @@ impl VerbositySelectionView {
     pub(super) fn selected_verbosity(&self) -> TextVerbosity {
         VERBOSITY_OPTIONS
             .get(self.selected_idx())
-            .map(|(verbosity, _, _)| *verbosity)
-            .unwrap_or(self.current_verbosity)
+            .map_or(self.current_verbosity, |(verbosity, _, _)| *verbosity)
     }
 
     pub(super) fn move_selection_up(&mut self) {

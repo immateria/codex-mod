@@ -138,8 +138,7 @@ fn standard_button_layouts<'a, Id>(
 pub(crate) fn standard_button_strip_width<Id>(buttons: &[StandardButtonSpec<Id>]) -> u16 {
     standard_button_layouts(0, buttons)
         .last()
-        .map(|(x, width, _)| x.saturating_add(width))
-        .unwrap_or(0)
+        .map_or(0, |(x, width, _)| x.saturating_add(width))
 }
 
 pub(crate) fn aligned_standard_button_strip_rect<Id>(

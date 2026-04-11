@@ -42,9 +42,8 @@ impl ChatWidget<'_> {
 
     pub(in crate::chatwidget) fn auto_resolve_should_block_auto_resume(&self) -> bool {
         match self.auto_resolve_state.as_ref().map(|state| &state.phase) {
-            Some(AutoResolvePhase::PendingFix { .. })
-            | Some(AutoResolvePhase::AwaitingFix { .. })
-            | Some(AutoResolvePhase::AwaitingJudge { .. }) => true,
+            Some(AutoResolvePhase::PendingFix { .. } | AutoResolvePhase::AwaitingFix { ..
+} | AutoResolvePhase::AwaitingJudge { .. }) => true,
             Some(AutoResolvePhase::WaitingForReview) => self.is_review_flow_active(),
             None => false,
         }
@@ -344,8 +343,7 @@ impl ChatWidget<'_> {
                     let limit = self
                         .auto_resolve_state
                         .as_ref()
-                        .map(|state| state.max_attempts)
-                        .unwrap_or(0);
+                        .map_or(0, |state| state.max_attempts);
                     let message = if rationale_text.is_empty() {
                         match limit {
                             0 => "Auto-resolve: agent reported no remaining issues but automation is disabled (limit 0). Please inspect manually.".to_string(),
@@ -405,8 +403,7 @@ impl ChatWidget<'_> {
                     let limit = self
                         .auto_resolve_state
                         .as_ref()
-                        .map(|state| state.max_attempts)
-                        .unwrap_or(0);
+                        .map_or(0, |state| state.max_attempts);
                     let message = if limit == 0 {
                         "Auto-resolve: review-again requested but automation is disabled (limit 0). Stopping.".to_string()
                     } else if limit == 1 {

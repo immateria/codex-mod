@@ -117,8 +117,7 @@ impl ChatWidget<'_> {
                             if !collapsed.is_empty() {
                                 let current_line = status_lines
                                     .first()
-                                    .map(|line| line.trim_end_matches('…').trim())
-                                    .unwrap_or("");
+                                    .map_or("", |line| line.trim_end_matches('…').trim());
                                 if collapsed != current_line {
                                     let display = crate::text_formatting::truncate_chars_with_ellipsis(&collapsed, 160);
                                     status_lines.push(display);

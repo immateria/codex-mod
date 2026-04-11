@@ -15,23 +15,21 @@ impl RequestUserInputView {
         let question = self.current_question();
 
         let prompt_lines = question
-            .map(|q| {
+            .map_or(1, |q| {
                 let wrapped = textwrap::wrap(&q.question, inner_width.max(1) as usize);
                 u16::try_from(wrapped.len()).unwrap_or(u16::MAX)
             })
-            .unwrap_or(1)
             .clamp(1, 3);
 
         let options_len = question
-            .map(|q| {
+            .map_or(0, |q| {
                 let base_len = q.options.as_ref().map_or(0, std::vec::Vec::len);
                 if base_len > 0 && q.is_other {
                     base_len + 1
                 } else {
                     base_len
                 }
-            })
-            .unwrap_or(0);
+            });
 
         let options_lines = if options_len > 0 {
             u16::try_from(options_len.min(6)).unwrap_or(6).max(2)
@@ -59,8 +57,7 @@ impl RequestUserInputView {
         let question_count = self.question_count();
         let (header, prompt, options) = self
             .current_question()
-            .map(|q| (q.header.as_str(), q.question.as_str(), q.options.as_ref()))
-            .unwrap_or(("No questions", "", None));
+            .map_or(("No questions", "", None), |q| (q.header.as_str(), q.question.as_str(), q.options.as_ref()));
         let is_secret = self.current_question().is_some_and(|q| q.is_secret);
         let mask_secret = |value: &str| "*".repeat(value.chars().count());
 
@@ -168,8 +165,7 @@ impl RequestUserInputView {
                     let is_selected = selected.is_some_and(|sel| sel == other_idx);
                     let other_value = self
                         .current_answer()
-                        .map(|answer| answer.freeform.trim_end())
-                        .unwrap_or("");
+                        .map_or("", |answer| answer.freeform.trim_end());
                     let other_value = if is_secret && !other_value.is_empty() {
                         mask_secret(other_value)
                     } else {

@@ -3,10 +3,9 @@
                     let next = ThemeSplitPreview { current, preview };
                     let unchanged = self
                         .theme_split_preview
-                        .map(|existing| {
+                        .is_some_and(|existing| {
                             existing.current == next.current && existing.preview == next.preview
-                        })
-                        .unwrap_or(false);
+                        });
                     if !unchanged {
                         self.theme_split_preview = Some(next);
                         self.schedule_redraw();

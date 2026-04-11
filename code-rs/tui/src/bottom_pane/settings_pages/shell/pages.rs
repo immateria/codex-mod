@@ -26,9 +26,7 @@ impl ShellSelectionView {
         if let Some(current) = self.current_shell.as_ref() {
             let style = current
                 .script_style
-                .or_else(|| ShellScriptStyle::infer_from_shell_program(&current.path))
-                .map(|style| style.to_string())
-                .unwrap_or_else(|| "auto".to_string());
+                .or_else(|| ShellScriptStyle::infer_from_shell_program(&current.path)).map_or_else(|| "auto".to_string(), |style| style.to_string());
             let _ = write!(current_label, " (style: {style})");
         }
 
@@ -90,9 +88,7 @@ impl ShellSelectionView {
                 .script_style
                 .as_deref()
                 .and_then(ShellScriptStyle::parse)
-                .or_else(|| ShellScriptStyle::infer_from_shell_program(&shell.preset.command))
-                .map(|style| style.to_string())
-                .unwrap_or_else(|| "auto".to_string());
+                .or_else(|| ShellScriptStyle::infer_from_shell_program(&shell.preset.command)).map_or_else(|| "auto".to_string(), |style| style.to_string());
 
             let mut row = SettingsMenuRow::new(item_idx, label)
                 .with_value(StyledText::new(

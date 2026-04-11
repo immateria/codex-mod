@@ -189,8 +189,7 @@ async fn traverse_directories_for_paths(
                         .await
                         .ok()
                         .and_then(|meta| meta.modified().ok())
-                        .map(OffsetDateTime::from)
-                        .unwrap_or(OffsetDateTime::UNIX_EPOCH);
+                        .map_or(OffsetDateTime::UNIX_EPOCH, OffsetDateTime::from);
                     day_entries.push((modified, ts, sid, path));
                 }
                 day_entries.sort_by_key(|(modified, ts, sid, _)| {

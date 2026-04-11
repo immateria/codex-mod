@@ -370,8 +370,7 @@ impl HistoryCell for PlainHistoryCell {
         self.cached_layout
             .borrow()
             .as_ref()
-            .map(|cache| cache.height)
-            .unwrap_or(0)
+            .map_or(0, |cache| cache.height)
     }
 
     fn render_with_skip(&self, area: Rect, buf: &mut Buffer, skip_rows: u16) {
@@ -868,9 +867,7 @@ pub(crate) fn new_status_output(
                             &config.cwd,
                         );
                         outcome.resolved.map(|resolved| resolved.value)
-                    })
-                    .map(|k| key_suffix(&k))
-                    .unwrap_or_else(|| "????".to_string());
+                    }).map_or_else(|| "????".to_string(), |k| key_suffix(&k));
                     lines.push(Line::from(format!("  • Method: API key (…{suffix})")));
                 }
                 AuthMode::ChatGPT | AuthMode::ChatgptAuthTokens => {

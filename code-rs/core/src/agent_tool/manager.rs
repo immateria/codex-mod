@@ -244,7 +244,7 @@ impl AgentManager {
                 .agents
                 .values()
                 .next()
-                .map(|agent| {
+                .map_or((None, None), |agent| {
                     let context = agent
                         .context
                         .as_ref()
@@ -256,8 +256,7 @@ impl AgentManager {
                         Some(agent.prompt.clone())
                     };
                     (context, task)
-                })
-                .unwrap_or((None, None));
+                });
             let payload = AgentStatusUpdatePayload { agents, context, task };
             let _ = sender.send(payload);
         }

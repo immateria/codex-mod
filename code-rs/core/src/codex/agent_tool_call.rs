@@ -919,8 +919,7 @@ pub(crate) async fn handle_run_agent(
                     .join(", ");
                 let first_agent = agent_labels
                     .first()
-                    .map(|(id, _)| id.as_str())
-                    .unwrap_or(batch_id.as_str());
+                    .map_or(batch_id.as_str(), |(id, _)| id.as_str());
                 format!(
                     "Agent batch {short_batch} started: {agent_phrase}.\nUse `agent {{\"action\":\"wait\",\"wait\":{{\"batch_id\":\"{batch_id}\",\"return_all\":true}}}}` to wait for all agents, then `agent {{\"action\":\"result\",\"result\":{{\"agent_id\":\"{first_agent}\"}}}}` for a detailed report.",
                 )

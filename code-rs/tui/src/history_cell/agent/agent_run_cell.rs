@@ -236,8 +236,7 @@ impl AgentRunCell {
             let bullet_label = mode_label.map(|value| format!(" · {value}"));
             let bullet_width = bullet_label
                 .as_ref()
-                .map(|value| string_width(value.as_str()))
-                .unwrap_or(0);
+                .map_or(0, |value| string_width(value.as_str()));
 
             let mut available = remaining;
             let name_allow = if bullet_width > 0 {
@@ -429,8 +428,7 @@ impl AgentRunCell {
         if let Some(task) = self.task.as_ref().map(|t| t.trim()).filter(|t| !t.is_empty()) {
             let cleaned = task
                 .split_once("Context:")
-                .map(|(before, _)| before.trim_end())
-                .unwrap_or(task);
+                .map_or(task, |(before, _)| before.trim_end());
             if !cleaned.is_empty() {
                 lines.push(cleaned.to_string());
             }

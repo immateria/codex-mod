@@ -525,9 +525,7 @@ async fn write_version_info(version_file: &Path, info: &VersionInfo) -> anyhow::
     let path = version_file.to_path_buf();
     task::spawn_blocking(move || -> anyhow::Result<()> {
         let parent = path
-            .parent()
-            .map(Path::to_path_buf)
-            .unwrap_or_else(|| PathBuf::from("."));
+            .parent().map_or_else(|| PathBuf::from("."), Path::to_path_buf);
         let mut tmp = tempfile::Builder::new()
             .prefix("version.json.")
             .tempfile_in(&parent)?;

@@ -23,9 +23,7 @@ pub(in super::super) fn handle_custom_tool_end(
         return true;
     }
 
-    let order_key = order
-        .map(|meta| chat.provider_order_key_from_order_meta(meta))
-        .unwrap_or_else(|| chat.next_internal_key());
+    let order_key = order.map(|meta| chat.provider_order_key_from_order_meta(meta)).unwrap_or_else(|| chat.next_internal_key());
     let ordinal = order.map(|m| m.request_ordinal);
     let Some(batch) = metadata.batch_id.as_ref() else {
         return false;

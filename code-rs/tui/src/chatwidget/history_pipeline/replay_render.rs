@@ -238,8 +238,7 @@ impl ChatWidget<'_> {
             let src_row = layout
                 .rows
                 .get(src_index)
-                .map(std::convert::AsRef::as_ref)
-                .unwrap_or(&[]);
+                .map_or(&[] as &[_], |r| r.as_ref());
 
             let dest_y = offset_y + visible_offset;
             if dest_y >= buf.area.height as usize {

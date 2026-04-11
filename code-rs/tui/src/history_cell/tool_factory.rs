@@ -859,7 +859,7 @@ fn dim_webfetch_emphasis_and_links(lines: &mut Vec<Line<'static>>) {
             || t.starts_with('•')
             || t.starts_with('·')
             || t.starts_with('⋅')
-            || digit_prefix_len > 0 && matches!(numbered_list_suffix, Some('.') | Some(')'));
+            || digit_prefix_len > 0 && matches!(numbered_list_suffix, Some('.' | ')'));
 
         for sp in &mut line.spans {
             // Skip code block spans (have a solid code background)

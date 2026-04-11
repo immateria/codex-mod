@@ -212,7 +212,7 @@ fn is_quota_exceeded_http_error(status: StatusCode, error: &Error) -> bool {
 fn is_server_overloaded_error(error: &Error) -> bool {
     matches!(
         error.code.as_deref(),
-        Some("server_is_overloaded") | Some("slow_down")
+        Some("server_is_overloaded" | "slow_down")
     )
 }
 
@@ -223,11 +223,10 @@ fn is_reasoning_summary_rejected(error: &Error) -> bool {
     let message_matches = error
         .message
         .as_deref()
-        .map(|msg| {
+        .is_some_and(|msg| {
             let msg = msg.to_ascii_lowercase();
             msg.contains("organization must be verified") && msg.contains("reasoning summar")
-        })
-        .unwrap_or(false);
+        });
 
     // Only treat as rejection if it's specifically an "unsupported_value" error
     // for the reasoning.summary parameter, or if the message explicitly says
@@ -864,9 +863,7 @@ impl ModelClient {
 
             let ws_headers = req_builder
                 .try_clone()
-                .and_then(|builder| builder.build().ok())
-                .map(|req| req.headers().clone())
-                .unwrap_or_else(HeaderMap::new);
+                .and_then(|builder| builder.build().ok()).map_or_else(HeaderMap::new, |req| req.headers().clone());
 
             let mut ws_request = ws_endpoint
                 .into_client_request()
@@ -1527,8 +1524,7 @@ impl ModelClient {
 
                             let current_auth_mode = auth
                                 .as_ref()
-                                .map(|a| a.mode)
-                                .unwrap_or(AuthMode::ApiKey);
+                                .map_or(AuthMode::ApiKey, |a| a.mode);
 
                             let switch_reason = match body
                                 .as_ref()
@@ -1790,9 +1786,7 @@ impl ModelClient {
                     }
 
                     let delay = retry_after_delay
-                        .as_ref()
-                        .map(|info| info.delay)
-                        .unwrap_or_else(|| backoff(attempt));
+                        .as_ref().map_or_else(|| backoff(attempt), |info| info.delay);
                     tokio::time::sleep(delay).await;
                 }
                 Err(e) => {
@@ -1958,8 +1952,7 @@ impl ModelClient {
                 if let Some(current_account_id) = current_account_id {
                     let current_auth_mode = auth
                         .as_ref()
-                        .map(|a| a.mode)
-                        .unwrap_or(AuthMode::ApiKey);
+                        .map_or(AuthMode::ApiKey, |a| a.mode);
                     rate_limit_switch_state.mark_limited(
                         &current_account_id,
                         current_auth_mode,
@@ -2255,13 +2248,11 @@ impl From<ResponseCompletedUsage> for TokenUsage {
             input_tokens: val.input_tokens,
             cached_input_tokens: val
                 .input_tokens_details
-                .map(|d| d.cached_tokens)
-                .unwrap_or(0),
+                .map_or(0, |d| d.cached_tokens),
             output_tokens: val.output_tokens,
             reasoning_output_tokens: val
                 .output_tokens_details
-                .map(|d| d.reasoning_tokens)
-                .unwrap_or(0),
+                .map_or(0, |d| d.reasoning_tokens),
             total_tokens: val.total_tokens,
         }
     }

@@ -116,9 +116,7 @@ impl ChatWidget<'_> {
                         }
 
                         let status_text = overlay
-                            .start_time
-                            .map(|start| format!("Running… ({})", format_duration(start.elapsed())))
-                            .unwrap_or_else(|| "Running…".to_string());
+                            .start_time.map_or_else(|| "Running…".to_string(), |start| format!("Running… ({})", format_duration(start.elapsed())));
                         consumed_width = consumed_width
                             .saturating_add(UnicodeWidthStr::width(status_text.as_str()));
                         header_spans.push(ratatui::text::Span::styled(
@@ -135,25 +133,19 @@ impl ChatWidget<'_> {
                                 crate::icons::status_ok(),
                                 crate::colors::success(),
                                 overlay
-                                    .duration
-                                    .map(|d| format!("Completed in {}", format_duration(d)))
-                                    .unwrap_or_else(|| "Completed".to_string()),
+                                    .duration.map_or_else(|| "Completed".to_string(), |d| format!("Completed in {}", format_duration(d))),
                             ),
                             Some(code) => (
                                 crate::icons::status_fail(),
                                 crate::colors::error(),
                                 overlay
-                                    .duration
-                                    .map(|d| format!("Exit {code} in {}", format_duration(d)))
-                                    .unwrap_or_else(|| format!("Exit {code}")),
+                                    .duration.map_or_else(|| format!("Exit {code}"), |d| format!("Exit {code} in {}", format_duration(d))),
                             ),
                             None => (
                                 "!",
                                 crate::colors::warning(),
                                 overlay
-                                    .duration
-                                    .map(|d| format!("Stopped after {}", format_duration(d)))
-                                    .unwrap_or_else(|| "Stopped".to_string()),
+                                    .duration.map_or_else(|| "Stopped".to_string(), |d| format!("Stopped after {}", format_duration(d))),
                             ),
                         };
 

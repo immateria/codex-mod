@@ -64,8 +64,7 @@ pub(super) fn estimated_height_active_with_context_inner(
             let hint_height = ctx
                 .manual_hint
                 .as_ref()
-                .map(|text| AutoCoordinatorView::wrap_count(text, inner_width))
-                .unwrap_or(0)
+                .map_or(0, |text| AutoCoordinatorView::wrap_count(text, inner_width))
                 .max(1);
             total = total.saturating_add(hint_height);
         }

@@ -187,7 +187,7 @@ fn is_bash_like(cmd: &str) -> bool {
 fn generic_shell_expects_script_argument(shell_command: &[String]) -> bool {
     matches!(
         shell_command.last().map(String::as_str),
-        Some("-c") | Some("-lc")
+        Some("-c" | "-lc")
     )
 }
 

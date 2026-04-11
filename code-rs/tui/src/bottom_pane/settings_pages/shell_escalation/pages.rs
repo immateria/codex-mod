@@ -34,9 +34,7 @@ impl ShellEscalationSettingsView {
             )),
             Line::from(Span::styled(
                 self.active_profile
-                    .as_deref()
-                    .map(|p| format!("Profile: {p}"))
-                    .unwrap_or_else(|| "Profile: (none)".to_string()),
+                    .as_deref().map_or_else(|| "Profile: (none)".to_string(), |p| format!("Profile: {p}")),
                 s_text_dim,
             )),
             Line::from(""),

@@ -172,9 +172,7 @@ impl ChatWidget<'_> {
         let runtime_path = self
             .config
             .js_repl_runtime_path
-            .as_ref()
-            .map(|path| path.to_string_lossy().into_owned())
-            .unwrap_or_else(|| "auto".to_string());
+            .as_ref().map_or_else(|| "auto".to_string(), |path| path.to_string_lossy().into_owned());
 
         Some(format!(
             "Status: {enabled} · Runtime: {runtime} · Path: {runtime_path}"
@@ -209,9 +207,7 @@ impl ChatWidget<'_> {
             Some(shell) => {
                 let style = shell
                     .script_style
-                    .or_else(|| ShellScriptStyle::infer_from_shell_program(&shell.path))
-                    .map(|style| style.to_string())
-                    .unwrap_or_else(|| "auto".to_string());
+                    .or_else(|| ShellScriptStyle::infer_from_shell_program(&shell.path)).map_or_else(|| "auto".to_string(), |style| style.to_string());
                 Some(format!("Shell: {} · Style: {style}", shell.path))
             }
             None => Some("Shell: auto".to_string()),

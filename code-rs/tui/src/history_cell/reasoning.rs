@@ -1038,14 +1038,13 @@ fn debug_title_overlay(lines: &[Line<'static>]) -> String {
     let titles = title_previews.len();
     let lastw = lines
         .last()
-        .map(|l| {
+        .map_or(0, |l| {
             l.spans
                 .iter()
                 .map(|s| s.content.as_ref())
                 .collect::<String>()
                 .width()
-        })
-        .unwrap_or(0);
+        });
     format!(
         "rtitles={titles} idx={title_idxs:?} total_lines={total} lastw={lastw} prevs={title_previews:?}"
     )

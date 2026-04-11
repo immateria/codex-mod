@@ -788,12 +788,8 @@ impl Session {
             attempt_req,
             index,
         } = hook_ctx;
-        let sub_id = base_ctx
-            .map(|ctx| ctx.sub_id.clone())
-            .unwrap_or_else(|| INITIAL_SUBMIT_ID.to_string());
-        let base_slug = base_ctx
-            .map(|ctx| sanitize_identifier(&ctx.call_id))
-            .unwrap_or_else(|| event.slug().to_string());
+        let sub_id = base_ctx.map_or_else(|| INITIAL_SUBMIT_ID.to_string(), |ctx| ctx.sub_id.clone());
+        let base_slug = base_ctx.map_or_else(|| event.slug().to_string(), |ctx| sanitize_identifier(&ctx.call_id));
         let call_id = format!("{base_slug}_hook_{}_{}", event.slug(), index + 1);
 
         let mut env = hook.env.clone();

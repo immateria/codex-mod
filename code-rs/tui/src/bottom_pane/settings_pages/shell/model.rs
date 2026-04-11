@@ -42,8 +42,7 @@ impl ShellSelectionView {
             Some(current) => shells
                 .iter()
                 .position(|s| Self::current_matches_preset(current, &s.preset))
-                .map(|idx| idx.saturating_add(1))
-                .unwrap_or(custom_index),
+                .map_or(custom_index, |idx| idx.saturating_add(1)),
         };
 
         Self {

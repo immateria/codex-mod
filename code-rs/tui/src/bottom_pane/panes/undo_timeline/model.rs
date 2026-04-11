@@ -155,8 +155,7 @@ impl UndoTimelineView {
         let selected_height = self
             .entries
             .get(self.selected)
-            .map(UndoTimelineEntry::list_line_count)
-            .unwrap_or(1);
+            .map_or(1, UndoTimelineEntry::list_line_count);
 
         if cumulative < self.top_row {
             self.top_row = cumulative;

@@ -58,5 +58,5 @@ pub(super) fn apply_tracker_metadata(
 }
 
 fn action_requires_batch(action: Option<&str>) -> bool {
-    matches!(action, Some("create") | Some("wait") | Some("result") | Some("cancel"))
+    matches!(action, Some("create" | "wait" | "result" | "cancel"))
 }

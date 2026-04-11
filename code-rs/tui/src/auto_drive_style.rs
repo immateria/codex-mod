@@ -55,9 +55,7 @@ impl AutoDriveVariant {
     pub(crate) fn from_env() -> Self {
         env::var("CODEX_AUTO_DRIVE_VARIANT")
             .ok()
-            .and_then(|raw| raw.trim().parse::<usize>().ok())
-            .map(Self::from_index)
-            .unwrap_or_else(Self::default)
+            .and_then(|raw| raw.trim().parse::<usize>().ok()).map_or_else(Self::default, Self::from_index)
     }
 
     pub(crate) fn next(self) -> Self {

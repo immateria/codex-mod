@@ -113,8 +113,7 @@ impl BrowserSessionCell {
         let mut screenshot_layout = self.compute_screenshot_layout(body_width);
         let indent_cols = screenshot_layout
             .as_ref()
-            .map(|layout| layout.indent_cols)
-            .unwrap_or(DEFAULT_TEXT_INDENT);
+            .map_or(DEFAULT_TEXT_INDENT, |layout| layout.indent_cols);
         let indent_cols = indent_cols.min(body_width.saturating_sub(1));
         let right_padding = TEXT_RIGHT_PADDING.min(body_width);
 

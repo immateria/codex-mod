@@ -317,9 +317,7 @@ fn response_input_from_core_items(items: Vec<InputItem>) -> ResponseInputItem {
             InputItem::LocalImage { path } => match std::fs::read(&path) {
                 Ok(bytes) => {
                     let mime = mime_guess::from_path(&path)
-                        .first()
-                        .map(|m| m.essence_str().to_owned())
-                        .unwrap_or_else(|| crate::util::MIME_OCTET_STREAM.to_string());
+                        .first().map_or_else(|| crate::util::MIME_OCTET_STREAM.to_string(), |m| m.essence_str().to_owned());
                     let encoded = base64::engine::general_purpose::STANDARD.encode(bytes);
                     content_items.push(ContentItem::InputImage {
                         image_url: format!("data:{mime};base64,{encoded}"),
@@ -349,9 +347,7 @@ fn response_input_from_core_items(items: Vec<InputItem>) -> ResponseInputItem {
                 match std::fs::read(&path) {
                     Ok(bytes) => {
                         let mime = mime_guess::from_path(&path)
-                            .first()
-                            .map(|m| m.essence_str().to_owned())
-                            .unwrap_or_else(|| crate::util::MIME_OCTET_STREAM.to_string());
+                            .first().map_or_else(|| crate::util::MIME_OCTET_STREAM.to_string(), |m| m.essence_str().to_owned());
                         let encoded = base64::engine::general_purpose::STANDARD.encode(bytes);
                         tracing::info!("Created ephemeral image data URL with mime: {}", mime);
                         content_items.push(ContentItem::InputImage {

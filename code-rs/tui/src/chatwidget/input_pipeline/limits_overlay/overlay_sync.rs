@@ -147,9 +147,7 @@ impl ChatWidget<'_> {
             let account = account_map.get(&id);
             let record = snapshot_map.remove(&id);
             let usage_summary = usage_summary_map.remove(&id);
-            let title = account
-                .map(account_display_label)
-                .unwrap_or_else(|| id.clone());
+            let title = account.map_or_else(|| id.clone(), account_display_label);
             match record {
                 Some(record) => {
                     if let Some(snapshot) = record.snapshot.clone() {

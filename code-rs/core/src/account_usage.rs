@@ -682,9 +682,7 @@ fn append_rate_limit_warning_log(
     };
     let plan_field = plan.unwrap_or("-");
     let reset_field = warning
-        .reset_at
-        .map(|dt| dt.to_rfc3339())
-        .unwrap_or_else(|| "-".to_string());
+        .reset_at.map_or_else(|| "-".to_string(), |dt| dt.to_rfc3339());
     let line = format!(
         "{}\t{}\t{}\t{:.0}\t{}\t{}\t{}\n",
         warning.observed_at.to_rfc3339(),

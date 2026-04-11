@@ -29,7 +29,7 @@ const SPAWN_RETRY_DELAYS_MS: [u64; 3] = [0, 10, 50];
 
 fn is_temporary_resource_error(err: &io::Error) -> bool {
     err.kind() == io::ErrorKind::WouldBlock
-        || matches!(err.raw_os_error(), Some(35) | Some(libc::ENOMEM))
+        || matches!(err.raw_os_error(), Some(35 | libc::ENOMEM))
 }
 
 fn spawn_with_retry_blocking<F, T>(mut spawn: F) -> io::Result<T>

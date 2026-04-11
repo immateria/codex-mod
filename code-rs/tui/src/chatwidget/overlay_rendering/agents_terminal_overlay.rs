@@ -166,9 +166,7 @@ impl ChatWidget<'_> {
             .map(|entry| {
                 let label = entry
                     .model
-                    .as_ref()
-                    .map(|m| crate::text_formatting::format_model_label(m))
-                    .unwrap_or_else(|| crate::text_formatting::format_model_label(&entry.name));
+                    .as_ref().map_or_else(|| crate::text_formatting::format_model_label(&entry.name), |m| crate::text_formatting::format_model_label(m));
                 UnicodeWidthStr::width(label.as_str()) as u16
             })
             .max()
@@ -217,9 +215,7 @@ impl ChatWidget<'_> {
                 if let Some(entry) = self.agents_terminal.entries.get(&agent_id) {
                     let model_label = entry
                         .model
-                        .as_ref()
-                        .map(|value| crate::text_formatting::format_model_label(value))
-                        .unwrap_or_else(|| crate::text_formatting::format_model_label(&entry.name));
+                        .as_ref().map_or_else(|| crate::text_formatting::format_model_label(&entry.name), |value| crate::text_formatting::format_model_label(value));
                     let status = entry.status;
                     let status_icon = agent_status_icon(status);
                     let name_room = sidebar_width
@@ -324,18 +320,14 @@ impl ChatWidget<'_> {
                     let status_color = agent_status_color(status);
                     let display_name = entry
                         .model
-                        .as_ref()
-                        .map(|m| crate::text_formatting::format_model_label(m))
-                        .unwrap_or_else(|| crate::text_formatting::format_model_label(&entry.name));
+                        .as_ref().map_or_else(|| crate::text_formatting::format_model_label(&entry.name), |m| crate::text_formatting::format_model_label(m));
                     let title_text = entry
                         .batch_label
                         .as_ref()
                         .and_then(|b| {
                             let trimmed = b.trim();
                             (!trimmed.is_empty()).then(|| trimmed.to_string())
-                        })
-                        .map(|batch| format!("{batch} / {display_name}"))
-                        .unwrap_or_else(|| display_name.clone());
+                        }).map_or_else(|| display_name.clone(), |batch| format!("{batch} / {display_name}"));
 
                     lines.push(Line::from(vec![
                         Span::raw(" "),
@@ -349,9 +341,7 @@ impl ChatWidget<'_> {
                     let status_chip = format!("{} {}", agent_status_icon(status), agent_status_label(status));
                     let model_meta = entry
                         .model
-                        .as_ref()
-                        .map(|m| crate::text_formatting::format_model_label(m))
-                        .unwrap_or_else(|| display_name.clone());
+                        .as_ref().map_or_else(|| display_name.clone(), |m| crate::text_formatting::format_model_label(m));
                     let mut meta_line: Vec<Span> = vec![
                         Span::raw(" "),
                         Span::styled("Status:", s_text_dim),

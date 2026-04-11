@@ -73,7 +73,7 @@ impl ChatWidget<'_> {
                     }
                     return;
                 }
-                crossterm::event::KeyCode::Char('e') | crossterm::event::KeyCode::Char('E')
+                crossterm::event::KeyCode::Char('e' | 'E')
                     if key_event.modifiers.is_empty() =>
                 {
                     self.auto_pause_for_manual_edit(false);

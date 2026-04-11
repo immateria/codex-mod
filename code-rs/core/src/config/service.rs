@@ -132,9 +132,7 @@ impl ConfigService {
     pub fn read(&self, params: ConfigReadParams) -> Result<ConfigReadResponse, ConfigServiceError> {
         let layers_cwd = params
             .cwd
-            .as_deref()
-            .map(PathBuf::from)
-            .unwrap_or_else(|| self.default_cwd.clone());
+            .as_deref().map_or_else(|| self.default_cwd.clone(), PathBuf::from);
 
         let config = self
             .load_effective_config(Some(layers_cwd.clone()))

@@ -186,9 +186,7 @@ impl ExternalAgentConfigService {
 
     fn home_target_skills_dir(&self) -> PathBuf {
         self.codex_home
-            .parent()
-            .map(|parent| parent.join(".agents").join("skills"))
-            .unwrap_or_else(|| PathBuf::from(".agents").join("skills"))
+            .parent().map_or_else(|| PathBuf::from(".agents").join("skills"), |parent| parent.join(".agents").join("skills"))
     }
 
     fn import_config(&self, cwd: Option<&Path>) -> io::Result<()> {

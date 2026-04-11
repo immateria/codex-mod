@@ -98,8 +98,7 @@ impl ToolCallCell {
             let args_count = self.state.arguments.len();
             let result_count = self.state.result_preview
                 .as_ref()
-                .map(|r| r.lines.len())
-                .unwrap_or(0);
+                .map_or(0, |r| r.lines.len());
             let total_hidden = args_count.saturating_add(result_count);
             if total_hidden > 0 {
                 let mut parts: Vec<String> = Vec::with_capacity(2);

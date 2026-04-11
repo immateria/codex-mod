@@ -425,15 +425,13 @@ fn looks_like_url(token: &str) -> bool {
     let urlish = token
         .find("https://")
         .or_else(|| token.find("http://"))
-        .map(|idx| &token[idx..])
-        .unwrap_or(token);
+        .map_or(token, |idx| &token[idx..]);
 
     let candidate = RE
         .as_ref()
         .and_then(|re| re.captures(urlish))
         .and_then(|caps| caps.get(1))
-        .map(|m| m.as_str())
-        .unwrap_or(urlish);
+        .map_or(urlish, |m| m.as_str());
     let Ok(url) = Url::parse(candidate) else {
         return false;
     };
@@ -450,7 +448,7 @@ fn executable_basename(exe: &str) -> Option<String> {
 fn is_powershell_executable(exe: &str) -> bool {
     matches!(
         executable_basename(exe).as_deref(),
-        Some("powershell") | Some("powershell.exe") | Some("pwsh") | Some("pwsh.exe")
+        Some("powershell" | "powershell.exe" | "pwsh" | "pwsh.exe")
     )
 }
 

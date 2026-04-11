@@ -19,17 +19,13 @@ impl ShellEscalationSettingsView {
             .zsh_path
             .as_deref()
             .map(str::trim)
-            .filter(|value| !value.is_empty())
-            .map(ToString::to_string)
-            .unwrap_or_else(|| "(unset)".to_string());
+            .filter(|value| !value.is_empty()).map_or_else(|| "(unset)".to_string(), ToString::to_string);
 
         let wrapper_override = self
             .wrapper_override
             .as_deref()
             .map(str::trim)
-            .filter(|value| !value.is_empty())
-            .map(ToString::to_string)
-            .unwrap_or_else(|| "auto".to_string());
+            .filter(|value| !value.is_empty()).map_or_else(|| "auto".to_string(), ToString::to_string);
 
         rows.iter()
             .copied()

@@ -152,8 +152,7 @@ pub(super) fn style_profile_is_empty(profile: &ShellStyleProfileConfig) -> bool 
     profile
         .summary
         .as_ref()
-        .map(|value| value.trim())
-        .unwrap_or("")
+        .map_or("", |value| value.trim())
         .is_empty()
         && profile.references.is_empty()
         && profile.prepend_developer_messages.is_empty()

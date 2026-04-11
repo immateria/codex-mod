@@ -139,10 +139,9 @@ impl ChatWidget<'_> {
             .settings
             .overlay
             .as_ref()
-            .map(|overlay| {
+            .is_some_and(|overlay| {
                 overlay.active_section() == SettingsSection::Limits && !overlay.is_menu_active()
-            })
-            .unwrap_or(false);
+            });
         if refresh_limits_settings {
             self.show_limits_settings_ui();
         } else {

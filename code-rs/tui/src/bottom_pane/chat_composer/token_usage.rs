@@ -12,9 +12,7 @@ impl ChatComposer {
     ) {
         let initial_prompt_tokens = self
             .token_usage_info
-            .as_ref()
-            .map(|info| info.initial_prompt_tokens)
-            .unwrap_or_else(|| last_token_usage.cached_input_tokens);
+            .as_ref().map_or_else(|| last_token_usage.cached_input_tokens, |info| info.initial_prompt_tokens);
 
         self.token_usage_info = Some(TokenUsageInfo {
             last_token_usage,

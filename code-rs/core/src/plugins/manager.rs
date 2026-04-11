@@ -623,8 +623,7 @@ impl PluginsManager {
         };
         let plugin_root = installed_root
             .as_ref()
-            .map(AbsolutePathBuf::as_path)
-            .unwrap_or(source_root);
+            .map_or(source_root, AbsolutePathBuf::as_path);
 
         let (description, manifest_paths) = match load_plugin_manifest(plugin_root) {
             Some(manifest) => (manifest.description, Some(manifest.paths)),
@@ -634,9 +633,7 @@ impl PluginsManager {
         let apps = load_apps_from_paths(
             plugin_root,
             manifest_paths
-                .as_ref()
-                .map(|paths| plugin_app_config_paths(plugin_root, paths))
-                .unwrap_or_else(|| default_app_config_paths(plugin_root)),
+                .as_ref().map_or_else(|| default_app_config_paths(plugin_root), |paths| plugin_app_config_paths(plugin_root, paths)),
         );
 
         let mcp_servers = load_plugin_mcp_servers(plugin_root);

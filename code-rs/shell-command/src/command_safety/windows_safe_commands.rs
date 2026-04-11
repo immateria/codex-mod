@@ -186,8 +186,7 @@ impl PowershellParserOutput {
                             .iter()
                             .all(|cmd| !cmd.is_empty() && cmd.iter().all(|word| !word.is_empty()))
                 })
-                .map(PowershellParseOutcome::Commands)
-                .unwrap_or(PowershellParseOutcome::Unsupported),
+                .map_or(PowershellParseOutcome::Unsupported, PowershellParseOutcome::Commands),
             "unsupported" => PowershellParseOutcome::Unsupported,
             _ => PowershellParseOutcome::Failed,
         }

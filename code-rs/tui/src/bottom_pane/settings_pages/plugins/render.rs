@@ -249,8 +249,7 @@ impl PluginsSettingsView {
             .sources
             .marketplace_repos
             .get(index)
-            .map(|repo| repo.url.as_str())
-            .unwrap_or("(unknown repo)");
+            .map_or("(unknown repo)", |repo| repo.url.as_str());
         let lines = vec![
             Line::from(Span::styled(
                 "Remove marketplace repo?".to_string(),

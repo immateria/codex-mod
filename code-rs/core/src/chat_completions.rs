@@ -498,9 +498,7 @@ pub(crate) async fn stream_chat_completions(
                     .and_then(|v| v.to_str().ok())
                     .and_then(|s| s.parse::<u64>().ok());
 
-                let delay = retry_after_secs
-                    .map(|s| Duration::from_millis(s * 1_000))
-                    .unwrap_or_else(|| backoff(attempt));
+                let delay = retry_after_secs.map_or_else(|| backoff(attempt), |s| Duration::from_millis(s * 1_000));
                 tokio::time::sleep(delay).await;
             }
             Err(e) => {

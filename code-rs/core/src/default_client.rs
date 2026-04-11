@@ -100,9 +100,7 @@ pub fn get_code_user_agent_with_suffix(
 ) -> String {
     let build_version = code_version::wire_compatible_version();
     let os_info = os_info::get();
-    let originator_value = originator_override
-        .map(str::to_string)
-        .unwrap_or_else(|| originator().value);
+    let originator_value = originator_override.map_or_else(|| originator().value, str::to_string);
     let prefix = format!(
         "{originator_value}/{build_version} ({} {}; {}) {}",
         os_info.os_type(),

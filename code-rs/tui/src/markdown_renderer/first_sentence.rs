@@ -49,7 +49,7 @@ fn apply_first_sentence_style(spans: &mut Vec<Span<'static>>) -> bool {
             let ok = match next {
                 None => true,
                 Some(c) if c.is_whitespace() => true,
-                Some('"') | Some('\'') => {
+                Some('"' | '\'') => {
                     let n2 = chars.get(i + 2).copied();
                     n2.is_none() || n2.is_some_and(char::is_whitespace)
                 }

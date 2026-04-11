@@ -1228,9 +1228,7 @@ fn short_display_path(path: &str) -> String {
         !p.is_empty() && *p != "build" && *p != "dist" && *p != "node_modules" && *p != "src"
     });
     parts
-        .next()
-        .map(ToString::to_string)
-        .unwrap_or_else(|| trimmed.to_string())
+        .next().map_or_else(|| trimmed.to_string(), ToString::to_string)
 }
 
 // Skip values consumed by specific flags and ignore --flag=value style arguments.

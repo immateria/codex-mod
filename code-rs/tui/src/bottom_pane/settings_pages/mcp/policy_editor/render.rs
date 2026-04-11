@@ -286,9 +286,7 @@ impl McpSettingsView {
             let max_conc = if override_max_concurrent_invalid {
                 "?".to_string()
             } else {
-                effective_max_concurrent
-                    .map(|v| v.to_string())
-                    .unwrap_or_else(|| "?".to_string())
+                effective_max_concurrent.map_or_else(|| "?".to_string(), |v| v.to_string())
             };
 
             let min_int = if override_min_interval_invalid {

@@ -91,8 +91,7 @@ impl ChatWidget<'_> {
         let seed = self
             .last_assigned_order
             .filter(|key| key.req == req)
-            .map(|key| key.seq.saturating_add(1))
-            .unwrap_or(0);
+            .map_or(0, |key| key.seq.saturating_add(1));
 
         let counter = self
             .ui_background_seq_counters

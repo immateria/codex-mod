@@ -16,14 +16,13 @@ impl BrowserSessionOrderKey {
     fn from_order_meta(meta: &code_core::protocol::OrderMeta) -> Self {
         let out = meta
             .output_index
-            .map(|value| {
+            .map_or(i32::MAX, |value| {
                 if value > i32::MAX as u32 {
                     i32::MAX
                 } else {
                     value as i32
                 }
-            })
-            .unwrap_or(i32::MAX);
+            });
         Self {
             req: meta.request_ordinal,
             out,

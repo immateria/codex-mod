@@ -7,7 +7,7 @@ impl AppsSettingsView {
         self.sync_sources_snapshot_if_clean();
 
         if key_event.modifiers.contains(KeyModifiers::CONTROL)
-            && !matches!(key_event.code, KeyCode::Char('s') | KeyCode::Char('S'))
+            && !matches!(key_event.code, KeyCode::Char('s' | 'S'))
         {
             return false;
         }

@@ -89,9 +89,7 @@ pub(super) fn config_error_from_toml(
     err: toml::de::Error,
 ) -> ConfigError {
     let range = err
-        .span()
-        .map(|span| text_range_from_span(contents, span))
-        .unwrap_or_else(default_range);
+        .span().map_or_else(default_range, |span| text_range_from_span(contents, span));
     ConfigError::new(path.as_ref().to_path_buf(), range, err.message())
 }
 
@@ -114,9 +112,7 @@ pub(super) fn config_error_from_config_toml(
             let path_hint = err.path().clone();
             let toml_err: toml::de::Error = err.into_inner();
             let range = span_for_config_path(contents, &path_hint)
-                .or_else(|| toml_err.span())
-                .map(|span| text_range_from_span(contents, span))
-                .unwrap_or_else(default_range);
+                .or_else(|| toml_err.span()).map_or_else(default_range, |span| text_range_from_span(contents, span));
             Some((
                 ConfigError::new(path.as_ref().to_path_buf(), range, toml_err.message()),
                 Some(toml_err),
@@ -192,16 +188,13 @@ fn position_for_offset(contents: &str, index: usize) -> TextPosition {
     let line_start = bytes[..index]
         .iter()
         .rposition(|byte| *byte == b'\n')
-        .map(|pos| pos + 1)
-        .unwrap_or(0);
+        .map_or(0, |pos| pos + 1);
     let line = bytes[..line_start]
         .iter()
         .filter(|byte| **byte == b'\n')
         .count();
 
-    let column = std::str::from_utf8(&bytes[line_start..=index])
-        .map(|slice| slice.chars().count().saturating_sub(1))
-        .unwrap_or_else(|_| index - line_start);
+    let column = std::str::from_utf8(&bytes[line_start..=index]).map_or_else(|_| index - line_start, |slice| slice.chars().count().saturating_sub(1));
     let column = column + column_offset;
 
     TextPosition {

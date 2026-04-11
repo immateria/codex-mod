@@ -143,7 +143,7 @@ pub(super) fn handle_key_event_direct(view: &mut ShellProfilesSettingsView, key:
                 state.scroll.move_down_wrap_visible(state.items.len(), visible);
                 true
             }
-            (KeyCode::Char(' '), KeyModifiers::NONE) | (KeyCode::Enter, KeyModifiers::NONE) => {
+            (KeyCode::Char(' ') | KeyCode::Enter, KeyModifiers::NONE) => {
                 ShellProfilesSettingsView::toggle_picker_selection(state)
             }
             _ => false,

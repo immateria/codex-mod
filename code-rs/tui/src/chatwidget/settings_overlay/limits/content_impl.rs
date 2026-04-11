@@ -235,8 +235,7 @@ impl LimitsSettingsContent {
         let left_end = lines[..split_idx]
             .iter()
             .rposition(|line| !Self::line_is_blank(line))
-            .map(|idx| idx + 1)
-            .unwrap_or(split_idx);
+            .map_or(split_idx, |idx| idx + 1);
         if left_end == 0 {
             return None;
         }

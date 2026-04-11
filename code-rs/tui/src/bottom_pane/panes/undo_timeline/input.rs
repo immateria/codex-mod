@@ -38,12 +38,12 @@ impl UndoTimelineView {
                 true
             }
             KeyCode::Char(' ') => self.toggle_files(),
-            KeyCode::Char('c') | KeyCode::Char('C')
+            KeyCode::Char('c' | 'C')
                 if !key_event.modifiers.contains(KeyModifiers::CONTROL) =>
             {
                 self.toggle_conversation()
             }
-            KeyCode::Char('f') | KeyCode::Char('F')
+            KeyCode::Char('f' | 'F')
                 if !key_event.modifiers.contains(KeyModifiers::CONTROL) =>
             {
                 self.toggle_files()

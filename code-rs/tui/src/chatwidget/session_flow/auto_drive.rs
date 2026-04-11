@@ -93,7 +93,7 @@ impl ChatWidget<'_> {
             .path
             .extension()
             .and_then(|ext| ext.to_str())
-            .map(|ext| {
+            .map_or("application/octet-stream", |ext| {
                 let ext_lower = ext.to_ascii_lowercase();
                 match ext_lower.as_str() {
                     "png" => "image/png",
@@ -107,7 +107,6 @@ impl ChatWidget<'_> {
                     _ => "application/octet-stream",
                 }
             })
-            .unwrap_or("application/octet-stream")
             .to_string();
         let encoded = BASE64_STANDARD.encode(bytes);
 

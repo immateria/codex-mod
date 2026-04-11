@@ -56,8 +56,7 @@ pub(super) fn handle_settings_key(chat: &mut ChatWidget<'_>, key_event: KeyEvent
                     .settings
                     .overlay
                     .as_ref()
-                    .map(super::settings_overlay::SettingsOverlayView::active_section)
-                    .unwrap_or(crate::bottom_pane::SettingsSection::Model);
+                    .map_or(crate::bottom_pane::SettingsSection::Model, super::settings_overlay::SettingsOverlayView::active_section);
                 if let Some(overlay) = chat.settings.overlay.as_mut() {
                     overlay.set_mode_section(section);
                 }
@@ -279,8 +278,7 @@ pub(super) fn handle_settings_key(chat: &mut ChatWidget<'_>, key_event: KeyEvent
         .settings
         .overlay
         .as_ref()
-        .map(super::settings_overlay::SettingsOverlayView::active_section)
-        .unwrap_or(crate::bottom_pane::SettingsSection::Model);
+        .map_or(crate::bottom_pane::SettingsSection::Model, super::settings_overlay::SettingsOverlayView::active_section);
     let (handled_by_content, did_complete) = {
         let Some(overlay) = chat.settings.overlay.as_mut() else {
             return true;

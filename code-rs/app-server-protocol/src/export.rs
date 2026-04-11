@@ -250,9 +250,7 @@ fn filter_client_request_ts(out_dir: &Path, experimental_methods: &[&str]) -> Re
         .collect();
     let new_body = filtered_arms.join(" | ");
     content = format!("{prefix}{new_body}{suffix}");
-    let import_usage_scope = split_type_alias(&content)
-        .map(|(_, body, _)| body)
-        .unwrap_or_else(|| new_body.clone());
+    let import_usage_scope = split_type_alias(&content).map_or_else(|| new_body.clone(), |(_, body, _)| body);
     content = prune_unused_type_imports(content, &import_usage_scope);
 
     fs::write(&path, content).with_context(|| format!("Failed to write {}", path.display()))?;
@@ -311,9 +309,7 @@ fn filter_experimental_fields_in_ts_file(
     let prefix = &content[..open_brace + 1];
     let suffix = &content[close_brace..];
     content = format!("{prefix}{new_inner}{suffix}");
-    let import_usage_scope = split_type_alias(&content)
-        .map(|(_, body, _)| body)
-        .unwrap_or_else(|| new_inner.clone());
+    let import_usage_scope = split_type_alias(&content).map_or_else(|| new_inner.clone(), |(_, body, _)| body);
     content = prune_unused_type_imports(content, &import_usage_scope);
     fs::write(path, content).with_context(|| format!("Failed to write {}", path.display()))?;
     Ok(())

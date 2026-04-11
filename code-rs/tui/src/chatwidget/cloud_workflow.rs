@@ -133,9 +133,7 @@ impl ChatWidget<'_> {
             Some(ref id) => self
                 .cloud_tasks_selected_env
                 .as_ref()
-                .filter(|env| env.id == *id)
-                .map(|env| self.display_name_for_env(env))
-                .unwrap_or_else(|| format!("Environment {id}")),
+                .filter(|env| env.id == *id).map_or_else(|| format!("Environment {id}"), |env| self.display_name_for_env(env)),
             None => "All environments".to_string(),
         };
         let view = CloudTasksView::new(
@@ -231,9 +229,7 @@ impl ChatWidget<'_> {
     pub(crate) fn set_cloud_environment(&mut self, environment: Option<CloudEnvironment>) {
         self.cloud_tasks_selected_env = environment.clone();
         let label = environment
-            .as_ref()
-            .map(|env| self.display_name_for_env(env))
-            .unwrap_or_else(|| "All environments".to_string());
+            .as_ref().map_or_else(|| "All environments".to_string(), |env| self.display_name_for_env(env));
         self.bottom_pane
             .flash_footer_notice(format!("Cloud tasks filter set to {label}"));
         self.request_cloud_task_refresh(None);
@@ -254,9 +250,7 @@ impl ChatWidget<'_> {
 
     pub(super) fn cloud_env_label(&self) -> String {
         self.cloud_tasks_selected_env
-            .as_ref()
-            .map(|env| self.display_name_for_env(env))
-            .unwrap_or_else(|| "All environments".to_string())
+            .as_ref().map_or_else(|| "All environments".to_string(), |env| self.display_name_for_env(env))
     }
 
     pub(super) fn current_cloud_env_id(&self) -> Option<String> {

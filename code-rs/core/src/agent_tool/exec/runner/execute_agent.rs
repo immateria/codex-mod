@@ -171,9 +171,7 @@ pub(crate) async fn execute_agent(agent_id: String, config: Option<AgentConfig>)
 
                         // Execute with full permissions in the worktree
                         let use_built_in_cloud = config.is_none()
-                            && model_spec
-                                .map(|spec| spec.cli.eq_ignore_ascii_case("cloud"))
-                                .unwrap_or_else(|| model.eq_ignore_ascii_case("cloud"));
+                            && model_spec.map_or_else(|| model.eq_ignore_ascii_case("cloud"), |spec| spec.cli.eq_ignore_ascii_case("cloud"));
 
                         if use_built_in_cloud {
                             if let Some(spec) = model_spec {
@@ -226,9 +224,7 @@ pub(crate) async fn execute_agent(agent_id: String, config: Option<AgentConfig>)
             "{full_prompt}\n\n[Running in read-only mode - no modifications allowed]"
         );
         let use_built_in_cloud = config.is_none()
-            && model_spec
-                .map(|spec| spec.cli.eq_ignore_ascii_case("cloud"))
-                .unwrap_or_else(|| model.eq_ignore_ascii_case("cloud"));
+            && model_spec.map_or_else(|| model.eq_ignore_ascii_case("cloud"), |spec| spec.cli.eq_ignore_ascii_case("cloud"));
 
         if use_built_in_cloud {
             if let Some(spec) = model_spec {

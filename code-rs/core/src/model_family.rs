@@ -40,9 +40,7 @@ const MAX_OUTPUT_DEFAULT: u64 = 128_000;
 const IMAGE_GENERATION_TOOL: &str = "image_generation";
 
 static UPSTREAM_MODELS: Lazy<Vec<ModelInfo>> = Lazy::new(|| {
-    serde_json::from_str::<ModelsResponse>(include_str!("../../../codex-rs/models-manager/models.json"))
-        .map(|response| response.models)
-        .unwrap_or_else(|err| panic!("failed to parse upstream models.json: {err}"))
+    serde_json::from_str::<ModelsResponse>(include_str!("../../../codex-rs/models-manager/models.json")).map_or_else(|err| panic!("failed to parse upstream models.json: {err}"), |response| response.models)
 });
 
 fn namespaced_model_suffix(model: &str) -> Option<&str> {

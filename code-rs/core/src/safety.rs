@@ -353,14 +353,11 @@ pub(crate) fn assess_safety_for_untrusted_command(
             // commands.
             SafetyCheck::AskUser
         }
-        (OnFailure, DangerFullAccess)
-        | (Never, DangerFullAccess)
-        | (OnRequest, DangerFullAccess)
-        | (Reject(_), DangerFullAccess) => SafetyCheck::AutoApprove {
+        (OnFailure | Never | OnRequest | Reject(_), DangerFullAccess) => SafetyCheck::AutoApprove {
             sandbox_type: SandboxType::None,
             user_explicitly_approved: false,
         },
-        (Reject(config), ReadOnly) | (Reject(config), WorkspaceWrite { .. }) => {
+        (Reject(config), ReadOnly | WorkspaceWrite { .. }) => {
             if config.rejects_sandbox_approval() || config.rejects_rules_approval() {
                 SafetyCheck::Reject {
                     reason: "auto-rejected by approval policy".to_string(),
@@ -379,7 +376,7 @@ pub(crate) fn assess_safety_for_untrusted_command(
                 }
             }
         }
-        (OnRequest, ReadOnly) | (OnRequest, WorkspaceWrite { .. }) => {
+        (OnRequest, ReadOnly | WorkspaceWrite { .. }) => {
             if sandbox_permissions.requests_sandbox_override()
                 && !(sandbox_override_preapproved && sandbox_permissions.uses_additional_permissions())
             {
@@ -396,10 +393,8 @@ pub(crate) fn assess_safety_for_untrusted_command(
                 }
             }
         }
-        (Never, ReadOnly)
-        | (Never, WorkspaceWrite { .. })
-        | (OnFailure, ReadOnly)
-        | (OnFailure, WorkspaceWrite { .. }) => {
+        (Never | OnFailure, ReadOnly) | (Never, WorkspaceWrite { .. }) |
+(OnFailure, WorkspaceWrite { .. }) => {
             match get_platform_sandbox() {
                 Some(sandbox_type) => SafetyCheck::AutoApprove {
                     sandbox_type,

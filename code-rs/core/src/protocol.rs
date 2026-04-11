@@ -842,14 +842,12 @@ fn rate_limit_snapshot_from_protocol(
     let primary_used = snapshot
         .primary
         .as_ref()
-        .map(|window| window.used_percent)
-        .unwrap_or(0.0)
+        .map_or(0.0, |window| window.used_percent)
         .clamp(0.0, 100.0);
     let secondary_used = snapshot
         .secondary
         .as_ref()
-        .map(|window| window.used_percent)
-        .unwrap_or(0.0)
+        .map_or(0.0, |window| window.used_percent)
         .clamp(0.0, 100.0);
     let primary_window_minutes = snapshot
         .primary

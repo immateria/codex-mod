@@ -295,9 +295,7 @@ impl ThemeSelectionView {
                 let _ = progress_tx.send(ProgressMsg::RawOutput(out.clone()));
                 // If we received no content at all, surface the transport error explicitly
                 if out.trim().is_empty() {
-                    let err = last_err
-                        .map(|e| format!("model stream error: {e}"))
-                        .unwrap_or_else(|| "model stream returned no content".to_string());
+                    let err = last_err.map_or_else(|| "model stream returned no content".to_string(), |e| format!("model stream error: {e}"));
                     let _ = progress_tx.send(ProgressMsg::CompletedErr {
                         error: err,
                         _raw_snippet: String::new(),
@@ -343,9 +341,7 @@ impl ThemeSelectionView {
                             }
                         } else {
                             // Prefer a clearer message if we saw a transport error
-                            let msg = last_err
-                                .map(|le| format!("model stream error: {le}"))
-                                .unwrap_or_else(|| e.to_string());
+                            let msg = last_err.map_or_else(|| e.to_string(), |le| format!("model stream error: {le}"));
                             let _ = progress_tx.send(ProgressMsg::CompletedErr {
                                 error: msg,
                                 _raw_snippet: out.chars().take(200).collect(),

@@ -132,9 +132,7 @@ impl ChatWidget<'_> {
                 let explicit_id = id.clone();
                 let stream_identifier = explicit_id.clone().unwrap_or_else(|| {
                     self.stream
-                        .current_stream_id()
-                        .map(ToString::to_string)
-                        .unwrap_or_else(|| "stream-preview".to_string())
+                        .current_stream_id().map_or_else(|| "stream-preview".to_string(), ToString::to_string)
                 });
 
                 let fallback_preview = self
@@ -269,9 +267,7 @@ impl ChatWidget<'_> {
         if !preview.is_empty() && !preview.ends_with('\n') {
             preview.push('\n');
         }
-        let mut stream_id_string = stream_id
-            .map(str::to_owned)
-            .unwrap_or_else(|| "stream-preview".to_string());
+        let mut stream_id_string = stream_id.map_or_else(|| "stream-preview".to_string(), str::to_owned);
         if stream_id_string.is_empty() {
             stream_id_string = "stream-preview".to_string();
         }
@@ -1013,7 +1009,7 @@ impl ChatWidget<'_> {
             let should_replace = self.history_cells[idx]
                 .as_any()
                 .downcast_ref::<history_cell::AssistantMarkdownCell>()
-                .map(|amc| {
+                .is_some_and(|amc| {
                     let prev = Self::normalize_text(amc.markdown());
                     let newn = Self::normalize_text(&final_source);
                     let identical = prev == newn;
@@ -1024,8 +1020,7 @@ impl ChatWidget<'_> {
                     let is_suffix_expansion = newn.ends_with(&prev);
                     let is_large_superset = prev.len() >= 80 && newn.contains(&prev);
                     identical || is_prefix_expansion || is_suffix_expansion || is_large_superset
-                })
-                .unwrap_or(false);
+                });
             if should_replace {
                 tracing::debug!(
                     "final-answer: replacing tail AssistantMarkdownCell via heuristic identical/expansion"

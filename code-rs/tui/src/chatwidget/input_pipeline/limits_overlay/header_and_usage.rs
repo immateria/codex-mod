@@ -7,11 +7,10 @@ impl ChatWidget<'_> {
         let mut lines: Vec<RtLine<'static>> = Vec::new();
 
         let account_type = account
-            .map(|acc| match acc.mode {
+            .map_or("Unknown account", |acc| match acc.mode {
                 AuthMode::ChatGPT | AuthMode::ChatgptAuthTokens => "ChatGPT account",
                 AuthMode::ApiKey => "API key",
-            })
-            .unwrap_or("Unknown account");
+            });
 
         let plan = record
             .and_then(|r| r.plan.as_deref())
