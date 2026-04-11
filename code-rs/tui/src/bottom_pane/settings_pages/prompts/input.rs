@@ -287,7 +287,8 @@ impl PromptsSettingsView {
             self.focus = Focus::List;
             return;
         };
-        let name = self.prompts[selected].name.clone();
+        let Some(entry) = self.prompts.get(selected) else { return };
+        let name = entry.name.clone();
         self.mode = Mode::ConfirmDelete { name, selected_idx: selected };
         self.focused_confirm_button = ConfirmAction::Cancel;
         self.hovered_confirm_button = None;
@@ -321,7 +322,7 @@ impl PromptsSettingsView {
     }
 
     pub(super) fn execute_delete(&mut self, selected: usize) {
-        let prompt = self.prompts[selected].clone();
+        let Some(prompt) = self.prompts.get(selected).cloned() else { return };
         if let Err(e) = fs::remove_file(&prompt.path) {
             // Ignore missing file but surface other errors
             if e.kind() != std::io::ErrorKind::NotFound {
