@@ -46,9 +46,9 @@ pub(crate) fn render_rows(
             if sel < start_idx {
                 start_idx = sel;
             } else if visible_rows > 0 {
-                let bottom = start_idx + visible_rows - 1;
+                let bottom = start_idx.saturating_add(visible_rows).saturating_sub(1);
                 if sel > bottom {
-                    start_idx = sel + 1 - visible_rows;
+                    start_idx = sel.saturating_add(1).saturating_sub(visible_rows);
                 }
             }
         }
