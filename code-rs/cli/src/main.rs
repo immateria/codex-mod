@@ -1840,7 +1840,7 @@ async fn preview_main(args: PreviewArgs) -> anyhow::Result<()> {
 
     let tmp = tempdir()?;
     let mut downloaded: Option<(std::path::PathBuf, String)> = None;
-    for u in urls.iter() {
+    for u in &urls {
         let resp = client.get(u).send().await?;
         if resp.status().is_success() {
             let data = resp.bytes().await?;

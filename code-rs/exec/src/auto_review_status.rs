@@ -42,7 +42,7 @@ impl AutoReviewTracker {
     pub(crate) fn update(&mut self, event: &AgentStatusUpdateEvent) -> Vec<AutoReviewCompletion> {
         let mut completions: Vec<AutoReviewCompletion> = Vec::new();
 
-        for agent in event.agents.iter() {
+        for agent in &event.agents {
             if !matches!(agent.source_kind, Some(AgentSourceKind::AutoReview)) {
                 continue;
             }

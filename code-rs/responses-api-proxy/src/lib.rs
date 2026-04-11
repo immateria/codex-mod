@@ -178,7 +178,7 @@ fn forward_request(client: &Client, auth_header: &'static str, mut req: Request)
     // `tiny_http::Response`.
     let status = upstream_resp.status();
     let mut response_headers = Vec::new();
-    for (name, value) in upstream_resp.headers().iter() {
+    for (name, value) in upstream_resp.headers() {
         // Skip headers that tiny_http manages itself.
         if matches!(
             name.as_str(),

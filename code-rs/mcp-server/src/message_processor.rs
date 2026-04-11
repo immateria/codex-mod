@@ -1495,7 +1495,7 @@ fn session_models_from_config(config: &Config) -> Option<acp::SessionModelState>
     let mut available_models = Vec::new();
     let mut current_model_id: Option<acp::ModelId> = None;
 
-    for preset in presets.iter() {
+    for preset in &presets {
         let id = acp::ModelId(Arc::from(preset.id.as_str()));
         let description = if preset.description.is_empty() {
             None
@@ -1562,7 +1562,7 @@ fn resolve_model_selection(model_id: &acp::ModelId, config: &Config) -> Option<M
 
     let (auth_mode, supports_pro_only_models) = model_picker_auth_state(config);
 
-    for preset in builtin_model_presets(auth_mode, supports_pro_only_models).iter() {
+    for preset in &builtin_model_presets(auth_mode, supports_pro_only_models) {
         if preset.id.eq_ignore_ascii_case(&requested)
             || preset.display_name.eq_ignore_ascii_case(&requested)
             || preset.model.eq_ignore_ascii_case(&requested)

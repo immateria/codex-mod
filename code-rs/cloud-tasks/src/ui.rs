@@ -962,7 +962,7 @@ pub fn draw_env_modal(frame: &mut Frame, area: Rect, app: &mut App) {
 
     let mut items: Vec<ListItem> = Vec::new();
     items.push(ListItem::new(Line::from("All Environments (Global)")));
-    for env in envs.iter() {
+    for env in &envs {
         let primary = env.label.clone().unwrap_or_else(|| "<unnamed>".to_string());
         let mut spans: Vec<ratatui::text::Span> = vec![primary.into()];
         if env.is_pinned {

@@ -28,7 +28,7 @@ pub fn fuzzy_match(haystack: &str, needle: &str) -> Option<(Vec<usize>, i32)> {
     let mut result_orig_indices: Vec<usize> = Vec::with_capacity(lowered_needle.len());
     let mut last_lower_pos: Option<usize> = None;
     let mut cur = 0usize;
-    for &nc in lowered_needle.iter() {
+    for &nc in &lowered_needle {
         let mut found_at: Option<usize> = None;
         while cur < lowered_chars.len() {
             if lowered_chars[cur] == nc {

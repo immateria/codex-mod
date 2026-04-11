@@ -76,7 +76,7 @@ impl AutoDriveHistory {
 
         let mut filtered = Vec::with_capacity(tail.len());
         let queue = &mut self.pending_duplicates;
-        for item in tail.into_iter() {
+        for item in tail {
             let matched = normalize_message(&item)
                 .and_then(|message| queue.front().map(|expected| (message, expected)))
                 .is_some_and(|(message, expected)| message == *expected);

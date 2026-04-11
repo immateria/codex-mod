@@ -525,7 +525,7 @@ impl EventProcessor for EventProcessorWithHumanOutput {
 
                 // Pretty-print the patch summary with colored diff markers so
                 // it's easy to scan in the terminal output.
-                for (path, change) in changes.iter() {
+                for (path, change) in &changes {
                     match change {
                         FileChange::Add { content } => {
                             let header = format!(

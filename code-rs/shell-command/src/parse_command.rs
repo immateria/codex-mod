@@ -75,7 +75,7 @@ pub fn parse_command(command: &[String]) -> Vec<ParsedCommand> {
     // Parse and then collapse consecutive duplicate commands to avoid redundant summaries.
     let parsed = parse_command_impl(command);
     let mut deduped: Vec<ParsedCommand> = Vec::with_capacity(parsed.len());
-    for cmd in parsed.into_iter() {
+    for cmd in parsed {
         if deduped.last().is_some_and(|prev| prev == &cmd) {
             continue;
         }

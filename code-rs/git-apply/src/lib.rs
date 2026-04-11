@@ -454,11 +454,11 @@ pub fn parse_git_apply_output(
     }
 
     // Final precedence: conflicts > applied > skipped
-    for p in conflicted.iter() {
+    for p in &conflicted {
         applied.remove(p);
         skipped.remove(p);
     }
-    for p in applied.iter() {
+    for p in &applied {
         skipped.remove(p);
     }
 
