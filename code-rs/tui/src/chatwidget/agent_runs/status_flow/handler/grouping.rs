@@ -41,7 +41,7 @@ pub(super) fn take_or_create_tracker(
     chat: &mut ChatWidget<'_>,
     batch_id: &str,
 ) -> (AgentRunTracker, String) {
-    let (mut tracker, resolved_key) = match chat
+    let (mut tracker, resolved_key) = if let Some((tracker, key)) = chat
         .tools_state
         .agent_run_by_batch
         .get(batch_id)
@@ -51,13 +51,10 @@ pub(super) fn take_or_create_tracker(
                 .agent_runs
                 .remove(&key)
                 .map(|tracker| (tracker, key))
-        }) {
-        Some((tracker, key)) => (tracker, key),
-        None => {
-            let order_key = chat.next_internal_key();
-            tracing::warn!(batch_id, "status_update received with no existing tracker; creating placeholder");
-            (AgentRunTracker::new(order_key), agent_batch_key(batch_id))
-        }
+        }) { (tracker, key) } else {
+        let order_key = chat.next_internal_key();
+        tracing::warn!(batch_id, "status_update received with no existing tracker; creating placeholder");
+        (AgentRunTracker::new(order_key), agent_batch_key(batch_id))
     };
     let order_key = tracker
         .slot

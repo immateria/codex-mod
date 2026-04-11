@@ -254,12 +254,9 @@ impl<'a> BottomPane<'a> {
     /// Called when the agent requests user approval.
     pub fn push_approval_request(&mut self, request: ApprovalRequest, ticket: BackgroundOrderTicket) {
         let (request, ticket) = if let Some(view) = self.active_view.as_mut() {
-            match view.try_consume_approval_request(request, ticket) {
-                Some((request, ticket)) => (request, ticket),
-                None => {
-                    self.request_redraw();
-                    return;
-                }
+            if let Some((request, ticket)) = view.try_consume_approval_request(request, ticket) { (request, ticket) } else {
+                self.request_redraw();
+                return;
             }
         } else {
             (request, ticket)

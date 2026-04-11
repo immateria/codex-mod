@@ -131,26 +131,23 @@ impl MarkdownStreamCollector {
             return;
         }
 
-        match chars.next() {
-            Some((second_idx, second_char)) => {
-                if matches!(second_char, ' ' | '\t') {
-                    let drain_end = second_idx + second_char.len_utf8();
-                    self.buffer.drain(..drain_end);
-                    self.leading_bullet_state = Some(true);
-                } else if matches!(second_char, '\n' | '\r') {
-                    self.buffer.drain(..second_idx);
-                    self.leading_bullet_state = Some(true);
-                } else if second_char.is_whitespace() {
-                    let drain_end = second_idx + second_char.len_utf8();
-                    self.buffer.drain(..drain_end);
-                    self.leading_bullet_state = Some(true);
-                } else {
-                    self.leading_bullet_state = Some(false);
-                }
+        if let Some((second_idx, second_char)) = chars.next() {
+            if matches!(second_char, ' ' | '\t') {
+                let drain_end = second_idx + second_char.len_utf8();
+                self.buffer.drain(..drain_end);
+                self.leading_bullet_state = Some(true);
+            } else if matches!(second_char, '\n' | '\r') {
+                self.buffer.drain(..second_idx);
+                self.leading_bullet_state = Some(true);
+            } else if second_char.is_whitespace() {
+                let drain_end = second_idx + second_char.len_utf8();
+                self.buffer.drain(..drain_end);
+                self.leading_bullet_state = Some(true);
+            } else {
+                self.leading_bullet_state = Some(false);
             }
-            None => {
-                // Only '-' received so far; wait for more context.
-            }
+        } else {
+            // Only '-' received so far; wait for more context.
         }
     }
 

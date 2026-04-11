@@ -99,38 +99,35 @@ impl ChatWidget<'_> {
             let Some(state) = self.auto_resolve_state.as_mut() else {
                 return;
             };
-            match review_output {
-                Some(ref output) => {
-                    state.attempt = state.attempt.saturating_add(1);
-                    state.last_review = Some(output.clone());
-                    state.last_fix_message = None;
+            if let Some(ref output) = review_output {
+                state.attempt = state.attempt.saturating_add(1);
+                state.last_review = Some(output.clone());
+                state.last_fix_message = None;
 
-                    if output.findings.is_empty() {
-                        notice = Some("Auto-resolve: review reported no actionable findings. Exiting.".to_string());
-                        should_clear = true;
-                    } else if state.max_attempts > 0 && state.attempt > state.max_attempts {
-                        let limit = state.max_attempts;
-                        notice = Some(match limit {
-                            0 => "Auto-resolve: attempt limit is set to 0, so automation stopped after the initial review.".to_string(),
-                            1 => "Auto-resolve: reached the review attempt limit (1 allowed review). Handing control back to you.".to_string(),
-                            _ => format!(
-                                "Auto-resolve: reached the review attempt limit ({limit} allowed reviews). Handing control back to you."
-                            ),
-                        });
-                        should_clear = true;
-                    } else {
-                        state.phase = AutoResolvePhase::PendingFix {
-                            review: output.clone(),
-                        };
-                        notice = Some("Auto-resolve: review found issues. Preparing follow-up fix request.".to_string());
-                    }
-                }
-                None => {
-                    notice = Some(
-                        "Auto-resolve: review ended without findings. Please inspect manually.".to_string(),
-                    );
+                if output.findings.is_empty() {
+                    notice = Some("Auto-resolve: review reported no actionable findings. Exiting.".to_string());
                     should_clear = true;
+                } else if state.max_attempts > 0 && state.attempt > state.max_attempts {
+                    let limit = state.max_attempts;
+                    notice = Some(match limit {
+                        0 => "Auto-resolve: attempt limit is set to 0, so automation stopped after the initial review.".to_string(),
+                        1 => "Auto-resolve: reached the review attempt limit (1 allowed review). Handing control back to you.".to_string(),
+                        _ => format!(
+                            "Auto-resolve: reached the review attempt limit ({limit} allowed reviews). Handing control back to you."
+                        ),
+                    });
+                    should_clear = true;
+                } else {
+                    state.phase = AutoResolvePhase::PendingFix {
+                        review: output.clone(),
+                    };
+                    notice = Some("Auto-resolve: review found issues. Preparing follow-up fix request.".to_string());
                 }
+            } else {
+                notice = Some(
+                    "Auto-resolve: review ended without findings. Please inspect manually.".to_string(),
+                );
+                should_clear = true;
             }
         }
 

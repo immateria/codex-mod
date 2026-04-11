@@ -148,12 +148,9 @@ impl ChatWidget<'_> {
         // Enable Ctrl+D footer hint now that we have diffs to show
         self.bottom_pane.set_diffs_hint(true);
         // Strict order
-        let ok = match order {
-            Some(om) => self.provider_order_key_from_order_meta(om),
-            None => {
-                tracing::warn!("missing OrderMeta on ExecEnd flush; using synthetic key");
-                self.next_internal_key()
-            }
+        let ok = if let Some(om) = order { self.provider_order_key_from_order_meta(om) } else {
+            tracing::warn!("missing OrderMeta on ExecEnd flush; using synthetic key");
+            self.next_internal_key()
         };
         let mut cell =
             history_cell::new_patch_event(PatchEventType::ApplyBegin { auto_approved }, changes);
@@ -200,12 +197,9 @@ impl ChatWidget<'_> {
         order: Option<&OrderMeta>,
         seq: u64,
     ) {
-        let order_ok = match order {
-            Some(om) => self.provider_order_key_from_order_meta(om),
-            None => {
-                tracing::warn!("missing OrderMeta on McpBegin; using synthetic key");
-                self.next_internal_key()
-            }
+        let order_ok = if let Some(om) = order { self.provider_order_key_from_order_meta(om) } else {
+            tracing::warn!("missing OrderMeta on McpBegin; using synthetic key");
+            self.next_internal_key()
         };
         self.finalize_active_stream();
         tracing::info!("[order] McpToolCallBegin call_id={} seq={}", ev.call_id, seq);
@@ -223,12 +217,9 @@ impl ChatWidget<'_> {
         seq: u64,
     ) {
         let ev2 = ev.clone();
-        let order_ok = match order.as_ref() {
-            Some(om) => self.provider_order_key_from_order_meta(om),
-            None => {
-                tracing::warn!("missing OrderMeta on McpEnd; using synthetic key");
-                self.next_internal_key()
-            }
+        let order_ok = if let Some(om) = order.as_ref() { self.provider_order_key_from_order_meta(om) } else {
+            tracing::warn!("missing OrderMeta on McpEnd; using synthetic key");
+            self.next_internal_key()
         };
         self.defer_or_handle(
             move |interrupts| interrupts.push_mcp_end(seq, ev, order),
@@ -275,12 +266,9 @@ impl ChatWidget<'_> {
         path: std::path::PathBuf,
         order: Option<&OrderMeta>,
     ) {
-        let ok = match order {
-            Some(om) => self.provider_order_key_from_order_meta(om),
-            None => {
-                tracing::warn!("missing OrderMeta on ViewImageToolCall; using synthetic key");
-                self.next_internal_key()
-            }
+        let ok = if let Some(om) = order { self.provider_order_key_from_order_meta(om) } else {
+            tracing::warn!("missing OrderMeta on ViewImageToolCall; using synthetic key");
+            self.next_internal_key()
         };
         if let Some(record) = image_record_from_path(&path) {
             let cell = Box::new(history_cell::ImageOutputCell::from_record(record));

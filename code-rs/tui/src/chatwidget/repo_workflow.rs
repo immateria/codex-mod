@@ -614,16 +614,13 @@ impl ChatWidget<'_> {
                 return;
             };
             let merge_lock = ChatWidget::merge_lock_for_repo(&git_root);
-            let _merge_guard = match merge_lock.try_lock() {
-                Ok(guard) => guard,
-                Err(_) => {
-                    send_background(
-                        &tx,
-                        &ticket,
-                        "`/merge` — waiting for an in-progress merge to finish".to_string(),
-                    );
-                    merge_lock.lock().await
-                }
+            let _merge_guard = if let Ok(guard) = merge_lock.try_lock() { guard } else {
+                send_background(
+                    &tx,
+                    &ticket,
+                    "`/merge` — waiting for an in-progress merge to finish".to_string(),
+                );
+                merge_lock.lock().await
             };
 
             let state = match MergeRepoState::gather(work_cwd.clone(), git_root.clone()).await {

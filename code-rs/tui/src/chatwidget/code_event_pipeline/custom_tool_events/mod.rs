@@ -34,12 +34,9 @@ const WAIT_CANCELLED_BY_USER: &str = "Cancelled by user.";
 
 impl ChatWidget<'_> {
     fn custom_tool_order_key(&mut self, order: Option<&OrderMeta>, phase: &str) -> OrderKey {
-        match order {
-            Some(om) => self.provider_order_key_from_order_meta(om),
-            None => {
-                tracing::warn!("missing OrderMeta on {phase}; using synthetic key");
-                self.next_internal_key()
-            }
+        if let Some(om) = order { self.provider_order_key_from_order_meta(om) } else {
+            tracing::warn!("missing OrderMeta on {phase}; using synthetic key");
+            self.next_internal_key()
         }
     }
 }

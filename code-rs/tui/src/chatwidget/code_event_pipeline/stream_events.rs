@@ -34,12 +34,9 @@ impl ChatWidget<'_> {
             }
         }
         // Strict order for the stream id.
-        let ok = match order {
-            Some(om) => self.provider_order_key_from_order_meta(om),
-            None => {
-                tracing::warn!("missing OrderMeta on AgentMessage; using synthetic key");
-                self.next_internal_key()
-            }
+        let ok = if let Some(om) = order { self.provider_order_key_from_order_meta(om) } else {
+            tracing::warn!("missing OrderMeta on AgentMessage; using synthetic key");
+            self.next_internal_key()
         };
         self.seed_stream_order_key(StreamKind::Answer, &id, ok);
 
@@ -112,12 +109,9 @@ impl ChatWidget<'_> {
         }
         self.note_answer_stream_seen(&id);
         // Seed/refresh order key for this Answer stream id (must have OrderMeta).
-        let ok = match order {
-            Some(om) => self.provider_order_key_from_order_meta(om),
-            None => {
-                tracing::warn!("missing OrderMeta on AgentMessageDelta; using synthetic key");
-                self.next_internal_key()
-            }
+        let ok = if let Some(om) = order { self.provider_order_key_from_order_meta(om) } else {
+            tracing::warn!("missing OrderMeta on AgentMessageDelta; using synthetic key");
+            self.next_internal_key()
         };
         self.seed_stream_order_key(StreamKind::Answer, &id, ok);
         let visible = self.parse_answer_stream_chunk(&id, &delta);
@@ -163,12 +157,9 @@ impl ChatWidget<'_> {
             return;
         }
         // Seed strict order key for this Reasoning stream.
-        let ok = match order {
-            Some(om) => self.provider_order_key_from_order_meta(om),
-            None => {
-                tracing::warn!("missing OrderMeta on AgentReasoning; using synthetic key");
-                self.next_internal_key()
-            }
+        let ok = if let Some(om) = order { self.provider_order_key_from_order_meta(om) } else {
+            tracing::warn!("missing OrderMeta on AgentReasoning; using synthetic key");
+            self.next_internal_key()
         };
         tracing::info!("[order] EventMsg::AgentReasoning id={} key={:?}", id, ok);
         self.seed_stream_order_key(StreamKind::Reasoning, &id, ok);
@@ -215,12 +206,9 @@ impl ChatWidget<'_> {
             return;
         }
         // Seed strict order key for this Reasoning stream.
-        let ok = match order {
-            Some(om) => self.provider_order_key_from_order_meta(om),
-            None => {
-                tracing::warn!("missing OrderMeta on AgentReasoningDelta; using synthetic key");
-                self.next_internal_key()
-            }
+        let ok = if let Some(om) = order { self.provider_order_key_from_order_meta(om) } else {
+            tracing::warn!("missing OrderMeta on AgentReasoningDelta; using synthetic key");
+            self.next_internal_key()
         };
         tracing::info!("[order] EventMsg::AgentReasoningDelta id={} key={:?}", id, ok);
         self.seed_stream_order_key(StreamKind::Reasoning, &id, ok);
@@ -269,12 +257,9 @@ impl ChatWidget<'_> {
             return;
         }
         // Seed strict order key for this reasoning stream id.
-        let ok = match order {
-            Some(om) => self.provider_order_key_from_order_meta(om),
-            None => {
-                tracing::warn!("missing OrderMeta on Tools::PlanUpdate; using synthetic key");
-                self.next_internal_key()
-            }
+        let ok = if let Some(om) = order { self.provider_order_key_from_order_meta(om) } else {
+            tracing::warn!("missing OrderMeta on Tools::PlanUpdate; using synthetic key");
+            self.next_internal_key()
         };
         self.seed_stream_order_key(StreamKind::Reasoning, &id, ok);
 
@@ -316,12 +301,9 @@ impl ChatWidget<'_> {
             return;
         }
         // Seed strict order key now so upcoming insert uses the correct key.
-        let ok = match order {
-            Some(om) => self.provider_order_key_from_order_meta(om),
-            None => {
-                tracing::warn!("missing OrderMeta on Tools::ReasoningBegin; using synthetic key");
-                self.next_internal_key()
-            }
+        let ok = if let Some(om) = order { self.provider_order_key_from_order_meta(om) } else {
+            tracing::warn!("missing OrderMeta on Tools::ReasoningBegin; using synthetic key");
+            self.next_internal_key()
         };
         self.seed_stream_order_key(StreamKind::Reasoning, &id, ok);
         // Use StreamController for final raw reasoning.

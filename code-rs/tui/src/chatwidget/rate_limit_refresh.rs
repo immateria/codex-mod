@@ -105,40 +105,37 @@ fn run_refresh(
 ) -> Result<()> {
     let runtime = build_runtime()?;
     runtime.block_on(async move {
-        let (auth_mgr, stored_account) = match account {
-            Some(account) => {
-                let auth = auth_for_stored_account(
-                    &config.code_home,
-                    &account,
-                    &config.responses_originator_header,
-                )
-                .await
-                .context("building auth for stored account")?;
-                (
-                    AuthManager::from_auth(
-                        auth,
-                        config.code_home.clone(),
-                        config.responses_originator_header.clone(),
-                        config.cli_auth_credentials_store_mode,
-                    ),
-                    Some(account),
-                )
-            }
-            None => {
-                let auth_mode = if config.using_chatgpt_auth {
-                    AuthMode::ChatGPT
-                } else {
-                    AuthMode::ApiKey
-                };
-                (
-                    AuthManager::shared_with_mode_and_originator(
-                        config.code_home.clone(),
-                        auth_mode,
-                        config.responses_originator_header.clone(),
-                    ),
-                    None,
-                )
-            }
+        let (auth_mgr, stored_account) = if let Some(account) = account {
+            let auth = auth_for_stored_account(
+                &config.code_home,
+                &account,
+                &config.responses_originator_header,
+            )
+            .await
+            .context("building auth for stored account")?;
+            (
+                AuthManager::from_auth(
+                    auth,
+                    config.code_home.clone(),
+                    config.responses_originator_header.clone(),
+                    config.cli_auth_credentials_store_mode,
+                ),
+                Some(account),
+            )
+        } else {
+            let auth_mode = if config.using_chatgpt_auth {
+                AuthMode::ChatGPT
+            } else {
+                AuthMode::ApiKey
+            };
+            (
+                AuthManager::shared_with_mode_and_originator(
+                    config.code_home.clone(),
+                    auth_mode,
+                    config.responses_originator_header.clone(),
+                ),
+                None,
+            )
         };
 
         let client = build_model_client(&config, auth_mgr, debug_enabled)?;

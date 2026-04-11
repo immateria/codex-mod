@@ -38,29 +38,26 @@ pub(super) fn handle_paste_inner(view: &mut ChatComposer, pasted: String) -> boo
         view.typed_anything = true; // Mark that user has interacted via paste
     } else if pasted.trim().is_empty() {
         // No textual content pasted — try reading an image directly from the OS clipboard.
-        match paste_image_to_temp_png() {
-            Ok((path, info)) => {
-                let filename = path
-                    .file_name()
-                    .and_then(|n| n.to_str())
-                    .unwrap_or("image.png");
-                let placeholder = format!("[image: {filename}]");
-                view.textarea.insert_str(&placeholder);
-                view.textarea.insert_str(" ");
-                view.typed_anything = true; // Mark that user has interacted via paste
-                view.app_event_tx.send(crate::app_event::AppEvent::RegisterPastedImage {
-                    placeholder: placeholder.clone(),
-                    path,
-                });
-                // Give a small visual confirmation in the footer.
-                view.flash_footer_notice(format!(
-                    "Added image {}x{} (PNG)",
-                    info.width, info.height
-                ));
-            }
-            Err(_) => {
-                // Fall back to doing nothing special; keep composer unchanged.
-            }
+        if let Ok((path, info)) = paste_image_to_temp_png() {
+            let filename = path
+                .file_name()
+                .and_then(|n| n.to_str())
+                .unwrap_or("image.png");
+            let placeholder = format!("[image: {filename}]");
+            view.textarea.insert_str(&placeholder);
+            view.textarea.insert_str(" ");
+            view.typed_anything = true; // Mark that user has interacted via paste
+            view.app_event_tx.send(crate::app_event::AppEvent::RegisterPastedImage {
+                placeholder: placeholder.clone(),
+                path,
+            });
+            // Give a small visual confirmation in the footer.
+            view.flash_footer_notice(format!(
+                "Added image {}x{} (PNG)",
+                info.width, info.height
+            ));
+        } else {
+            // Fall back to doing nothing special; keep composer unchanged.
         }
     } else {
         view.textarea.insert_str(&pasted);

@@ -52,25 +52,16 @@ impl ChatWidget<'_> {
         };
         if needs_recreate {
             // Only decode when we actually need to (path/target changed)
-            let dyn_img = match image::ImageReader::open(path) {
-                Ok(r) => match r.decode() {
-                    Ok(img) => img,
-                    Err(_) => {
-                        render_image_placeholder(path, area, buf, "Browser");
-                        return;
-                    }
-                },
-                Err(_) => {
-                    render_image_placeholder(path, area, buf, "Browser");
-                    return;
-                }
+            let dyn_img = if let Ok(r) = image::ImageReader::open(path) { if let Ok(img) = r.decode() { img } else {
+                render_image_placeholder(path, area, buf, "Browser");
+                return;
+            } } else {
+                render_image_placeholder(path, area, buf, "Browser");
+                return;
             };
-            match picker.new_protocol(dyn_img, target, Resize::Fit(Some(FilterType::Lanczos3))) {
-                Ok(protocol) => *self.cached_image_protocol.borrow_mut() = Some((path.to_path_buf(), target, protocol)),
-                Err(_) => {
-                    render_image_placeholder(path, area, buf, "Browser");
-                    return;
-                }
+            if let Ok(protocol) = picker.new_protocol(dyn_img, target, Resize::Fit(Some(FilterType::Lanczos3))) { *self.cached_image_protocol.borrow_mut() = Some((path.to_path_buf(), target, protocol)) } else {
+                render_image_placeholder(path, area, buf, "Browser");
+                return;
             }
         }
 

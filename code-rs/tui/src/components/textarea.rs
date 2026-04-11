@@ -706,32 +706,26 @@ impl TextArea {
             }
         } {
             // We had wrapping info. Apply movement accordingly.
-            match maybe_line {
-                Some((line_start, line_end)) => {
-                    if self.preferred_col.is_none() {
-                        self.preferred_col = Some(target_col);
-                    }
-                    self.move_to_display_col_on_line(line_start, line_end, target_col);
-                    return;
+            if let Some((line_start, line_end)) = maybe_line {
+                if self.preferred_col.is_none() {
+                    self.preferred_col = Some(target_col);
                 }
-                None => {
-                    // Already at first visual line -> move to start
-                    self.cursor_pos = 0;
-                    self.preferred_col = None;
-                    return;
-                }
+                self.move_to_display_col_on_line(line_start, line_end, target_col);
+                return;
+            } else {
+                // Already at first visual line -> move to start
+                self.cursor_pos = 0;
+                self.preferred_col = None;
+                return;
             }
         }
 
         // Fallback to logical line navigation if we don't have wrapping info yet.
         if let Some(prev_nl) = self.text[..self.cursor_pos].rfind('\n') {
-            let target_col = match self.preferred_col {
-                Some(c) => c,
-                None => {
-                    let c = self.current_display_col();
-                    self.preferred_col = Some(c);
-                    c
-                }
+            let target_col = if let Some(c) = self.preferred_col { c } else {
+                let c = self.current_display_col();
+                self.preferred_col = Some(c);
+                c
             };
             let prev_line_start = self.text[..prev_nl].rfind('\n').map_or(0, |i| i + 1);
             let prev_line_end = prev_nl;
@@ -768,31 +762,25 @@ impl TextArea {
                 None
             }
         } {
-            match move_to_last {
-                Some((line_start, line_end)) => {
-                    if self.preferred_col.is_none() {
-                        self.preferred_col = Some(target_col);
-                    }
-                    self.move_to_display_col_on_line(line_start, line_end, target_col);
-                    return;
+            if let Some((line_start, line_end)) = move_to_last {
+                if self.preferred_col.is_none() {
+                    self.preferred_col = Some(target_col);
                 }
-                None => {
-                    // Already on last visual line -> move to end
-                    self.cursor_pos = self.text.len();
-                    self.preferred_col = None;
-                    return;
-                }
+                self.move_to_display_col_on_line(line_start, line_end, target_col);
+                return;
+            } else {
+                // Already on last visual line -> move to end
+                self.cursor_pos = self.text.len();
+                self.preferred_col = None;
+                return;
             }
         }
 
         // Fallback to logical line navigation if we don't have wrapping info yet.
-        let target_col = match self.preferred_col {
-            Some(c) => c,
-            None => {
-                let c = self.current_display_col();
-                self.preferred_col = Some(c);
-                c
-            }
+        let target_col = if let Some(c) = self.preferred_col { c } else {
+            let c = self.current_display_col();
+            self.preferred_col = Some(c);
+            c
         };
         if let Some(next_nl) = self.text[self.cursor_pos..]
             .find('\n')

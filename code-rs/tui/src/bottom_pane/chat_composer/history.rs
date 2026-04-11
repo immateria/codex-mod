@@ -198,29 +198,26 @@ impl ChatComposerHistory {
                 Some(idx) => Some(idx + 1),
             };
 
-            match next_idx_opt {
-                Some(idx) => {
-                    self.history_cursor = Some(idx);
-                    match self.peek_text_at_index(idx as usize, app_event_tx) {
-                        Some(text) if self.is_duplicate(&text) => {
-                            continue; // skip duplicate
-                        }
-                        Some(text) => {
-                            // Distinct entry — commit and return.
-                            self.last_history_text = Some(text.clone());
-                            return Some(text);
-                        }
-                        None => return None, // async fetch pending
+            if let Some(idx) = next_idx_opt {
+                self.history_cursor = Some(idx);
+                match self.peek_text_at_index(idx as usize, app_event_tx) {
+                    Some(text) if self.is_duplicate(&text) => {
+                        continue; // skip duplicate
                     }
+                    Some(text) => {
+                        // Distinct entry — commit and return.
+                        self.last_history_text = Some(text.clone());
+                        return Some(text);
+                    }
+                    None => return None, // async fetch pending
                 }
-                None => {
-                    // Past newest – restore original text and exit browsing mode.
-                    let result = self.original_text.clone().unwrap_or_default();
-                    self.history_cursor = None;
-                    self.last_history_text = None;
-                    self.original_text = None;
-                    return Some(result);
-                }
+            } else {
+                // Past newest – restore original text and exit browsing mode.
+                let result = self.original_text.clone().unwrap_or_default();
+                self.history_cursor = None;
+                self.last_history_text = None;
+                self.original_text = None;
+                return Some(result);
             }
         }
     }

@@ -78,21 +78,18 @@ impl InterruptManager {
                     chat.handle_apply_patch_approval_now(id, ev);
                 }
                 QueuedInterrupt::ExecEnd { ev, order, .. } => {
-                    match order.as_ref() {
-                        Some(ord) => chat.enqueue_or_handle_exec_end(ev, ord.clone()),
-                        None => {
-                            tracing::warn!("missing OrderMeta in queued ExecEnd; rendering with synthetic order");
-                            let synthetic = code_core::protocol::OrderMeta {
-                                request_ordinal: chat.last_seen_request_index,
-                                output_index: Some(i32::MAX as u32),
-                                sequence_number: Some(1),
-                            };
-                            chat.enqueue_or_handle_exec_end(ev, synthetic);
-                        }
+                    if let Some(ord) = order.as_ref() { chat.enqueue_or_handle_exec_end(ev, ord.clone()) } else {
+                        tracing::warn!("missing OrderMeta in queued ExecEnd; rendering with synthetic order");
+                        let synthetic = code_core::protocol::OrderMeta {
+                            request_ordinal: chat.last_seen_request_index,
+                            output_index: Some(i32::MAX as u32),
+                            sequence_number: Some(1),
+                        };
+                        chat.enqueue_or_handle_exec_end(ev, synthetic);
                     }
                 },
                 QueuedInterrupt::McpEnd { ev, order, .. } => {
-                    let ok = match order.as_ref() { Some(om) => chat.provider_order_key_from_order_meta(om), None => { tracing::warn!("missing OrderMeta in queued McpEnd; using synthetic key"); chat.next_internal_key() } };
+                    let ok = if let Some(om) = order.as_ref() { chat.provider_order_key_from_order_meta(om) } else { tracing::warn!("missing OrderMeta in queued McpEnd; using synthetic key"); chat.next_internal_key() };
                     tools::mcp_end(chat, ev, ok);
                 },
                 QueuedInterrupt::PatchEnd { seq: _, ev } => {

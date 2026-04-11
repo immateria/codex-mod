@@ -89,16 +89,13 @@ fn message_line_from_ratatui_line(line: Line<'static>, theme: &Theme) -> Message
 }
 
 fn message_line_to_line(line: &MessageLine, theme: &Theme) -> Line<'static> {
-    match line.kind {
-        MessageLineKind::Blank => Line::from(""),
-        _ => {
-            let spans: Vec<Span<'static>> = line
-                .spans
-                .iter()
-                .map(|span| inline_span_to_span(span, theme))
-                .collect();
-            Line::from(spans)
-        }
+    if line.kind == MessageLineKind::Blank { Line::from("") } else {
+        let spans: Vec<Span<'static>> = line
+            .spans
+            .iter()
+            .map(|span| inline_span_to_span(span, theme))
+            .collect();
+        Line::from(spans)
     }
 }
 

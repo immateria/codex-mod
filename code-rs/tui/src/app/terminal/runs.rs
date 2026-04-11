@@ -105,32 +105,29 @@ pub(super) fn start_terminal_run_inner(
     let master = Arc::new(Mutex::new(master));
 
     let writer = {
-        let guard = match master.lock() {
-            Ok(guard) => guard,
-            Err(_) => {
-                let msg = "Failed to acquire terminal writer: poisoned lock\n".to_string();
-                app.app_event_tx.send(AppEvent::TerminalChunk {
-                    id,
-                    chunk: msg.as_bytes().to_vec(),
+        let guard = if let Ok(guard) = master.lock() { guard } else {
+            let msg = "Failed to acquire terminal writer: poisoned lock\n".to_string();
+            app.app_event_tx.send(AppEvent::TerminalChunk {
+                id,
+                chunk: msg.as_bytes().to_vec(),
+                _is_stderr: true,
+            });
+            if let Some(ref ctrl) = controller_tx {
+                let _ = ctrl.send(TerminalRunEvent::Chunk {
+                    data: msg.into_bytes(),
                     _is_stderr: true,
                 });
-                if let Some(ref ctrl) = controller_tx {
-                    let _ = ctrl.send(TerminalRunEvent::Chunk {
-                        data: msg.into_bytes(),
-                        _is_stderr: true,
-                    });
-                    let _ = ctrl.send(TerminalRunEvent::Exit {
-                        exit_code: Some(1),
-                        _duration: Duration::ZERO,
-                    });
-                }
-                app.app_event_tx.send(AppEvent::TerminalExit {
-                    id,
+                let _ = ctrl.send(TerminalRunEvent::Exit {
                     exit_code: Some(1),
                     _duration: Duration::ZERO,
                 });
-                return;
             }
+            app.app_event_tx.send(AppEvent::TerminalExit {
+                id,
+                exit_code: Some(1),
+                _duration: Duration::ZERO,
+            });
+            return;
         };
         let result = guard.take_writer();
         drop(guard);
@@ -164,32 +161,29 @@ pub(super) fn start_terminal_run_inner(
     };
 
     let reader = {
-        let guard = match master.lock() {
-            Ok(guard) => guard,
-            Err(_) => {
-                let msg = "Failed to read terminal output: poisoned lock\n".to_string();
-                app.app_event_tx.send(AppEvent::TerminalChunk {
-                    id,
-                    chunk: msg.as_bytes().to_vec(),
+        let guard = if let Ok(guard) = master.lock() { guard } else {
+            let msg = "Failed to read terminal output: poisoned lock\n".to_string();
+            app.app_event_tx.send(AppEvent::TerminalChunk {
+                id,
+                chunk: msg.as_bytes().to_vec(),
+                _is_stderr: true,
+            });
+            if let Some(ref ctrl) = controller_tx {
+                let _ = ctrl.send(TerminalRunEvent::Chunk {
+                    data: msg.into_bytes(),
                     _is_stderr: true,
                 });
-                if let Some(ref ctrl) = controller_tx {
-                    let _ = ctrl.send(TerminalRunEvent::Chunk {
-                        data: msg.into_bytes(),
-                        _is_stderr: true,
-                    });
-                    let _ = ctrl.send(TerminalRunEvent::Exit {
-                        exit_code: Some(1),
-                        _duration: Duration::ZERO,
-                    });
-                }
-                app.app_event_tx.send(AppEvent::TerminalExit {
-                    id,
+                let _ = ctrl.send(TerminalRunEvent::Exit {
                     exit_code: Some(1),
                     _duration: Duration::ZERO,
                 });
-                return;
             }
+            app.app_event_tx.send(AppEvent::TerminalExit {
+                id,
+                exit_code: Some(1),
+                _duration: Duration::ZERO,
+            });
+            return;
         };
         let result = guard.try_clone_reader();
         drop(guard);

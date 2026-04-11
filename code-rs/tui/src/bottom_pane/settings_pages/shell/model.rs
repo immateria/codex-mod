@@ -298,23 +298,17 @@ impl ShellSelectionView {
 
     fn set_custom_path_from_picker(&mut self, selected_path: &std::path::Path) {
         let selected = selected_path.to_string_lossy().into_owned();
-        let selected = match shlex::try_quote(&selected) {
-            Ok(quoted) => quoted.into_owned(),
-            Err(_) => {
-                self.native_picker_notice = Some("Picker returned an invalid path".to_string());
-                return;
-            }
+        let selected = if let Ok(quoted) = shlex::try_quote(&selected) { quoted.into_owned() } else {
+            self.native_picker_notice = Some("Picker returned an invalid path".to_string());
+            return;
         };
         let (_current_path, current_args) = split_command_and_args(self.custom_field.text());
         let mut args: Vec<String> = Vec::new();
         for arg in current_args {
-            match shlex::try_quote(&arg) {
-                Ok(quoted) => args.push(quoted.into_owned()),
-                Err(_) => {
-                    self.native_picker_notice =
-                        Some("Shell args contain invalid characters".to_string());
-                    return;
-                }
+            if let Ok(quoted) = shlex::try_quote(&arg) { args.push(quoted.into_owned()) } else {
+                self.native_picker_notice =
+                    Some("Shell args contain invalid characters".to_string());
+                return;
             }
         }
         let args = args.join(" ");

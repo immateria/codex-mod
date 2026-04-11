@@ -585,27 +585,24 @@ impl InterfaceSettingsView {
             }
         };
 
-        match self.hotkey_scope {
-            HotkeyScope::Global => {
-                let hk = row.hotkey_value(&self.hotkeys);
-                let runtime_resolved = self.hotkeys.effective_for_runtime();
-                let effective_hk = row.resolved_value(&runtime_resolved);
-                let configured_name = format_hotkey(hk);
-                let effective_name = format_hotkey(effective_hk);
-                if hk == effective_hk {
-                    configured_name
-                } else {
-                    format!("{configured_name} (here: {effective_name})")
-                }
+        if self.hotkey_scope == HotkeyScope::Global {
+            let hk = row.hotkey_value(&self.hotkeys);
+            let runtime_resolved = self.hotkeys.effective_for_runtime();
+            let effective_hk = row.resolved_value(&runtime_resolved);
+            let configured_name = format_hotkey(hk);
+            let effective_name = format_hotkey(effective_hk);
+            if hk == effective_hk {
+                configured_name
+            } else {
+                format!("{configured_name} (here: {effective_name})")
             }
-            _ => {
-                let resolved = self.scoped_hotkeys_resolved();
-                let effective = row.resolved_value(&resolved);
-                let effective_name = format_hotkey(effective);
-                match self.override_value_for_row(row_kind) {
-                    Some(_) => effective_name,
-                    None => format!("inherit ({effective_name})"),
-                }
+        } else {
+            let resolved = self.scoped_hotkeys_resolved();
+            let effective = row.resolved_value(&resolved);
+            let effective_name = format_hotkey(effective);
+            match self.override_value_for_row(row_kind) {
+                Some(_) => effective_name,
+                None => format!("inherit ({effective_name})"),
             }
         }
     }

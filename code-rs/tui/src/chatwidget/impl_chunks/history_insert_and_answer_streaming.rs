@@ -97,18 +97,15 @@ impl ChatWidget<'_> {
                 cell.set_in_progress(true);
 
                 // Use pre-seeded key for this stream id when present; otherwise synthesize.
-                let key = match id.as_deref() {
-                    Some(rid) => self.try_stream_order_key(kind, rid).unwrap_or_else(|| {
-                        tracing::warn!(
-                            "missing stream order key for Reasoning id={}; using synthetic key",
-                            rid
-                        );
-                        self.next_internal_key()
-                    }),
-                    None => {
-                        tracing::warn!("missing stream id for Reasoning; using synthetic key");
-                        self.next_internal_key()
-                    }
+                let key = if let Some(rid) = id.as_deref() { self.try_stream_order_key(kind, rid).unwrap_or_else(|| {
+                    tracing::warn!(
+                        "missing stream order key for Reasoning id={}; using synthetic key",
+                        rid
+                    );
+                    self.next_internal_key()
+                }) } else {
+                    tracing::warn!("missing stream id for Reasoning; using synthetic key");
+                    self.next_internal_key()
                 };
                 tracing::info!(
                     "[order] insert Reasoning new id={:?} {}",
@@ -154,20 +151,17 @@ impl ChatWidget<'_> {
 
                 match mutation {
                     HistoryMutation::Inserted { id: history_id, record, .. } => {
-                        let insert_key = match explicit_id.as_deref() {
-                            Some(rid) => self.try_stream_order_key(kind, rid).unwrap_or_else(|| {
-                                tracing::warn!(
-                                    "missing stream order key for Answer id={}; using synthetic key",
-                                    rid
-                                );
-                                self.next_internal_key()
-                            }),
-                            None => {
-                                tracing::warn!(
-                                    "missing stream id for Answer; using synthetic key"
-                                );
-                                self.next_internal_key()
-                            }
+                        let insert_key = if let Some(rid) = explicit_id.as_deref() { self.try_stream_order_key(kind, rid).unwrap_or_else(|| {
+                            tracing::warn!(
+                                "missing stream order key for Answer id={}; using synthetic key",
+                                rid
+                            );
+                            self.next_internal_key()
+                        }) } else {
+                            tracing::warn!(
+                                "missing stream id for Answer; using synthetic key"
+                            );
+                            self.next_internal_key()
                         };
 
                         if let Some(mut cell) = self.build_cell_from_record(&record) {
@@ -195,20 +189,17 @@ impl ChatWidget<'_> {
                             // before the stream controller emitted any history
                             // lines. Insert the cell now using the same ordering
                             // key as the normal Inserted path.
-                            let insert_key = match explicit_id.as_deref() {
-                                Some(rid) => self.try_stream_order_key(kind, rid).unwrap_or_else(|| {
-                                    tracing::warn!(
-                                        "missing stream order key for Answer id={}; using synthetic key",
-                                        rid
-                                    );
-                                    self.next_internal_key()
-                                }),
-                                None => {
-                                    tracing::warn!(
-                                        "missing stream id for Answer; using synthetic key"
-                                    );
-                                    self.next_internal_key()
-                                }
+                            let insert_key = if let Some(rid) = explicit_id.as_deref() { self.try_stream_order_key(kind, rid).unwrap_or_else(|| {
+                                tracing::warn!(
+                                    "missing stream order key for Answer id={}; using synthetic key",
+                                    rid
+                                );
+                                self.next_internal_key()
+                            }) } else {
+                                tracing::warn!(
+                                    "missing stream id for Answer; using synthetic key"
+                                );
+                                self.next_internal_key()
                             };
                             self.assign_history_id(&mut cell, history_id);
                             let new_idx = self.history_insert_existing_record(
@@ -834,18 +825,15 @@ impl ChatWidget<'_> {
             );
             self.apply_mid_turn_flag(id.as_deref(), &mut state);
             let history_id = state.id;
-            let mut key = match id.as_deref() {
-                Some(rid) => self.try_stream_order_key(StreamKind::Answer, rid).unwrap_or_else(|| {
-                    tracing::warn!(
-                        "missing stream order key for final Answer id={}; using synthetic key",
-                        rid
-                    );
-                    self.next_internal_key()
-                }),
-                None => {
-                    tracing::warn!("missing stream id for final Answer; using synthetic key");
-                    self.next_internal_key()
-                }
+            let mut key = if let Some(rid) = id.as_deref() { self.try_stream_order_key(StreamKind::Answer, rid).unwrap_or_else(|| {
+                tracing::warn!(
+                    "missing stream order key for final Answer id={}; using synthetic key",
+                    rid
+                );
+                self.next_internal_key()
+            }) } else {
+                tracing::warn!("missing stream id for final Answer; using synthetic key");
+                self.next_internal_key()
             };
 
             if let Some(last) = self.last_assigned_order
@@ -1052,20 +1040,17 @@ impl ChatWidget<'_> {
             "final-answer: ordered insert new AssistantMarkdownCell id={:?}",
             id
         );
-        let mut key = match id.as_deref() {
-            Some(rid) => self
-                .try_stream_order_key(StreamKind::Answer, rid)
-                .unwrap_or_else(|| {
-                    tracing::warn!(
-                        "missing stream order key for final Answer id={}; using synthetic key",
-                        rid
-                    );
-                    self.next_internal_key()
-                }),
-            None => {
-                tracing::warn!("missing stream id for final Answer; using synthetic key");
-                self.next_internal_key()
-            }
+        let mut key = if let Some(rid) = id.as_deref() { self
+        .try_stream_order_key(StreamKind::Answer, rid)
+        .unwrap_or_else(|| {
+            tracing::warn!(
+                "missing stream order key for final Answer id={}; using synthetic key",
+                rid
+            );
+            self.next_internal_key()
+        }) } else {
+            tracing::warn!("missing stream id for final Answer; using synthetic key");
+            self.next_internal_key()
         };
         if let Some(last) = self.last_assigned_order
             && key <= last {

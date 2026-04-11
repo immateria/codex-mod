@@ -144,12 +144,9 @@ impl ChatWidget<'_> {
             EventMsg::WebSearchBegin(ev) => {
                 self.ensure_spinner_for_activity("web-search-begin");
                 // Enforce order presence (tool events should carry it)
-                let ok = match event.order.as_ref() {
-                    Some(om) => self.provider_order_key_from_order_meta(om),
-                    None => {
-                        tracing::warn!("missing OrderMeta on WebSearchBegin; using synthetic key");
-                        self.next_internal_key()
-                    }
+                let ok = if let Some(om) = event.order.as_ref() { self.provider_order_key_from_order_meta(om) } else {
+                    tracing::warn!("missing OrderMeta on WebSearchBegin; using synthetic key");
+                    self.next_internal_key()
                 };
                 tracing::info!(
                     "[order] WebSearchBegin call_id={} seq={}",
@@ -199,12 +196,9 @@ impl ChatWidget<'_> {
                 self.replay_history_depth = self.replay_history_depth.saturating_sub(1);
             }
             EventMsg::WebSearchComplete(ev) => {
-                let ok = match event.order.as_ref() {
-                    Some(om) => self.provider_order_key_from_order_meta(om),
-                    None => {
-                        tracing::warn!("missing OrderMeta on WebSearchComplete; using synthetic key");
-                        self.next_internal_key()
-                    }
+                let ok = if let Some(om) = event.order.as_ref() { self.provider_order_key_from_order_meta(om) } else {
+                    tracing::warn!("missing OrderMeta on WebSearchComplete; using synthetic key");
+                    self.next_internal_key()
                 };
                 tools::web_search_complete(self, ev.call_id, ev.query, event.order.as_ref(), ok);
             }

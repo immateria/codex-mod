@@ -337,33 +337,30 @@ impl ChatWidget<'_> {
         self.review_guard = None;
         let hint = self.active_review_hint.take();
         let prompt = self.active_review_prompt.take();
-        match review_event.review_output {
-            Some(output) => {
-                let summary_cell =
-                    self.build_review_summary_cell(hint.as_deref(), prompt.as_deref(), &output);
-                self.history_push(summary_cell);
-                let finish_banner = match hint.as_deref() {
-                    Some(h) if !h.trim().is_empty() => {
-                        let trimmed = h.trim();
-                        format!("<< Code review finished: {trimmed} >>")
-                    }
-                    _ => "<< Code review finished >>".to_string(),
-                };
-                self.push_background_tail(finish_banner);
-            }
-            None => {
-                let banner = match hint.as_deref() {
-                    Some(h) if !h.trim().is_empty() => {
-                        let trimmed = h.trim();
-                        format!("<< Code review finished without a final response ({trimmed}) >>")
-                    }
-                    _ => "<< Code review finished without a final response >>".to_string(),
-                };
-                self.push_background_tail(banner);
-                self.history_push_plain_state(history_cell::new_warning_event(
-                    "Review session ended without returning findings. Try `/review` again if you still need feedback.".to_string(),
-                ));
-            }
+        if let Some(output) = review_event.review_output {
+            let summary_cell =
+                self.build_review_summary_cell(hint.as_deref(), prompt.as_deref(), &output);
+            self.history_push(summary_cell);
+            let finish_banner = match hint.as_deref() {
+                Some(h) if !h.trim().is_empty() => {
+                    let trimmed = h.trim();
+                    format!("<< Code review finished: {trimmed} >>")
+                }
+                _ => "<< Code review finished >>".to_string(),
+            };
+            self.push_background_tail(finish_banner);
+        } else {
+            let banner = match hint.as_deref() {
+                Some(h) if !h.trim().is_empty() => {
+                    let trimmed = h.trim();
+                    format!("<< Code review finished without a final response ({trimmed}) >>")
+                }
+                _ => "<< Code review finished without a final response >>".to_string(),
+            };
+            self.push_background_tail(banner);
+            self.history_push_plain_state(history_cell::new_warning_event(
+                "Review session ended without returning findings. Try `/review` again if you still need feedback.".to_string(),
+            ));
         }
         if self.auto_state.is_active() && self.auto_state.awaiting_review() {
             if self.auto_resolve_should_block_auto_resume() {

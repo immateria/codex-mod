@@ -90,12 +90,9 @@ pub fn list_sessions_for_cwd(
                 .name("resume-discovery".to_string())
                 .spawn(move || handle.block_on(fetch))
             {
-                Ok(handle) => match handle.join() {
-                    Ok(result) => result,
-                    Err(_) => {
-                        tracing::warn!("resume picker thread panicked while querying catalog");
-                        Vec::new()
-                    }
+                Ok(handle) => if let Ok(result) = handle.join() { result } else {
+                    tracing::warn!("resume picker thread panicked while querying catalog");
+                    Vec::new()
                 },
                 Err(err) => {
                     tracing::warn!("resume picker thread spawn failed: {err}");

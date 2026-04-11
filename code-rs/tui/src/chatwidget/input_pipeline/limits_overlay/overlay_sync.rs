@@ -148,57 +148,36 @@ impl ChatWidget<'_> {
             let record = snapshot_map.remove(&id);
             let usage_summary = usage_summary_map.remove(&id);
             let title = account.map_or_else(|| id.clone(), account_display_label);
-            match record {
-                Some(record) => {
-                    if let Some(snapshot) = record.snapshot.clone() {
-                        let view_snapshot = snapshot.clone();
-                        let view_reset = RateLimitResetInfo {
-                            primary_next_reset: record.primary_next_reset_at,
-                            secondary_next_reset: record.secondary_next_reset_at,
-                            ..RateLimitResetInfo::default()
-                        };
-                        let display = Self::rate_limit_display_config_for_account(account);
-                        let view = build_limits_view(
-                            &view_snapshot,
-                            view_reset,
-                            DEFAULT_GRID_CONFIG,
-                            display,
-                        );
-                        let header = Self::account_header_lines(
-                            account,
-                            Some(&record),
-                            usage_summary.as_ref(),
-                        );
-                        let is_api_key_account = matches!(
-                            account.map(|acc| acc.mode),
-                            Some(AuthMode::ApiKey)
-                        );
-                        let extra = Self::usage_history_lines(
-                            usage_summary.as_ref(),
-                            is_api_key_account,
-                        );
-                        tabs.push(LimitsTab::view(title, Some(id.clone()), header, view, extra));
-                    } else {
-                        let is_api_key_account = matches!(
-                            account.map(|acc| acc.mode),
-                            Some(AuthMode::ApiKey)
-                        );
-                        let mut lines = Self::usage_history_lines(
-                            usage_summary.as_ref(),
-                            is_api_key_account,
-                        );
-                        lines.push(Self::dim_line(
-                            " Rate limit snapshot not yet available.",
-                        ));
-                        let header = Self::account_header_lines(
-                            account,
-                            Some(&record),
-                            usage_summary.as_ref(),
-                        );
-                        tabs.push(LimitsTab::message(title, Some(id.clone()), header, lines));
-                    }
-                }
-                None => {
+            if let Some(record) = record {
+                if let Some(snapshot) = record.snapshot.clone() {
+                    let view_snapshot = snapshot.clone();
+                    let view_reset = RateLimitResetInfo {
+                        primary_next_reset: record.primary_next_reset_at,
+                        secondary_next_reset: record.secondary_next_reset_at,
+                        ..RateLimitResetInfo::default()
+                    };
+                    let display = Self::rate_limit_display_config_for_account(account);
+                    let view = build_limits_view(
+                        &view_snapshot,
+                        view_reset,
+                        DEFAULT_GRID_CONFIG,
+                        display,
+                    );
+                    let header = Self::account_header_lines(
+                        account,
+                        Some(&record),
+                        usage_summary.as_ref(),
+                    );
+                    let is_api_key_account = matches!(
+                        account.map(|acc| acc.mode),
+                        Some(AuthMode::ApiKey)
+                    );
+                    let extra = Self::usage_history_lines(
+                        usage_summary.as_ref(),
+                        is_api_key_account,
+                    );
+                    tabs.push(LimitsTab::view(title, Some(id.clone()), header, view, extra));
+                } else {
                     let is_api_key_account = matches!(
                         account.map(|acc| acc.mode),
                         Some(AuthMode::ApiKey)
@@ -212,11 +191,29 @@ impl ChatWidget<'_> {
                     ));
                     let header = Self::account_header_lines(
                         account,
-                        None,
+                        Some(&record),
                         usage_summary.as_ref(),
                     );
                     tabs.push(LimitsTab::message(title, Some(id.clone()), header, lines));
                 }
+            } else {
+                let is_api_key_account = matches!(
+                    account.map(|acc| acc.mode),
+                    Some(AuthMode::ApiKey)
+                );
+                let mut lines = Self::usage_history_lines(
+                    usage_summary.as_ref(),
+                    is_api_key_account,
+                );
+                lines.push(Self::dim_line(
+                    " Rate limit snapshot not yet available.",
+                ));
+                let header = Self::account_header_lines(
+                    account,
+                    None,
+                    usage_summary.as_ref(),
+                );
+                tabs.push(LimitsTab::message(title, Some(id.clone()), header, lines));
             }
         }
 

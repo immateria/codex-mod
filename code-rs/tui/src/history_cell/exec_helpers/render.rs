@@ -55,57 +55,54 @@ pub(crate) fn exec_render_parts_parsed_with_meta(
     let mut pre: Vec<Line<'static>> = Vec::new();
     let mut running_status: Option<Line<'static>> = None;
     if !suppress_run_header {
-        match output {
-            None => match action {
-                ExecAction::Read => pre.push(Line::styled(
-                    "Read",
-                    s_text,
-                )),
-                ExecAction::Search => pre.push(Line::styled(
-                    "Search",
-                    s_text_dim,
-                )),
-                ExecAction::List => pre.push(Line::styled(
-                    "List",
-                    s_text,
-                )),
-                ExecAction::Run => {
-                    let mut message = match &ctx_path {
-                        Some(p) => format!("{status_label}... in {p}"),
-                        None => format!("{status_label}..."),
-                    };
-                    if let Some(elapsed) = elapsed_since_start {
-                        message = format!("{message} ({})", format_duration(elapsed));
-                    }
-                    running_status = Some(running_status_line(message));
-                }
-            },
-            Some(_) => {
-                let done: Cow<'static, str> = match action {
-                    ExecAction::Read => "Read".into(),
-                    ExecAction::Search => "Search".into(),
-                    ExecAction::List => "List".into(),
-                    ExecAction::Run => match &ctx_path {
-                        Some(p) => format!("Ran in {p}").into(),
-                        None => "Ran".into(),
-                    },
+        if output.is_none() { match action {
+            ExecAction::Read => pre.push(Line::styled(
+                "Read",
+                s_text,
+            )),
+            ExecAction::Search => pre.push(Line::styled(
+                "Search",
+                s_text_dim,
+            )),
+            ExecAction::List => pre.push(Line::styled(
+                "List",
+                s_text,
+            )),
+            ExecAction::Run => {
+                let mut message = match &ctx_path {
+                    Some(p) => format!("{status_label}... in {p}"),
+                    None => format!("{status_label}..."),
                 };
-                if matches!(
-                    action,
-                    ExecAction::Read | ExecAction::Search | ExecAction::List
-                ) {
-                    pre.push(Line::styled(
-                        done,
-                        s_text_dim,
-                    ));
-                } else {
-                    pre.push(Line::styled(
-                        done,
-                        Style::default()
-                            .fg(crate::colors::text_bright())
-                            .add_modifier(Modifier::BOLD),
-                    ));
+                if let Some(elapsed) = elapsed_since_start {
+                    message = format!("{message} ({})", format_duration(elapsed));
                 }
+                running_status = Some(running_status_line(message));
+            }
+        } } else {
+            let done: Cow<'static, str> = match action {
+                ExecAction::Read => "Read".into(),
+                ExecAction::Search => "Search".into(),
+                ExecAction::List => "List".into(),
+                ExecAction::Run => match &ctx_path {
+                    Some(p) => format!("Ran in {p}").into(),
+                    None => "Ran".into(),
+                },
+            };
+            if matches!(
+                action,
+                ExecAction::Read | ExecAction::Search | ExecAction::List
+            ) {
+                pre.push(Line::styled(
+                    done,
+                    s_text_dim,
+                ));
+            } else {
+                pre.push(Line::styled(
+                    done,
+                    Style::default()
+                        .fg(crate::colors::text_bright())
+                        .add_modifier(Modifier::BOLD),
+                ));
             }
         }
     }
