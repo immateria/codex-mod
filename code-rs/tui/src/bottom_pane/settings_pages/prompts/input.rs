@@ -90,34 +90,32 @@ impl PromptsSettingsView {
     }
 
     fn handle_list_key(&mut self, key: KeyEvent) -> bool {
+        let row_count = self.list_row_count();
+        let vis = self.list_viewport_rows.get().max(1);
+
         match key.code {
             KeyCode::Up | KeyCode::Char('k') => {
-                self.list_state.clamp_selection(self.list_row_count());
-                let selected = self.selected_list_idx();
-                if selected > 0 {
-                    self.list_state.selected_idx = Some(selected.saturating_sub(1));
-                    self.clamp_list_state();
-                }
+                self.list_state.move_up_wrap_visible(row_count, vis);
                 true
             }
             KeyCode::Down | KeyCode::Char('j') => {
-                self.list_state.clamp_selection(self.list_row_count());
-                let selected = self.selected_list_idx();
-                let max_idx = self.prompts.len();
-                if selected < max_idx {
-                    self.list_state.selected_idx = Some(selected.saturating_add(1));
-                    self.clamp_list_state();
-                }
+                self.list_state.move_down_wrap_visible(row_count, vis);
                 true
             }
             KeyCode::Home => {
-                self.list_state.selected_idx = Some(0);
-                self.clamp_list_state();
+                self.list_state.home(row_count);
                 true
             }
             KeyCode::End => {
-                self.list_state.selected_idx = Some(self.prompts.len());
-                self.clamp_list_state();
+                self.list_state.end(row_count, vis);
+                true
+            }
+            KeyCode::PageUp => {
+                self.list_state.page_up(row_count, vis);
+                true
+            }
+            KeyCode::PageDown => {
+                self.list_state.page_down(row_count, vis);
                 true
             }
             _ => false,

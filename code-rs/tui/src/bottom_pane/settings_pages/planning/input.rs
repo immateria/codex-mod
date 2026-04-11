@@ -42,6 +42,14 @@ impl PlanningSettingsView {
                 self.state.end(total, 4);
                 true
             }
+            KeyCode::PageUp => {
+                self.state.page_up(total, 4);
+                true
+            }
+            KeyCode::PageDown => {
+                self.state.page_down(total, 4);
+                true
+            }
             KeyCode::Char(' ') | KeyCode::Enter => {
                 if let Some(sel) = self.state.selected_idx
                     && let Some(row) = rows.get(sel).copied()

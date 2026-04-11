@@ -60,7 +60,6 @@ impl<'a> SettingsMessagePage<'a> {
     }
 
     /// Set the vertical scroll offset (in lines) for the body content.
-    #[allow(dead_code)] // used in tests
     pub(crate) fn with_body_scroll(mut self, scroll: u16) -> Self {
         self.body_scroll = scroll;
         self
@@ -68,7 +67,7 @@ impl<'a> SettingsMessagePage<'a> {
 
     /// Return the number of wrapped body lines that overflow the given
     /// `body_height`.  Returns 0 when all content fits.
-    #[allow(dead_code)] // used in tests
+    #[cfg(test)]
     pub(crate) fn body_overflow(&self, body_width: u16, body_height: u16) -> usize {
         if self.body_lines.is_empty() || body_width == 0 || body_height == 0 {
             return 0;

@@ -65,6 +65,22 @@ impl NotificationsSettingsView {
                 true
             }
             KeyEvent {
+                code: KeyCode::PageUp,
+                modifiers: KeyModifiers::NONE,
+                ..
+            } => {
+                self.state.page_up(Self::ROW_COUNT, Self::ROW_COUNT);
+                true
+            }
+            KeyEvent {
+                code: KeyCode::PageDown,
+                modifiers: KeyModifiers::NONE,
+                ..
+            } => {
+                self.state.page_down(Self::ROW_COUNT, Self::ROW_COUNT);
+                true
+            }
+            KeyEvent {
                 code: KeyCode::Left | KeyCode::Right,
                 modifiers: KeyModifiers::NONE,
                 ..

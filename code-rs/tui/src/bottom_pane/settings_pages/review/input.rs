@@ -169,7 +169,15 @@ impl ReviewSettingsView {
                 true
             }
             KeyEvent { code: KeyCode::End, .. } => {
-                self.state.end(total, total);
+                self.state.end(total, body_height_hint);
+                true
+            }
+            KeyEvent { code: KeyCode::PageUp, .. } => {
+                self.state.page_up(total, body_height_hint);
+                true
+            }
+            KeyEvent { code: KeyCode::PageDown, .. } => {
+                self.state.page_down(total, body_height_hint);
                 true
             }
             KeyEvent { code: KeyCode::Left, .. } => {

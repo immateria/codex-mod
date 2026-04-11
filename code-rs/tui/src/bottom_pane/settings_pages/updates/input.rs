@@ -103,6 +103,14 @@ impl UpdateSettingsView {
                 self.state.end(Self::ROW_COUNT, Self::ROW_COUNT);
                 true
             }
+            KeyCode::PageUp => {
+                self.state.page_up(Self::ROW_COUNT, Self::ROW_COUNT);
+                true
+            }
+            KeyCode::PageDown => {
+                self.state.page_down(Self::ROW_COUNT, Self::ROW_COUNT);
+                true
+            }
             KeyCode::Left | KeyCode::Right | KeyCode::Char(' ') if self.selected_row() == 1 => {
                 self.toggle_auto();
                 true

@@ -47,6 +47,22 @@ impl VerbositySelectionView {
                 true
             }
             KeyEvent {
+                code: KeyCode::PageUp,
+                modifiers: KeyModifiers::NONE,
+                ..
+            } => {
+                self.state.page_up(len, len);
+                true
+            }
+            KeyEvent {
+                code: KeyCode::PageDown,
+                modifiers: KeyModifiers::NONE,
+                ..
+            } => {
+                self.state.page_down(len, len);
+                true
+            }
+            KeyEvent {
                 code: KeyCode::Enter,
                 modifiers: KeyModifiers::NONE,
                 ..
