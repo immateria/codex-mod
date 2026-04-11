@@ -4013,14 +4013,11 @@ fn push_unique_guidance(guidance: &mut Vec<String>, message: &str) {
 
 
 fn parse_decision(raw: &str, options: DecisionParseOptions) -> Result<(ParsedCoordinatorDecision, Value)> {
-    let value: Value = match serde_json::from_str(raw) {
-        Ok(v) => v,
-        Err(_) => {
-            let Some(json_blob) = extract_first_json_object(raw) else {
-                return Err(anyhow!("model response was not valid JSON"));
-            };
-            serde_json::from_str(&json_blob).context("parsing JSON from model output")?
-        }
+    let value: Value = if let Ok(v) = serde_json::from_str(raw) { v } else {
+        let Some(json_blob) = extract_first_json_object(raw) else {
+            return Err(anyhow!("model response was not valid JSON"));
+        };
+        serde_json::from_str(&json_blob).context("parsing JSON from model output")?
     };
     match serde_json::from_value::<CoordinatorDecisionNew>(value.clone()) {
         Ok(decision) => {

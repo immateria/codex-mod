@@ -670,15 +670,12 @@ pub(crate) fn run_patch_harness(
 }
 
 fn is_shell_script(staged_root: &Path, relative: &Path) -> bool {
-    match relative.extension().and_then(|ext| ext.to_str()) {
-        Some("sh") => true,
-        _ => {
-            let staged = staged_root.join(relative);
-            std::fs::read(staged)
-                .ok()
-                .and_then(|bytes| String::from_utf8(bytes).ok())
-                .is_some_and(|contents| contents.starts_with("#!/"))
-        }
+    if let Some("sh") = relative.extension().and_then(|ext| ext.to_str()) { true } else {
+        let staged = staged_root.join(relative);
+        std::fs::read(staged)
+            .ok()
+            .and_then(|bytes| String::from_utf8(bytes).ok())
+            .is_some_and(|contents| contents.starts_with("#!/"))
     }
 }
 

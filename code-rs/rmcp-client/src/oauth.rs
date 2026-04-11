@@ -312,50 +312,47 @@ impl OAuthPersistor {
             guard.get_credentials().await
         }?;
 
-        match maybe_credentials {
-            Some(credentials) => {
-                let mut last_credentials = self.inner.last_credentials.lock().await;
-                let new_token_response = WrappedOAuthTokenResponse(credentials.clone());
-                let same_token = last_credentials
-                    .as_ref()
-                    .is_some_and(|prev| prev.token_response == new_token_response);
-                let expires_at = if same_token {
-                    last_credentials.as_ref().and_then(|prev| prev.expires_at)
-                } else {
-                    compute_expires_at_millis(&credentials)
-                };
-                let stored = StoredOAuthTokens {
-                    server_name: self.inner.server_name.clone(),
-                    url: self.inner.url.clone(),
-                    client_id,
-                    token_response: new_token_response,
-                    expires_at,
-                };
-                if last_credentials.as_ref() != Some(&stored) {
-                    save_oauth_tokens(
-                        &self.inner.code_home,
-                        &self.inner.server_name,
-                        &stored,
-                        self.inner.store_mode,
-                    )?;
-                    *last_credentials = Some(stored);
-                }
+        if let Some(credentials) = maybe_credentials {
+            let mut last_credentials = self.inner.last_credentials.lock().await;
+            let new_token_response = WrappedOAuthTokenResponse(credentials.clone());
+            let same_token = last_credentials
+                .as_ref()
+                .is_some_and(|prev| prev.token_response == new_token_response);
+            let expires_at = if same_token {
+                last_credentials.as_ref().and_then(|prev| prev.expires_at)
+            } else {
+                compute_expires_at_millis(&credentials)
+            };
+            let stored = StoredOAuthTokens {
+                server_name: self.inner.server_name.clone(),
+                url: self.inner.url.clone(),
+                client_id,
+                token_response: new_token_response,
+                expires_at,
+            };
+            if last_credentials.as_ref() != Some(&stored) {
+                save_oauth_tokens(
+                    &self.inner.code_home,
+                    &self.inner.server_name,
+                    &stored,
+                    self.inner.store_mode,
+                )?;
+                *last_credentials = Some(stored);
             }
-            None => {
-                let mut last_serialized = self.inner.last_credentials.lock().await;
-                if last_serialized.take().is_some()
-                    && let Err(error) = delete_oauth_tokens(
-                        &self.inner.code_home,
-                        &self.inner.server_name,
-                        &self.inner.url,
-                        self.inner.store_mode,
-                    )
-                {
-                    warn!(
-                        "failed to remove OAuth tokens for server {}: {error}",
-                        self.inner.server_name
-                    );
-                }
+        } else {
+            let mut last_serialized = self.inner.last_credentials.lock().await;
+            if last_serialized.take().is_some()
+                && let Err(error) = delete_oauth_tokens(
+                    &self.inner.code_home,
+                    &self.inner.server_name,
+                    &self.inner.url,
+                    self.inner.store_mode,
+                )
+            {
+                warn!(
+                    "failed to remove OAuth tokens for server {}: {error}",
+                    self.inner.server_name
+                );
             }
         }
 

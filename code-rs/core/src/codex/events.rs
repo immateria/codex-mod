@@ -55,26 +55,23 @@ impl Session {
                 "trimmed event_seq_by_sub_id map to cap long-session growth"
             );
         }
-        let seq = match msg {
-            EventMsg::TaskStarted => {
-                // Reset per-sub_id sequence at the start of a turn.
-                // We increment request_ordinal per HTTP attempt instead
-                // (see `begin_http_attempt`).
-                let e = state
-                    .event_seq_by_sub_id
-                    .entry(sub_id.to_string())
-                    .or_insert(0);
-                *e = 0;
-                0
-            }
-            _ => {
-                let e = state
-                    .event_seq_by_sub_id
-                    .entry(sub_id.to_string())
-                    .or_insert(0);
-                *e = e.saturating_add(1);
-                *e
-            }
+        let seq = if let EventMsg::TaskStarted = msg {
+            // Reset per-sub_id sequence at the start of a turn.
+            // We increment request_ordinal per HTTP attempt instead
+            // (see `begin_http_attempt`).
+            let e = state
+                .event_seq_by_sub_id
+                .entry(sub_id.to_string())
+                .or_insert(0);
+            *e = 0;
+            0
+        } else {
+            let e = state
+                .event_seq_by_sub_id
+                .entry(sub_id.to_string())
+                .or_insert(0);
+            *e = e.saturating_add(1);
+            *e
         };
         Event {
             id: sub_id.to_string(),

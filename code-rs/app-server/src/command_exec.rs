@@ -502,33 +502,30 @@ async fn run_command(params: RunCommandParams) {
     let exit_code = loop {
         tokio::select! {
             control = control_rx.recv(), if control_open => {
-                match control {
-                    Some(CommandControlRequest { control, response_tx }) => {
-                        let result = match control {
-                            CommandControl::Write { delta, close_stdin } => {
-                                handle_process_write(
-                                    &session,
-                                    stream_stdin,
-                                    delta,
-                                    close_stdin,
-                                ).await
-                            }
-                            CommandControl::Resize { size } => {
-                                handle_process_resize(&session, size)
-                            }
-                            CommandControl::Terminate => {
-                                session.request_terminate();
-                                Ok(())
-                            }
-                        };
-                        if let Some(response_tx) = response_tx {
-                            let _ = response_tx.send(result);
+                if let Some(CommandControlRequest { control, response_tx }) = control {
+                    let result = match control {
+                        CommandControl::Write { delta, close_stdin } => {
+                            handle_process_write(
+                                &session,
+                                stream_stdin,
+                                delta,
+                                close_stdin,
+                            ).await
                         }
-                    },
-                    None => {
-                        control_open = false;
-                        session.request_terminate();
+                        CommandControl::Resize { size } => {
+                            handle_process_resize(&session, size)
+                        }
+                        CommandControl::Terminate => {
+                            session.request_terminate();
+                            Ok(())
+                        }
+                    };
+                    if let Some(response_tx) = response_tx {
+                        let _ = response_tx.send(result);
                     }
+                } else {
+                    control_open = false;
+                    session.request_terminate();
                 }
             }
             _ = &mut expiration, if !timed_out => {

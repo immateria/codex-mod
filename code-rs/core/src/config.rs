@@ -2521,13 +2521,10 @@ fn migrate_entry(path: &Path, target_dir: &Path) -> std::io::Result<()> {
         return Ok(());
     }
 
-    match std::fs::rename(path, &target) {
-        Ok(()) => Ok(()),
-        Err(_) => {
-            std::fs::copy(path, &target)?;
-            std::fs::remove_file(path)?;
-            Ok(())
-        }
+    if let Ok(()) = std::fs::rename(path, &target) { Ok(()) } else {
+        std::fs::copy(path, &target)?;
+        std::fs::remove_file(path)?;
+        Ok(())
     }
 }
 

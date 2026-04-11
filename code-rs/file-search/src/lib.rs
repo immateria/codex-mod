@@ -67,30 +67,27 @@ pub async fn run_main<T: Reporter>(
         Some(dir) => dir,
         None => std::env::current_dir()?,
     };
-    let pattern_text = match pattern {
-        Some(pattern) => pattern,
-        None => {
-            reporter.warn_no_search_pattern(&search_directory);
-            #[cfg(unix)]
-            Command::new("ls")
-                .arg("-al")
-                .current_dir(search_directory)
+    let pattern_text = if let Some(pattern) = pattern { pattern } else {
+        reporter.warn_no_search_pattern(&search_directory);
+        #[cfg(unix)]
+        Command::new("ls")
+            .arg("-al")
+            .current_dir(search_directory)
+            .stdout(std::process::Stdio::inherit())
+            .stderr(std::process::Stdio::inherit())
+            .status()
+            .await?;
+        #[cfg(windows)]
+        {
+            Command::new("cmd")
+                .arg("/c")
+                .arg(search_directory)
                 .stdout(std::process::Stdio::inherit())
                 .stderr(std::process::Stdio::inherit())
                 .status()
                 .await?;
-            #[cfg(windows)]
-            {
-                Command::new("cmd")
-                    .arg("/c")
-                    .arg(search_directory)
-                    .stdout(std::process::Stdio::inherit())
-                    .stderr(std::process::Stdio::inherit())
-                    .status()
-                    .await?;
-            }
-            return Ok(());
         }
+        return Ok(());
     };
 
     let cancel_flag = Arc::new(AtomicBool::new(false));

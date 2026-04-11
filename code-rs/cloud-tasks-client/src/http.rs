@@ -337,16 +337,13 @@ mod api {
             preflight: bool,
         ) -> Result<ApplyOutcome> {
             let id = task_id.0.clone();
-            let diff = match diff_override {
-                Some(diff) => diff,
-                None => {
-                    let details = self.backend.get_task_details(&id).await.map_err(|e| {
-                        CloudTaskError::Http(format!("get_task_details failed: {e}"))
-                    })?;
-                    details.unified_diff().ok_or_else(|| {
-                        CloudTaskError::Msg(format!("No diff available for task {id}"))
-                    })?
-                }
+            let diff = if let Some(diff) = diff_override { diff } else {
+                let details = self.backend.get_task_details(&id).await.map_err(|e| {
+                    CloudTaskError::Http(format!("get_task_details failed: {e}"))
+                })?;
+                details.unified_diff().ok_or_else(|| {
+                    CloudTaskError::Msg(format!("No diff available for task {id}"))
+                })?
             };
 
             if !is_unified_diff(&diff) {

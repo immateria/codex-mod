@@ -123,38 +123,35 @@ fn update_origins_for_value(
     prefix: &str,
     value: &TomlValue,
 ) {
-    match value {
-        TomlValue::Table(table) => {
-            if !prefix.is_empty() {
-                // A table at `prefix` replaces any scalar/array previously set at that path.
-                origins.remove(prefix);
-            }
-            for (key, child) in table {
-                let next = if prefix.is_empty() {
-                    key.clone()
-                } else {
-                    format!("{prefix}.{key}")
-                };
-                update_origins_for_value(origins, name, version, &next, child);
-            }
+    if let TomlValue::Table(table) = value {
+        if !prefix.is_empty() {
+            // A table at `prefix` replaces any scalar/array previously set at that path.
+            origins.remove(prefix);
         }
-        _ => {
-            if prefix.is_empty() {
-                // A non-table at the root replaces the entire config.
-                origins.clear();
+        for (key, child) in table {
+            let next = if prefix.is_empty() {
+                key.clone()
             } else {
-                // A scalar/array at `prefix` replaces the entire subtree.
-                remove_origin_descendants(origins, prefix);
-            }
-            if !prefix.is_empty() {
-                origins.insert(
-                    prefix.to_string(),
-                    ConfigLayerMetadata {
-                        name: name.clone(),
-                        version: version.to_string(),
-                    },
-                );
-            }
+                format!("{prefix}.{key}")
+            };
+            update_origins_for_value(origins, name, version, &next, child);
+        }
+    } else {
+        if prefix.is_empty() {
+            // A non-table at the root replaces the entire config.
+            origins.clear();
+        } else {
+            // A scalar/array at `prefix` replaces the entire subtree.
+            remove_origin_descendants(origins, prefix);
+        }
+        if !prefix.is_empty() {
+            origins.insert(
+                prefix.to_string(),
+                ConfigLayerMetadata {
+                    name: name.clone(),
+                    version: version.to_string(),
+                },
+            );
         }
     }
 }
@@ -507,32 +504,26 @@ fn apply_toml_override(root: &mut TomlValue, path: &str, value: TomlValue) {
         let is_last = idx == segments.len() - 1;
 
         if is_last {
-            match current {
-                TomlValue::Table(table) => {
-                    table.insert((*segment).to_string(), value);
-                }
-                _ => {
-                    let mut table = Table::new();
-                    table.insert((*segment).to_string(), value);
-                    *current = TomlValue::Table(table);
-                }
+            if let TomlValue::Table(table) = current {
+                table.insert((*segment).to_string(), value);
+            } else {
+                let mut table = Table::new();
+                table.insert((*segment).to_string(), value);
+                *current = TomlValue::Table(table);
             }
             return;
         }
 
-        match current {
-            TomlValue::Table(table) => {
+        if let TomlValue::Table(table) = current {
+            current = table
+                .entry((*segment).to_string())
+                .or_insert_with(|| TomlValue::Table(Table::new()));
+        } else {
+            *current = TomlValue::Table(Table::new());
+            if let TomlValue::Table(table) = current {
                 current = table
                     .entry((*segment).to_string())
                     .or_insert_with(|| TomlValue::Table(Table::new()));
-            }
-            _ => {
-                *current = TomlValue::Table(Table::new());
-                if let TomlValue::Table(table) = current {
-                    current = table
-                        .entry((*segment).to_string())
-                        .or_insert_with(|| TomlValue::Table(Table::new()));
-                }
             }
         }
     }

@@ -271,13 +271,10 @@ pub(crate) async fn submit_and_wait(
                     return Err(anyhow::anyhow!("Interrupted"));
                 }
                 res = tokio::time::timeout(remaining, conversation.next_event()) => {
-                    match res {
-                        Ok(event) => event,
-                        Err(_) => {
-                            let _ = conversation.submit(Op::Interrupt).await;
-                            let _ = conversation.submit(Op::Shutdown).await;
-                            return Err(anyhow::anyhow!("Time budget exceeded"));
-                        }
+                    if let Ok(event) = res { event } else {
+                        let _ = conversation.submit(Op::Interrupt).await;
+                        let _ = conversation.submit(Op::Shutdown).await;
+                        return Err(anyhow::anyhow!("Time budget exceeded"));
                     }
                 }
             }

@@ -617,29 +617,26 @@ async fn consume_truncated_output(
         Some(timeout) => {
             tokio::select! {
                 result = tokio::time::timeout(timeout, killer.as_mut().wait()) => {
-                    match result {
-                        Ok(status_result) => {
-                            let exit_status = status_result?;
-                            child_exited = true;
-                            (exit_status, false)
-                        }
-                        Err(_) => {
-                            // timeout
-                            #[cfg(unix)]
-                            {
-                                if let Some(pid) = killer.as_mut().id() {
-                                    // Best-effort kill entire process group.
-                                    // Clamp to i32 range to avoid sign-bit overflow on negate.
-                                    if let Ok(pid_i32) = i32::try_from(pid) {
-                                        unsafe { libc::kill(-pid_i32, libc::SIGKILL); }
-                                    }
+                    if let Ok(status_result) = result {
+                        let exit_status = status_result?;
+                        child_exited = true;
+                        (exit_status, false)
+                    } else {
+                        // timeout
+                        #[cfg(unix)]
+                        {
+                            if let Some(pid) = killer.as_mut().id() {
+                                // Best-effort kill entire process group.
+                                // Clamp to i32 range to avoid sign-bit overflow on negate.
+                                if let Ok(pid_i32) = i32::try_from(pid) {
+                                    unsafe { libc::kill(-pid_i32, libc::SIGKILL); }
                                 }
                             }
-                            killer.as_mut().start_kill()?;
-                            reap_after_kill = true;
-                            // Debatable whether `child.wait().await` should be called here.
-                            (synthetic_exit_status(EXIT_CODE_SIGNAL_BASE + TIMEOUT_CODE), true)
                         }
+                        killer.as_mut().start_kill()?;
+                        reap_after_kill = true;
+                        // Debatable whether `child.wait().await` should be called here.
+                        (synthetic_exit_status(EXIT_CODE_SIGNAL_BASE + TIMEOUT_CODE), true)
                     }
                 }
                 _ = tokio::signal::ctrl_c() => {

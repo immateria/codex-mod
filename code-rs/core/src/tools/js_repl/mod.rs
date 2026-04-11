@@ -325,19 +325,16 @@ impl JsReplManager {
                     .await;
                 }
                 msg = &mut rx => {
-                    match msg {
-                        Ok(msg) => break msg,
-                        Err(_) => {
-                            {
-                                let mut active = active_exec_id.lock().await;
-                                *active = None;
-                            }
-                            if let Err(e) = self.reset().await { tracing::warn!("js_repl reset failed during error recovery: {e}"); }
-                            return Err(JsExecError {
-                                output: String::new(),
-                                error: "js_repl kernel stopped before returning a result".to_string(),
-                            });
+                    if let Ok(msg) = msg { break msg } else {
+                        {
+                            let mut active = active_exec_id.lock().await;
+                            *active = None;
                         }
+                        if let Err(e) = self.reset().await { tracing::warn!("js_repl reset failed during error recovery: {e}"); }
+                        return Err(JsExecError {
+                            output: String::new(),
+                            error: "js_repl kernel stopped before returning a result".to_string(),
+                        });
                     }
                 }
             }
@@ -655,25 +652,22 @@ impl JsReplManager {
             .dispatch_response_item(sess, turn_diff_tracker, meta, item)
             .await;
 
-        let (ok, response, error) = match output {
-            Some(output) => match serde_json::to_value(&output) {
-                Ok(value) => (true, value, JsonValue::Null),
-                Err(err) => (
-                    false,
-                    JsonValue::Null,
-                    JsonValue::String(format!("failed to serialize tool output: {err}")),
-                ),
-            },
-            None => {
-                let tool_name = tool_req.tool_name.as_str();
-                (
-                    false,
-                    JsonValue::Null,
-                    JsonValue::String(format!(
-                        "unknown tool or unsupported tool payload: `{tool_name}`"
-                    )),
-                )
-            }
+        let (ok, response, error) = if let Some(output) = output { match serde_json::to_value(&output) {
+            Ok(value) => (true, value, JsonValue::Null),
+            Err(err) => (
+                false,
+                JsonValue::Null,
+                JsonValue::String(format!("failed to serialize tool output: {err}")),
+            ),
+        } } else {
+            let tool_name = tool_req.tool_name.as_str();
+            (
+                false,
+                JsonValue::Null,
+                JsonValue::String(format!(
+                    "unknown tool or unsupported tool payload: `{tool_name}`"
+                )),
+            )
         };
 
         let response = json!({

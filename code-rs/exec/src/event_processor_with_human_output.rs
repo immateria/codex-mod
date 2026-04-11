@@ -432,25 +432,22 @@ impl EventProcessor for EventProcessorWithHumanOutput {
                     .take(MAX_OUTPUT_LINES_FOR_EXEC_TOOL_CALL)
                     .collect::<Vec<_>>()
                     .join("\n");
-                match exit_code {
-                    0 => {
-                        let title = format!("{call} succeeded{duration}:");
-                        ts_println!(self, "{}", title.style(self.green));
-                        if !truncated_stdout.is_empty() {
-                            eprintln!("{}", truncated_stdout.style(self.dimmed));
-                        }
+                if exit_code == 0 {
+                    let title = format!("{call} succeeded{duration}:");
+                    ts_println!(self, "{}", title.style(self.green));
+                    if !truncated_stdout.is_empty() {
+                        eprintln!("{}", truncated_stdout.style(self.dimmed));
                     }
-                    _ => {
-                        let title = format!("{call} exited {exit_code}{duration}:");
-                        ts_println!(self, "{}", title.style(self.red));
-                        if !truncated_stdout.is_empty() {
-                            eprintln!("{}", truncated_stdout.style(self.dimmed));
-                            eprintln!();
-                        }
-                        eprintln!("ERROR");
-                        if !truncated_stderr.is_empty() {
-                            eprintln!("{truncated_stderr}");
-                        }
+                } else {
+                    let title = format!("{call} exited {exit_code}{duration}:");
+                    ts_println!(self, "{}", title.style(self.red));
+                    if !truncated_stdout.is_empty() {
+                        eprintln!("{}", truncated_stdout.style(self.dimmed));
+                        eprintln!();
+                    }
+                    eprintln!("ERROR");
+                    if !truncated_stderr.is_empty() {
+                        eprintln!("{truncated_stderr}");
                     }
                 }
             }

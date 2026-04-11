@@ -449,23 +449,20 @@ pub fn set_shell_style_profile_skill_mode(
 
     {
         let root = doc.as_table_mut();
-        match root.get("shell_style_profiles") {
-            Some(item) => {
-                if item.as_table().is_none() {
-                    return Err(anyhow::anyhow!(
-                        "`shell_style_profiles` must be a TOML table"
-                    ));
-                }
+        if let Some(item) = root.get("shell_style_profiles") {
+            if item.as_table().is_none() {
+                return Err(anyhow::anyhow!(
+                    "`shell_style_profiles` must be a TOML table"
+                ));
             }
-            None => {
-                if matches!(mode, ShellStyleSkillMode::Inherit) {
-                    return Ok(false);
-                }
-                let mut table = TomlTable::new();
-                table.set_implicit(true);
-                root.insert("shell_style_profiles", TomlItem::Table(table));
-                changed = true;
+        } else {
+            if matches!(mode, ShellStyleSkillMode::Inherit) {
+                return Ok(false);
             }
+            let mut table = TomlTable::new();
+            table.set_implicit(true);
+            root.insert("shell_style_profiles", TomlItem::Table(table));
+            changed = true;
         }
     }
 
@@ -477,28 +474,25 @@ pub fn set_shell_style_profile_skill_mode(
             .ok_or_else(|| anyhow::anyhow!("failed to prepare shell_style_profiles table"))?;
 
         let mut resolved_style_key = find_shell_style_profile_key(profiles_table, style)?;
-        match resolved_style_key.as_deref() {
-            Some(existing_key) => {
-                if profiles_table
-                    .get(existing_key)
-                    .and_then(|item| item.as_table())
-                    .is_none()
-                {
-                    return Err(anyhow::anyhow!(
-                        "`shell_style_profiles.{existing_key}` must be a TOML table"
-                    ));
-                }
+        if let Some(existing_key) = resolved_style_key.as_deref() {
+            if profiles_table
+                .get(existing_key)
+                .and_then(|item| item.as_table())
+                .is_none()
+            {
+                return Err(anyhow::anyhow!(
+                    "`shell_style_profiles.{existing_key}` must be a TOML table"
+                ));
             }
-            None => {
-                if matches!(mode, ShellStyleSkillMode::Inherit) {
-                    return Ok(changed);
-                }
-                let mut style_table = TomlTable::new();
-                style_table.set_implicit(false);
-                profiles_table.insert(style_key.as_str(), TomlItem::Table(style_table));
-                resolved_style_key = Some(style_key.clone());
-                changed = true;
+        } else {
+            if matches!(mode, ShellStyleSkillMode::Inherit) {
+                return Ok(changed);
             }
+            let mut style_table = TomlTable::new();
+            style_table.set_implicit(false);
+            profiles_table.insert(style_key.as_str(), TomlItem::Table(style_table));
+            resolved_style_key = Some(style_key.clone());
+            changed = true;
         }
         let resolved_style_key = resolved_style_key
             .ok_or_else(|| anyhow::anyhow!("failed to resolve shell style profile key"))?;
@@ -577,23 +571,20 @@ pub fn set_shell_style_profile_skills(
 
     {
         let root = doc.as_table_mut();
-        match root.get("shell_style_profiles") {
-            Some(item) => {
-                if item.as_table().is_none() {
-                    return Err(anyhow::anyhow!(
-                        "`shell_style_profiles` must be a TOML table"
-                    ));
-                }
+        if let Some(item) = root.get("shell_style_profiles") {
+            if item.as_table().is_none() {
+                return Err(anyhow::anyhow!(
+                    "`shell_style_profiles` must be a TOML table"
+                ));
             }
-            None => {
-                if skills.is_empty() && disabled_skills.is_empty() {
-                    return Ok(false);
-                }
-                let mut table = TomlTable::new();
-                table.set_implicit(true);
-                root.insert("shell_style_profiles", TomlItem::Table(table));
-                changed = true;
+        } else {
+            if skills.is_empty() && disabled_skills.is_empty() {
+                return Ok(false);
             }
+            let mut table = TomlTable::new();
+            table.set_implicit(true);
+            root.insert("shell_style_profiles", TomlItem::Table(table));
+            changed = true;
         }
     }
 
@@ -605,28 +596,25 @@ pub fn set_shell_style_profile_skills(
             .ok_or_else(|| anyhow::anyhow!("failed to prepare shell_style_profiles table"))?;
 
         let mut resolved_style_key = find_shell_style_profile_key(profiles_table, style)?;
-        match resolved_style_key.as_deref() {
-            Some(existing_key) => {
-                if profiles_table
-                    .get(existing_key)
-                    .and_then(|item| item.as_table())
-                    .is_none()
-                {
-                    return Err(anyhow::anyhow!(
-                        "`shell_style_profiles.{existing_key}` must be a TOML table"
-                    ));
-                }
+        if let Some(existing_key) = resolved_style_key.as_deref() {
+            if profiles_table
+                .get(existing_key)
+                .and_then(|item| item.as_table())
+                .is_none()
+            {
+                return Err(anyhow::anyhow!(
+                    "`shell_style_profiles.{existing_key}` must be a TOML table"
+                ));
             }
-            None => {
-                if skills.is_empty() && disabled_skills.is_empty() {
-                    return Ok(changed);
-                }
-                let mut style_table = TomlTable::new();
-                style_table.set_implicit(false);
-                profiles_table.insert(style_key.as_str(), TomlItem::Table(style_table));
-                resolved_style_key = Some(style_key.clone());
-                changed = true;
+        } else {
+            if skills.is_empty() && disabled_skills.is_empty() {
+                return Ok(changed);
             }
+            let mut style_table = TomlTable::new();
+            style_table.set_implicit(false);
+            profiles_table.insert(style_key.as_str(), TomlItem::Table(style_table));
+            resolved_style_key = Some(style_key.clone());
+            changed = true;
         }
         let resolved_style_key = resolved_style_key
             .ok_or_else(|| anyhow::anyhow!("failed to resolve shell style profile key"))?;
@@ -683,23 +671,20 @@ pub fn set_shell_style_profile_paths(
 
     {
         let root = doc.as_table_mut();
-        match root.get("shell_style_profiles") {
-            Some(item) => {
-                if item.as_table().is_none() {
-                    return Err(anyhow::anyhow!(
-                        "`shell_style_profiles` must be a TOML table"
-                    ));
-                }
+        if let Some(item) = root.get("shell_style_profiles") {
+            if item.as_table().is_none() {
+                return Err(anyhow::anyhow!(
+                    "`shell_style_profiles` must be a TOML table"
+                ));
             }
-            None => {
-                if references.is_empty() && skill_roots.is_empty() {
-                    return Ok(false);
-                }
-                let mut table = TomlTable::new();
-                table.set_implicit(true);
-                root.insert("shell_style_profiles", TomlItem::Table(table));
-                changed = true;
+        } else {
+            if references.is_empty() && skill_roots.is_empty() {
+                return Ok(false);
             }
+            let mut table = TomlTable::new();
+            table.set_implicit(true);
+            root.insert("shell_style_profiles", TomlItem::Table(table));
+            changed = true;
         }
     }
 
@@ -711,28 +696,25 @@ pub fn set_shell_style_profile_paths(
             .ok_or_else(|| anyhow::anyhow!("failed to prepare shell_style_profiles table"))?;
 
         let mut resolved_style_key = find_shell_style_profile_key(profiles_table, style)?;
-        match resolved_style_key.as_deref() {
-            Some(existing_key) => {
-                if profiles_table
-                    .get(existing_key)
-                    .and_then(|item| item.as_table())
-                    .is_none()
-                {
-                    return Err(anyhow::anyhow!(
-                        "`shell_style_profiles.{existing_key}` must be a TOML table"
-                    ));
-                }
+        if let Some(existing_key) = resolved_style_key.as_deref() {
+            if profiles_table
+                .get(existing_key)
+                .and_then(|item| item.as_table())
+                .is_none()
+            {
+                return Err(anyhow::anyhow!(
+                    "`shell_style_profiles.{existing_key}` must be a TOML table"
+                ));
             }
-            None => {
-                if references.is_empty() && skill_roots.is_empty() {
-                    return Ok(changed);
-                }
-                let mut style_table = TomlTable::new();
-                style_table.set_implicit(false);
-                profiles_table.insert(style_key.as_str(), TomlItem::Table(style_table));
-                resolved_style_key = Some(style_key.clone());
-                changed = true;
+        } else {
+            if references.is_empty() && skill_roots.is_empty() {
+                return Ok(changed);
             }
+            let mut style_table = TomlTable::new();
+            style_table.set_implicit(false);
+            profiles_table.insert(style_key.as_str(), TomlItem::Table(style_table));
+            resolved_style_key = Some(style_key.clone());
+            changed = true;
         }
         let resolved_style_key = resolved_style_key
             .ok_or_else(|| anyhow::anyhow!("failed to resolve shell style profile key"))?;
@@ -792,23 +774,20 @@ pub fn set_shell_style_profile_summary(
 
     {
         let root = doc.as_table_mut();
-        match root.get("shell_style_profiles") {
-            Some(item) => {
-                if item.as_table().is_none() {
-                    return Err(anyhow::anyhow!(
-                        "`shell_style_profiles` must be a TOML table"
-                    ));
-                }
+        if let Some(item) = root.get("shell_style_profiles") {
+            if item.as_table().is_none() {
+                return Err(anyhow::anyhow!(
+                    "`shell_style_profiles` must be a TOML table"
+                ));
             }
-            None => {
-                if summary.is_none() {
-                    return Ok(false);
-                }
-                let mut table = TomlTable::new();
-                table.set_implicit(true);
-                root.insert("shell_style_profiles", TomlItem::Table(table));
-                changed = true;
+        } else {
+            if summary.is_none() {
+                return Ok(false);
             }
+            let mut table = TomlTable::new();
+            table.set_implicit(true);
+            root.insert("shell_style_profiles", TomlItem::Table(table));
+            changed = true;
         }
     }
 
@@ -820,28 +799,25 @@ pub fn set_shell_style_profile_summary(
             .ok_or_else(|| anyhow::anyhow!("failed to prepare shell_style_profiles table"))?;
 
         let mut resolved_style_key = find_shell_style_profile_key(profiles_table, style)?;
-        match resolved_style_key.as_deref() {
-            Some(existing_key) => {
-                if profiles_table
-                    .get(existing_key)
-                    .and_then(|item| item.as_table())
-                    .is_none()
-                {
-                    return Err(anyhow::anyhow!(
-                        "`shell_style_profiles.{existing_key}` must be a TOML table"
-                    ));
-                }
+        if let Some(existing_key) = resolved_style_key.as_deref() {
+            if profiles_table
+                .get(existing_key)
+                .and_then(|item| item.as_table())
+                .is_none()
+            {
+                return Err(anyhow::anyhow!(
+                    "`shell_style_profiles.{existing_key}` must be a TOML table"
+                ));
             }
-            None => {
-                if summary.is_none() {
-                    return Ok(changed);
-                }
-                let mut style_table = TomlTable::new();
-                style_table.set_implicit(false);
-                profiles_table.insert(style_key.as_str(), TomlItem::Table(style_table));
-                resolved_style_key = Some(style_key.clone());
-                changed = true;
+        } else {
+            if summary.is_none() {
+                return Ok(changed);
             }
+            let mut style_table = TomlTable::new();
+            style_table.set_implicit(false);
+            profiles_table.insert(style_key.as_str(), TomlItem::Table(style_table));
+            resolved_style_key = Some(style_key.clone());
+            changed = true;
         }
         let resolved_style_key = resolved_style_key
             .ok_or_else(|| anyhow::anyhow!("failed to resolve shell style profile key"))?;
@@ -911,23 +887,20 @@ pub fn set_shell_style_profile_mcp_servers(
 
     {
         let root = doc.as_table_mut();
-        match root.get("shell_style_profiles") {
-            Some(item) => {
-                if item.as_table().is_none() {
-                    return Err(anyhow::anyhow!(
-                        "`shell_style_profiles` must be a TOML table"
-                    ));
-                }
+        if let Some(item) = root.get("shell_style_profiles") {
+            if item.as_table().is_none() {
+                return Err(anyhow::anyhow!(
+                    "`shell_style_profiles` must be a TOML table"
+                ));
             }
-            None => {
-                if include.is_empty() && exclude.is_empty() {
-                    return Ok(false);
-                }
-                let mut table = TomlTable::new();
-                table.set_implicit(true);
-                root.insert("shell_style_profiles", TomlItem::Table(table));
-                changed = true;
+        } else {
+            if include.is_empty() && exclude.is_empty() {
+                return Ok(false);
             }
+            let mut table = TomlTable::new();
+            table.set_implicit(true);
+            root.insert("shell_style_profiles", TomlItem::Table(table));
+            changed = true;
         }
     }
 
@@ -939,28 +912,25 @@ pub fn set_shell_style_profile_mcp_servers(
             .ok_or_else(|| anyhow::anyhow!("failed to prepare shell_style_profiles table"))?;
 
         let mut resolved_style_key = find_shell_style_profile_key(profiles_table, style)?;
-        match resolved_style_key.as_deref() {
-            Some(existing_key) => {
-                if profiles_table
-                    .get(existing_key)
-                    .and_then(|item| item.as_table())
-                    .is_none()
-                {
-                    return Err(anyhow::anyhow!(
-                        "`shell_style_profiles.{existing_key}` must be a TOML table"
-                    ));
-                }
+        if let Some(existing_key) = resolved_style_key.as_deref() {
+            if profiles_table
+                .get(existing_key)
+                .and_then(|item| item.as_table())
+                .is_none()
+            {
+                return Err(anyhow::anyhow!(
+                    "`shell_style_profiles.{existing_key}` must be a TOML table"
+                ));
             }
-            None => {
-                if include.is_empty() && exclude.is_empty() {
-                    return Ok(changed);
-                }
-                let mut style_table = TomlTable::new();
-                style_table.set_implicit(false);
-                profiles_table.insert(style_key.as_str(), TomlItem::Table(style_table));
-                resolved_style_key = Some(style_key.clone());
-                changed = true;
+        } else {
+            if include.is_empty() && exclude.is_empty() {
+                return Ok(changed);
             }
+            let mut style_table = TomlTable::new();
+            style_table.set_implicit(false);
+            profiles_table.insert(style_key.as_str(), TomlItem::Table(style_table));
+            resolved_style_key = Some(style_key.clone());
+            changed = true;
         }
         let resolved_style_key = resolved_style_key
             .ok_or_else(|| anyhow::anyhow!("failed to resolve shell style profile key"))?;
@@ -1746,72 +1716,69 @@ pub fn set_tui_hotkeys(
         platform_key: &str,
         overrides: Option<&crate::config_types::TuiHotkeysOverrides>,
     ) -> anyhow::Result<()> {
-        match overrides {
-            Some(overrides) => {
-                let platform_table = hotkeys_table[platform_key]
-                    .or_insert(TomlItem::Table(TomlTable::new()))
-                    .as_table_mut()
-                    .ok_or_else(|| {
-                        anyhow::anyhow!("`tui.hotkeys.{platform_key}` must be a TOML table")
-                    })?;
-
-                write_hotkey_override_field(platform_table, "model_selector", overrides.model_selector);
-                write_hotkey_override_field(
-                    platform_table,
-                    "reasoning_effort",
-                    overrides.reasoning_effort,
-                );
-                write_hotkey_override_field(platform_table, "shell_selector", overrides.shell_selector);
-                write_hotkey_override_field(
-                    platform_table,
-                    "network_settings",
-                    overrides.network_settings,
-                );
-                write_hotkey_override_field(
-                    platform_table,
-                    "exec_output_fold",
-                    overrides.exec_output_fold,
-                );
-                write_hotkey_override_field(
-                    platform_table,
-                    "js_repl_code_fold",
-                    overrides.js_repl_code_fold,
-                );
-                write_hotkey_override_field(
-                    platform_table,
-                    "jump_to_parent_call",
-                    overrides.jump_to_parent_call,
-                );
-                write_hotkey_override_field(
-                    platform_table,
-                    "jump_to_latest_child_call",
-                    overrides.jump_to_latest_child_call,
-                );
-
-                if platform_table.is_empty() {
-                    hotkeys_table.remove(platform_key);
-                }
-            }
-            None => {
-                let Some(item) = hotkeys_table.get_mut(platform_key) else {
-                    return Ok(());
-                };
-                let platform_table = item.as_table_mut().ok_or_else(|| {
+        if let Some(overrides) = overrides {
+            let platform_table = hotkeys_table[platform_key]
+                .or_insert(TomlItem::Table(TomlTable::new()))
+                .as_table_mut()
+                .ok_or_else(|| {
                     anyhow::anyhow!("`tui.hotkeys.{platform_key}` must be a TOML table")
                 })?;
 
-                platform_table.remove("model_selector");
-                platform_table.remove("reasoning_effort");
-                platform_table.remove("shell_selector");
-                platform_table.remove("network_settings");
-                platform_table.remove("exec_output_fold");
-                platform_table.remove("js_repl_code_fold");
-                platform_table.remove("jump_to_parent_call");
-                platform_table.remove("jump_to_latest_child_call");
+            write_hotkey_override_field(platform_table, "model_selector", overrides.model_selector);
+            write_hotkey_override_field(
+                platform_table,
+                "reasoning_effort",
+                overrides.reasoning_effort,
+            );
+            write_hotkey_override_field(platform_table, "shell_selector", overrides.shell_selector);
+            write_hotkey_override_field(
+                platform_table,
+                "network_settings",
+                overrides.network_settings,
+            );
+            write_hotkey_override_field(
+                platform_table,
+                "exec_output_fold",
+                overrides.exec_output_fold,
+            );
+            write_hotkey_override_field(
+                platform_table,
+                "js_repl_code_fold",
+                overrides.js_repl_code_fold,
+            );
+            write_hotkey_override_field(
+                platform_table,
+                "jump_to_parent_call",
+                overrides.jump_to_parent_call,
+            );
+            write_hotkey_override_field(
+                platform_table,
+                "jump_to_latest_child_call",
+                overrides.jump_to_latest_child_call,
+            );
 
-                if platform_table.is_empty() {
-                    hotkeys_table.remove(platform_key);
-                }
+            if platform_table.is_empty() {
+                hotkeys_table.remove(platform_key);
+            }
+        } else {
+            let Some(item) = hotkeys_table.get_mut(platform_key) else {
+                return Ok(());
+            };
+            let platform_table = item.as_table_mut().ok_or_else(|| {
+                anyhow::anyhow!("`tui.hotkeys.{platform_key}` must be a TOML table")
+            })?;
+
+            platform_table.remove("model_selector");
+            platform_table.remove("reasoning_effort");
+            platform_table.remove("shell_selector");
+            platform_table.remove("network_settings");
+            platform_table.remove("exec_output_fold");
+            platform_table.remove("js_repl_code_fold");
+            platform_table.remove("jump_to_parent_call");
+            platform_table.remove("jump_to_latest_child_call");
+
+            if platform_table.is_empty() {
+                hotkeys_table.remove(platform_key);
             }
         }
         Ok(())
@@ -3724,18 +3691,15 @@ pub(crate) fn load_instructions(code_dir: Option<&Path>) -> Option<String> {
     let code_home = code_dir?;
     let read_path = resolve_code_path_for_read(code_home, Path::new("AGENTS.md"));
 
-    let contents = match std::fs::read_to_string(&read_path) {
-        Ok(s) => s,
-        Err(_) => {
-            if env_overrides_present() {
-                return None;
-            }
-            let legacy_home = legacy_code_home_dir()?;
-            let legacy_path = legacy_home.join("AGENTS.md");
-            match std::fs::read_to_string(&legacy_path) {
-                Ok(s) => s,
-                Err(_) => return None,
-            }
+    let contents = if let Ok(s) = std::fs::read_to_string(&read_path) { s } else {
+        if env_overrides_present() {
+            return None;
+        }
+        let legacy_home = legacy_code_home_dir()?;
+        let legacy_path = legacy_home.join("AGENTS.md");
+        match std::fs::read_to_string(&legacy_path) {
+            Ok(s) => s,
+            Err(_) => return None,
         }
     };
 

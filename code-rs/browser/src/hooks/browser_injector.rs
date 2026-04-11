@@ -36,14 +36,11 @@ impl BrowserInjector {
 
         debug!("Browser enabled, capturing pre-LLM screenshot");
 
-        let page = match self.manager.get_or_create_page().await {
-            Ok(p) => p,
-            Err(_) => {
-                info!("No active page, using about:blank");
-                let page = self.manager.get_or_create_page().await?;
-                page.goto("about:blank", None).await?;
-                page
-            }
+        let page = if let Ok(p) = self.manager.get_or_create_page().await { p } else {
+            info!("No active page, using about:blank");
+            let page = self.manager.get_or_create_page().await?;
+            page.goto("about:blank", None).await?;
+            page
         };
 
         let config = self.manager.get_config().await;

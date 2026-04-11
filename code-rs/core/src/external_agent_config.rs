@@ -547,20 +547,17 @@ fn merge_missing_toml_values(existing: &mut TomlValue, incoming: &TomlValue) -> 
         (TomlValue::Table(existing_table), TomlValue::Table(incoming_table)) => {
             let mut changed = false;
             for (key, incoming_value) in incoming_table {
-                match existing_table.get_mut(key) {
-                    Some(existing_value) => {
-                        if matches!(
-                            (&*existing_value, incoming_value),
-                            (TomlValue::Table(_), TomlValue::Table(_))
-                        ) && merge_missing_toml_values(existing_value, incoming_value)?
-                        {
-                            changed = true;
-                        }
-                    }
-                    None => {
-                        existing_table.insert(key.clone(), incoming_value.clone());
+                if let Some(existing_value) = existing_table.get_mut(key) {
+                    if matches!(
+                        (&*existing_value, incoming_value),
+                        (TomlValue::Table(_), TomlValue::Table(_))
+                    ) && merge_missing_toml_values(existing_value, incoming_value)?
+                    {
                         changed = true;
                     }
+                } else {
+                    existing_table.insert(key.clone(), incoming_value.clone());
+                    changed = true;
                 }
             }
             Ok(changed)

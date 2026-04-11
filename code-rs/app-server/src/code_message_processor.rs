@@ -807,51 +807,45 @@ impl CodexMessageProcessor {
         params: RemoveConversationListenerParams,
     ) {
         let RemoveConversationListenerParams { subscription_id } = params;
-        match self.conversation_listeners.remove(&subscription_id) {
-            Some(registration) => {
-                if registration.owner_connection_id != requester_connection_id {
-                    // Keep ownership scoped to the client that created the listener.
-                    self.conversation_listeners
-                        .insert(subscription_id, registration);
-                    let error = JSONRPCErrorError {
-                        code: INVALID_REQUEST_ERROR_CODE,
-                        message: format!("subscription not found: {subscription_id}"),
-                        data: None,
-                    };
-                    self.outgoing.send_error(request_id, error).await;
-                    return;
-                }
-
-                // Signal the spawned task to exit and acknowledge.
-                let _ = registration.cancel_tx.send(());
-                let response = RemoveConversationSubscriptionResponse {};
-                self.outgoing.send_response(request_id, response).await;
-            }
-            None => {
+        if let Some(registration) = self.conversation_listeners.remove(&subscription_id) {
+            if registration.owner_connection_id != requester_connection_id {
+                // Keep ownership scoped to the client that created the listener.
+                self.conversation_listeners
+                    .insert(subscription_id, registration);
                 let error = JSONRPCErrorError {
                     code: INVALID_REQUEST_ERROR_CODE,
                     message: format!("subscription not found: {subscription_id}"),
                     data: None,
                 };
                 self.outgoing.send_error(request_id, error).await;
+                return;
             }
+
+            // Signal the spawned task to exit and acknowledge.
+            let _ = registration.cancel_tx.send(());
+            let response = RemoveConversationSubscriptionResponse {};
+            self.outgoing.send_response(request_id, response).await;
+        } else {
+            let error = JSONRPCErrorError {
+                code: INVALID_REQUEST_ERROR_CODE,
+                message: format!("subscription not found: {subscription_id}"),
+                data: None,
+            };
+            self.outgoing.send_error(request_id, error).await;
         }
     }
 
     async fn list_conversations(&self, request_id: RequestId, params: ListConversationsParams) {
         let page_size = params.page_size.unwrap_or(50).min(200);
         let cursor: Option<Cursor> = match params.cursor {
-            Some(cursor) => match serde_json::from_value::<Cursor>(serde_json::Value::String(cursor)) {
-                Ok(cursor) => Some(cursor),
-                Err(_) => {
-                    let error = JSONRPCErrorError {
-                        code: INVALID_REQUEST_ERROR_CODE,
-                        message: "invalid cursor".to_string(),
-                        data: None,
-                    };
-                    self.outgoing.send_error(request_id, error).await;
-                    return;
-                }
+            Some(cursor) => if let Ok(cursor) = serde_json::from_value::<Cursor>(serde_json::Value::String(cursor)) { Some(cursor) } else {
+                let error = JSONRPCErrorError {
+                    code: INVALID_REQUEST_ERROR_CODE,
+                    message: "invalid cursor".to_string(),
+                    data: None,
+                };
+                self.outgoing.send_error(request_id, error).await;
+                return;
             },
             None => None,
         };
@@ -1358,22 +1352,19 @@ impl CodexMessageProcessor {
 
     async fn git_diff_to_origin(&self, request_id: RequestId, cwd: PathBuf) {
         let diff = git_diff_to_remote(&cwd).await;
-        match diff {
-            Some(value) => {
-                let response = GitDiffToRemoteResponse {
-                    sha: code_protocol::mcp_protocol::GitSha::new(&value.sha.0),
-                    diff: value.diff,
-                };
-                self.outgoing.send_response(request_id, response).await;
-            }
-            None => {
-                let error = JSONRPCErrorError {
-                    code: INVALID_REQUEST_ERROR_CODE,
-                    message: format!("failed to compute git diff to remote for cwd: {cwd:?}"),
-                    data: None,
-                };
-                self.outgoing.send_error(request_id, error).await;
-            }
+        if let Some(value) = diff {
+            let response = GitDiffToRemoteResponse {
+                sha: code_protocol::mcp_protocol::GitSha::new(&value.sha.0),
+                diff: value.diff,
+            };
+            self.outgoing.send_response(request_id, response).await;
+        } else {
+            let error = JSONRPCErrorError {
+                code: INVALID_REQUEST_ERROR_CODE,
+                message: format!("failed to compute git diff to remote for cwd: {cwd:?}"),
+                data: None,
+            };
+            self.outgoing.send_error(request_id, error).await;
         }
     }
 

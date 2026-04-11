@@ -564,32 +564,16 @@ impl MessageProcessor {
         }
     }
     async fn handle_tool_call_codex(&self, id: RequestId, arguments: Option<serde_json::Value>) {
-        let (initial_prompt, config): (String, Config) = match arguments {
-            Some(json_val) => match serde_json::from_value::<CodexToolCallParam>(json_val) {
-                Ok(tool_cfg) => match tool_cfg.into_config(self.code_linux_sandbox_exe.clone()) {
-                    Ok(cfg) => cfg,
-                    Err(e) => {
-                        let result = CallToolResult {
-                            content: vec![ContentBlock::TextContent(TextContent {
-                                r#type: "text".to_owned(),
-                                text: format!(
-                                    "Failed to load Codex configuration from overrides: {e}"
-                                ),
-                                annotations: None,
-                            })],
-                            is_error: Some(true),
-                            structured_content: None,
-                        };
-                        self.send_response::<mcp_types::CallToolRequest>(id, result)
-                            .await;
-                        return;
-                    }
-                },
+        let (initial_prompt, config): (String, Config) = if let Some(json_val) = arguments { match serde_json::from_value::<CodexToolCallParam>(json_val) {
+            Ok(tool_cfg) => match tool_cfg.into_config(self.code_linux_sandbox_exe.clone()) {
+                Ok(cfg) => cfg,
                 Err(e) => {
                     let result = CallToolResult {
                         content: vec![ContentBlock::TextContent(TextContent {
                             r#type: "text".to_owned(),
-                            text: format!("Failed to parse configuration for Codex tool: {e}"),
+                            text: format!(
+                                "Failed to load Codex configuration from overrides: {e}"
+                            ),
                             annotations: None,
                         })],
                         is_error: Some(true),
@@ -600,13 +584,11 @@ impl MessageProcessor {
                     return;
                 }
             },
-            None => {
+            Err(e) => {
                 let result = CallToolResult {
                     content: vec![ContentBlock::TextContent(TextContent {
-                        r#type: "text".to_string(),
-                        text:
-                            "Missing arguments for codex tool-call; the `prompt` field is required."
-                                .to_string(),
+                        r#type: "text".to_owned(),
+                        text: format!("Failed to parse configuration for Codex tool: {e}"),
                         annotations: None,
                     })],
                     is_error: Some(true),
@@ -616,6 +598,21 @@ impl MessageProcessor {
                     .await;
                 return;
             }
+        } } else {
+            let result = CallToolResult {
+                content: vec![ContentBlock::TextContent(TextContent {
+                    r#type: "text".to_string(),
+                    text:
+                        "Missing arguments for codex tool-call; the `prompt` field is required."
+                            .to_string(),
+                    annotations: None,
+                })],
+                is_error: Some(true),
+                structured_content: None,
+            };
+            self.send_response::<mcp_types::CallToolRequest>(id, result)
+                .await;
+            return;
         };
 
         // Clone outgoing and session map to move into async task.
@@ -649,33 +646,14 @@ impl MessageProcessor {
         tracing::info!("tools/call -> params: {:?}", arguments);
 
         // parse arguments
-        let CodexToolCallReplyParam { session_id, prompt } = match arguments {
-            Some(json_val) => match serde_json::from_value::<CodexToolCallReplyParam>(json_val) {
-                Ok(params) => params,
-                Err(e) => {
-                    tracing::error!("Failed to parse Codex tool call reply parameters: {e}");
-                    let result = CallToolResult {
-                        content: vec![ContentBlock::TextContent(TextContent {
-                            r#type: "text".to_owned(),
-                            text: format!("Failed to parse configuration for Codex tool: {e}"),
-                            annotations: None,
-                        })],
-                        is_error: Some(true),
-                        structured_content: None,
-                    };
-                    self.send_response::<mcp_types::CallToolRequest>(request_id, result)
-                        .await;
-                    return;
-                }
-            },
-            None => {
-                tracing::error!(
-                    "Missing arguments for codex-reply tool-call; the `session_id` and `prompt` fields are required."
-                );
+        let CodexToolCallReplyParam { session_id, prompt } = if let Some(json_val) = arguments { match serde_json::from_value::<CodexToolCallReplyParam>(json_val) {
+            Ok(params) => params,
+            Err(e) => {
+                tracing::error!("Failed to parse Codex tool call reply parameters: {e}");
                 let result = CallToolResult {
                     content: vec![ContentBlock::TextContent(TextContent {
                         r#type: "text".to_owned(),
-                        text: "Missing arguments for codex-reply tool-call; the `session_id` and `prompt` fields are required.".to_owned(),
+                        text: format!("Failed to parse configuration for Codex tool: {e}"),
                         annotations: None,
                     })],
                     is_error: Some(true),
@@ -685,6 +663,22 @@ impl MessageProcessor {
                     .await;
                 return;
             }
+        } } else {
+            tracing::error!(
+                "Missing arguments for codex-reply tool-call; the `session_id` and `prompt` fields are required."
+            );
+            let result = CallToolResult {
+                content: vec![ContentBlock::TextContent(TextContent {
+                    r#type: "text".to_owned(),
+                    text: "Missing arguments for codex-reply tool-call; the `session_id` and `prompt` fields are required.".to_owned(),
+                    annotations: None,
+                })],
+                is_error: Some(true),
+                structured_content: None,
+            };
+            self.send_response::<mcp_types::CallToolRequest>(request_id, result)
+                .await;
+            return;
         };
         let session_id = match Uuid::parse_str(&session_id) {
             Ok(id) => id,
@@ -788,18 +782,12 @@ impl MessageProcessor {
         // Obtain the Codex conversation from the session map, falling back to the conversation manager.
         let code_arc = if let Some(entry) = self.session_map.lock().await.get(&session_id) {
             entry.conversation.clone()
-        } else {
-            match self
-                .conversation_manager
-                .get_conversation(ConversationId::from(session_id))
-                .await
-            {
-                Ok(c) => c,
-                Err(_) => {
-                    tracing::warn!("Session not found for session_id: {session_id}");
-                    return;
-                }
-            }
+        } else if let Ok(c) = self
+            .conversation_manager
+            .get_conversation(ConversationId::from(session_id))
+            .await { c } else {
+            tracing::warn!("Session not found for session_id: {session_id}");
+            return;
         };
 
         // Submit interrupt to Codex.
@@ -1117,16 +1105,13 @@ impl MessageProcessor {
         };
 
         let mut config_guard = entry.config.lock().await;
-        let selection = match resolve_model_selection(&model_id, &config_guard) {
-            Some(selection) => selection,
-            None => {
-                let message = format!("unknown model id: {model_id}");
-                return Err(JSONRPCErrorError {
-                    code: INVALID_REQUEST_ERROR_CODE,
-                    message,
-                    data: None,
-                });
-            }
+        let selection = if let Some(selection) = resolve_model_selection(&model_id, &config_guard) { selection } else {
+            let message = format!("unknown model id: {model_id}");
+            return Err(JSONRPCErrorError {
+                code: INVALID_REQUEST_ERROR_CODE,
+                message,
+                data: None,
+            });
         };
 
         let changed = apply_model_selection(&mut config_guard, &selection.model, selection.effort);

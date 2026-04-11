@@ -287,22 +287,18 @@ async fn http_connect_proxy(upgraded: Upgraded) -> Result<(), Infallible> {
         return Ok(());
     }
 
-    let allow_upstream_proxy = match upgraded
+    let allow_upstream_proxy = if let Some(state) = upgraded
         .extensions()
         .get::<Arc<NetworkProxyState>>()
-        .cloned()
-    {
-        Some(state) => match state.allow_upstream_proxy().await {
-            Ok(allowed) => allowed,
-            Err(err) => {
-                error!("failed to read upstream proxy setting: {err}");
-                false
-            }
-        },
-        None => {
-            error!("missing app state");
+        .cloned() { match state.allow_upstream_proxy().await {
+        Ok(allowed) => allowed,
+        Err(err) => {
+            error!("failed to read upstream proxy setting: {err}");
             false
         }
+    } } else {
+        error!("missing app state");
+        false
     };
 
     let proxy = if allow_upstream_proxy {
@@ -366,12 +362,9 @@ async fn http_plain_proxy(
     policy_decider: Option<Arc<dyn NetworkPolicyDecider>>,
     mut req: Request,
 ) -> Result<Response, Infallible> {
-    let app_state = match req.extensions().get::<Arc<NetworkProxyState>>().cloned() {
-        Some(state) => state,
-        None => {
-            error!("missing app state");
-            return Ok(text_response(StatusCode::INTERNAL_SERVER_ERROR, "error"));
-        }
+    let app_state = if let Some(state) = req.extensions().get::<Arc<NetworkProxyState>>().cloned() { state } else {
+        error!("missing app state");
+        return Ok(text_response(StatusCode::INTERNAL_SERVER_ERROR, "error"));
     };
     let client = client_addr(&req);
     let network_attempt_id = request_network_attempt_id(&req);
@@ -389,15 +382,12 @@ async fn http_plain_proxy(
     // macOS-only + explicit allowlist, to avoid turning the proxy into a general local capability
     // escalation mechanism.
     if let Some(unix_socket_header) = req.headers().get("x-unix-socket") {
-        let socket_path = match unix_socket_header.to_str() {
-            Ok(value) => value.to_string(),
-            Err(_) => {
-                warn!("invalid x-unix-socket header value (non-UTF8)");
-                return Ok(text_response(
-                    StatusCode::BAD_REQUEST,
-                    "invalid x-unix-socket header",
-                ));
-            }
+        let socket_path = if let Ok(value) = unix_socket_header.to_str() { value.to_string() } else {
+            warn!("invalid x-unix-socket header value (non-UTF8)");
+            return Ok(text_response(
+                StatusCode::BAD_REQUEST,
+                "invalid x-unix-socket header",
+            ));
         };
         let enabled = match app_state
             .enabled()

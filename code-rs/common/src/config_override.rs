@@ -62,13 +62,10 @@ impl CliConfigOverrides {
                 // Attempt to parse as JSON. If that fails, treat it as a raw
                 // string. This allows convenient usage such as
                 // `-c model=o3` without the quotes.
-                let value: Value = match parse_toml_value(value_str) {
-                    Ok(v) => v,
-                    Err(_) => {
-                        // Strip leading/trailing quotes if present
-                        let trimmed = value_str.trim().trim_matches(|c| c == '"' || c == '\'');
-                        Value::String(trimmed.to_string())
-                    }
+                let value: Value = if let Ok(v) = parse_toml_value(value_str) { v } else {
+                    // Strip leading/trailing quotes if present
+                    let trimmed = value_str.trim().trim_matches(|c| c == '"' || c == '\'');
+                    Value::String(trimmed.to_string())
                 };
 
                 Ok((key.to_string(), value))
@@ -100,33 +97,27 @@ fn apply_single_override(root: &mut Value, path: &str, value: Value) {
         let is_last = i == parts.len() - 1;
 
         if is_last {
-            match current {
-                Value::Table(tbl) => {
-                    tbl.insert((*part).to_string(), value);
-                }
-                _ => {
-                    let mut tbl = Table::new();
-                    tbl.insert((*part).to_string(), value);
-                    *current = Value::Table(tbl);
-                }
+            if let Value::Table(tbl) = current {
+                tbl.insert((*part).to_string(), value);
+            } else {
+                let mut tbl = Table::new();
+                tbl.insert((*part).to_string(), value);
+                *current = Value::Table(tbl);
             }
             return;
         }
 
         // Traverse or create intermediate table.
-        match current {
-            Value::Table(tbl) => {
+        if let Value::Table(tbl) = current {
+            current = tbl
+                .entry((*part).to_string())
+                .or_insert_with(|| Value::Table(Table::new()));
+        } else {
+            *current = Value::Table(Table::new());
+            if let Value::Table(tbl) = current {
                 current = tbl
                     .entry((*part).to_string())
                     .or_insert_with(|| Value::Table(Table::new()));
-            }
-            _ => {
-                *current = Value::Table(Table::new());
-                if let Value::Table(tbl) = current {
-                    current = tbl
-                        .entry((*part).to_string())
-                        .or_insert_with(|| Value::Table(Table::new()));
-                }
             }
         }
     }

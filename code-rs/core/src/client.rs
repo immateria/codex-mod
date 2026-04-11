@@ -1721,27 +1721,24 @@ impl ModelClient {
                         // On final attempt, surface rich diagnostics for server errors.
                         if status.is_server_error() {
                             let (message, body_excerpt) =
-                                match serde_json::from_str::<ErrorResponse>(&body_text) {
-                                    Ok(ErrorResponse { error }) => {
-                                        let msg = error
-                                            .message
-                                            .unwrap_or_else(|| "server error".to_string());
-                                        (msg, None)
+                                if let Ok(ErrorResponse { error }) = serde_json::from_str::<ErrorResponse>(&body_text) {
+                                    let msg = error
+                                        .message
+                                        .unwrap_or_else(|| "server error".to_string());
+                                    (msg, None)
+                                } else {
+                                    let mut excerpt = body_text;
+                                    if excerpt.len() > MAX_ERROR_EXCERPT_CHARS {
+                                        excerpt.truncate(MAX_ERROR_EXCERPT_CHARS);
                                     }
-                                    Err(_) => {
-                                        let mut excerpt = body_text;
-                                        if excerpt.len() > MAX_ERROR_EXCERPT_CHARS {
-                                            excerpt.truncate(MAX_ERROR_EXCERPT_CHARS);
-                                        }
-                                        (
-                                            "server error".to_string(),
-                                            if excerpt.is_empty() {
-                                                None
-                                            } else {
-                                                Some(excerpt)
-                                            },
-                                        )
-                                    }
+                                    (
+                                        "server error".to_string(),
+                                        if excerpt.is_empty() {
+                                            None
+                                        } else {
+                                            Some(excerpt)
+                                        },
+                                    )
                                 };
 
                             // Build a single-line, actionable message for the UI and logs.
@@ -2045,21 +2042,18 @@ fn parse_wrapped_websocket_error_event(payload: &str) -> Option<WrappedWebsocket
 }
 
 fn map_wrapped_websocket_error_event(event: WrappedWebsocketErrorEvent) -> Option<CodexErr> {
-    let status = match event.status.and_then(|value| StatusCode::from_u16(value).ok()) {
-        Some(status) => status,
-        None => {
-            if let Some(error) = event.error {
-                let message = error
-                    .message
-                    .unwrap_or_else(|| "websocket returned an error event".to_string());
-                return Some(CodexErr::Stream(message, None, None));
-            }
-            return Some(CodexErr::Stream(
-                "websocket returned an error event".to_string(),
-                None,
-                None,
-            ));
+    let status = if let Some(status) = event.status.and_then(|value| StatusCode::from_u16(value).ok()) { status } else {
+        if let Some(error) = event.error {
+            let message = error
+                .message
+                .unwrap_or_else(|| "websocket returned an error event".to_string());
+            return Some(CodexErr::Stream(message, None, None));
         }
+        return Some(CodexErr::Stream(
+            "websocket returned an error event".to_string(),
+            None,
+            None,
+        ));
     };
     if status.is_success() {
         return None;
@@ -2466,28 +2460,25 @@ async fn process_sse<S>(
                 return;
             }
             Ok(None) => {
-                match response_completed {
-                    Some(completed) => {
-                        emit_completed_event(
-                            completed,
-                            &tx_event,
-                            otel_event_manager.as_ref(),
-                            &debug_logger,
-                            &request_id,
-                        )
-                        .await;
+                if let Some(completed) = response_completed {
+                    emit_completed_event(
+                        completed,
+                        &tx_event,
+                        otel_event_manager.as_ref(),
+                        &debug_logger,
+                        &request_id,
+                    )
+                    .await;
+                } else {
+                    let error = response_error.unwrap_or(CodexErr::Stream(
+                        "stream closed before response.completed".into(),
+                        None,
+                        Some(request_id.clone()),
+                    ));
+                    if let Some(manager) = otel_event_manager.as_ref() {
+                        manager.see_event_completed_failed(&error);
                     }
-                    None => {
-                        let error = response_error.unwrap_or(CodexErr::Stream(
-                            "stream closed before response.completed".into(),
-                            None,
-                            Some(request_id.clone()),
-                        ));
-                        if let Some(manager) = otel_event_manager.as_ref() {
-                            manager.see_event_completed_failed(&error);
-                        }
-                        let _ = tx_event.send(Err(error)).await;
-                    }
+                    let _ = tx_event.send(Err(error)).await;
                 }
                 // Mark the request log as complete
                 if let Ok(logger) = debug_logger.lock() {

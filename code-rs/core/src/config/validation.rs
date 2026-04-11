@@ -12,33 +12,27 @@ pub(crate) fn apply_toml_override(root: &mut TomlValue, path: &str, value: TomlV
         let is_last = idx == segments.len() - 1;
 
         if is_last {
-            match current {
-                TomlValue::Table(table) => {
-                    table.insert(segment.to_string(), value);
-                }
-                _ => {
-                    let mut table = Table::new();
-                    table.insert(segment.to_string(), value);
-                    *current = TomlValue::Table(table);
-                }
+            if let TomlValue::Table(table) = current {
+                table.insert(segment.to_string(), value);
+            } else {
+                let mut table = Table::new();
+                table.insert(segment.to_string(), value);
+                *current = TomlValue::Table(table);
             }
             return;
         }
 
         // Traverse or create intermediate object.
-        match current {
-            TomlValue::Table(table) => {
-                current = table
+        if let TomlValue::Table(table) = current {
+            current = table
+                .entry(segment.to_string())
+                .or_insert_with(|| TomlValue::Table(Table::new()));
+        } else {
+            *current = TomlValue::Table(Table::new());
+            if let TomlValue::Table(tbl) = current {
+                current = tbl
                     .entry(segment.to_string())
                     .or_insert_with(|| TomlValue::Table(Table::new()));
-            }
-            _ => {
-                *current = TomlValue::Table(Table::new());
-                if let TomlValue::Table(tbl) = current {
-                    current = tbl
-                        .entry(segment.to_string())
-                        .or_insert_with(|| TomlValue::Table(Table::new()));
-                }
             }
         }
     }

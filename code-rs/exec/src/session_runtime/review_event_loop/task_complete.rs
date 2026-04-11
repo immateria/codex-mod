@@ -185,51 +185,48 @@ pub(super) async fn handle_task_complete_event(
                         )
                         .await;
                     }
-                    match capture_snapshot_against_base(
+                    if let Some((snap, diff_paths)) = capture_snapshot_against_base(
                         &config.cwd,
                         base,
                         "auto-resolve follow-up snapshot",
                         capture_auto_resolve_snapshot,
                         bump_snapshot_epoch_for,
                     ) {
-                        Some((snap, diff_paths)) => {
-                            if should_skip_followup(
-                                state_snapshot.last_reviewed_commit.as_deref(),
-                                &snap,
-                            ) {
-                                return abort_auto_resolve_and_continue(
-                                    conversation,
-                                    auto_review_tracker,
-                                    shutdown_state,
-                                    state,
-                                    "Auto-resolve: follow-up snapshot is identical to last reviewed commit; ending loop to avoid duplicate review.",
-                                    false,
-                                    false,
-                                )
-                                .await;
-                            }
-                            submit_followup_review(
+                        if should_skip_followup(
+                            state_snapshot.last_reviewed_commit.as_deref(),
+                            &snap,
+                        ) {
+                            return abort_auto_resolve_and_continue(
                                 conversation,
-                                config,
+                                auto_review_tracker,
+                                shutdown_state,
                                 state,
-                                SubmitFollowupReviewParams {
-                                    state_snapshot: &state_snapshot,
-                                    snap: &snap,
-                                    diff_paths: diff_paths.as_slice(),
-                                    base_id: &base_id,
-                                    announce_phase: false,
-                                    update_snapshot_epoch: false,
-                                },
+                                "Auto-resolve: follow-up snapshot is identical to last reviewed commit; ending loop to avoid duplicate review.",
+                                false,
+                                false,
                             )
-                            .await?;
+                            .await;
                         }
-                        None => {
-                            eprintln!("Auto-resolve: failed to capture follow-up snapshot or no diff detected; stopping auto-resolve.");
-                            state.auto_resolve_state = None;
-                            state.auto_resolve_base_snapshot = None;
-                            state.auto_resolve_followup_guard = None;
-                            state.auto_resolve_fix_guard = None;
-                        }
+                        submit_followup_review(
+                            conversation,
+                            config,
+                            state,
+                            SubmitFollowupReviewParams {
+                                state_snapshot: &state_snapshot,
+                                snap: &snap,
+                                diff_paths: diff_paths.as_slice(),
+                                base_id: &base_id,
+                                announce_phase: false,
+                                update_snapshot_epoch: false,
+                            },
+                        )
+                        .await?;
+                    } else {
+                        eprintln!("Auto-resolve: failed to capture follow-up snapshot or no diff detected; stopping auto-resolve.");
+                        state.auto_resolve_state = None;
+                        state.auto_resolve_base_snapshot = None;
+                        state.auto_resolve_followup_guard = None;
+                        state.auto_resolve_fix_guard = None;
                     }
                 }
             }

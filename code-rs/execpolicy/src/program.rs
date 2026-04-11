@@ -132,23 +132,20 @@ impl ProgramSpec {
                     program: self.program.clone(),
                 });
             } else if arg.starts_with('-') {
-                match self.allowed_options.get(arg) {
-                    Some(opt) => {
-                        match &opt.meta {
-                            OptMeta::Flag => {
-                                matched_flags.push(MatchedFlag { name: arg.clone() });
-                                // A flag does not expect an argument: continue.
-                                continue;
-                            }
-                            OptMeta::Value(arg_type) => {
-                                expecting_option_value = Some((arg.clone(), arg_type.clone()));
-                                continue;
-                            }
+                if let Some(opt) = self.allowed_options.get(arg) {
+                    match &opt.meta {
+                        OptMeta::Flag => {
+                            matched_flags.push(MatchedFlag { name: arg.clone() });
+                            // A flag does not expect an argument: continue.
+                            continue;
+                        }
+                        OptMeta::Value(arg_type) => {
+                            expecting_option_value = Some((arg.clone(), arg_type.clone()));
+                            continue;
                         }
                     }
-                    None => {
-                        // It could be an --option=value style flag...
-                    }
+                } else {
+                    // It could be an --option=value style flag...
                 }
 
                 return Err(Error::UnknownOption {

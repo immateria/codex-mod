@@ -408,17 +408,14 @@ impl SessionCatalog {
 }
 
 async fn move_file(old: &Path, new: &Path) -> Result<()> {
-    match tokio::fs::rename(old, new).await {
-        Ok(()) => Ok(()),
-        Err(_) => {
-            tokio::fs::copy(old, new)
-                .await
-                .context("copy failed")?;
-            tokio::fs::remove_file(old)
-                .await
-                .context("remove failed")?;
-            Ok(())
-        }
+    if let Ok(()) = tokio::fs::rename(old, new).await { Ok(()) } else {
+        tokio::fs::copy(old, new)
+            .await
+            .context("copy failed")?;
+        tokio::fs::remove_file(old)
+            .await
+            .context("remove failed")?;
+        Ok(())
     }
 }
 

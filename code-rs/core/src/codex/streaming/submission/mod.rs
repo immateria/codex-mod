@@ -42,12 +42,9 @@ pub(in crate::codex) async fn submission_loop(
                 debug!(?sub, "Submission");
                 match sub.op {
             Op::Interrupt => {
-                let sess = match sess.as_ref() {
-                    Some(sess) => sess.clone(),
-                    None => {
-                        send_no_session_event(sub.id).await;
-                        continue;
-                    }
+                let sess = if let Some(sess) = sess.as_ref() { sess.clone() } else {
+                    send_no_session_event(sub.id).await;
+                    continue;
                 };
                 tokio::spawn(async move {
                     sess.notify_wait_interrupted(WaitInterruptReason::SessionAborted);
@@ -55,12 +52,9 @@ pub(in crate::codex) async fn submission_loop(
                 });
             }
             Op::CancelAgents { batch_ids, agent_ids } => {
-                let sess_arc = match sess.as_ref() {
-                    Some(sess) => Arc::clone(sess),
-                    None => {
-                        send_no_session_event(sub.id).await;
-                        continue;
-                    }
+                let sess_arc = if let Some(sess) = sess.as_ref() { Arc::clone(sess) } else {
+                    send_no_session_event(sub.id).await;
+                    continue;
                 };
 
                 let mut manager = AGENT_MANAGER.write().await;
@@ -232,12 +226,9 @@ pub(in crate::codex) async fn submission_loop(
                 content,
                 meta,
             } => {
-                let sess = match sess.as_ref() {
-                    Some(sess) => Arc::clone(sess),
-                    None => {
-                        send_no_session_event(sub.id).await;
-                        continue;
-                    }
+                let sess = if let Some(sess) = sess.as_ref() { Arc::clone(sess) } else {
+                    send_no_session_event(sub.id).await;
+                    continue;
                 };
 
                 tokio::spawn(async move {
@@ -381,12 +372,9 @@ pub(in crate::codex) async fn submission_loop(
                 });
             }
             Op::ListMcpTools => {
-                let sess = match sess.as_ref() {
-                    Some(sess) => Arc::clone(sess),
-                    None => {
-                        send_no_session_event(sub.id).await;
-                        continue;
-                    }
+                let sess = if let Some(sess) = sess.as_ref() { Arc::clone(sess) } else {
+                    send_no_session_event(sub.id).await;
+                    continue;
                 };
 
                 let tools = sess
@@ -443,12 +431,9 @@ pub(in crate::codex) async fn submission_loop(
                 }
             }
             Op::RefreshMcpTools => {
-                let sess = match sess.as_ref() {
-                    Some(sess) => Arc::clone(sess),
-                    None => {
-                        send_no_session_event(sub.id).await;
-                        continue;
-                    }
+                let sess = if let Some(sess) = sess.as_ref() { Arc::clone(sess) } else {
+                    send_no_session_event(sub.id).await;
+                    continue;
                 };
 
                 sess.mcp_connection_manager.refresh_tools().await;
@@ -511,12 +496,9 @@ pub(in crate::codex) async fn submission_loop(
                 tool,
                 enable,
             } => {
-                let sess = match sess.as_ref() {
-                    Some(sess) => Arc::clone(sess),
-                    None => {
-                        send_no_session_event(sub.id).await;
-                        continue;
-                    }
+                let sess = if let Some(sess) = sess.as_ref() { Arc::clone(sess) } else {
+                    send_no_session_event(sub.id).await;
+                    continue;
                 };
 
                 sess.mcp_connection_manager
@@ -577,12 +559,9 @@ pub(in crate::codex) async fn submission_loop(
                 }
             }
             Op::SetMcpServerScheduling { server, scheduling } => {
-                let sess = match sess.as_ref() {
-                    Some(sess) => Arc::clone(sess),
-                    None => {
-                        send_no_session_event(sub.id).await;
-                        continue;
-                    }
+                let sess = if let Some(sess) = sess.as_ref() { Arc::clone(sess) } else {
+                    send_no_session_event(sub.id).await;
+                    continue;
                 };
 
                 sess.mcp_connection_manager
@@ -593,24 +572,18 @@ pub(in crate::codex) async fn submission_loop(
                 tool,
                 override_cfg,
             } => {
-                let sess = match sess.as_ref() {
-                    Some(sess) => Arc::clone(sess),
-                    None => {
-                        send_no_session_event(sub.id).await;
-                        continue;
-                    }
+                let sess = if let Some(sess) = sess.as_ref() { Arc::clone(sess) } else {
+                    send_no_session_event(sub.id).await;
+                    continue;
                 };
 
                 sess.mcp_connection_manager
                     .set_tool_override(&server, &tool, override_cfg);
             }
             Op::ListCustomPrompts => {
-                let sess = match sess.as_ref() {
-                    Some(sess) => Arc::clone(sess),
-                    None => {
-                        send_no_session_event(sub.id).await;
-                        continue;
-                    }
+                let sess = if let Some(sess) = sess.as_ref() { Arc::clone(sess) } else {
+                    send_no_session_event(sub.id).await;
+                    continue;
                 };
 
                 let custom_prompts: Vec<code_protocol::custom_prompts::CustomPrompt> =
@@ -632,12 +605,9 @@ pub(in crate::codex) async fn submission_loop(
                 sess.send_event(event).await;
             }
             Op::ListSkills => {
-                let sess = match sess.as_ref() {
-                    Some(sess) => Arc::clone(sess),
-                    None => {
-                        send_no_session_event(sub.id).await;
-                        continue;
-                    }
+                let sess = if let Some(sess) = sess.as_ref() { Arc::clone(sess) } else {
+                    send_no_session_event(sub.id).await;
+                    continue;
                 };
 
                 let inventory = skills::load_skills_inventory_and_refresh_session(
@@ -721,24 +691,18 @@ pub(in crate::codex) async fn submission_loop(
                 }
             }
             Op::Review { review_request } => {
-                let sess = match sess.as_ref() {
-                    Some(sess) => Arc::clone(sess),
-                    None => {
-                        send_no_session_event(sub.id).await;
-                        continue;
-                    }
+                let sess = if let Some(sess) = sess.as_ref() { Arc::clone(sess) } else {
+                    send_no_session_event(sub.id).await;
+                    continue;
                 };
                 let config = Arc::clone(&config);
                 let sub_id = sub.id.clone();
                 super::agent::spawn_review_thread(sess, config, sub_id, review_request).await;
             }
             Op::SetNextTextFormat { format } => {
-                let sess_arc = match sess.as_ref() {
-                    Some(sess) => Arc::clone(sess),
-                    None => {
-                        send_no_session_event(sub.id).await;
-                        continue;
-                    }
+                let sess_arc = if let Some(sess) = sess.as_ref() { Arc::clone(sess) } else {
+                    send_no_session_event(sub.id).await;
+                    continue;
                 };
                 *crate::codex::lock_or_panic!(sess_arc.next_turn_text_format) = Some(format);
             }

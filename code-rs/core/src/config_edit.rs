@@ -117,16 +117,13 @@ pub async fn set_feature_flags(
     let target: &mut TomlTable = if let Some(profile) = profile {
         let root = doc.as_table_mut();
 
-        let profiles_item = match root.get_mut("profiles") {
-            Some(item) => item,
-            None => {
-                if updates.is_empty() {
-                    return Ok(false);
-                }
-                root.insert("profiles", TomlItem::Table(new_implicit_table()));
-                root.get_mut("profiles")
-                    .ok_or_else(|| anyhow::anyhow!("missing profiles table"))?
+        let profiles_item = if let Some(item) = root.get_mut("profiles") { item } else {
+            if updates.is_empty() {
+                return Ok(false);
             }
+            root.insert("profiles", TomlItem::Table(new_implicit_table()));
+            root.get_mut("profiles")
+                .ok_or_else(|| anyhow::anyhow!("missing profiles table"))?
         };
         if profiles_item.as_table_mut().is_none() {
             if updates.is_empty() {
@@ -140,18 +137,15 @@ pub async fn set_feature_flags(
             .as_table_mut()
             .ok_or_else(|| anyhow::anyhow!("profiles item is not a table"))?;
 
-        let profile_item = match profiles_table.get_mut(profile) {
-            Some(item) => item,
-            None => {
-                if updates.is_empty() {
-                    return Ok(false);
-                }
-                profiles_table.insert(profile, TomlItem::Table(new_implicit_table()));
-                mutated = true;
-                profiles_table
-                    .get_mut(profile)
-                    .ok_or_else(|| anyhow::anyhow!("missing profile table"))?
+        let profile_item = if let Some(item) = profiles_table.get_mut(profile) { item } else {
+            if updates.is_empty() {
+                return Ok(false);
             }
+            profiles_table.insert(profile, TomlItem::Table(new_implicit_table()));
+            mutated = true;
+            profiles_table
+                .get_mut(profile)
+                .ok_or_else(|| anyhow::anyhow!("missing profile table"))?
         };
 
         if profile_item.as_table_mut().is_none() {
@@ -174,15 +168,12 @@ pub async fn set_feature_flags(
             mutated = true;
         }
     } else {
-        let features_item = match target.get_mut("features") {
-            Some(item) => item,
-            None => {
-                target.insert("features", TomlItem::Table(new_implicit_table()));
-                mutated = true;
-                target
-                    .get_mut("features")
-                    .ok_or_else(|| anyhow::anyhow!("missing features table"))?
-            }
+        let features_item = if let Some(item) = target.get_mut("features") { item } else {
+            target.insert("features", TomlItem::Table(new_implicit_table()));
+            mutated = true;
+            target
+                .get_mut("features")
+                .ok_or_else(|| anyhow::anyhow!("missing features table"))?
         };
 
         if features_item.as_table_mut().is_none() {
@@ -320,14 +311,11 @@ pub async fn set_shell_escalation_settings(
 
     {
         let target: &mut TomlTable = if let Some(profile) = profile {
-            let profiles_item = match root.get_mut("profiles") {
-                Some(item) => item,
-                None => {
-                    root.insert("profiles", TomlItem::Table(new_implicit_table()));
-                    mutated = true;
-                    root.get_mut("profiles")
-                        .ok_or_else(|| anyhow::anyhow!("missing profiles table"))?
-                }
+            let profiles_item = if let Some(item) = root.get_mut("profiles") { item } else {
+                root.insert("profiles", TomlItem::Table(new_implicit_table()));
+                mutated = true;
+                root.get_mut("profiles")
+                    .ok_or_else(|| anyhow::anyhow!("missing profiles table"))?
             };
             if profiles_item.as_table_mut().is_none() {
                 *profiles_item = TomlItem::Table(new_implicit_table());
@@ -338,15 +326,12 @@ pub async fn set_shell_escalation_settings(
                 .as_table_mut()
                 .ok_or_else(|| anyhow::anyhow!("profiles item is not a table"))?;
 
-            let profile_item = match profiles_table.get_mut(profile) {
-                Some(item) => item,
-                None => {
-                    profiles_table.insert(profile, TomlItem::Table(new_implicit_table()));
-                    mutated = true;
-                    profiles_table
-                        .get_mut(profile)
-                        .ok_or_else(|| anyhow::anyhow!("missing profile table"))?
-                }
+            let profile_item = if let Some(item) = profiles_table.get_mut(profile) { item } else {
+                profiles_table.insert(profile, TomlItem::Table(new_implicit_table()));
+                mutated = true;
+                profiles_table
+                    .get_mut(profile)
+                    .ok_or_else(|| anyhow::anyhow!("missing profile table"))?
             };
 
             if profile_item.as_table_mut().is_none() {
@@ -361,15 +346,12 @@ pub async fn set_shell_escalation_settings(
             root
         };
 
-        let features_item = match target.get_mut("features") {
-            Some(item) => item,
-            None => {
-                target.insert("features", TomlItem::Table(new_implicit_table()));
-                mutated = true;
-                target
-                    .get_mut("features")
-                    .ok_or_else(|| anyhow::anyhow!("missing features table"))?
-            }
+        let features_item = if let Some(item) = target.get_mut("features") { item } else {
+            target.insert("features", TomlItem::Table(new_implicit_table()));
+            mutated = true;
+            target
+                .get_mut("features")
+                .ok_or_else(|| anyhow::anyhow!("missing features table"))?
         };
         if features_item.as_table_mut().is_none() {
             *features_item = TomlItem::Table(new_implicit_table());
@@ -511,15 +493,12 @@ pub async fn set_skill_config(code_home: &Path, skill_path: &Path, enabled: bool
 
     {
         let root = doc.as_table_mut();
-        let skills_item = match root.get_mut("skills") {
-            Some(item) => item,
-            None => {
-                if enabled {
-                    return Ok(false);
-                }
-                root.insert("skills", TomlItem::Table(new_implicit_table()));
-                root.get_mut("skills").ok_or_else(|| anyhow::anyhow!("missing skills table"))?
+        let skills_item = if let Some(item) = root.get_mut("skills") { item } else {
+            if enabled {
+                return Ok(false);
             }
+            root.insert("skills", TomlItem::Table(new_implicit_table()));
+            root.get_mut("skills").ok_or_else(|| anyhow::anyhow!("missing skills table"))?
         };
 
         if skills_item.as_table_mut().is_none() {
@@ -533,17 +512,14 @@ pub async fn set_skill_config(code_home: &Path, skill_path: &Path, enabled: bool
             .as_table_mut()
             .ok_or_else(|| anyhow::anyhow!("skills item is not a table"))?;
 
-        let config_item = match skills_table.get_mut("config") {
-            Some(item) => item,
-            None => {
-                if enabled {
-                    return Ok(false);
-                }
-                skills_table.insert("config", TomlItem::ArrayOfTables(ArrayOfTables::new()));
-                skills_table
-                    .get_mut("config")
-                    .ok_or_else(|| anyhow::anyhow!("missing skills.config"))?
+        let config_item = if let Some(item) = skills_table.get_mut("config") { item } else {
+            if enabled {
+                return Ok(false);
             }
+            skills_table.insert("config", TomlItem::ArrayOfTables(ArrayOfTables::new()));
+            skills_table
+                .get_mut("config")
+                .ok_or_else(|| anyhow::anyhow!("missing skills.config"))?
         };
 
         if !matches!(config_item, TomlItem::ArrayOfTables(_)) {
@@ -637,13 +613,10 @@ pub async fn set_plugin_enabled(code_home: &Path, plugin_key: &str, enabled: boo
     let mut mutated = false;
     {
         let root = doc.as_table_mut();
-        let plugins_item = match root.get_mut("plugins") {
-            Some(item) => item,
-            None => {
-                root.insert("plugins", TomlItem::Table(new_implicit_table()));
-                root.get_mut("plugins")
-                    .ok_or_else(|| anyhow::anyhow!("missing plugins table"))?
-            }
+        let plugins_item = if let Some(item) = root.get_mut("plugins") { item } else {
+            root.insert("plugins", TomlItem::Table(new_implicit_table()));
+            root.get_mut("plugins")
+                .ok_or_else(|| anyhow::anyhow!("missing plugins table"))?
         };
 
         if plugins_item.as_table_mut().is_none() {
@@ -654,31 +627,28 @@ pub async fn set_plugin_enabled(code_home: &Path, plugin_key: &str, enabled: boo
             .as_table_mut()
             .ok_or_else(|| anyhow::anyhow!("plugins item is not a table"))?;
 
-        match plugins_table.get_mut(plugin_key) {
-            Some(item) => {
-                if let Some(entry) = item.as_table_mut() {
-                    let previous = entry
-                        .get("enabled")
-                        .and_then(toml_edit::Item::as_bool);
-                    if previous != Some(enabled) {
-                        mutated = true;
-                    }
-                    entry["enabled"] = value(enabled);
-                } else {
-                    let mut entry = TomlTable::new();
-                    entry.set_implicit(false);
-                    entry["enabled"] = value(enabled);
-                    *item = TomlItem::Table(entry);
+        if let Some(item) = plugins_table.get_mut(plugin_key) {
+            if let Some(entry) = item.as_table_mut() {
+                let previous = entry
+                    .get("enabled")
+                    .and_then(toml_edit::Item::as_bool);
+                if previous != Some(enabled) {
                     mutated = true;
                 }
-            }
-            None => {
+                entry["enabled"] = value(enabled);
+            } else {
                 let mut entry = TomlTable::new();
                 entry.set_implicit(false);
                 entry["enabled"] = value(enabled);
-                plugins_table.insert(plugin_key, TomlItem::Table(entry));
+                *item = TomlItem::Table(entry);
                 mutated = true;
             }
+        } else {
+            let mut entry = TomlTable::new();
+            entry.set_implicit(false);
+            entry["enabled"] = value(enabled);
+            plugins_table.insert(plugin_key, TomlItem::Table(entry));
+            mutated = true;
         }
     }
 
@@ -729,16 +699,13 @@ pub async fn apply_plugin_config_updates(
     let mut mutated = false;
     {
         let root = doc.as_table_mut();
-        let plugins_item = match root.get_mut("plugins") {
-            Some(item) => item,
-            None => {
-                if set_enabled_keys.is_empty() {
-                    return Ok(false);
-                }
-                root.insert("plugins", TomlItem::Table(new_implicit_table()));
-                root.get_mut("plugins")
-                    .ok_or_else(|| anyhow::anyhow!("missing plugins table"))?
+        let plugins_item = if let Some(item) = root.get_mut("plugins") { item } else {
+            if set_enabled_keys.is_empty() {
+                return Ok(false);
             }
+            root.insert("plugins", TomlItem::Table(new_implicit_table()));
+            root.get_mut("plugins")
+                .ok_or_else(|| anyhow::anyhow!("missing plugins table"))?
         };
 
         if plugins_item.as_table_mut().is_none() {
@@ -757,31 +724,28 @@ pub async fn apply_plugin_config_updates(
         }
 
         for plugin_key in set_enabled_keys {
-            match plugins_table.get_mut(plugin_key) {
-                Some(item) => {
-                    if let Some(entry) = item.as_table_mut() {
-                        let previous = entry
-                            .get("enabled")
-                            .and_then(toml_edit::Item::as_bool);
-                        if previous != Some(true) {
-                            mutated = true;
-                        }
-                        entry["enabled"] = value(true);
-                    } else {
-                        let mut entry = TomlTable::new();
-                        entry.set_implicit(false);
-                        entry["enabled"] = value(true);
-                        *item = TomlItem::Table(entry);
+            if let Some(item) = plugins_table.get_mut(plugin_key) {
+                if let Some(entry) = item.as_table_mut() {
+                    let previous = entry
+                        .get("enabled")
+                        .and_then(toml_edit::Item::as_bool);
+                    if previous != Some(true) {
                         mutated = true;
                     }
-                }
-                None => {
+                    entry["enabled"] = value(true);
+                } else {
                     let mut entry = TomlTable::new();
                     entry.set_implicit(false);
                     entry["enabled"] = value(true);
-                    plugins_table.insert(plugin_key, TomlItem::Table(entry));
+                    *item = TomlItem::Table(entry);
                     mutated = true;
                 }
+            } else {
+                let mut entry = TomlTable::new();
+                entry.set_implicit(false);
+                entry["enabled"] = value(true);
+                plugins_table.insert(plugin_key, TomlItem::Table(entry));
+                mutated = true;
             }
         }
 
@@ -953,16 +917,13 @@ pub async fn set_plugin_marketplace_sources(code_home: &Path, sources: &PluginsT
     let mut mutated = false;
     {
         let root = doc.as_table_mut();
-        let plugins_item = match root.get_mut("plugins") {
-            Some(item) => item,
-            None => {
-                if curated_url.is_none() && desired_marketplace_repos.is_empty() {
-                    return Ok(false);
-                }
-                root.insert("plugins", TomlItem::Table(new_implicit_table()));
-                root.get_mut("plugins")
-                    .ok_or_else(|| anyhow::anyhow!("missing plugins table"))?
+        let plugins_item = if let Some(item) = root.get_mut("plugins") { item } else {
+            if curated_url.is_none() && desired_marketplace_repos.is_empty() {
+                return Ok(false);
             }
+            root.insert("plugins", TomlItem::Table(new_implicit_table()));
+            root.get_mut("plugins")
+                .ok_or_else(|| anyhow::anyhow!("missing plugins table"))?
         };
 
         if plugins_item.as_table_mut().is_none() {
@@ -1122,17 +1083,14 @@ pub async fn set_apps_sources(
             root
         };
 
-        let apps_item = match base.get_mut("apps") {
-            Some(item) => item,
-            None => {
-                if apps_sources_is_default(&desired) {
-                    return Ok(false);
-                }
-                base.insert("apps", TomlItem::Table(new_implicit_table()));
-                mutated = true;
-                base.get_mut("apps")
-                    .ok_or_else(|| anyhow::anyhow!("missing apps table"))?
+        let apps_item = if let Some(item) = base.get_mut("apps") { item } else {
+            if apps_sources_is_default(&desired) {
+                return Ok(false);
             }
+            base.insert("apps", TomlItem::Table(new_implicit_table()));
+            mutated = true;
+            base.get_mut("apps")
+                .ok_or_else(|| anyhow::anyhow!("missing apps table"))?
         };
 
         if apps_item.as_table_mut().is_none() {
@@ -1149,15 +1107,12 @@ pub async fn set_apps_sources(
                 mutated = true;
             }
         } else {
-            let sources_item = match apps_table.get_mut("_sources") {
-                Some(item) => item,
-                None => {
-                    apps_table.insert("_sources", TomlItem::Table(new_implicit_table()));
-                    mutated = true;
-                    apps_table
-                        .get_mut("_sources")
-                        .ok_or_else(|| anyhow::anyhow!("missing apps._sources"))?
-                }
+            let sources_item = if let Some(item) = apps_table.get_mut("_sources") { item } else {
+                apps_table.insert("_sources", TomlItem::Table(new_implicit_table()));
+                mutated = true;
+                apps_table
+                    .get_mut("_sources")
+                    .ok_or_else(|| anyhow::anyhow!("missing apps._sources"))?
             };
 
             if sources_item.as_table_mut().is_none() {

@@ -99,22 +99,19 @@ impl TurnDiffTracker {
                 ..
             } = change
             {
-                let uuid_filename = match self.external_to_temp_name.get(path) {
-                    Some(i) => i.clone(),
-                    None => {
-                        // This should be rare, but if we haven't mapped the source, create it with no baseline.
-                        let i = Uuid::new_v4().to_string();
-                        self.baseline_file_info.insert(
-                            i.clone(),
-                            BaselineFileInfo {
-                                path: path.clone(),
-                                content: vec![],
-                                mode: FileMode::Regular,
-                                oid: ZERO_OID.to_string(),
-                            },
-                        );
-                        i
-                    }
+                let uuid_filename = if let Some(i) = self.external_to_temp_name.get(path) { i.clone() } else {
+                    // This should be rare, but if we haven't mapped the source, create it with no baseline.
+                    let i = Uuid::new_v4().to_string();
+                    self.baseline_file_info.insert(
+                        i.clone(),
+                        BaselineFileInfo {
+                            path: path.clone(),
+                            content: vec![],
+                            mode: FileMode::Regular,
+                            oid: ZERO_OID.to_string(),
+                        },
+                    );
+                    i
                 };
                 // Update current external mapping for temp file name.
                 self.temp_name_to_current_path

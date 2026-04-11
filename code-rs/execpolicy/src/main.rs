@@ -75,15 +75,12 @@ fn main() -> Result<()> {
     let policy = policy.map_err(StarlarkError::into_anyhow)?;
 
     let exec = match args.command {
-        Command::Check { command } => match command.split_first() {
-            Some((first, rest)) => ExecArg {
-                program: first.clone(),
-                args: rest.to_vec(),
-            },
-            None => {
-                eprintln!("no command provided");
-                std::process::exit(1);
-            }
+        Command::Check { command } => if let Some((first, rest)) = command.split_first() { ExecArg {
+            program: first.clone(),
+            args: rest.to_vec(),
+        } } else {
+            eprintln!("no command provided");
+            std::process::exit(1);
         },
         Command::CheckJson { exec } => exec,
     };

@@ -78,20 +78,17 @@ fn run_schema(args: SchemaArgs) -> Result<()> {
         SchemaKind::Code => code_core::config::schema::config_schema_json()?,
     };
 
-    match args.out {
-        Some(out) => {
-            std::fs::write(&out, schema_json)
-                .with_context(|| format!("failed to write schema to {out}", out = out.display()))?;
-        }
-        None => {
-            // Print schema JSON to stdout (valid JSON + trailing newline).
-            let mut out = schema_json;
-            out.push(b'\n');
-            std::io::stdout()
-                .lock()
-                .write_all(&out)
-                .context("failed to write schema to stdout")?;
-        }
+    if let Some(out) = args.out {
+        std::fs::write(&out, schema_json)
+            .with_context(|| format!("failed to write schema to {out}", out = out.display()))?;
+    } else {
+        // Print schema JSON to stdout (valid JSON + trailing newline).
+        let mut out = schema_json;
+        out.push(b'\n');
+        std::io::stdout()
+            .lock()
+            .write_all(&out)
+            .context("failed to write schema to stdout")?;
     }
 
     Ok(())

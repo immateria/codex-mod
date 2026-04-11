@@ -57,19 +57,16 @@ where
     let argv1 = args.next().unwrap_or_default();
     if argv1 == CODEX_APPLY_PATCH_ARG1 {
         let patch_arg = args.next().and_then(|s| s.to_str().map(str::to_owned));
-        let exit_code = match patch_arg {
-            Some(patch_arg) => {
-                let mut stdout = std::io::stdout();
-                let mut stderr = std::io::stderr();
-                match code_apply_patch::apply_patch(&patch_arg, &mut stdout, &mut stderr) {
-                    Ok(()) => 0,
-                    Err(_) => 1,
-                }
+        let exit_code = if let Some(patch_arg) = patch_arg {
+            let mut stdout = std::io::stdout();
+            let mut stderr = std::io::stderr();
+            match code_apply_patch::apply_patch(&patch_arg, &mut stdout, &mut stderr) {
+                Ok(()) => 0,
+                Err(_) => 1,
             }
-            None => {
-                eprintln!("Error: {CODEX_APPLY_PATCH_ARG1} requires a UTF-8 PATCH argument.");
-                1
-            }
+        } else {
+            eprintln!("Error: {CODEX_APPLY_PATCH_ARG1} requires a UTF-8 PATCH argument.");
+            1
         };
         std::process::exit(exit_code);
     }

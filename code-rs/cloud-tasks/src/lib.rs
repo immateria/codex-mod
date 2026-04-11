@@ -199,7 +199,7 @@ pub async fn run_main(cli: Cli, _code_linux_sandbox_exe: Option<PathBuf>) -> any
         append_info_log(format!("startup: base_url={base_url} path_style={style}"));
 
         // Require ChatGPT login (SWIC). Exit with a clear message if missing.
-        let _token = match code_core::config::find_code_home()
+        let _token = if let Some(auth) = code_core::config::find_code_home()
             .ok()
             .map(|home| {
                 let _auth_credentials_store_mode = code_core::config::Config::load_with_cli_overrides(
@@ -214,40 +214,36 @@ pub async fn run_main(cli: Cli, _code_linux_sandbox_exe: Option<PathBuf>) -> any
                     code_core::default_client::DEFAULT_ORIGINATOR.to_string(),
                 )
             })
-            .and_then(|am| am.auth())
-        {
-            Some(auth) => {
-                // Log account context for debugging workspace selection.
-                if let Some(acc) = auth.get_account_id() {
-                    append_info_log(format!("auth: mode=ChatGPT account_id={acc}"));
+            .and_then(|am| am.auth()) {
+            // Log account context for debugging workspace selection.
+            if let Some(acc) = auth.get_account_id() {
+                append_info_log(format!("auth: mode=ChatGPT account_id={acc}"));
+            }
+            match auth.get_token().await {
+                Ok(t) if !t.is_empty() => {
+                    // Attach token and ChatGPT-Account-Id header if available
+                    http = http.with_bearer_token(t.clone());
+                    if let Some(acc) = auth
+                        .get_account_id()
+                        .or_else(|| util::extract_chatgpt_account_id(&t))
+                    {
+                        append_info_log(format!("auth: set ChatGPT-Account-Id header: {acc}"));
+                        http = http.with_chatgpt_account_id(acc);
+                    }
+                    t
                 }
-                match auth.get_token().await {
-                    Ok(t) if !t.is_empty() => {
-                        // Attach token and ChatGPT-Account-Id header if available
-                        http = http.with_bearer_token(t.clone());
-                        if let Some(acc) = auth
-                            .get_account_id()
-                            .or_else(|| util::extract_chatgpt_account_id(&t))
-                        {
-                            append_info_log(format!("auth: set ChatGPT-Account-Id header: {acc}"));
-                            http = http.with_chatgpt_account_id(acc);
-                        }
-                        t
-                    }
-                    _ => {
-                        eprintln!(
-                            "Not signed in. Please run 'codex login' to sign in with ChatGPT, then re-run 'codex cloud'."
-                        );
-                        std::process::exit(1);
-                    }
+                _ => {
+                    eprintln!(
+                        "Not signed in. Please run 'codex login' to sign in with ChatGPT, then re-run 'codex cloud'."
+                    );
+                    std::process::exit(1);
                 }
             }
-            None => {
-                eprintln!(
-                    "Not signed in. Please run 'codex login' to sign in with ChatGPT, then re-run 'codex cloud'."
-                );
-                std::process::exit(1);
-            }
+        } else {
+            eprintln!(
+                "Not signed in. Please run 'codex login' to sign in with ChatGPT, then re-run 'codex cloud'."
+            );
+            std::process::exit(1);
         };
         Arc::new(http)
     };
@@ -973,50 +969,47 @@ pub async fn run_main(cli: Cli, _code_linux_sandbox_exe: Option<PathBuf>) -> any
                             if app.env_modal.is_some() {
                                 // Defer handling to env-modal branch below.
                             } else {
-                            match key.code {
-                                KeyCode::Esc => {
-                                    app.new_task = None;
-                                    app.status = "Canceled new task".to_string();
-                                    needs_redraw = true;
+                            if key.code == KeyCode::Esc {
+                                app.new_task = None;
+                                app.status = "Canceled new task".to_string();
+                                needs_redraw = true;
+                            } else {
+                                if page.submitting {
+                                    // Ignore input while submitting
+                                } else if let ComposerAction::Submitted(text) = page.composer.input(key) {
+                                        // Submit only if we have an env id
+                                        if let Some(env) = page.env_id.clone() {
+                                            append_debug_log(format!(
+                                                "new-task: submit env={} size={}",
+                                                env,
+                                                text.chars().count()
+                                            ));
+                                            page.submitting = true;
+                                            app.status = "Submitting new task…".to_string();
+                                            let tx = tx.clone();
+                                            let backend = Arc::clone(&backend);
+                                            let best_of_n = page.best_of_n;
+                                            tokio::spawn(async move {
+                                                let result = code_cloud_tasks_client::CloudBackend::create_task(&*backend, &env, &text, "main", false, best_of_n).await;
+                                                let evt = match result {
+                                                    Ok(ok) => app::AppEvent::NewTaskSubmitted(Ok(ok)),
+                                                    Err(e) => app::AppEvent::NewTaskSubmitted(Err(e.to_string())),
+                                                };
+                                                let _ = tx.send(evt);
+                                            });
+                                        } else {
+                                            app.status = "No environment selected (press 'e' to choose)".to_string();
+                                        }
                                 }
-                                _ => {
-                                    if page.submitting {
-                                        // Ignore input while submitting
-                                    } else if let ComposerAction::Submitted(text) = page.composer.input(key) {
-                                            // Submit only if we have an env id
-                                            if let Some(env) = page.env_id.clone() {
-                                                append_debug_log(format!(
-                                                    "new-task: submit env={} size={}",
-                                                    env,
-                                                    text.chars().count()
-                                                ));
-                                                page.submitting = true;
-                                                app.status = "Submitting new task…".to_string();
-                                                let tx = tx.clone();
-                                                let backend = Arc::clone(&backend);
-                                                let best_of_n = page.best_of_n;
-                                                tokio::spawn(async move {
-                                                    let result = code_cloud_tasks_client::CloudBackend::create_task(&*backend, &env, &text, "main", false, best_of_n).await;
-                                                    let evt = match result {
-                                                        Ok(ok) => app::AppEvent::NewTaskSubmitted(Ok(ok)),
-                                                        Err(e) => app::AppEvent::NewTaskSubmitted(Err(e.to_string())),
-                                                    };
-                                                    let _ = tx.send(evt);
-                                                });
-                                            } else {
-                                                app.status = "No environment selected (press 'e' to choose)".to_string();
-                                            }
-                                    }
-                                    needs_redraw = true;
-                                    // If paste-burst is active, schedule a timeout cleanup tick.
-                                    if page.composer.is_in_paste_burst() {
-                                        let _ = frame_tx.send(Instant::now() + code_tui::ComposerInput::recommended_flush_delay());
-                                    }
-                                    // Always schedule an immediate redraw for key edits in the composer.
-                                    let _ = frame_tx.send(Instant::now());
-                                    // Draw now so non-char edits (e.g., Option+Delete) reflect instantly.
-                                    render_if_needed(&mut terminal, &mut app, &mut needs_redraw)?;
+                                needs_redraw = true;
+                                // If paste-burst is active, schedule a timeout cleanup tick.
+                                if page.composer.is_in_paste_burst() {
+                                    let _ = frame_tx.send(Instant::now() + code_tui::ComposerInput::recommended_flush_delay());
                                 }
+                                // Always schedule an immediate redraw for key edits in the composer.
+                                let _ = frame_tx.send(Instant::now());
+                                // Draw now so non-char edits (e.g., Option+Delete) reflect instantly.
+                                render_if_needed(&mut terminal, &mut app, &mut needs_redraw)?;
                             }
                             continue;
                             }
@@ -1542,7 +1535,7 @@ async fn run_submit(args: crate::cli::SubmitArgs) -> anyhow::Result<()> {
             .with_user_agent(ua);
 
         // Attach ChatGPT auth (required in production)
-        let _token = match code_core::config::find_code_home()
+        let _token = if let Some(auth) = code_core::config::find_code_home()
             .ok()
             .map(|home| {
                 let _auth_credentials_store_mode = code_core::config::Config::load_with_cli_overrides(
@@ -1557,28 +1550,24 @@ async fn run_submit(args: crate::cli::SubmitArgs) -> anyhow::Result<()> {
                     code_core::default_client::DEFAULT_ORIGINATOR.to_string(),
                 )
             })
-            .and_then(|am| am.auth())
-        {
-            Some(auth) => match auth.get_token().await {
-                Ok(t) if !t.is_empty() => {
-                    http = http.with_bearer_token(t.clone());
-                    if let Some(acc) = auth
-                        .get_account_id()
-                        .or_else(|| util::extract_chatgpt_account_id(&t))
-                    {
-                        http = http.with_chatgpt_account_id(acc);
-                    }
-                    t
+            .and_then(|am| am.auth()) { match auth.get_token().await {
+            Ok(t) if !t.is_empty() => {
+                http = http.with_bearer_token(t.clone());
+                if let Some(acc) = auth
+                    .get_account_id()
+                    .or_else(|| util::extract_chatgpt_account_id(&t))
+                {
+                    http = http.with_chatgpt_account_id(acc);
                 }
-                _ => {
-                    eprintln!("Not signed in. Run 'codex login' and retry.");
-                    std::process::exit(1);
-                }
-            },
-            None => {
+                t
+            }
+            _ => {
                 eprintln!("Not signed in. Run 'codex login' and retry.");
                 std::process::exit(1);
             }
+        } } else {
+            eprintln!("Not signed in. Run 'codex login' and retry.");
+            std::process::exit(1);
         };
         Arc::new(http)
     };
@@ -1592,12 +1581,9 @@ async fn run_submit(args: crate::cli::SubmitArgs) -> anyhow::Result<()> {
                 .unwrap_or_else(|_| "https://chatgpt.com/backend-api".to_string()),
         );
         let headers = util::build_chatgpt_headers().await;
-        match crate::env_detect::autodetect_environment_id(&base_url, &headers, None).await {
-            Ok(sel) => sel.id,
-            Err(_) => {
-                eprintln!("Failed to auto-detect environment. Provide --env <ENV_ID>.");
-                std::process::exit(1);
-            }
+        if let Ok(sel) = crate::env_detect::autodetect_environment_id(&base_url, &headers, None).await { sel.id } else {
+            eprintln!("Failed to auto-detect environment. Provide --env <ENV_ID>.");
+            std::process::exit(1);
         }
     };
 

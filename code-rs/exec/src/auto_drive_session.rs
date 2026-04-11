@@ -68,17 +68,14 @@ pub(crate) async fn run_auto_drive_session(
         loop {
             let event = if let Some(deadline) = run_deadline {
                 let remaining = deadline.saturating_duration_since(Instant::now());
-                match tokio::time::timeout(remaining, conversation.next_event()).await {
-                    Ok(event) => event?,
-                    Err(_) => {
-                        eprintln!(
-                            "Time budget exceeded (--max-seconds={})",
-                            config.max_run_seconds.unwrap_or_default()
-                        );
-                        let _ = conversation.submit(Op::Interrupt).await;
-                        let _ = conversation.submit(Op::Shutdown).await;
-                        return Err(anyhow::anyhow!("Time budget exceeded"));
-                    }
+                if let Ok(event) = tokio::time::timeout(remaining, conversation.next_event()).await { event? } else {
+                    eprintln!(
+                        "Time budget exceeded (--max-seconds={})",
+                        config.max_run_seconds.unwrap_or_default()
+                    );
+                    let _ = conversation.submit(Op::Interrupt).await;
+                    let _ = conversation.submit(Op::Shutdown).await;
+                    return Err(anyhow::anyhow!("Time budget exceeded"));
                 }
             } else {
                 conversation.next_event().await?
@@ -122,15 +119,12 @@ pub(crate) async fn run_auto_drive_session(
     loop {
         let maybe_event = if let Some(deadline) = run_deadline {
             let remaining = deadline.saturating_duration_since(Instant::now());
-            match tokio::time::timeout(remaining, auto_rx.recv()).await {
-                Ok(event) => event,
-                Err(_) => {
-                    let _ = handle.send(AutoCoordinatorCommand::Stop);
-                    handle.cancel();
-                    let _ = conversation.submit(Op::Interrupt).await;
-                    let _ = conversation.submit(Op::Shutdown).await;
-                    return Err(anyhow::anyhow!("Time budget exceeded"));
-                }
+            if let Ok(event) = tokio::time::timeout(remaining, auto_rx.recv()).await { event } else {
+                let _ = handle.send(AutoCoordinatorCommand::Stop);
+                handle.cancel();
+                let _ = conversation.submit(Op::Interrupt).await;
+                let _ = conversation.submit(Op::Shutdown).await;
+                return Err(anyhow::anyhow!("Time budget exceeded"));
             }
         } else {
             auto_rx.recv().await
@@ -314,17 +308,14 @@ pub(crate) async fn run_auto_drive_session(
         loop {
             let event = if let Some(deadline) = run_deadline {
                 let remaining = deadline.saturating_duration_since(Instant::now());
-                match tokio::time::timeout(remaining, conversation.next_event()).await {
-                    Ok(event) => event?,
-                    Err(_) => {
-                        eprintln!(
-                            "Time budget exceeded (--max-seconds={})",
-                            config.max_run_seconds.unwrap_or_default()
-                        );
-                        let _ = conversation.submit(Op::Interrupt).await;
-                        let _ = conversation.submit(Op::Shutdown).await;
-                        return Err(anyhow::anyhow!("Time budget exceeded"));
-                    }
+                if let Ok(event) = tokio::time::timeout(remaining, conversation.next_event()).await { event? } else {
+                    eprintln!(
+                        "Time budget exceeded (--max-seconds={})",
+                        config.max_run_seconds.unwrap_or_default()
+                    );
+                    let _ = conversation.submit(Op::Interrupt).await;
+                    let _ = conversation.submit(Op::Shutdown).await;
+                    return Err(anyhow::anyhow!("Time budget exceeded"));
                 }
             } else {
                 conversation.next_event().await?
@@ -354,17 +345,14 @@ pub(crate) async fn run_auto_drive_session(
     loop {
         let event = if let Some(deadline) = run_deadline {
             let remaining = deadline.saturating_duration_since(Instant::now());
-            match tokio::time::timeout(remaining, conversation.next_event()).await {
-                Ok(event) => event?,
-                Err(_) => {
-                    eprintln!(
-                        "Time budget exceeded (--max-seconds={})",
-                        config.max_run_seconds.unwrap_or_default()
-                    );
-                    let _ = conversation.submit(Op::Interrupt).await;
-                    let _ = conversation.submit(Op::Shutdown).await;
-                    return Err(anyhow::anyhow!("Time budget exceeded"));
-                }
+            if let Ok(event) = tokio::time::timeout(remaining, conversation.next_event()).await { event? } else {
+                eprintln!(
+                    "Time budget exceeded (--max-seconds={})",
+                    config.max_run_seconds.unwrap_or_default()
+                );
+                let _ = conversation.submit(Op::Interrupt).await;
+                let _ = conversation.submit(Op::Shutdown).await;
+                return Err(anyhow::anyhow!("Time budget exceeded"));
             }
         } else {
             conversation.next_event().await?

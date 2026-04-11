@@ -83,28 +83,25 @@ pub async fn run_main(opts: ProtoCli) -> anyhow::Result<()> {
                     res = lines.next_line() => res,
                 };
 
-                match result {
-                    Ok(Some(line)) => {
-                        let line = line.trim();
-                        if line.is_empty() {
-                            continue;
-                        }
-                        match serde_json::from_str::<Submission>(line) {
-                            Ok(sub) => {
-                                if let Err(e) = conversation.submit_with_id(sub).await {
-                                    error!("{e:#}");
-                                    break;
-                                }
-                            }
-                            Err(e) => {
-                                error!("invalid submission: {e}");
+                if let Ok(Some(line)) = result {
+                    let line = line.trim();
+                    if line.is_empty() {
+                        continue;
+                    }
+                    match serde_json::from_str::<Submission>(line) {
+                        Ok(sub) => {
+                            if let Err(e) = conversation.submit_with_id(sub).await {
+                                error!("{e:#}");
+                                break;
                             }
                         }
+                        Err(e) => {
+                            error!("invalid submission: {e}");
+                        }
                     }
-                    _ => {
-                        info!("Submission queue closed");
-                        break;
-                    }
+                } else {
+                    info!("Submission queue closed");
+                    break;
                 }
             }
         }

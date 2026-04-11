@@ -67,14 +67,10 @@ impl BrowserManager {
         drop(assets_guard);
 
         // Get current URL with timeout.
-        let current_url = match tokio::time::timeout(Duration::from_secs(3), page.get_current_url())
-            .await
-        {
-            Ok(Ok(url)) => url,
-            Ok(Err(_)) | Err(_) => {
-                warn!("Failed to get current URL, using default");
-                "about:blank".to_string()
-            }
+        let current_url = if let Ok(Ok(url)) = tokio::time::timeout(Duration::from_secs(3), page.get_current_url())
+            .await { url } else {
+            warn!("Failed to get current URL, using default");
+            "about:blank".to_string()
         };
 
         // Capture screenshots with timeout.

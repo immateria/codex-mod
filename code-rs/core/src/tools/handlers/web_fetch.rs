@@ -192,12 +192,9 @@ pub(crate) async fn handle_web_fetch(sess: &Session, ctx: &ToolCallCtx, argument
                     }
                 };
 
-                let html = match extract_html(&html_value) {
-                    Some(h) => h.to_string(),
-                    None => {
-                        let _ = manager.stop().await;
-                        return Err("Headless browser returned empty HTML".to_string());
-                    }
+                let html = if let Some(h) = extract_html(&html_value) { h.to_string() } else {
+                    let _ = manager.stop().await;
+                    return Err("Headless browser returned empty HTML".to_string());
                 };
 
                 let final_url = Some(goto_result.url);

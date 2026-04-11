@@ -729,22 +729,19 @@ pub fn event_msg_to_protocol(msg: &EventMsg) -> Option<code_protocol::protocol::
 
 
 pub fn event_msg_from_protocol(msg: &code_protocol::protocol::EventMsg) -> Option<EventMsg> {
-    match msg {
-        code_protocol::protocol::EventMsg::TokenCount(payload) => {
-            let info = convert_value(&payload.info).unwrap_or(None);
-            let rate_limits = payload
-                .rate_limits
-                .as_ref()
-                .map(rate_limit_snapshot_from_protocol);
-            Some(EventMsg::TokenCount(TokenCountEvent { info, rate_limits }))
+    if let code_protocol::protocol::EventMsg::TokenCount(payload) = msg {
+        let info = convert_value(&payload.info).unwrap_or(None);
+        let rate_limits = payload
+            .rate_limits
+            .as_ref()
+            .map(rate_limit_snapshot_from_protocol);
+        Some(EventMsg::TokenCount(TokenCountEvent { info, rate_limits }))
+    } else {
+        let converted = convert_value(msg)?;
+        if matches!(converted, EventMsg::ReplayHistory(_)) {
+            return None;
         }
-        _ => {
-            let converted = convert_value(msg)?;
-            if matches!(converted, EventMsg::ReplayHistory(_)) {
-                return None;
-            }
-            Some(converted)
-        }
+        Some(converted)
     }
 }
 
