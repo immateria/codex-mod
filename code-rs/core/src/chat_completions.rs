@@ -1187,9 +1187,8 @@ where
                             sequence_number,
                             output_index: None,
                         })));
-                    } else {
-                        continue;
                     }
+                    continue;
                 }
                 Poll::Ready(Some(Ok(ResponseEvent::ReasoningContentDelta { delta, item_id, sequence_number, .. }))) => {
                     // Always accumulate reasoning deltas so we can emit a final Reasoning item at Completed.
@@ -1207,9 +1206,8 @@ where
                             output_index: None,
                             content_index: None,
                         })));
-                    } else {
-                        continue;
                     }
+                    continue;
                 }
                 Poll::Ready(Some(Ok(ResponseEvent::ReasoningSummaryDelta { .. }))) => {
                     continue;

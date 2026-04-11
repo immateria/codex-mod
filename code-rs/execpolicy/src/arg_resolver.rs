@@ -89,15 +89,14 @@ pub fn resolve_observed_args_with_patterns(
                         program: program.to_string(),
                         matcher: pattern,
                     });
-                } else {
-                    for positional_arg in vararg {
-                        let matched_arg = MatchedArg::new(
-                            positional_arg.index,
-                            pattern.arg_type(),
-                            &positional_arg.value.clone(),
-                        )?;
-                        matched_args.push(matched_arg);
-                    }
+                }
+                for positional_arg in vararg {
+                    let matched_arg = MatchedArg::new(
+                        positional_arg.index,
+                        pattern.arg_type(),
+                        &positional_arg.value.clone(),
+                    )?;
+                    matched_args.push(matched_arg);
                 }
             }
             ArgMatcherCardinality::ZeroOrMore => {

@@ -47,9 +47,8 @@ lazy_static! {
             for (k, v) in map {
                 // If this is the pointer entry (Default: "name"), skip it;
                 // but allow a group actually named "Default" (object).
-                if k == "Default" {
-                    if v.is_string() { continue; } else { /* fall through to parse group */ }
-                }
+                if k == "Default"
+                    && v.is_string() { continue; }                    /* fall through to parse group */
                 if let Value::Object(inner) = v {
                     if inner.get("interval").is_some() {
                         // Flat entry

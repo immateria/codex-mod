@@ -118,9 +118,8 @@ impl FileSearchManager {
             // Schedule a search to run after debounce.
             if st.is_search_scheduled {
                 return;
-            } else {
-                st.is_search_scheduled = true;
             }
+            st.is_search_scheduled = true;
         }
 
         // If we are here, we set `st.is_search_scheduled = true` before
