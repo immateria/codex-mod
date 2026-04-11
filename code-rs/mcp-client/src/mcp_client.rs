@@ -62,7 +62,7 @@ type PendingSender = oneshot::Sender<JSONRPCMessage>;
 
 async fn spawn_child_with_retry(cmd: &mut Command) -> io::Result<tokio::process::Child> {
     let mut last_err: Option<io::Error> = None;
-    for delay_ms in [0_u64, 10, 50] {
+    for delay_ms in [0u64, 10, 50] {
         match cmd.spawn() {
             Ok(child) => return Ok(child),
             Err(err)

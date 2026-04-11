@@ -16,7 +16,7 @@ pub(crate) struct DiscoveryResult {
 pub(crate) fn discover_handlers(config_layer_folders_low_to_high: &[PathBuf]) -> DiscoveryResult {
     let mut handlers = Vec::new();
     let mut warnings = Vec::new();
-    let mut display_order = 0_i64;
+    let mut display_order = 0i64;
 
     for folder in config_layer_folders_low_to_high {
         let source_path = folder.join("hooks.json");

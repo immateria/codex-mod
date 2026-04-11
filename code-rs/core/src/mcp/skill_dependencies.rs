@@ -194,7 +194,7 @@ fn missing_server_warning(
     if let Some(style_label) = style_label {
         if !include_servers.is_empty() && !include_servers.contains(server) {
             let mut included: Vec<&str> = include_servers.iter().map(String::as_str).collect();
-            included.sort();
+            included.sort_unstable();
             let _ = write!(
                 message,
                 " Active shell style `{style_label}` includes only: {}.",

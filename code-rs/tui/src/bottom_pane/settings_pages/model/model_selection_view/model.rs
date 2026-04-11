@@ -173,11 +173,11 @@ impl ModelSelectionView {
 
         let lowered = trimmed.to_ascii_lowercase();
         let (number_part, multiplier) = if let Some(number) = lowered.strip_suffix('k') {
-            (number, 1_000_u64)
+            (number, 1_000u64)
         } else if let Some(number) = lowered.strip_suffix('m') {
-            (number, 1_000_000_u64)
+            (number, 1_000_000u64)
         } else {
-            (lowered.as_str(), 1_u64)
+            (lowered.as_str(), 1u64)
         };
 
         let digits = number_part.replace(['_', ','], "");
@@ -246,7 +246,7 @@ impl ModelSelectionView {
                 return Err("Ratio must be between 0 and 1".to_owned());
             }
 
-            let denom = 10_u64
+            let denom = 10u64
                 .checked_pow(frac.len() as u32)
                 .ok_or_else(|| "Ratio has too many decimal places".to_owned())?;
             let frac_value = if frac.is_empty() {
@@ -299,7 +299,7 @@ impl ModelSelectionView {
             if percent > 100 {
                 return Err("Percentage must be between 1% and 100%".to_owned());
             }
-            let computed = (u128::from(context_window) * u128::from(percent)) / 100_u128;
+            let computed = (u128::from(context_window) * u128::from(percent)) / 100u128;
             let computed = u64::try_from(computed).unwrap_or(u64::MAX);
             if computed == 0 {
                 return Err("Percentage results in a token limit of zero".to_owned());

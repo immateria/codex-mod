@@ -146,7 +146,7 @@ impl RmcpClient {
         let mut last_err: Option<io::Error> = None;
         let mut spawned: Option<(TokioChildProcess, Option<tokio::process::ChildStderr>)> = None;
 
-        for delay_ms in [0_u64, 10, 50] {
+        for delay_ms in [0u64, 10, 50] {
             let mut command = Command::new(&program);
             command
                 .kill_on_drop(true)

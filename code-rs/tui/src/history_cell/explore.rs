@@ -609,7 +609,7 @@ fn split_pipeline_for_filter(cmd: &str) -> Option<(String, String)> {
     let mut in_single = false;
     let mut in_double = false;
     let mut escape_next = false;
-    let mut paren_depth = 0_i32;
+    let mut paren_depth = 0i32;
 
     let mut last_pipe: Option<usize> = None;
     let mut iter = cmd.char_indices().peekable();

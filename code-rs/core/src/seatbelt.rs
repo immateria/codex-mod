@@ -179,7 +179,7 @@ fn dynamic_network_policy(
 #[cfg(target_os = "macos")]
 fn confstr(name: libc::c_int) -> Option<String> {
     use std::ffi::CStr;
-    let mut buf = vec![0_i8; (libc::PATH_MAX as usize) + 1];
+    let mut buf = vec![0i8; (libc::PATH_MAX as usize) + 1];
     let len = unsafe { libc::confstr(name, buf.as_mut_ptr(), buf.len()) };
     if len == 0 {
         return None;

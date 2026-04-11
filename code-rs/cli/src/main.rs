@@ -1672,7 +1672,7 @@ fn order_replay_main(args: OrderReplayArgs) -> anyhow::Result<()> {
                 }
             }
         }
-        items.sort();
+        items.sort_unstable();
         Ok(items)
     }
 

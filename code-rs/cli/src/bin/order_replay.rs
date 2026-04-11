@@ -25,7 +25,7 @@ fn parse_response_expected(path: &Path) -> Result<Vec<(u64, u64)>> {
             }
         }
     }
-    items.sort();
+    items.sort_unstable();
     Ok(items)
 }
 

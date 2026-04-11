@@ -20,7 +20,7 @@ impl BufferDiffProfiler {
                     let min_percent = std::env::var("CODE_BUFFER_DIFF_MIN_PERCENT")
                         .ok()
                         .and_then(|v| v.trim().parse::<f64>().ok())
-                        .unwrap_or(1.0_f64);
+                        .unwrap_or(1.0f64);
                     Self {
                         enabled: true,
                         prev: None,

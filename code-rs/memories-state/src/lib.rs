@@ -801,7 +801,7 @@ JOIN memory_threads_v3 mt ON mt.thread_id = so.thread_id
 
 fn stage1_retry_delay_seconds(failure_count: i64) -> i64 {
     let exponent = failure_count.saturating_sub(1).clamp(0, 20) as u32;
-    let multiplier = 1_i64.checked_shl(exponent).unwrap_or(i64::MAX);
+    let multiplier = 1i64.checked_shl(exponent).unwrap_or(i64::MAX);
     STAGE1_RETRY_BASE_SECONDS
         .saturating_mul(multiplier)
         .min(STAGE1_RETRY_MAX_SECONDS)

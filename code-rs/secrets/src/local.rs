@@ -323,7 +323,7 @@ fn write_file_atomically(path: &Path, contents: &[u8]) -> Result<()> {
 }
 
 fn generate_passphrase() -> Result<SecretString> {
-    let mut bytes = [0_u8; 32];
+    let mut bytes = [0u8; 32];
     let mut rng = OsRng;
     rng.try_fill_bytes(&mut bytes)
         .context("failed to generate random secrets key")?;

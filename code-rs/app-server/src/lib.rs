@@ -235,7 +235,7 @@ pub async fn run_main_with_transport(
             cli_kv_overrides,
         );
         let mut connections = HashMap::<ConnectionId, ConnectionState>::new();
-        let mut next_internal_request_ordinal = 0_u64;
+        let mut next_internal_request_ordinal = 0u64;
         async move {
             loop {
                 let Some(event) = transport_event_rx.recv().await else {
