@@ -986,7 +986,7 @@ impl TextArea {
         if cursor_line_idx < scroll {
             scroll = cursor_line_idx;
         } else if cursor_line_idx >= scroll + area_height {
-            scroll = cursor_line_idx + 1 - area_height;
+            scroll = (cursor_line_idx + 1).saturating_sub(area_height);
         }
         scroll
     }

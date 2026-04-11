@@ -90,7 +90,7 @@ impl ScrollState {
             } else {
                 let bottom = self.scroll_top + visible_rows - 1;
                 if sel > bottom {
-                    self.scroll_top = sel + 1 - visible_rows;
+                    self.scroll_top = (sel + 1).saturating_sub(visible_rows);
                 }
             }
         } else {

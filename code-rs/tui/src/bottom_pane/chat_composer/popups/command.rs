@@ -56,6 +56,7 @@ impl CommandPopup {
         prompts.retain(|p| !exclude.contains(&p.name));
         prompts.sort_by(|a, b| a.name.cmp(&b.name));
         self.prompts = prompts;
+        self.state.clamp_selection(self.filtered_items().len());
     }
 
     pub(crate) fn prompt(&self, idx: usize) -> Option<&CustomPrompt> {

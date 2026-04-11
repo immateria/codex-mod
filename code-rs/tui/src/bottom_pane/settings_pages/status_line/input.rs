@@ -22,6 +22,38 @@ impl StatusLineSetupView {
                 true
             }
             KeyEvent {
+                code: KeyCode::Home,
+                ..
+            } => {
+                self.set_selected_index_for_active_lane(0);
+                true
+            }
+            KeyEvent {
+                code: KeyCode::End,
+                ..
+            } => {
+                let max = self.choices_for_active_lane().len().saturating_sub(1);
+                self.set_selected_index_for_active_lane(max);
+                true
+            }
+            KeyEvent {
+                code: KeyCode::PageUp,
+                ..
+            } => {
+                let idx = self.selected_index_for_active_lane().saturating_sub(5);
+                self.set_selected_index_for_active_lane(idx);
+                true
+            }
+            KeyEvent {
+                code: KeyCode::PageDown,
+                ..
+            } => {
+                let max = self.choices_for_active_lane().len().saturating_sub(1);
+                let idx = (self.selected_index_for_active_lane() + 5).min(max);
+                self.set_selected_index_for_active_lane(idx);
+                true
+            }
+            KeyEvent {
                 code: KeyCode::Left,
                 modifiers: KeyModifiers::NONE,
                 ..

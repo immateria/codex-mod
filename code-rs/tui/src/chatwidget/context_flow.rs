@@ -213,7 +213,7 @@ impl ChatWidget<'_> {
             }
 
         if deltas.len() >= CONTEXT_DELTA_HISTORY {
-            let excess = deltas.len() + 1 - CONTEXT_DELTA_HISTORY;
+            let excess = (deltas.len() + 1).saturating_sub(CONTEXT_DELTA_HISTORY);
             deltas.drain(0..excess);
         }
 

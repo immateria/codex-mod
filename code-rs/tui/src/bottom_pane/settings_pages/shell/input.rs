@@ -119,6 +119,15 @@ impl ShellSelectionView {
                 self.selected_index = self.item_count().saturating_sub(1);
                 true
             }
+            (KeyCode::PageUp, _) => {
+                self.selected_index = self.selected_index.saturating_sub(5);
+                true
+            }
+            (KeyCode::PageDown, _) => {
+                let max = self.item_count().saturating_sub(1);
+                self.selected_index = (self.selected_index + 5).min(max);
+                true
+            }
             (KeyCode::Char('p'), mods) if mods.contains(KeyModifiers::CONTROL) => {
                 self.open_shell_profiles_settings();
                 true
