@@ -188,9 +188,15 @@ impl HeightManager {
                 let padded_area = Rect { x: area.x + 1, y: area.y, width: area.width.saturating_sub(2), height: area.height };
                 let inner_cols = padded_area.width.saturating_sub(2);
                 let (cw, ch) = font_cell;
-                let number = (inner_cols as u32) * 3 * (cw as u32);
                 let denom = 4 * (ch as u32);
-                ((number / denom) as u16).saturating_add(1) // include borders budget
+                if denom == 0 {
+                    // Fallback: if font cell height is unknown, assume a
+                    // reasonable 16:9 aspect by targeting ~12 rows.
+                    12u16
+                } else {
+                    let number = (inner_cols as u32) * 3 * (cw as u32);
+                    ((number / denom) as u16).saturating_add(1) // include borders budget
+                }
             });
 
             // Keep within budget: reserve space for status + bottom + >=1 row history.
