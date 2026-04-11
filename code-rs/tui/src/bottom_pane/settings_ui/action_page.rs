@@ -2,7 +2,6 @@ use std::borrow::Cow;
 
 use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
-use ratatui::style::Style;
 use ratatui::text::Line;
 use ratatui::widgets::{Paragraph, Widget, Wrap};
 
@@ -196,7 +195,7 @@ impl<'a> SettingsActionPage<'a> {
         }
 
         let mut paragraph = Paragraph::new(lines.to_vec())
-            .style(Style::new().bg(colors::background()).fg(colors::text()));
+            .style(colors::style_text_on_bg());
         if self.wrap_lines {
             paragraph = paragraph.wrap(Wrap { trim: false });
         }
@@ -241,7 +240,7 @@ impl<'a> SettingsActionPage<'a> {
         buf: &mut Buffer,
     ) -> Option<SettingsActionPageLayout> {
         let layout = self.layout_content_only(area)?;
-        let base = Style::new().bg(colors::background()).fg(colors::text());
+        let base = colors::style_text_on_bg();
         fill_bg(buf, area, base);
         self.render_lines(layout.header, buf, &self.header_lines);
         self.render_lines(layout.status, buf, &self.status_lines);

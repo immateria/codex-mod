@@ -2,7 +2,6 @@ use super::*;
 
 use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
-use ratatui::style::Style;
 use ratatui::text::Line;
 use ratatui::widgets::{Paragraph, Widget, Wrap};
 
@@ -92,7 +91,7 @@ impl SecretsSettingsView {
         ];
 
         let paragraph = Paragraph::new(lines)
-            .style(Style::new().bg(colors::background()).fg(colors::text()))
+            .style(colors::style_text_on_bg())
             .wrap(Wrap { trim: false });
         paragraph.render(layout.body, buf);
     }

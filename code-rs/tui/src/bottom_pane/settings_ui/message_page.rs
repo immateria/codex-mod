@@ -49,7 +49,7 @@ impl<'a> SettingsMessagePage<'a> {
                 .with_action_rows(0),
             body_lines,
             body_wrap: true,
-            body_style: Style::new().bg(colors::background()).fg(colors::text()),
+            body_style: colors::style_text_on_bg(),
             body_scroll: 0,
         }
     }

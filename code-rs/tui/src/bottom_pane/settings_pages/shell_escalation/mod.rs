@@ -123,12 +123,7 @@ impl ShellEscalationSettingsView {
     }
 
     fn visible_budget(&self, total: usize) -> usize {
-        if total == 0 {
-            return 1;
-        }
-        let hint = self.viewport_rows.get();
-        let target = if hint == 0 { Self::DEFAULT_VISIBLE_ROWS } else { hint };
-        target.clamp(1, total)
+        ScrollState::visible_budget(self.viewport_rows.get(), Self::DEFAULT_VISIBLE_ROWS, total)
     }
 
     fn reconcile_selection_state(&mut self) {
@@ -137,9 +132,7 @@ impl ShellEscalationSettingsView {
             self.state.reset();
             return;
         }
-        self.state.clamp_selection(total);
-        let visible_budget = self.visible_budget(total);
-        self.state.ensure_visible(total, visible_budget);
+        self.state.reconcile(total, self.visible_budget(total));
     }
 
     fn recompute_dirty(&mut self) {

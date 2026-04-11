@@ -6,27 +6,15 @@ use crate::components::mode_guard::ModeGuard;
 
 impl JsReplSettingsView {
     fn visible_budget(&self, total: usize) -> usize {
-        if total == 0 {
-            return 0;
-        }
-        let raw = self.viewport_rows.get();
-        let effective = if raw == 0 {
-            Self::DEFAULT_VISIBLE_ROWS
-        } else {
-            raw
-        };
-        effective.max(1).min(total)
+        ScrollState::visible_budget(self.viewport_rows.get(), Self::DEFAULT_VISIBLE_ROWS, total)
     }
 
     pub(super) fn reconcile_selection_state(&mut self, total: usize) {
         if total == 0 {
-            self.state.selected_idx = None;
-            self.state.scroll_top = 0;
+            self.state.reset();
             return;
         }
-        self.state.clamp_selection(total);
-        let visible_budget = self.visible_budget(total);
-        self.state.ensure_visible(total, visible_budget);
+        self.state.reconcile(total, self.visible_budget(total));
     }
 
     pub(super) fn process_key_event(&mut self, key_event: KeyEvent) -> bool {

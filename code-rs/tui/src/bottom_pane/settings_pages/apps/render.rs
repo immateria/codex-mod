@@ -80,7 +80,7 @@ impl AppsSettingsView {
 
         let lines = build_account_detail_lines(snapshot, account_id);
         let paragraph = Paragraph::new(lines)
-            .style(Style::new().bg(colors::background()).fg(colors::text()))
+            .style(colors::style_text_on_bg())
             .wrap(Wrap { trim: false });
         paragraph.render(layout.body, buf);
     }

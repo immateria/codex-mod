@@ -45,7 +45,7 @@ impl<'a> SettingsFrame<'a> {
     fn make_block(&self) -> Block<'_> {
         let mut block = Block::bordered()
             .border_style(Style::new().fg(colors::border()))
-            .style(Style::new().bg(colors::background()).fg(colors::text()))
+            .style(colors::style_text_on_bg())
             .title_top(Line::from(self.title.as_ref()).centered());
 
         if let Some(pos) = &self.position_text {
@@ -144,7 +144,7 @@ impl<'a> SettingsFrame<'a> {
         let layout = self.layout_from_inner(inner);
         Clear.render(area, buf);
         block.render(area, buf);
-        let base = Style::new().bg(colors::background()).fg(colors::text());
+        let base = colors::style_text_on_bg();
         fill_bg(buf, inner, base);
 
         if layout.header.height > 0 {
@@ -168,7 +168,7 @@ impl<'a> SettingsFrame<'a> {
         buf: &mut Buffer,
     ) -> Option<SettingsFrameLayout> {
         let layout = self.layout_content(area)?;
-        let base = Style::new().bg(colors::background()).fg(colors::text());
+        let base = colors::style_text_on_bg();
         fill_bg(buf, area, base);
 
         if layout.header.height > 0 {

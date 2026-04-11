@@ -133,7 +133,7 @@ impl<'a> SettingsMenuPage<'a> {
     ) -> Option<SettingsSectionedPanelLayout> {
         let cw = self.estimate_content_width(area.width);
         let layout = self.sectioned_panel_for_width(cw).render(area, buf)?;
-        let base = Style::new().bg(colors::background()).fg(colors::text());
+        let base = colors::style_text_on_bg();
         let header_lines = self.combined_header_lines_for_width(layout.header.width);
         render_lines(layout.header, buf, &header_lines, base);
         let footer_lines = self.combined_footer_lines_for_width(layout.footer.width);
@@ -147,7 +147,7 @@ impl<'a> SettingsMenuPage<'a> {
         buf: &mut Buffer,
     ) -> Option<SettingsSectionedPanelLayout> {
         let layout = self.layout_content(area)?;
-        let base = Style::new().bg(colors::background()).fg(colors::text());
+        let base = colors::style_text_on_bg();
         fill_bg(buf, area, base);
         let header_lines = self.combined_header_lines_for_width(layout.header.width);
         render_lines(layout.header, buf, &header_lines, base);
@@ -382,7 +382,7 @@ impl<'p, 'a> SettingsMenuPageFramed<'p, 'a> {
         rows: &[SettingsMenuRow<'_, Id>],
     ) -> Option<SettingsSectionedPanelLayout> {
         let layout = self.render_shell(area, buf)?;
-        let base = Style::new().bg(colors::background()).fg(colors::text());
+        let base = colors::style_text_on_bg();
         let body_layout = self.page.menu_body_layout(layout.body);
         if let Some(detail) = body_layout.detail {
             render_menu_rows_compact(body_layout.list, buf, scroll_top, selected_id, rows, base);
@@ -404,7 +404,7 @@ impl<'p, 'a> SettingsMenuPageFramed<'p, 'a> {
         runs: &[SelectableLineRun<'_, Id>],
     ) -> Option<SettingsSectionedPanelLayout> {
         let layout = self.render_shell(area, buf)?;
-        let base = Style::new().bg(colors::background()).fg(colors::text());
+        let base = colors::style_text_on_bg();
         render_selectable_runs(layout.body, buf, scroll_top, runs, base);
         Some(layout)
     }
@@ -432,7 +432,7 @@ impl<'p, 'a> SettingsMenuPageContentOnly<'p, 'a> {
         rows: &[SettingsMenuRow<'_, Id>],
     ) -> Option<SettingsSectionedPanelLayout> {
         let layout = self.render_shell(area, buf)?;
-        let base = Style::new().bg(colors::background()).fg(colors::text());
+        let base = colors::style_text_on_bg();
         let body_layout = self.page.menu_body_layout(layout.body);
         if let Some(detail) = body_layout.detail {
             render_menu_rows_compact(body_layout.list, buf, scroll_top, selected_id, rows, base);
@@ -454,7 +454,7 @@ impl<'p, 'a> SettingsMenuPageContentOnly<'p, 'a> {
         runs: &[SelectableLineRun<'_, Id>],
     ) -> Option<SettingsSectionedPanelLayout> {
         let layout = self.render_shell(area, buf)?;
-        let base = Style::new().bg(colors::background()).fg(colors::text());
+        let base = colors::style_text_on_bg();
         render_selectable_runs(layout.body, buf, scroll_top, runs, base);
         Some(layout)
     }

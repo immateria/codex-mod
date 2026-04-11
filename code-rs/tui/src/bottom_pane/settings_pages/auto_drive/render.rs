@@ -10,7 +10,6 @@ use crate::bottom_pane::settings_ui::buttons::{
 use crate::bottom_pane::settings_ui::menu_rows::render_menu_rows;
 use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
-use ratatui::style::Style;
 
 impl AutoDriveSettingsView {
     fn routing_editor_selected_body_field(
@@ -99,7 +98,7 @@ impl AutoDriveSettingsView {
                     0,
                     self.routing_editor_selected_body_field(editor),
                     &rows,
-                    Style::new().bg(colors::background()).fg(colors::text()),
+                    colors::style_text_on_bg(),
                 );
             }
         }

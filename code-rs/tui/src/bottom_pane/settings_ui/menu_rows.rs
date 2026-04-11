@@ -169,7 +169,7 @@ where
         let base = if selected {
             Style::new().bg(colors::selection()).fg(colors::text())
         } else {
-            Style::new().bg(colors::background()).fg(colors::text())
+            colors::style_text_on_bg()
         };
         let arrow_style = if selected {
             Style::new().bg(colors::selection()).fg(colors::primary())
@@ -248,7 +248,7 @@ fn menu_row_run_with_width<'a, Id: Copy + PartialEq>(
     let base = if selected {
         Style::new().bg(colors::selection()).fg(colors::text())
     } else {
-        Style::new().bg(colors::background()).fg(colors::text())
+        colors::style_text_on_bg()
     };
     let arrow_style = if selected {
         Style::new().bg(colors::selection()).fg(colors::primary())

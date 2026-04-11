@@ -113,7 +113,7 @@ impl PluginsSettingsView {
 
         let lines = build_detail_body_lines(detail_state, key);
         let paragraph = Paragraph::new(lines)
-            .style(Style::new().bg(colors::background()).fg(colors::text()))
+            .style(colors::style_text_on_bg())
             .wrap(Wrap { trim: false });
         paragraph.render(layout.body, buf);
     }
@@ -141,7 +141,7 @@ impl PluginsSettingsView {
             return;
         };
 
-        let base = Style::new().bg(colors::background()).fg(colors::text());
+        let base = colors::style_text_on_bg();
         fill_bg(buf, layout.body, base);
         let mut lines = Vec::new();
         lines.push(Line::from(Span::styled(
@@ -241,7 +241,7 @@ impl PluginsSettingsView {
             return;
         };
 
-        let base = Style::new().bg(colors::background()).fg(colors::text());
+        let base = colors::style_text_on_bg();
         fill_bg(buf, layout.body, base);
 
         let label = snapshot

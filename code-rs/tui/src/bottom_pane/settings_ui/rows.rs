@@ -87,7 +87,7 @@ pub(crate) fn row_style(selected: bool) -> Style {
     if selected {
         Style::new().bg(colors::selection()).fg(colors::text())
     } else {
-        Style::new().bg(colors::background()).fg(colors::text())
+        colors::style_text_on_bg()
     }
 }
 

@@ -163,6 +163,30 @@ impl ScrollState {
         self.ensure_visible(len, visible_rows.max(1));
     }
 
+    /// Clamp selection and ensure the selected item is visible in one call.
+    ///
+    /// This is the standard reconciliation step for render/input paths:
+    /// it replaces the common `state.clamp_selection(len); state.ensure_visible(len, visible);` pair.
+    pub fn reconcile(&mut self, len: usize, visible_rows: usize) {
+        self.clamp_selection(len);
+        self.ensure_visible(len, visible_rows);
+    }
+
+    /// Compute how many rows should be visible given the current viewport hint.
+    ///
+    /// `viewport_hint` is the last measured body height (0 if not yet rendered).
+    /// `default_rows` is the fallback when the hint is 0.
+    /// `total` is the number of list items.
+    ///
+    /// Returns a value in `[1, total]` (or 1 when `total == 0`).
+    pub fn visible_budget(viewport_hint: usize, default_rows: usize, total: usize) -> usize {
+        if total == 0 {
+            return 1;
+        }
+        let target = if viewport_hint == 0 { default_rows } else { viewport_hint };
+        target.clamp(1, total)
+    }
+
     /// Select by visible row index (relative to the current `scroll_top`).
     ///
     /// Returns `true` when `visible_row` maps to a valid item.
@@ -311,5 +335,35 @@ mod tests {
         assert_eq!(state.scroll_top, 999);
         assert_eq!(clamped.selected_idx, Some(0));
         assert_eq!(clamped.scroll_top, 2);
+    }
+
+    #[test]
+    fn reconcile_clamps_and_ensures_visible() {
+        let mut state = ScrollState {
+            selected_idx: Some(20),
+            scroll_top: 15,
+        };
+        state.reconcile(10, 3);
+        assert_eq!(state.selected_idx, Some(9));
+        assert!(state.scroll_top >= 7);
+    }
+
+    #[test]
+    fn reconcile_resets_on_empty() {
+        let mut state = ScrollState {
+            selected_idx: Some(5),
+            scroll_top: 3,
+        };
+        state.reconcile(0, 3);
+        assert_eq!(state.selected_idx, None);
+        assert_eq!(state.scroll_top, 0);
+    }
+
+    #[test]
+    fn visible_budget_uses_hint_or_default() {
+        assert_eq!(ScrollState::visible_budget(0, 8, 20), 8);
+        assert_eq!(ScrollState::visible_budget(5, 8, 20), 5);
+        assert_eq!(ScrollState::visible_budget(0, 8, 3), 3);
+        assert_eq!(ScrollState::visible_budget(0, 8, 0), 1);
     }
 }

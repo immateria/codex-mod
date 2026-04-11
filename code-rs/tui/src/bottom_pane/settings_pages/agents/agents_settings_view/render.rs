@@ -116,7 +116,7 @@ impl SubagentEditorView {
         let mut y = body.y;
         let mut remaining = body.height;
 
-        let base_style = Style::new().bg(colors::background()).fg(colors::text());
+        let base_style = colors::style_text_on_bg();
 
         let id_h = id_box_h.min(remaining);
         let id_rect = Rect::new(body.x, y, body.width, id_h);
