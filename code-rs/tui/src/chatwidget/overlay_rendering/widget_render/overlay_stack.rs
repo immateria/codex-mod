@@ -530,7 +530,7 @@ impl ChatWidget<'_> {
                             if i > 0 {
                                 let sep = " │ ";
                                 buf.set_string(col, tab_area.y, sep, sep_style);
-                                col += sep.len() as u16;
+                                col += unicode_width::UnicodeWidthStr::width(sep) as u16;
                             }
 
                             let num = tab_numbers[i];

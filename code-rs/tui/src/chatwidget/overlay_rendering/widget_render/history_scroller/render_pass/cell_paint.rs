@@ -579,9 +579,10 @@ impl ChatWidget<'_> {
                     && item_area.width >= 3
                 {
                     let label = crate::icons::dismiss();
+                    let label_width = unicode_width::UnicodeWidthStr::width(label) as u16;
                     let x = item_area
                         .x
-                        .saturating_add(item_area.width.saturating_sub(label.len() as u16));
+                        .saturating_add(item_area.width.saturating_sub(label_width));
                     let y = item_area.y;
                     let action = crate::chatwidget::ClickableAction::DismissHistoryCellAtIndex(idx);
                     let hovered = hovered_action_ref.as_ref() == Some(&action);
@@ -597,7 +598,7 @@ impl ChatWidget<'_> {
                     buf.set_string(x, y, label, style);
                     regions.push(
                         crate::chatwidget::ClickableRegion {
-                            rect: Rect::new(x, y, label.len() as u16, 1),
+                            rect: Rect::new(x, y, label_width, 1),
                             action,
                         },
                     );
