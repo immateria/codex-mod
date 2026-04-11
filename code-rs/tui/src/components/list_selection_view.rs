@@ -208,6 +208,8 @@ impl BottomPaneView<'_> for ListSelectionView {
     }
 
     fn handle_key_event(&mut self, _pane: &mut BottomPane<'_>, key_event: KeyEvent) {
+        let len = self.items.len();
+        let visible = self.max_rows.min(len);
         match key_event {
             KeyEvent {
                 code: KeyCode::Up, ..
@@ -216,6 +218,28 @@ impl BottomPaneView<'_> for ListSelectionView {
                 code: KeyCode::Down,
                 ..
             } => self.move_down(),
+            KeyEvent {
+                code: KeyCode::Home,
+                ..
+            } => {
+                self.state.home(len);
+                self.state.ensure_visible(len, visible);
+            }
+            KeyEvent {
+                code: KeyCode::End,
+                ..
+            } => {
+                self.state.end(len, visible);
+                self.state.ensure_visible(len, visible);
+            }
+            KeyEvent {
+                code: KeyCode::PageUp,
+                ..
+            } => self.state.page_up(len, visible),
+            KeyEvent {
+                code: KeyCode::PageDown,
+                ..
+            } => self.state.page_down(len, visible),
             KeyEvent {
                 code: KeyCode::Esc, ..
             } => self.cancel(),
