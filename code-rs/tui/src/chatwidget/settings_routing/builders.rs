@@ -553,6 +553,7 @@ impl ChatWidget<'_> {
     }
 
     pub(super) fn build_limits_settings_content(&mut self) -> LimitsSettingsContent {
+        self.check_inflight_timeout();
         let snapshot = self.rate_limit_snapshot.clone();
         let needs_refresh = self.should_refresh_limits();
 

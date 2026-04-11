@@ -787,6 +787,8 @@ pub(crate) struct ChatWidget<'a> {
     rate_limit_snapshot: Option<RateLimitSnapshotEvent>,
     rate_limit_warnings: RateLimitWarningState,
     rate_limit_fetch_inflight: bool,
+    /// When the inflight flag was set — used to auto-clear after a timeout.
+    rate_limit_fetch_inflight_since: Option<std::time::Instant>,
     rate_limit_last_fetch_at: Option<DateTime<Utc>>,
     rate_limit_primary_next_reset_at: Option<DateTime<Utc>>,
     rate_limit_secondary_next_reset_at: Option<DateTime<Utc>>,

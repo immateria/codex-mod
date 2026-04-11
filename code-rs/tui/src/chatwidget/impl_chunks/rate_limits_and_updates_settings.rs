@@ -1,6 +1,7 @@
 impl ChatWidget<'_> {
     pub(crate) fn show_limits_settings_ui(&mut self) {
         self.ensure_settings_overlay_section(SettingsSection::Limits);
+        self.check_inflight_timeout();
 
         if let Some(cached) = self.limits.cached_content.take() {
             self.update_limits_settings_content(cached);
@@ -68,6 +69,17 @@ impl ChatWidget<'_> {
             .unwrap_or(false);
 
             if should_refresh {
+                // Skip if the thread pool is under pressure — we'll retry on
+                // the next overlay open.
+                if thread_spawner::active_thread_count()
+                    >= thread_spawner::max_thread_count() / 2
+                {
+                    tracing::debug!(
+                        "skipping background refresh for {} — thread pool under pressure",
+                        account.id,
+                    );
+                    continue;
+                }
                 start_rate_limit_refresh_for_account(
                     self.app_event_tx.clone(),
                     self.config.clone(),
@@ -81,6 +93,7 @@ impl ChatWidget<'_> {
     }
 
     fn request_latest_rate_limits(&mut self, show_loading: bool) {
+        self.check_inflight_timeout();
         if self.rate_limit_fetch_inflight {
             return;
         }
@@ -91,6 +104,7 @@ impl ChatWidget<'_> {
         }
 
         self.rate_limit_fetch_inflight = true;
+        self.rate_limit_fetch_inflight_since = Some(std::time::Instant::now());
 
         start_rate_limit_refresh(
             self.app_event_tx.clone(),
@@ -101,11 +115,33 @@ impl ChatWidget<'_> {
 
     fn should_refresh_limits(&self) -> bool {
         if self.rate_limit_fetch_inflight {
+            // If we've been inflight too long, the background thread likely
+            // died or hung. The caller should invoke `check_inflight_timeout`
+            // to clear the flag, but we also guard here to avoid permanent
+            // stalls.
             return false;
         }
         match self.rate_limit_last_fetch_at {
             Some(ts) => Utc::now() - ts > RATE_LIMIT_REFRESH_INTERVAL,
             None => true,
+        }
+    }
+
+    /// If a rate-limit fetch has been inflight for longer than 45 seconds,
+    /// auto-clear the flag so the UI doesn't get permanently stuck in
+    /// "Loading..." state.
+    fn check_inflight_timeout(&mut self) {
+        const INFLIGHT_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(45);
+        if self.rate_limit_fetch_inflight
+            && let Some(since) = self.rate_limit_fetch_inflight_since
+            && since.elapsed() > INFLIGHT_TIMEOUT
+        {
+            tracing::warn!(
+                "rate-limit fetch inflight for {:.0}s — auto-clearing stuck flag",
+                since.elapsed().as_secs_f64(),
+            );
+            self.rate_limit_fetch_inflight = false;
+            self.rate_limit_fetch_inflight_since = None;
         }
     }
 
@@ -119,6 +155,7 @@ impl ChatWidget<'_> {
 
     pub(crate) fn on_rate_limit_refresh_failed(&mut self, message: String) {
         self.rate_limit_fetch_inflight = false;
+        self.rate_limit_fetch_inflight_since = None;
 
         let content = if self.rate_limit_snapshot.is_some() {
             LimitsOverlayContent::Error(message.clone())
@@ -168,6 +205,7 @@ impl ChatWidget<'_> {
                 // Re-probe the newly-active account so the overlay refreshes
                 // with live data.
                 self.rate_limit_fetch_inflight = true;
+                self.rate_limit_fetch_inflight_since = Some(std::time::Instant::now());
                 start_rate_limit_refresh(
                     self.app_event_tx.clone(),
                     self.config.clone(),
@@ -184,7 +222,10 @@ impl ChatWidget<'_> {
 
     /// Warm all non-active accounts by sending a minimal probe to each, which
     /// starts their 5-hour usage timer and fetches fresh rate limit data.
+    /// Caps concurrent warm-up threads to avoid exhausting the thread pool.
     pub(crate) fn on_warm_all_accounts(&mut self) {
+        const MAX_CONCURRENT_WARMUPS: usize = 8;
+
         let code_home = self.config.code_home.clone();
         let active_id = auth_accounts::get_active_account_id(&code_home)
             .ok()
@@ -194,6 +235,15 @@ impl ChatWidget<'_> {
         for account in accounts {
             if active_id.as_deref() == Some(account.id.as_str()) {
                 continue;
+            }
+            // Check thread pool pressure before each spawn.
+            if thread_spawner::active_thread_count() >= MAX_CONCURRENT_WARMUPS {
+                tracing::info!(
+                    "warm-all: skipping remaining accounts — thread pool at capacity \
+                     ({} active)",
+                    thread_spawner::active_thread_count(),
+                );
+                break;
             }
             start_rate_limit_refresh_for_account(
                 self.app_event_tx.clone(),
@@ -300,7 +350,17 @@ impl ChatWidget<'_> {
             let delay = reset_at.signed_duration_since(now) + ChronoDuration::seconds(1);
             if let Ok(delay) = delay.to_std()
                 && !delay.is_zero() {
-                    std::thread::sleep(delay);
+                    // Sleep in short intervals so the thread releases promptly
+                    // when the schedule is superseded by a newer reset time.
+                    const POLL_INTERVAL: std::time::Duration = std::time::Duration::from_secs(30);
+                    let deadline = std::time::Instant::now() + delay;
+                    while std::time::Instant::now() < deadline {
+                        if schedule_token.load(Ordering::SeqCst) != schedule_id {
+                            return;
+                        }
+                        let remaining = deadline.saturating_duration_since(std::time::Instant::now());
+                        std::thread::sleep(remaining.min(POLL_INTERVAL));
+                    }
                 }
 
             if schedule_token.load(Ordering::SeqCst) != schedule_id {

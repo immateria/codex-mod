@@ -282,6 +282,7 @@ impl ChatWidget<'_> {
                     self.rate_limit_snapshot = Some(snapshot);
                     self.rate_limit_last_fetch_at = Some(Utc::now());
                     self.rate_limit_fetch_inflight = false;
+                    self.rate_limit_fetch_inflight_since = None;
                     self.refresh_settings_overview_rows();
                     let refresh_limits_settings = self
                         .settings

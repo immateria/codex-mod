@@ -351,6 +351,7 @@ impl ChatWidgetHarness {
     pub fn suppress_rate_limit_refresh(&mut self) {
         self.chat.rate_limit_last_fetch_at = Some(Utc::now());
         self.chat.rate_limit_fetch_inflight = false;
+        self.chat.rate_limit_fetch_inflight_since = None;
     }
 
     pub fn show_agent_editor(&mut self, name: impl Into<String>) {

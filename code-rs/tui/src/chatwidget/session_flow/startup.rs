@@ -122,6 +122,7 @@ impl ChatWidget<'_> {
             rate_limit_snapshot: None,
             rate_limit_warnings: RateLimitWarningState::default(),
             rate_limit_fetch_inflight: false,
+            rate_limit_fetch_inflight_since: None,
             rate_limit_last_fetch_at: None,
             rate_limit_primary_next_reset_at: None,
             rate_limit_secondary_next_reset_at: None,
