@@ -2,6 +2,7 @@ use std::cell::Cell;
 use std::path::PathBuf;
 
 use code_core::config_types::MemoriesToml;
+use code_core::RolloutSummaryEntry;
 
 use crate::app_event_sender::AppEventSender;
 use crate::components::form_text_field::FormTextField;
@@ -34,6 +35,9 @@ enum RowKind {
     MaxRolloutAgeDays,
     MaxRolloutsPerStartup,
     MinRolloutIdleHours,
+    ViewSummary,
+    ViewRawMemories,
+    BrowseRollouts,
     RefreshArtifacts,
     ClearArtifacts,
     OpenDirectory,
@@ -49,6 +53,29 @@ enum EditTarget {
     MinRolloutIdleHours,
 }
 
+/// Tracks which view the text viewer should return to on Esc.
+#[derive(Debug)]
+enum TextViewerParent {
+    Main,
+    RolloutList(Box<RolloutListState>),
+}
+
+#[derive(Debug)]
+struct TextViewerState {
+    title: &'static str,
+    lines: Vec<String>,
+    scroll_top: Cell<usize>,
+    viewport_rows: Cell<usize>,
+    parent: TextViewerParent,
+}
+
+#[derive(Debug)]
+struct RolloutListState {
+    entries: Vec<RolloutSummaryEntry>,
+    list_state: Cell<ScrollState>,
+    viewport_rows: Cell<usize>,
+}
+
 #[derive(Debug)]
 enum ViewMode {
     Main,
@@ -57,6 +84,8 @@ enum ViewMode {
         field: FormTextField,
         error: Option<String>,
     },
+    TextViewer(Box<TextViewerState>),
+    RolloutList(Box<RolloutListState>),
     Transition,
 }
 

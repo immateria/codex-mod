@@ -40,7 +40,7 @@ impl MemoriesSettingsView {
         }
     }
 
-    const ROWS_WITH_FILE_MANAGER: [RowKind; 13] = [
+    const ROWS_WITH_FILE_MANAGER: [RowKind; 16] = [
             RowKind::Scope,
             RowKind::GenerateMemories,
             RowKind::UseMemories,
@@ -49,6 +49,9 @@ impl MemoriesSettingsView {
             RowKind::MaxRolloutAgeDays,
             RowKind::MaxRolloutsPerStartup,
             RowKind::MinRolloutIdleHours,
+            RowKind::ViewSummary,
+            RowKind::ViewRawMemories,
+            RowKind::BrowseRollouts,
             RowKind::RefreshArtifacts,
             RowKind::ClearArtifacts,
             RowKind::OpenDirectory,
@@ -56,7 +59,7 @@ impl MemoriesSettingsView {
             RowKind::Close,
     ];
 
-    const ROWS_NO_FILE_MANAGER: [RowKind; 12] = [
+    const ROWS_NO_FILE_MANAGER: [RowKind; 15] = [
         RowKind::Scope,
         RowKind::GenerateMemories,
         RowKind::UseMemories,
@@ -65,6 +68,9 @@ impl MemoriesSettingsView {
         RowKind::MaxRolloutAgeDays,
         RowKind::MaxRolloutsPerStartup,
         RowKind::MinRolloutIdleHours,
+        RowKind::ViewSummary,
+        RowKind::ViewRawMemories,
+        RowKind::BrowseRollouts,
         RowKind::RefreshArtifacts,
         RowKind::ClearArtifacts,
         RowKind::Apply,
@@ -299,6 +305,31 @@ impl MemoriesSettingsView {
                 scoped.and_then(|settings| settings.min_rollout_idle_hours),
                 effective.min_rollout_idle_hours,
             ),
+            RowKind::ViewSummary => {
+                match self.current_status() {
+                    Ok(Some(status)) if status.artifacts.summary.exists => "available".to_owned(),
+                    _ => "not generated".to_owned(),
+                }
+            }
+            RowKind::ViewRawMemories => {
+                match self.current_status() {
+                    Ok(Some(status)) if status.artifacts.raw_memories.exists => "available".to_owned(),
+                    _ => "not generated".to_owned(),
+                }
+            }
+            RowKind::BrowseRollouts => {
+                match self.current_status() {
+                    Ok(Some(status)) => {
+                        let count = status.artifacts.rollout_summary_count;
+                        if count == 0 {
+                            "none".to_owned()
+                        } else {
+                            format!("{count} files")
+                        }
+                    }
+                    _ => "unknown".to_owned(),
+                }
+            }
             RowKind::RefreshArtifacts => "Bypass throttle".to_owned(),
             RowKind::ClearArtifacts => "Generated files only".to_owned(),
             RowKind::OpenDirectory => self.code_home.join("memories").display().to_string(),
@@ -323,6 +354,9 @@ impl MemoriesSettingsView {
             RowKind::MaxRolloutAgeDays => "Max rollout age (days)",
             RowKind::MaxRolloutsPerStartup => "Max rollouts per refresh",
             RowKind::MinRolloutIdleHours => "Min rollout idle (hours)",
+            RowKind::ViewSummary => "View injected summary",
+            RowKind::ViewRawMemories => "View raw memories",
+            RowKind::BrowseRollouts => "Browse rollout summaries",
             RowKind::RefreshArtifacts => "Refresh artifacts now",
             RowKind::ClearArtifacts => "Clear generated artifacts",
             RowKind::OpenDirectory => "Open memories directory",
@@ -341,6 +375,9 @@ impl MemoriesSettingsView {
             RowKind::MaxRolloutAgeDays => "Ignore sessions older than this many days during artifact rebuilds.",
             RowKind::MaxRolloutsPerStartup => "Cap how many catalog sessions are scanned during each rebuild.",
             RowKind::MinRolloutIdleHours => "Ignore sessions that are newer than this idle window.",
+            RowKind::ViewSummary => "View the memory_summary.md that gets injected into developer instructions.",
+            RowKind::ViewRawMemories => "View raw_memories.md containing all extracted session memories.",
+            RowKind::BrowseRollouts => "Browse individual rollout summary files in rollout_summaries/.",
             RowKind::RefreshArtifacts => "Rebuild memory_summary.md, raw_memories.md, and rollout_summaries/* immediately.",
             RowKind::ClearArtifacts => "Delete generated artifacts only; catalog memory_mode values stay intact.",
             RowKind::OpenDirectory => "Open the memories directory in Finder/Explorer/your file manager.",
@@ -351,5 +388,92 @@ impl MemoriesSettingsView {
 
     pub(crate) fn is_view_complete(&self) -> bool {
         self.is_complete
+    }
+
+    pub(super) fn open_text_viewer(
+        &mut self,
+        title: &'static str,
+        content: String,
+        parent: TextViewerParent,
+    ) {
+        let lines: Vec<String> = content.lines().map(String::from).collect();
+        self.mode = ViewMode::TextViewer(Box::new(TextViewerState {
+            title,
+            lines,
+            scroll_top: Cell::new(0),
+            viewport_rows: Cell::new(DEFAULT_VISIBLE_ROWS),
+            parent,
+        }));
+    }
+
+    pub(super) fn open_summary_viewer(&mut self) {
+        match code_core::read_memory_summary(&self.code_home) {
+            Ok(Some(content)) => {
+                self.open_text_viewer(" Memory Summary ", content, TextViewerParent::Main);
+            }
+            Ok(None) => {
+                self.status = Some(("memory_summary.md not found. Run Refresh first.".to_owned(), true));
+            }
+            Err(err) => {
+                self.status = Some((format!("Error reading summary: {err}"), true));
+            }
+        }
+    }
+
+    pub(super) fn open_raw_viewer(&mut self) {
+        match code_core::read_raw_memories(&self.code_home) {
+            Ok(Some(content)) => {
+                self.open_text_viewer(" Raw Memories ", content, TextViewerParent::Main);
+            }
+            Ok(None) => {
+                self.status = Some(("raw_memories.md not found. Run Refresh first.".to_owned(), true));
+            }
+            Err(err) => {
+                self.status = Some((format!("Error reading raw memories: {err}"), true));
+            }
+        }
+    }
+
+    pub(super) fn open_rollout_list(&mut self) {
+        match code_core::list_rollout_summaries(&self.code_home) {
+            Ok(entries) => {
+                if entries.is_empty() {
+                    self.status = Some(("No rollout summaries found. Run Refresh first.".to_owned(), true));
+                    return;
+                }
+                self.mode = ViewMode::RolloutList(Box::new(RolloutListState {
+                    entries,
+                    list_state: Cell::new(ScrollState::with_first_selected()),
+                    viewport_rows: Cell::new(DEFAULT_VISIBLE_ROWS),
+                }));
+            }
+            Err(err) => {
+                self.status = Some((format!("Error listing rollouts: {err}"), true));
+            }
+        }
+    }
+
+    pub(super) fn open_rollout_detail(
+        &mut self,
+        list_state: Box<RolloutListState>,
+        slug: &str,
+    ) {
+        match code_core::read_rollout_summary(&self.code_home, slug) {
+            Ok(Some(content)) => {
+                self.open_text_viewer(
+                    " Rollout Detail ",
+                    content,
+                    TextViewerParent::RolloutList(list_state),
+                );
+            }
+            Ok(None) => {
+                self.mode = ViewMode::RolloutList(list_state);
+                self.status = Some((format!("Rollout {slug}.md not found."), true));
+            }
+            Err(err) => {
+                self.mode = ViewMode::RolloutList(list_state);
+                self.status = Some((format!("Error reading rollout: {err}"), true));
+            }
+        }
     }
 }

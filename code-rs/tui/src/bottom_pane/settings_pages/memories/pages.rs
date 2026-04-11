@@ -5,6 +5,9 @@ use ratatui::text::{Line, Span};
 
 use crate::bottom_pane::settings_ui::editor_page::SettingsEditorPage;
 use crate::bottom_pane::settings_ui::hints::{hint_esc, hint_enter, hint_nav, hint_nav_horizontal, shortcut_line, KeyHint};
+use crate::bottom_pane::settings_ui::menu_page::SettingsMenuPage;
+use crate::bottom_pane::settings_ui::menu_rows::SettingsMenuRow;
+use crate::bottom_pane::settings_ui::message_page::SettingsMessagePage;
 use crate::bottom_pane::settings_ui::panel::SettingsPanelStyle;
 use crate::bottom_pane::settings_ui::row_page::SettingsRowPage;
 use crate::colors;
@@ -185,5 +188,93 @@ impl MemoriesSettingsView {
             self.render_header_lines(),
             self.main_footer_lines(),
         )
+    }
+
+    pub(super) fn text_viewer_page(viewer: &TextViewerState) -> SettingsMessagePage<'static> {
+        let total = viewer.lines.len();
+        let visible = viewer.viewport_rows.get();
+        let scroll = viewer.scroll_top.get();
+
+        let position = if total > visible {
+            format!(" {}/{total} ", scroll + 1)
+        } else {
+            String::new()
+        };
+
+        let dim = Style::default().fg(colors::text_dim());
+        let header_lines = if !position.is_empty() {
+            vec![Line::from(Span::styled(position, dim))]
+        } else {
+            Vec::new()
+        };
+
+        let body_lines: Vec<Line<'static>> = viewer
+            .lines
+            .iter()
+            .map(|line| Line::from(Span::styled(line.clone(), dim)))
+            .collect();
+
+        let back_label = match viewer.parent {
+            TextViewerParent::Main => " back to settings",
+            TextViewerParent::RolloutList(_) => " back to list",
+        };
+        let footer_lines = vec![shortcut_line(&[
+            hint_nav(" scroll"),
+            hint_esc(back_label),
+        ])];
+
+        SettingsMessagePage::new(
+            viewer.title,
+            SettingsPanelStyle::bottom_pane(),
+            header_lines,
+            body_lines,
+            footer_lines,
+        )
+        .with_body_scroll(scroll as u16)
+    }
+
+    pub(super) fn rollout_list_menu_rows(list: &RolloutListState) -> Vec<SettingsMenuRow<'static, usize>> {
+        list.entries
+            .iter()
+            .enumerate()
+            .map(|(idx, entry)| {
+                let detail = if entry.size_bytes < 1024 {
+                    format!("{}B", entry.size_bytes)
+                } else {
+                    format!("{:.1}KB", entry.size_bytes as f64 / 1024.0)
+                };
+                SettingsMenuRow::new(idx, entry.slug.clone())
+                    .with_detail(crate::bottom_pane::settings_ui::rows::StyledText::new(
+                        detail,
+                        Style::default().fg(colors::text_dim()),
+                    ))
+            })
+            .collect()
+    }
+
+    pub(super) fn rollout_list_page(list: &RolloutListState) -> SettingsMenuPage<'static> {
+        let total = list.entries.len();
+        let state = list.list_state.get();
+        let idx = state.selected_idx.unwrap_or(0).min(total.saturating_sub(1));
+
+        let dim = Style::default().fg(colors::text_dim());
+        let header = vec![Line::from(Span::styled(
+            format!("{total} rollout summaries"),
+            dim,
+        ))];
+
+        let footer = vec![shortcut_line(&[
+            hint_nav(" navigate"),
+            hint_enter(" view"),
+            hint_esc(" back"),
+        ])];
+
+        SettingsMenuPage::new(
+            " Rollout Summaries ",
+            SettingsPanelStyle::bottom_pane(),
+            header,
+            footer,
+        )
+        .with_scroll_position(idx + 1, total)
     }
 }

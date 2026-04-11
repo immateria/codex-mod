@@ -720,6 +720,74 @@ fn setting_source<T>(
     }
 }
 
+// ---------------------------------------------------------------------------
+// Memory artifact browsing
+// ---------------------------------------------------------------------------
+
+/// Metadata for a single rollout summary file.
+#[derive(Debug, Clone)]
+pub struct RolloutSummaryEntry {
+    pub slug: String,
+    pub size_bytes: u64,
+    pub modified_at: Option<String>,
+}
+
+/// Read the published `memory_summary.md` artifact. Returns `None` when the
+/// file does not exist.
+pub fn read_memory_summary(code_home: &Path) -> io::Result<Option<String>> {
+    let paths = published_artifact_paths(code_home)?;
+    read_optional_text_file(&paths.summary_path)
+}
+
+/// Read the published `raw_memories.md` artifact. Returns `None` when the file
+/// does not exist.
+pub fn read_raw_memories(code_home: &Path) -> io::Result<Option<String>> {
+    let paths = published_artifact_paths(code_home)?;
+    read_optional_text_file(&paths.raw_memories_path)
+}
+
+/// List individual rollout summary files sorted newest-first.
+pub fn list_rollout_summaries(code_home: &Path) -> io::Result<Vec<RolloutSummaryEntry>> {
+    let paths = published_artifact_paths(code_home)?;
+    let dir = &paths.rollout_summaries_dir;
+    if !dir.is_dir() {
+        return Ok(Vec::new());
+    }
+    let mut entries: Vec<RolloutSummaryEntry> = std::fs::read_dir(dir)?
+        .filter_map(Result::ok)
+        .filter(|e| e.file_type().is_ok_and(|ft| ft.is_file()))
+        .filter_map(|e| {
+            let slug = e.path().file_stem()?.to_str()?.to_owned();
+            let meta = e.metadata().ok()?;
+            Some(RolloutSummaryEntry {
+                slug,
+                size_bytes: meta.len(),
+                modified_at: meta
+                    .modified()
+                    .ok()
+                    .map(|m| DateTime::<Utc>::from(m).to_rfc3339()),
+            })
+        })
+        .collect();
+    entries.sort_by(|a, b| b.modified_at.cmp(&a.modified_at));
+    Ok(entries)
+}
+
+/// Read a single rollout summary by slug. Returns `None` when missing.
+pub fn read_rollout_summary(code_home: &Path, slug: &str) -> io::Result<Option<String>> {
+    let paths = published_artifact_paths(code_home)?;
+    let file = paths.rollout_summaries_dir.join(format!("{slug}.md"));
+    read_optional_text_file(&file)
+}
+
+fn read_optional_text_file(path: &Path) -> io::Result<Option<String>> {
+    match std::fs::read_to_string(path) {
+        Ok(content) => Ok(Some(content)),
+        Err(e) if e.kind() == io::ErrorKind::NotFound => Ok(None),
+        Err(e) => Err(e),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::io;

@@ -322,6 +322,9 @@ impl MemoriesSettingsView {
                     self.open_edit_for(target);
                 }
             }
+            RowKind::ViewSummary => self.open_summary_viewer(),
+            RowKind::ViewRawMemories => self.open_raw_viewer(),
+            RowKind::BrowseRollouts => self.open_rollout_list(),
             RowKind::RefreshArtifacts => self.trigger_action(MemoriesArtifactsAction::Refresh),
             RowKind::ClearArtifacts => self.trigger_action(MemoriesArtifactsAction::Clear),
             RowKind::OpenDirectory => self.open_memories_directory(),
@@ -438,10 +441,106 @@ impl MemoriesSettingsView {
         }
     }
 
+    fn process_text_viewer_key_event(&mut self, key_event: KeyEvent) -> bool {
+        let ViewMode::TextViewer(ref viewer) = self.mode else {
+            return false;
+        };
+        let total = viewer.lines.len();
+        let visible = viewer.viewport_rows.get().max(1);
+        let mut scroll = viewer.scroll_top.get();
+
+        match key_event.code {
+            KeyCode::Esc => {
+                // Take ownership to extract parent.
+                let ViewMode::TextViewer(viewer) = std::mem::replace(&mut self.mode, ViewMode::Transition) else {
+                    return false;
+                };
+                match viewer.parent {
+                    TextViewerParent::Main => self.mode = ViewMode::Main,
+                    TextViewerParent::RolloutList(list) => self.mode = ViewMode::RolloutList(list),
+                }
+                return true;
+            }
+            KeyCode::Up | KeyCode::Char('k') => {
+                scroll = scroll.saturating_sub(1);
+            }
+            KeyCode::Down | KeyCode::Char('j') => {
+                if scroll + visible < total {
+                    scroll += 1;
+                }
+            }
+            KeyCode::Home => {
+                scroll = 0;
+            }
+            KeyCode::End => {
+                scroll = total.saturating_sub(visible);
+            }
+            KeyCode::PageUp => {
+                scroll = scroll.saturating_sub(visible);
+            }
+            KeyCode::PageDown => {
+                scroll = (scroll + visible).min(total.saturating_sub(visible));
+            }
+            _ => return false,
+        }
+        viewer.scroll_top.set(scroll);
+        true
+    }
+
+    fn process_rollout_list_key_event(&mut self, key_event: KeyEvent) -> bool {
+        let ViewMode::RolloutList(ref list) = self.mode else {
+            return false;
+        };
+        let total = list.entries.len();
+        let visible = list.viewport_rows.get().max(1);
+        let mut state = list.list_state.get();
+
+        match key_event.code {
+            KeyCode::Esc => {
+                self.mode = ViewMode::Main;
+                return true;
+            }
+            KeyCode::Up | KeyCode::Char('k') => {
+                state.move_up_wrap_visible(total, visible);
+            }
+            KeyCode::Down | KeyCode::Char('j') => {
+                state.move_down_wrap_visible(total, visible);
+            }
+            KeyCode::Home => {
+                state.home(total);
+            }
+            KeyCode::End => {
+                state.end(total, visible);
+            }
+            KeyCode::PageUp => {
+                state.page_up(total, visible);
+            }
+            KeyCode::PageDown => {
+                state.page_down(total, visible);
+            }
+            KeyCode::Enter | KeyCode::Char(' ') => {
+                let idx = state.selected_idx.unwrap_or(0).min(total.saturating_sub(1));
+                let slug = list.entries[idx].slug.clone();
+                // Take ownership of list state for the detail view.
+                let ViewMode::RolloutList(list_state) = std::mem::replace(&mut self.mode, ViewMode::Transition) else {
+                    return false;
+                };
+                self.open_rollout_detail(list_state, &slug);
+                return true;
+            }
+            _ => return false,
+        }
+        state.ensure_visible(total, visible);
+        list.list_state.set(state);
+        true
+    }
+
     pub(crate) fn handle_key_event_direct(&mut self, key_event: KeyEvent) -> bool {
         match self.mode {
             ViewMode::Main => self.process_main_key_event(key_event),
             ViewMode::Edit { .. } => self.process_edit_key_event(key_event),
+            ViewMode::TextViewer(_) => self.process_text_viewer_key_event(key_event),
+            ViewMode::RolloutList(_) => self.process_rollout_list_key_event(key_event),
             ViewMode::Transition => {
                 self.mode = ViewMode::Main;
                 false

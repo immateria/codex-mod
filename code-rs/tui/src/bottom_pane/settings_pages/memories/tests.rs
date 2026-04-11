@@ -29,7 +29,7 @@ fn apply_emits_global_memories_settings_event() {
 
     view.handle_key_event_direct(KeyEvent::new(KeyCode::Down, KeyModifiers::NONE));
     view.handle_key_event_direct(KeyEvent::new(KeyCode::Char(' '), KeyModifiers::NONE));
-    for _ in 0..10 {
+    for _ in 0..13 {
         view.handle_key_event_direct(KeyEvent::new(KeyCode::Down, KeyModifiers::NONE));
     }
     view.handle_key_event_direct(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
@@ -53,7 +53,7 @@ fn apply_can_target_project_scope() {
     view.handle_key_event_direct(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
     view.handle_key_event_direct(KeyEvent::new(KeyCode::Down, KeyModifiers::NONE));
     view.handle_key_event_direct(KeyEvent::new(KeyCode::Char(' '), KeyModifiers::NONE));
-    for _ in 0..10 {
+    for _ in 0..13 {
         view.handle_key_event_direct(KeyEvent::new(KeyCode::Down, KeyModifiers::NONE));
     }
     view.handle_key_event_direct(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
@@ -131,3 +131,114 @@ async fn header_shows_cached_snapshot_after_status_load() {
     assert!(rendered.contains("SQLite: present"));
 }
 
+#[test]
+fn view_summary_shows_content_when_artifact_exists() {
+    let (tx, _rx) = channel();
+    let sender = AppEventSender::new(tx);
+    let temp = tempdir().expect("tempdir");
+    let mem_dir = temp.path().join("memories");
+    std::fs::create_dir_all(&mem_dir).unwrap();
+    std::fs::write(mem_dir.join("memory_summary.md"), "# Summary\nTest content").unwrap();
+
+    let mut view = MemoriesSettingsView::new(
+        temp.path().to_path_buf(),
+        PathBuf::from("/tmp/project"),
+        Some("work".to_string()),
+        None,
+        None,
+        None,
+        sender,
+    );
+
+    // Navigate to ViewSummary row (index 8)
+    for _ in 0..8 {
+        view.handle_key_event_direct(KeyEvent::new(KeyCode::Down, KeyModifiers::NONE));
+    }
+    assert_eq!(view.selected_row(), RowKind::ViewSummary);
+    view.handle_key_event_direct(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
+
+    assert!(matches!(view.mode, ViewMode::TextViewer(_)));
+    if let ViewMode::TextViewer(ref viewer) = view.mode {
+        assert_eq!(viewer.lines.len(), 2);
+        assert_eq!(viewer.lines[0], "# Summary");
+        assert_eq!(viewer.lines[1], "Test content");
+    }
+
+    // Esc goes back to Main
+    view.handle_key_event_direct(KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE));
+    assert!(matches!(view.mode, ViewMode::Main));
+}
+
+#[test]
+fn view_summary_shows_error_when_missing() {
+    let (tx, _rx) = channel();
+    let sender = AppEventSender::new(tx);
+    let temp = tempdir().expect("tempdir");
+
+    let mut view = MemoriesSettingsView::new(
+        temp.path().to_path_buf(),
+        PathBuf::from("/tmp/project"),
+        Some("work".to_string()),
+        None,
+        None,
+        None,
+        sender,
+    );
+
+    for _ in 0..8 {
+        view.handle_key_event_direct(KeyEvent::new(KeyCode::Down, KeyModifiers::NONE));
+    }
+    view.handle_key_event_direct(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
+
+    // Should stay in Main with error status
+    assert!(matches!(view.mode, ViewMode::Main));
+    assert!(view.status.as_ref().is_some_and(|(_, is_error)| *is_error));
+}
+
+#[test]
+fn browse_rollouts_lists_files() {
+    let (tx, _rx) = channel();
+    let sender = AppEventSender::new(tx);
+    let temp = tempdir().expect("tempdir");
+    let rollouts_dir = temp.path().join("memories").join("rollout_summaries");
+    std::fs::create_dir_all(&rollouts_dir).unwrap();
+    std::fs::write(rollouts_dir.join("session-abc.md"), "rollout 1").unwrap();
+    std::fs::write(rollouts_dir.join("session-xyz.md"), "rollout 2").unwrap();
+
+    let mut view = MemoriesSettingsView::new(
+        temp.path().to_path_buf(),
+        PathBuf::from("/tmp/project"),
+        Some("work".to_string()),
+        None,
+        None,
+        None,
+        sender,
+    );
+
+    // Navigate to BrowseRollouts (index 10)
+    for _ in 0..10 {
+        view.handle_key_event_direct(KeyEvent::new(KeyCode::Down, KeyModifiers::NONE));
+    }
+    assert_eq!(view.selected_row(), RowKind::BrowseRollouts);
+    view.handle_key_event_direct(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
+
+    assert!(matches!(view.mode, ViewMode::RolloutList(_)));
+    if let ViewMode::RolloutList(ref list) = view.mode {
+        assert_eq!(list.entries.len(), 2);
+    }
+
+    // Enter opens detail
+    view.handle_key_event_direct(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
+    assert!(matches!(view.mode, ViewMode::TextViewer(_)));
+    if let ViewMode::TextViewer(ref viewer) = view.mode {
+        assert!(matches!(viewer.parent, TextViewerParent::RolloutList(_)));
+    }
+
+    // Esc goes back to rollout list
+    view.handle_key_event_direct(KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE));
+    assert!(matches!(view.mode, ViewMode::RolloutList(_)));
+
+    // Another Esc goes back to Main
+    view.handle_key_event_direct(KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE));
+    assert!(matches!(view.mode, ViewMode::Main));
+}

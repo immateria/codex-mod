@@ -67,6 +67,48 @@ impl MemoriesSettingsView {
         let _ = page.render_in_chrome(chrome, area, buf, field);
     }
 
+    fn render_text_viewer_with(
+        viewer: &TextViewerState,
+        area: Rect,
+        buf: &mut Buffer,
+        chrome: ChromeMode,
+    ) {
+        let page = Self::text_viewer_page(viewer);
+        if let Some(layout) = page.render_in_chrome(chrome, area, buf) {
+            let visible = layout.body.height as usize;
+            viewer.viewport_rows.set(visible.max(1));
+        }
+    }
+
+    fn render_rollout_list_with(
+        list: &RolloutListState,
+        area: Rect,
+        buf: &mut Buffer,
+        chrome: ChromeMode,
+    ) {
+        let total = list.entries.len();
+        let mut state = list.list_state.get();
+        state.clamp_selection(total);
+        let selected = state.selected_idx.unwrap_or(0);
+        let scroll_top = state.scroll_top;
+        let menu_rows = Self::rollout_list_menu_rows(list);
+        let page = Self::rollout_list_page(list);
+        let layout = page.render_menu_rows_in_chrome(
+            chrome,
+            area,
+            buf,
+            scroll_top,
+            Some(selected),
+            &menu_rows,
+        );
+        if let Some(layout) = layout {
+            let visible = layout.body.height.max(1) as usize;
+            state.ensure_visible(total, visible);
+            list.viewport_rows.set(visible);
+            list.list_state.set(state);
+        }
+    }
+
     pub(super) fn render_content_only(&self, area: Rect, buf: &mut Buffer) {
         match &self.mode {
             ViewMode::Main | ViewMode::Transition => {
@@ -82,6 +124,12 @@ impl MemoriesSettingsView {
                     ChromeMode::ContentOnly,
                 );
             }
+            ViewMode::TextViewer(viewer) => {
+                Self::render_text_viewer_with(viewer, area, buf, ChromeMode::ContentOnly);
+            }
+            ViewMode::RolloutList(list) => {
+                Self::render_rollout_list_with(list, area, buf, ChromeMode::ContentOnly);
+            }
         }
     }
 
@@ -90,6 +138,12 @@ impl MemoriesSettingsView {
             ViewMode::Main | ViewMode::Transition => self.render_main_with(area, buf, ChromeMode::Framed),
             ViewMode::Edit { target, field, error } => {
                 self.render_edit_with(area, buf, *target, field, error.as_deref(), ChromeMode::Framed);
+            }
+            ViewMode::TextViewer(viewer) => {
+                Self::render_text_viewer_with(viewer, area, buf, ChromeMode::Framed);
+            }
+            ViewMode::RolloutList(list) => {
+                Self::render_rollout_list_with(list, area, buf, ChromeMode::Framed);
             }
         }
     }
