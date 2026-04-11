@@ -34,17 +34,17 @@ pub struct SessionIndexEntry {
     /// Unique session identifier
     pub session_id: Uuid,
 
-    /// Path to the rollout JSONL file, relative to code_home
+    /// Path to the rollout JSONL file, relative to `code_home`
     pub rollout_path: PathBuf,
 
-    /// Optional path to the snapshot JSON file, relative to code_home
+    /// Optional path to the snapshot JSON file, relative to `code_home`
     #[serde(skip_serializing_if = "Option::is_none")]
     pub snapshot_path: Option<PathBuf>,
 
     /// Timestamp when session was created (from SessionMeta.timestamp)
     pub created_at: String,
 
-    /// Timestamp of the newest RolloutLine in the session
+    /// Timestamp of the newest `RolloutLine` in the session
     pub last_event_at: String,
 
     /// Canonical absolute working directory path
@@ -73,7 +73,7 @@ pub struct SessionIndexEntry {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub model_provider: Option<String>,
 
-    /// Session source (CLI, VSCode, Exec, MCP, etc.)
+    /// Session source (CLI, `VSCode`, Exec, MCP, etc.)
     pub session_source: SessionSource,
 
     /// Number of messages/turns in the session
@@ -113,7 +113,7 @@ pub struct SessionIndexEntry {
 }
 
 impl SessionIndexEntry {
-    /// Global ordering key for sessions: (last_event_at DESC, created_at DESC, session_id DESC)
+    /// Global ordering key for sessions: (`last_event_at` DESC, `created_at` DESC, `session_id` DESC)
     pub fn ordering_key(&self) -> (Reverse<String>, Reverse<String>, Reverse<Uuid>) {
         (
             Reverse(self.last_event_at.clone()),
@@ -126,13 +126,13 @@ impl SessionIndexEntry {
 /// In-memory session catalog with secondary indexes for efficient querying.
 #[derive(Debug, Default, Clone)]
 pub struct SessionCatalog {
-    /// All entries indexed by session_id
+    /// All entries indexed by `session_id`
     pub(crate) entries: HashMap<Uuid, SessionIndexEntry>,
 
-    /// Secondary index: cwd_real -> list of session_ids
+    /// Secondary index: `cwd_real` -> list of `session_ids`
     by_cwd: HashMap<PathBuf, Vec<Uuid>>,
 
-    /// Secondary index: git_project_root -> list of session_ids
+    /// Secondary index: `git_project_root` -> list of `session_ids`
     by_git_root: HashMap<PathBuf, Vec<Uuid>>,
 
     /// Path to the catalog file
@@ -306,7 +306,7 @@ impl SessionCatalog {
         Ok(true)
     }
 
-    /// Remove an entry's session_id from secondary indexes.
+    /// Remove an entry's `session_id` from secondary indexes.
     fn remove_from_indexes(&mut self, session_id: &Uuid, entry: &SessionIndexEntry) {
         // Remove from cwd index
         if let Some(ids) = self.by_cwd.get_mut(&entry.cwd_real) {
@@ -654,7 +654,7 @@ fn should_replace(existing: &SessionIndexEntry, candidate: &SessionIndexEntry) -
 }
 
 /// Update catalog entry for a session after new events are written.
-/// This is called by RolloutRecorder after flushing events.
+/// This is called by `RolloutRecorder` after flushing events.
 pub async fn update_catalog_entry(
     code_home: &Path,
     rollout_path: &Path,

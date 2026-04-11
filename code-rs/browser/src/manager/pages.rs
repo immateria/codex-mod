@@ -225,8 +225,8 @@ impl BrowserManager {
 
         if is_external {
             // External Chrome: set viewport once on connection; skip humanization.
-            let w = config.viewport.width as i64;
-            let h = config.viewport.height as i64;
+            let w = i64::from(config.viewport.width);
+            let h = i64::from(config.viewport.height);
             let dpr = config.viewport.device_scale_factor;
             let mob = config.viewport.mobile;
 

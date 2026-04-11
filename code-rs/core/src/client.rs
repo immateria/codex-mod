@@ -119,7 +119,7 @@ const CODE_OPENAI_SUBAGENT_ENV: &str = "CODE_OPENAI_SUBAGENT";
 
 #[derive(Default, Debug)]
 struct StreamCheckpoint {
-    /// Highest sequence_number observed across attempts. Used to drop replayed deltas.
+    /// Highest `sequence_number` observed across attempts. Used to drop replayed deltas.
     last_sequence: Option<u64>,
 }
 
@@ -1091,7 +1091,7 @@ impl ModelClient {
         }
     }
 
-    /// Implementation for the OpenAI *Responses* experimental API.
+    /// Implementation for the `OpenAI` *Responses* experimental API.
     async fn stream_responses(&self, prompt: &Prompt, log_tag: Option<&str>) -> Result<ResponseStream> {
         if let Some(path) = &*CODEX_RS_SSE_FIXTURE {
             // short circuit for tests

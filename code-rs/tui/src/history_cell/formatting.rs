@@ -678,7 +678,7 @@ pub(crate) fn should_auto_collapse_output(output: Option<&CommandOutput>) -> boo
         > OUTPUT_FOLD_THRESHOLD
 }
 
-/// Shared output/streaming state sync used by ExecCell and JsReplCell.
+/// Shared output/streaming state sync used by `ExecCell` and `JsReplCell`.
 ///
 /// Callers are responsible for capturing `was_running` before overwriting their
 /// stored record so we only auto-collapse on the running -> completed
@@ -734,7 +734,7 @@ pub(crate) struct FoldConfig {
     pub threshold: usize,
 }
 
-/// Per-section limits for structured folds (e.g. ToolCallCell with args + result + error).
+/// Per-section limits for structured folds (e.g. `ToolCallCell` with args + result + error).
 pub(crate) struct FoldSectionLimits {
     pub args: usize,
     pub result: usize,
@@ -742,12 +742,12 @@ pub(crate) struct FoldSectionLimits {
 }
 
 impl FoldConfig {
-    /// Standard output fold (ExecCell, JsReplCell, WebFetchToolCell).
+    /// Standard output fold (`ExecCell`, `JsReplCell`, `WebFetchToolCell`).
     pub(crate) fn output() -> Self {
         Self { threshold: OUTPUT_FOLD_THRESHOLD }
     }
 
-    /// Custom threshold (e.g. WebFetchToolCell body preview).
+    /// Custom threshold (e.g. `WebFetchToolCell` body preview).
     pub(crate) fn with_threshold(threshold: usize) -> Self {
         Self { threshold }
     }

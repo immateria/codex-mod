@@ -2,8 +2,8 @@ use std::fs;
 use std::path::PathBuf;
 
 /// Build a reqwest Client with optional extra root certificates loaded from
-/// common environment variables (SSL_CERT_FILE, REQUESTS_CA_BUNDLE,
-/// NODE_EXTRA_CA_CERTS). This helps environments using corporate/mitm proxies
+/// common environment variables (`SSL_CERT_FILE`, `REQUESTS_CA_BUNDLE`,
+/// `NODE_EXTRA_CA_CERTS`). This helps environments using corporate/mitm proxies
 /// whose CAs are distributed via system config or user-provided files.
 pub fn build_http_client() -> reqwest::Client {
     let mut builder = reqwest::Client::builder();

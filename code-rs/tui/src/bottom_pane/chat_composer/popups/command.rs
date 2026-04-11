@@ -109,7 +109,7 @@ impl CommandPopup {
     }
 
     /// Determine the preferred height of the popup. This is the number of
-    /// rows required to show at most MAX_POPUP_ROWS commands.
+    /// rows required to show at most `MAX_POPUP_ROWS` commands.
     pub(crate) fn calculate_required_height(&self) -> u16 {
         ScrollState::popup_required_height(self.filtered_items().len(), MAX_POPUP_ROWS)
     }

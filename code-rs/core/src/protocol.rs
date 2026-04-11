@@ -247,7 +247,7 @@ pub enum Op {
         decision: ReviewDecision,
     },
 
-    /// Resolve a request_user_input tool call.
+    /// Resolve a `request_user_input` tool call.
     #[serde(rename = "user_input_answer", alias = "request_user_input_response")]
     UserInputAnswer {
         /// Turn id for the in-flight request.
@@ -256,7 +256,7 @@ pub enum Op {
         response: RequestUserInputResponse,
     },
 
-    /// Resolve a request_permissions tool call.
+    /// Resolve a `request_permissions` tool call.
     RequestPermissionsResponse {
         /// Call id for the in-flight request.
         id: String,
@@ -361,7 +361,7 @@ pub enum Op {
 
     /// Request the agent to summarize the current conversation context.
     /// The agent will use its existing context (either conversation history or previous response id)
-    /// to generate a summary which will be returned as an AgentMessage event.
+    /// to generate a summary which will be returned as an `AgentMessage` event.
     Compact,
     /// Request the agent to perform a dedicated code review.
     Review { review_request: ReviewRequest },
@@ -689,7 +689,7 @@ pub struct Event {
     /// Submission `id` that this event is correlated with.
     pub id: String,
     /// Monotonic, per‑turn sequence for ordering within a submission id.
-    /// Resets to 0 at TaskStarted and increments for each subsequent event.
+    /// Resets to 0 at `TaskStarted` and increments for each subsequent event.
     pub event_seq: u64,
     /// Payload
     pub msg: EventMsg,
@@ -888,10 +888,10 @@ fn rate_limit_snapshot_from_protocol(
 pub struct OrderMeta {
     /// 1-based ordinal of this request/turn in the session
     pub request_ordinal: u64,
-    /// Model-provided output_index for the top-level item
+    /// Model-provided `output_index` for the top-level item
     #[serde(skip_serializing_if = "Option::is_none")]
     pub output_index: Option<u32>,
-    /// Model-provided sequence_number within the output_index stream
+    /// Model-provided `sequence_number` within the `output_index` stream
     #[serde(skip_serializing_if = "Option::is_none")]
     pub sequence_number: Option<u64>,
 }
@@ -1012,7 +1012,7 @@ pub enum EventMsg {
 
     TurnDiff(TurnDiffEvent),
 
-    /// Response to GetHistoryEntryRequest.
+    /// Response to `GetHistoryEntryRequest`.
     GetHistoryEntryResponse(GetHistoryEntryResponseEvent),
 
     /// List of MCP tools available to the agent.
@@ -1029,7 +1029,7 @@ pub enum EventMsg {
     /// Browser screenshot has been captured and is ready for display
     BrowserScreenshotUpdate(BrowserScreenshotUpdateEvent),
 
-    /// Notification that the agent attached a local image via the image_view tool.
+    /// Notification that the agent attached a local image via the `image_view` tool.
     ViewImageToolCall(ViewImageToolCallEvent),
 
     /// Agent status has been updated
@@ -1329,10 +1329,10 @@ pub struct McpInvocation {
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct McpToolCallBeginEvent {
-    /// Identifier so this can be paired with the McpToolCallEnd event.
+    /// Identifier so this can be paired with the `McpToolCallEnd` event.
     pub call_id: String,
     /// When set, this tool call was dispatched by a parent tool (e.g. JS REPL's
-    /// `codex.tool("mcp", …)`). The value is the parent tool's call_id.
+    /// `codex.tool("mcp", …)`). The value is the parent tool's `call_id`.
     #[serde(default)]
     pub parent_call_id: Option<String>,
     pub invocation: McpInvocation,
@@ -1340,10 +1340,10 @@ pub struct McpToolCallBeginEvent {
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct McpToolCallEndEvent {
-    /// Identifier for the corresponding McpToolCallBegin that finished.
+    /// Identifier for the corresponding `McpToolCallBegin` that finished.
     pub call_id: String,
     /// When set, this tool call was dispatched by a parent tool (e.g. JS REPL's
-    /// `codex.tool("mcp", …)`). The value is the parent tool's call_id.
+    /// `codex.tool("mcp", …)`). The value is the parent tool's `call_id`.
     #[serde(default)]
     pub parent_call_id: Option<String>,
     pub invocation: McpInvocation,
@@ -1363,13 +1363,13 @@ impl McpToolCallEndEvent {
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct CustomToolCallBeginEvent {
-    /// Identifier so this can be paired with the CustomToolCallEnd event.
+    /// Identifier so this can be paired with the `CustomToolCallEnd` event.
     pub call_id: String,
     /// When set, this tool call was dispatched by a parent tool (e.g. JS REPL's
-    /// `codex.tool("shell", …)`). The value is the parent tool's call_id.
+    /// `codex.tool("shell", …)`). The value is the parent tool's `call_id`.
     #[serde(default)]
     pub parent_call_id: Option<String>,
-    /// Name of the tool (e.g., "browser_navigate", "agent")
+    /// Name of the tool (e.g., "`browser_navigate`", "agent")
     pub tool_name: String,
     /// Parameters passed to the tool as JSON
     pub parameters: Option<serde_json::Value>,
@@ -1377,10 +1377,10 @@ pub struct CustomToolCallBeginEvent {
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct CustomToolCallUpdateEvent {
-    /// Identifier for the corresponding CustomToolCallBegin that is still running.
+    /// Identifier for the corresponding `CustomToolCallBegin` that is still running.
     pub call_id: String,
     /// When set, this tool call was dispatched by a parent tool (e.g. JS REPL's
-    /// `codex.tool("shell", …)`). The value is the parent tool's call_id.
+    /// `codex.tool("shell", …)`). The value is the parent tool's `call_id`.
     #[serde(default)]
     pub parent_call_id: Option<String>,
     /// Name of the tool
@@ -1391,10 +1391,10 @@ pub struct CustomToolCallUpdateEvent {
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct CustomToolCallEndEvent {
-    /// Identifier for the corresponding CustomToolCallBegin that finished.
+    /// Identifier for the corresponding `CustomToolCallBegin` that finished.
     pub call_id: String,
     /// When set, this tool call was dispatched by a parent tool (e.g. JS REPL's
-    /// `codex.tool("shell", …)`). The value is the parent tool's call_id.
+    /// `codex.tool("shell", …)`). The value is the parent tool's `call_id`.
     #[serde(default)]
     pub parent_call_id: Option<String>,
     /// Name of the tool
@@ -1410,7 +1410,7 @@ pub struct CustomToolCallEndEvent {
 /// Metadata emitted at the start of a JavaScript REPL tool call.
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct JsReplExecBeginEvent {
-    /// Matches the call_id in the paired ExecCommandEnd event.
+    /// Matches the `call_id` in the paired `ExecCommandEnd` event.
     pub call_id: String,
     /// JavaScript source code being executed.
     pub code: String,
@@ -1426,7 +1426,7 @@ pub struct JsReplExecBeginEvent {
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct ExecCommandBeginEvent {
-    /// Identifier so this can be paired with the ExecCommandEnd event.
+    /// Identifier so this can be paired with the `ExecCommandEnd` event.
     pub call_id: String,
     /// The command to be executed.
     pub command: Vec<String>,
@@ -1434,14 +1434,14 @@ pub struct ExecCommandBeginEvent {
     pub cwd: PathBuf,
     pub parsed_cmd: Vec<ParsedCommand>,
     /// When set, this exec was dispatched by a parent tool (e.g. JS REPL's
-    /// `codex.tool("shell", …)`). The value is the parent tool's call_id.
+    /// `codex.tool("shell", …)`). The value is the parent tool's `call_id`.
     #[serde(default)]
     pub parent_call_id: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct ExecCommandEndEvent {
-    /// Identifier for the ExecCommandBegin that finished.
+    /// Identifier for the `ExecCommandBegin` that finished.
     pub call_id: String,
     /// Captured stdout
     pub stdout: String,
@@ -1478,7 +1478,7 @@ pub struct NetworkApprovalContext {
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct ExecCommandOutputDeltaEvent {
-    /// Identifier for the ExecCommandBegin that produced this chunk.
+    /// Identifier for the `ExecCommandBegin` that produced this chunk.
     pub call_id: String,
     /// Which stream produced this chunk.
     pub stream: ExecOutputStream,
@@ -1544,13 +1544,13 @@ pub struct BackgroundEventEvent {
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct PatchApplyBeginEvent {
-    /// Identifier so this can be paired with the PatchApplyEnd event.
+    /// Identifier so this can be paired with the `PatchApplyEnd` event.
     pub call_id: String,
     /// When set, this patch was dispatched by a parent tool (e.g. JS REPL's
-    /// `codex.tool("apply_patch", …)`). The value is the parent tool's call_id.
+    /// `codex.tool("apply_patch", …)`). The value is the parent tool's `call_id`.
     #[serde(default)]
     pub parent_call_id: Option<String>,
-    /// If true, there was no ApplyPatchApprovalRequest for this patch.
+    /// If true, there was no `ApplyPatchApprovalRequest` for this patch.
     pub auto_approved: bool,
     /// The changes to be applied.
     pub changes: HashMap<PathBuf, FileChange>,
@@ -1558,13 +1558,13 @@ pub struct PatchApplyBeginEvent {
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct PatchApplyEndEvent {
-    /// Identifier for the PatchApplyBegin that finished.
+    /// Identifier for the `PatchApplyBegin` that finished.
     pub call_id: String,
     /// When set, this patch was dispatched by a parent tool (e.g. JS REPL's
-    /// `codex.tool("apply_patch", …)`). The value is the parent tool's call_id.
+    /// `codex.tool("apply_patch", …)`). The value is the parent tool's `call_id`.
     #[serde(default)]
     pub parent_call_id: Option<String>,
-    /// Captured stdout (summary printed by apply_patch).
+    /// Captured stdout (summary printed by `apply_patch`).
     pub stdout: String,
     /// Captured stderr (parser errors, IO failures, etc.).
     pub stderr: String,
@@ -1671,13 +1671,13 @@ pub struct AgentInfo {
     #[serde(default)]
     pub seconds_since_last_activity: Option<u64>,
 
-    /// Source category for this agent (e.g., auto_review) to support UI filtering.
+    /// Source category for this agent (e.g., `auto_review`) to support UI filtering.
     #[serde(skip_serializing_if = "Option::is_none")]
     #[serde(default)]
     pub source_kind: Option<AgentSourceKind>,
 }
 
-/// User's decision in response to an ExecApprovalRequest.
+/// User's decision in response to an `ExecApprovalRequest`.
 #[derive(Debug, Default, Clone, Copy, Deserialize, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum ReviewDecision {

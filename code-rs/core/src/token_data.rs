@@ -34,15 +34,15 @@ impl TokenData {
     }
 }
 
-/// Flat subset of useful claims in id_token from auth.json.
+/// Flat subset of useful claims in `id_token` from auth.json.
 #[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
 pub struct IdTokenInfo {
     pub email: Option<String>,
-    /// The ChatGPT subscription plan type
+    /// The `ChatGPT` subscription plan type
     /// (e.g., "free", "plus", "pro", "business", "enterprise", "edu").
     /// (Note: values may vary by backend.)
     pub(crate) chatgpt_plan_type: Option<PlanType>,
-    /// ChatGPT user identifier, if present in the id_token.
+    /// `ChatGPT` user identifier, if present in the `id_token`.
     pub chatgpt_user_id: Option<String>,
     /// Organization/workspace identifier associated with the token, if present.
     pub chatgpt_account_id: Option<String>,

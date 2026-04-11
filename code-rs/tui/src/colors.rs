@@ -64,7 +64,7 @@ pub(crate) fn border_dim() -> Color {
             let (br, bg_g, bb) = color_to_rgb(theme.border);
             let (rr, rg, rb) = color_to_rgb(theme.background);
             let t: f32 = 0.30; // 30% toward background
-            let mix = |a: u8, b: u8| -> u8 { ((a as f32) * (1.0 - t) + (b as f32) * t).round() as u8 };
+            let mix = |a: u8, b: u8| -> u8 { (f32::from(a) * (1.0 - t) + f32::from(b) * t).round() as u8 };
             let r = mix(br, rr);
             let g = mix(bg_g, rg);
             let bl = mix(bb, rb);
@@ -249,9 +249,9 @@ pub(crate) fn ansi256_to_rgb(i: u8) -> (u8, u8, u8) {
 pub(crate) fn blend_rgb(a: (u8, u8, u8), b: (u8, u8, u8), t: f32) -> (u8, u8, u8) {
     let t = t.clamp(0.0, 1.0);
     let inv = 1.0 - t;
-    let r = (a.0 as f32 * inv + b.0 as f32 * t).round() as u8;
-    let g = (a.1 as f32 * inv + b.1 as f32 * t).round() as u8;
-    let bl = (a.2 as f32 * inv + b.2 as f32 * t).round() as u8;
+    let r = (f32::from(a.0) * inv + f32::from(b.0) * t).round() as u8;
+    let g = (f32::from(a.1) * inv + f32::from(b.1) * t).round() as u8;
+    let bl = (f32::from(a.2) * inv + f32::from(b.2) * t).round() as u8;
     (r, g, bl)
 }
 
@@ -294,9 +294,9 @@ pub(crate) fn tint_background_toward(accent: Color) -> Color {
 fn blend_with_black(rgb: (u8, u8, u8), alpha: f32) -> (u8, u8, u8) {
     // target = bg*(1-alpha) + black*alpha => bg*(1-alpha)
     let inv = 1.0 - alpha;
-    let r = (rgb.0 as f32 * inv).round() as u8;
-    let g = (rgb.1 as f32 * inv).round() as u8;
-    let b = (rgb.2 as f32 * inv).round() as u8;
+    let r = (f32::from(rgb.0) * inv).round() as u8;
+    let g = (f32::from(rgb.1) * inv).round() as u8;
+    let b = (f32::from(rgb.2) * inv).round() as u8;
     (r, g, b)
 }
 
@@ -313,14 +313,14 @@ const REC709_B: f32 = 0.0722;
 /// This is a simplified (gamma-unaware) version used for quick UI decisions.
 /// For WCAG-compliant contrast calculations, use [`wcag_relative_luminance`].
 pub(crate) fn relative_luminance(rgb: (u8, u8, u8)) -> f32 {
-    (REC709_R * rgb.0 as f32 + REC709_G * rgb.1 as f32 + REC709_B * rgb.2 as f32) / 255.0
+    (REC709_R * f32::from(rgb.0) + REC709_G * f32::from(rgb.1) + REC709_B * f32::from(rgb.2)) / 255.0
 }
 
 /// WCAG 2.x relative luminance with proper sRGB gamma linearization.
 /// Used for contrast-ratio checks and accessibility-aware color decisions.
 pub(crate) fn wcag_relative_luminance(r: u8, g: u8, b: u8) -> f32 {
     fn linearize(v: u8) -> f32 {
-        let c = v as f32 / 255.0;
+        let c = f32::from(v) / 255.0;
         if c <= 0.03928 {
             c / 12.92
         } else {

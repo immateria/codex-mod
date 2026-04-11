@@ -634,7 +634,7 @@ impl Page {
         Ok(())
     }
 
-    /// Press a key (e.g., "Enter", "Tab", "Escape", "ArrowDown")
+    /// Press a key (e.g., "Enter", "Tab", "Escape", "`ArrowDown`")
     pub async fn press_key(&self, key: &str) -> Result<()> {
         debug!("Pressing key: {}", key);
 

@@ -232,7 +232,7 @@ pub enum Op {
         decision: ElicitationAction,
     },
 
-    /// Resolve a request_user_input tool call.
+    /// Resolve a `request_user_input` tool call.
     #[serde(rename = "user_input_answer", alias = "request_user_input_response")]
     UserInputAnswer {
         /// Turn id for the in-flight request.
@@ -241,7 +241,7 @@ pub enum Op {
         response: RequestUserInputResponse,
     },
 
-    /// Resolve a request_permissions tool call.
+    /// Resolve a `request_permissions` tool call.
     RequestPermissionsResponse {
         /// Call id for the in-flight request.
         id: String,
@@ -303,7 +303,7 @@ pub enum Op {
         force_reload: bool,
     },
 
-    /// Request the list of remote skills available via ChatGPT sharing.
+    /// Request the list of remote skills available via `ChatGPT` sharing.
     ListRemoteSkills,
 
     /// Download a remote skill by id into the local skills cache.
@@ -314,7 +314,7 @@ pub enum Op {
 
     /// Request the agent to summarize the current conversation context.
     /// The agent will use its existing context (either conversation history or previous response id)
-    /// to generate a summary which will be returned as an AgentMessage event.
+    /// to generate a summary which will be returned as an `AgentMessage` event.
     Compact,
 
     /// Set a user-facing thread name in the persisted rollout metadata.
@@ -868,7 +868,7 @@ pub enum EventMsg {
 
     ExecCommandEnd(ExecCommandEndEvent),
 
-    /// Notification that the agent attached a local image via the view_image tool.
+    /// Notification that the agent attached a local image via the `view_image` tool.
     ViewImageToolCall(ViewImageToolCallEvent),
 
     ExecApprovalRequest(ExecApprovalRequestEvent),
@@ -906,7 +906,7 @@ pub enum EventMsg {
 
     TurnDiff(TurnDiffEvent),
 
-    /// Response to GetHistoryEntryRequest.
+    /// Response to `GetHistoryEntryRequest`.
     GetHistoryEntryResponse(GetHistoryEntryResponseEvent),
 
     /// List of MCP tools available to the agent.
@@ -1726,14 +1726,14 @@ pub struct McpInvocation {
 
 #[derive(Debug, Clone, Deserialize, Serialize, JsonSchema, TS, PartialEq)]
 pub struct McpToolCallBeginEvent {
-    /// Identifier so this can be paired with the McpToolCallEnd event.
+    /// Identifier so this can be paired with the `McpToolCallEnd` event.
     pub call_id: String,
     pub invocation: McpInvocation,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, JsonSchema, TS, PartialEq)]
 pub struct McpToolCallEndEvent {
-    /// Identifier for the corresponding McpToolCallBegin that finished.
+    /// Identifier for the corresponding `McpToolCallBegin` that finished.
     pub call_id: String,
     pub invocation: McpInvocation,
     #[ts(type = "string")]
@@ -1945,10 +1945,10 @@ impl fmt::Display for SubAgentSource {
     }
 }
 
-/// SessionMeta contains session-level data that doesn't correspond to a specific turn.
+/// `SessionMeta` contains session-level data that doesn't correspond to a specific turn.
 ///
-/// NOTE: There used to be an `instructions` field here, which stored user_instructions, but we
-/// now save that on TurnContext. base_instructions stores the base instructions for the session,
+/// NOTE: There used to be an `instructions` field here, which stored `user_instructions`, but we
+/// now save that on `TurnContext`. `base_instructions` stores the base instructions for the session,
 /// and should be used when there is no config override.
 #[derive(Serialize, Deserialize, Clone, Debug, JsonSchema, TS)]
 pub struct SessionMeta {
@@ -1962,9 +1962,9 @@ pub struct SessionMeta {
     #[serde(default)]
     pub source: SessionSource,
     pub model_provider: Option<String>,
-    /// base_instructions for the session. This *should* always be present when creating a new session,
-    /// but may be missing for older sessions. If not present, fall back to rendering the base_instructions
-    /// from ModelsManager.
+    /// `base_instructions` for the session. This *should* always be present when creating a new session,
+    /// but may be missing for older sessions. If not present, fall back to rendering the `base_instructions`
+    /// from `ModelsManager`.
     pub base_instructions: Option<BaseInstructions>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub dynamic_tools: Option<Vec<DynamicToolSpec>>,
@@ -1999,10 +1999,10 @@ pub struct SessionMetaLine {
 pub struct OrderMeta {
     /// 1-based ordinal of this request/turn in the session.
     pub request_ordinal: u64,
-    /// Model-provided output_index for the top-level item.
+    /// Model-provided `output_index` for the top-level item.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub output_index: Option<u32>,
-    /// Model-provided sequence_number within the output_index stream.
+    /// Model-provided `sequence_number` within the `output_index` stream.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub sequence_number: Option<u64>,
 }
@@ -2221,7 +2221,7 @@ pub enum ExecCommandSource {
 
 #[derive(Debug, Clone, Deserialize, Serialize, JsonSchema, TS)]
 pub struct ExecCommandBeginEvent {
-    /// Identifier so this can be paired with the ExecCommandEnd event.
+    /// Identifier so this can be paired with the `ExecCommandEnd` event.
     pub call_id: String,
     /// Identifier for the underlying PTY process (when available).
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -2242,7 +2242,7 @@ pub struct ExecCommandBeginEvent {
     #[ts(optional)]
     pub interaction_input: Option<String>,
     /// When set, this exec was dispatched by a parent tool (e.g. JS REPL's
-    /// `codex.tool("shell", …)`). The value is the parent tool's call_id.
+    /// `codex.tool("shell", …)`). The value is the parent tool's `call_id`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub parent_call_id: Option<String>,
@@ -2250,7 +2250,7 @@ pub struct ExecCommandBeginEvent {
 
 #[derive(Debug, Clone, Deserialize, Serialize, JsonSchema, TS)]
 pub struct ExecCommandEndEvent {
-    /// Identifier for the ExecCommandBegin that finished.
+    /// Identifier for the `ExecCommandBegin` that finished.
     pub call_id: String,
     /// Identifier for the underlying PTY process (when available).
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -2305,7 +2305,7 @@ pub enum ExecOutputStream {
 #[serde_as]
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq, JsonSchema, TS)]
 pub struct ExecCommandOutputDeltaEvent {
-    /// Identifier for the ExecCommandBegin that produced this chunk.
+    /// Identifier for the `ExecCommandBegin` that produced this chunk.
     pub call_id: String,
     /// Which stream produced this chunk.
     pub stream: ExecOutputStream,
@@ -2319,7 +2319,7 @@ pub struct ExecCommandOutputDeltaEvent {
 #[serde_as]
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq, JsonSchema, TS)]
 pub struct TerminalInteractionEvent {
-    /// Identifier for the ExecCommandBegin that produced this chunk.
+    /// Identifier for the `ExecCommandBegin` that produced this chunk.
     pub call_id: String,
     /// Process id associated with the running command.
     pub process_id: String,
@@ -2379,13 +2379,13 @@ pub struct StreamInfoEvent {
 
 #[derive(Debug, Clone, Deserialize, Serialize, JsonSchema, TS)]
 pub struct PatchApplyBeginEvent {
-    /// Identifier so this can be paired with the PatchApplyEnd event.
+    /// Identifier so this can be paired with the `PatchApplyEnd` event.
     pub call_id: String,
     /// Turn ID that this patch belongs to.
     /// Uses `#[serde(default)]` for backwards compatibility.
     #[serde(default)]
     pub turn_id: String,
-    /// If true, there was no ApplyPatchApprovalRequest for this patch.
+    /// If true, there was no `ApplyPatchApprovalRequest` for this patch.
     pub auto_approved: bool,
     /// The changes to be applied.
     pub changes: HashMap<PathBuf, FileChange>,
@@ -2393,19 +2393,19 @@ pub struct PatchApplyBeginEvent {
 
 #[derive(Debug, Clone, Deserialize, Serialize, JsonSchema, TS)]
 pub struct PatchApplyEndEvent {
-    /// Identifier for the PatchApplyBegin that finished.
+    /// Identifier for the `PatchApplyBegin` that finished.
     pub call_id: String,
     /// Turn ID that this patch belongs to.
     /// Uses `#[serde(default)]` for backwards compatibility.
     #[serde(default)]
     pub turn_id: String,
-    /// Captured stdout (summary printed by apply_patch).
+    /// Captured stdout (summary printed by `apply_patch`).
     pub stdout: String,
     /// Captured stderr (parser errors, IO failures, etc.).
     pub stderr: String,
     /// Whether the patch was applied successfully.
     pub success: bool,
-    /// The changes that were applied (mirrors PatchApplyBeginEvent::changes).
+    /// The changes that were applied (mirrors `PatchApplyBeginEvent::changes`).
     #[serde(default)]
     pub changes: HashMap<PathBuf, FileChange>,
 }
@@ -2600,7 +2600,7 @@ pub struct SkillMetadata {
     pub description: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
-    /// Legacy short_description from SKILL.md. Prefer SKILL.json interface.short_description.
+    /// Legacy `short_description` from SKILL.md. Prefer SKILL.json `interface.short_description`.
     pub short_description: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
@@ -2721,7 +2721,7 @@ pub struct ThreadNameUpdatedEvent {
     pub thread_name: Option<String>,
 }
 
-/// User's decision in response to an ExecApprovalRequest.
+/// User's decision in response to an `ExecApprovalRequest`.
 #[derive(Debug, Default, Clone, Deserialize, Serialize, PartialEq, Eq, Display, JsonSchema, TS)]
 #[serde(rename_all = "snake_case")]
 pub enum ReviewDecision {
@@ -2806,7 +2806,7 @@ pub struct CollabAgentSpawnBeginEvent {
     pub call_id: String,
     /// Thread ID of the sender.
     pub sender_thread_id: ThreadId,
-    /// Initial prompt sent to the agent. Can be empty to prevent CoT leaking at the
+    /// Initial prompt sent to the agent. Can be empty to prevent `CoT` leaking at the
     /// beginning.
     pub prompt: String,
 }
@@ -2819,7 +2819,7 @@ pub struct CollabAgentSpawnEndEvent {
     pub sender_thread_id: ThreadId,
     /// Thread ID of the newly spawned agent, if it was created.
     pub new_thread_id: Option<ThreadId>,
-    /// Initial prompt sent to the agent. Can be empty to prevent CoT leaking at the
+    /// Initial prompt sent to the agent. Can be empty to prevent `CoT` leaking at the
     /// beginning.
     pub prompt: String,
     /// Last known status of the new agent reported to the sender agent.
@@ -2834,7 +2834,7 @@ pub struct CollabAgentInteractionBeginEvent {
     pub sender_thread_id: ThreadId,
     /// Thread ID of the receiver.
     pub receiver_thread_id: ThreadId,
-    /// Prompt sent from the sender to the receiver. Can be empty to prevent CoT
+    /// Prompt sent from the sender to the receiver. Can be empty to prevent `CoT`
     /// leaking at the beginning.
     pub prompt: String,
 }
@@ -2847,7 +2847,7 @@ pub struct CollabAgentInteractionEndEvent {
     pub sender_thread_id: ThreadId,
     /// Thread ID of the receiver.
     pub receiver_thread_id: ThreadId,
-    /// Prompt sent from the sender to the receiver. Can be empty to prevent CoT
+    /// Prompt sent from the sender to the receiver. Can be empty to prevent `CoT`
     /// leaking at the beginning.
     pub prompt: String,
     /// Last known status of the receiver agent reported to the sender agent.

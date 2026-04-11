@@ -224,7 +224,7 @@ impl RetentionTelemetry {
     }
 }
 
-/// Global telemetry instance (gated by env_ctx_v2).
+/// Global telemetry instance (gated by `env_ctx_v2`).
 static GLOBAL_TELEMETRY: OnceLock<Arc<RetentionTelemetry>> = OnceLock::new();
 
 /// Returns a reference to the global telemetry instance.

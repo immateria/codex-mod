@@ -446,7 +446,7 @@ impl ChatWidget<'_> {
         self.auto_history.raw_snapshot()
     }
 
-    /// Export current user/assistant messages into ResponseItem list for forking.
+    /// Export current user/assistant messages into `ResponseItem` list for forking.
     pub(crate) fn export_response_items(&self) -> Vec<code_protocol::models::ResponseItem> {
         use code_protocol::models::ContentItem;
         use code_protocol::models::ResponseItem;

@@ -222,7 +222,7 @@ impl ChatComposerHistory {
         }
     }
 
-    /// Integrate a GetHistoryEntryResponse event. If the fetched text is a
+    /// Integrate a `GetHistoryEntryResponse` event. If the fetched text is a
     /// duplicate of the currently shown entry, auto-advances in the last
     /// navigation direction.
     pub fn on_entry_response(

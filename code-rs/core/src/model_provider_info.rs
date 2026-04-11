@@ -71,7 +71,7 @@ fn provider_auth_cache() -> &'static Mutex<HashMap<ProviderAuthCacheKey, CachedP
 }
 
 /// Wire protocol that the provider speaks. Most third-party services only
-/// implement the classic OpenAI Chat Completions JSON schema, whereas OpenAI
+/// implement the classic `OpenAI` Chat Completions JSON schema, whereas `OpenAI`
 /// itself (and a handful of others) additionally expose the more modern
 /// *Responses* API. The two protocols use different request/response shapes
 /// and *cannot* be auto-detected at runtime, therefore each provider entry
@@ -79,7 +79,7 @@ fn provider_auth_cache() -> &'static Mutex<HashMap<ProviderAuthCacheKey, CachedP
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum WireApi {
-    /// The Responses API exposed by OpenAI at `/v1/responses`.
+    /// The Responses API exposed by `OpenAI` at `/v1/responses`.
     Responses,
 
     /// Experimental: Responses API over WebSocket transport.
@@ -143,7 +143,7 @@ pub struct ModelProviderInfo {
     /// Timeout (in milliseconds) when establishing a websocket transport connection.
     pub websocket_connect_timeout_ms: Option<u64>,
 
-    /// Whether this provider requires some form of standard authentication (API key, ChatGPT token).
+    /// Whether this provider requires some form of standard authentication (API key, `ChatGPT` token).
     #[serde(default)]
     pub requires_openai_auth: bool,
 
@@ -156,20 +156,20 @@ pub struct ModelProviderInfo {
 #[derive(Debug, Clone, Default, Deserialize, Serialize, PartialEq)]
 #[serde(default)]
 pub struct OpenRouterConfig {
-    /// Provider-level routing preferences forwarded to OpenRouter.
+    /// Provider-level routing preferences forwarded to `OpenRouter`.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub provider: Option<OpenRouterProviderConfig>,
 
-    /// Optional `route` payload forwarded as-is to OpenRouter for advanced routing.
+    /// Optional `route` payload forwarded as-is to `OpenRouter` for advanced routing.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub route: Option<Value>,
 
-    /// Additional top-level fields that may be forwarded to OpenRouter as the API evolves.
+    /// Additional top-level fields that may be forwarded to `OpenRouter` as the API evolves.
     #[serde(flatten)]
     pub extra: BTreeMap<String, Value>,
 }
 
-/// Provider routing preferences supported by OpenRouter.
+/// Provider routing preferences supported by `OpenRouter`.
 #[derive(Debug, Clone, Default, Deserialize, Serialize, PartialEq)]
 #[serde(default)]
 pub struct OpenRouterProviderConfig {
@@ -194,7 +194,7 @@ pub struct OpenRouterProviderConfig {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub max_price: Option<OpenRouterMaxPrice>,
 
-    /// Catch-all for additional provider keys so new OpenRouter features do not break deserialization.
+    /// Catch-all for additional provider keys so new `OpenRouter` features do not break deserialization.
     #[serde(flatten)]
     pub extra: BTreeMap<String, Value>,
 }
@@ -216,7 +216,7 @@ pub enum OpenRouterProviderSort {
     Latency,
 }
 
-/// `max_price` envelope for OpenRouter provider routing controls.
+/// `max_price` envelope for `OpenRouter` provider routing controls.
 #[derive(Debug, Clone, Default, Deserialize, Serialize, PartialEq)]
 #[serde(default)]
 pub struct OpenRouterMaxPrice {
@@ -276,7 +276,7 @@ impl ModelProviderInfo {
         }
     }
 
-    /// Construct a `POST` RequestBuilder for the given URL using the provided
+    /// Construct a `POST` `RequestBuilder` for the given URL using the provided
     /// reqwest Client applying:
     ///   • provider-specific headers (static + env based)
     ///   • Bearer auth header when an API key is available.

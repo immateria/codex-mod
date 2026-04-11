@@ -547,7 +547,7 @@ impl AnimatedLineStreamer {
     pub fn step(&mut self) -> StepResult {
         let mut history = Vec::new();
         // Move exactly one per tick to animate gradual insertion.
-        let burst = if self.queue.is_empty() { 0 } else { 1 };
+        let burst = i32::from(!self.queue.is_empty());
         for _ in 0..burst {
             if let Some(l) = self.queue.pop_front() {
                 history.push(l);

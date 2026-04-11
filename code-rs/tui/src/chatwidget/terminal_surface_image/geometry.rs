@@ -16,16 +16,16 @@ pub(super) fn centered_target_rect_for_image(
     {
         return None;
     }
-    let area_px_w = (area.width as u32) * (cell_w as u32);
-    let area_px_h = (area.height as u32) * (cell_h as u32);
+    let area_px_w = u32::from(area.width) * u32::from(cell_w);
+    let area_px_h = u32::from(area.height) * u32::from(cell_h);
     if area_px_w == 0 || area_px_h == 0 {
         return None;
     }
-    let scale_w = area_px_w as f64 / img_w as f64;
-    let scale_h = area_px_h as f64 / img_h as f64;
+    let scale_w = f64::from(area_px_w) / f64::from(img_w);
+    let scale_h = f64::from(area_px_h) / f64::from(img_h);
     let scale = scale_w.min(scale_h).max(0.0);
-    let target_w_cells = ((img_w as f64 * scale) / (cell_w as f64)).floor() as u16;
-    let target_h_cells = ((img_h as f64 * scale) / (cell_h as f64)).floor() as u16;
+    let target_w_cells = ((f64::from(img_w) * scale) / f64::from(cell_w)).floor() as u16;
+    let target_h_cells = ((f64::from(img_h) * scale) / f64::from(cell_h)).floor() as u16;
     let target_w = target_w_cells.clamp(1, area.width);
     let target_h = target_h_cells.clamp(1, area.height);
     Some(Rect {

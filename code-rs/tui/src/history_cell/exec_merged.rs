@@ -132,7 +132,7 @@ impl MergedExecCell {
             return MergedExecLayout::default();
         }
 
-        let header_total: u16 = if self.kind == ExecKind::Run { 0 } else { 1 };
+        let header_total: u16 = u16::from(self.kind != ExecKind::Run);
         let out_wrap_width = width.saturating_sub(2);
 
         if let Some(agg_pre) = self.aggregated_read_preamble_lines() {

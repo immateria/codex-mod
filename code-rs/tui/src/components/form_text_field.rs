@@ -20,7 +20,7 @@ pub(crate) enum InputFilter {
 /// Lightweight text field wrapper for bottom‑pane forms.
 ///
 /// - Centralizes key handling (Shift‑modified chars, Enter/newlines, undo, nav)
-/// - Renders via the same TextArea engine used by the chat composer, so
+/// - Renders via the same `TextArea` engine used by the chat composer, so
 ///   wrapping and height match exactly.
 /// - Supports single‑line mode (ignores Enter pastes/newlines) and multi‑line
 ///   mode (Enter inserts a newline; paste preserves newlines).

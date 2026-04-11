@@ -331,7 +331,7 @@ pub struct NewConversationParams {
     pub sandbox: Option<SandboxMode>,
 
     /// Individual config settings that will override what is in
-    /// CODEX_HOME/config.toml.
+    /// `CODEX_HOME/config.toml`.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub config: Option<HashMap<String, serde_json::Value>>,
 
@@ -573,9 +573,9 @@ pub struct SetDefaultModelParams {
 #[serde(rename_all = "camelCase")]
 pub struct SetDefaultModelResponse {}
 
-/// UserSavedConfig contains a subset of the config. It is meant to expose mcp
-/// client-configurable settings that can be specified in the NewConversation
-/// and SendUserTurn requests.
+/// `UserSavedConfig` contains a subset of the config. It is meant to expose mcp
+/// client-configurable settings that can be specified in the `NewConversation`
+/// and `SendUserTurn` requests.
 #[derive(Deserialize, Debug, Clone, PartialEq, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct UserSavedConfig {
@@ -751,8 +751,8 @@ pub enum ServerRequest {
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, TS)]
 pub struct ApplyPatchApprovalParams {
     pub conversation_id: ConversationId,
-    /// Use to correlate this with [code_core::protocol::PatchApplyBeginEvent]
-    /// and [code_core::protocol::PatchApplyEndEvent].
+    /// Use to correlate this with [`code_core::protocol::PatchApplyBeginEvent`]
+    /// and [`code_core::protocol::PatchApplyEndEvent`].
     pub call_id: String,
     pub file_changes: HashMap<PathBuf, FileChange>,
     /// Optional explanatory reason (e.g. request for extra write access).
@@ -767,8 +767,8 @@ pub struct ApplyPatchApprovalParams {
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, TS)]
 pub struct ExecCommandApprovalParams {
     pub conversation_id: ConversationId,
-    /// Use to correlate this with [code_core::protocol::ExecCommandBeginEvent]
-    /// and [code_core::protocol::ExecCommandEndEvent].
+    /// Use to correlate this with [`code_core::protocol::ExecCommandBeginEvent`]
+    /// and [`code_core::protocol::ExecCommandEndEvent`].
     pub call_id: String,
     /// Identifier for this specific approval callback.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -877,7 +877,7 @@ pub struct LoginChatGptCompleteNotification {
 #[derive(Serialize, Deserialize, Debug, Clone, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct SessionConfiguredNotification {
-    /// Name left as session_id instead of conversation_id for backwards compatibility.
+    /// Name left as `session_id` instead of `conversation_id` for backwards compatibility.
     pub session_id: ConversationId,
 
     /// Tell the client what model is being queried.
@@ -917,7 +917,7 @@ pub enum ServerNotification {
     /// Authentication status changed
     AuthStatusChange(AuthStatusChangeNotification),
 
-    /// ChatGPT login flow completed
+    /// `ChatGPT` login flow completed
     LoginChatGptComplete(LoginChatGptCompleteNotification),
 
     /// The special session configured event for a new or resumed conversation.

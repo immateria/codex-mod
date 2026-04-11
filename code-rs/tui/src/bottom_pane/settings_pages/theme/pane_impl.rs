@@ -41,11 +41,7 @@ impl<'a> BottomPaneView<'a> for ThemeSelectionView {
             Mode::Overview => 8,
             // Detail lists: fixed 9 visible rows (max), shrink if fewer
             Mode::Themes => {
-                let extra = if Self::allow_custom_theme_generation() {
-                    1
-                } else {
-                    0
-                };
+                let extra = u16::from(Self::allow_custom_theme_generation());
                 let n = u16::try_from(Self::theme_option_count())
                     .unwrap_or(u16::MAX)
                     .saturating_add(extra);

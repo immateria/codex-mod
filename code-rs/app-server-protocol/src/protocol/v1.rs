@@ -234,8 +234,8 @@ pub struct GitDiffToRemoteResponse {
 #[serde(rename_all = "camelCase")]
 pub struct ApplyPatchApprovalParams {
     pub conversation_id: ThreadId,
-    /// Use to correlate this with [codex_core::protocol::PatchApplyBeginEvent]
-    /// and [codex_core::protocol::PatchApplyEndEvent].
+    /// Use to correlate this with [`codex_core::protocol::PatchApplyBeginEvent`]
+    /// and [`codex_core::protocol::PatchApplyEndEvent`].
     pub call_id: String,
     pub file_changes: HashMap<PathBuf, FileChange>,
     /// Optional explanatory reason (e.g. request for extra write access).
@@ -255,8 +255,8 @@ pub struct ApplyPatchApprovalResponse {
 #[serde(rename_all = "camelCase")]
 pub struct ExecCommandApprovalParams {
     pub conversation_id: ThreadId,
-    /// Use to correlate this with [codex_core::protocol::ExecCommandBeginEvent]
-    /// and [codex_core::protocol::ExecCommandEndEvent].
+    /// Use to correlate this with [`codex_core::protocol::ExecCommandBeginEvent`]
+    /// and [`codex_core::protocol::ExecCommandEndEvent`].
     pub call_id: String,
     /// Identifier for this specific approval callback.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -535,7 +535,7 @@ impl From<V1TextElement> for CoreTextElement {
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema, TS)]
 #[serde(rename_all = "camelCase")]
-/// Deprecated in favor of AccountLoginCompletedNotification.
+/// Deprecated in favor of `AccountLoginCompletedNotification`.
 pub struct LoginChatGptCompleteNotification {
     #[schemars(with = "String")]
     pub login_id: Uuid,
@@ -558,7 +558,7 @@ pub struct SessionConfiguredNotification {
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema, TS)]
 #[serde(rename_all = "camelCase")]
-/// Deprecated notification. Use AccountUpdatedNotification instead.
+/// Deprecated notification. Use `AccountUpdatedNotification` instead.
 pub struct AuthStatusChangeNotification {
     pub auth_method: Option<AuthMode>,
 }

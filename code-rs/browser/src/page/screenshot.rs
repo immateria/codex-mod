@@ -15,10 +15,10 @@ use tracing::warn;
 impl Page {
     /// Helper function to capture screenshot with retry logic.
     /// Strategy summary (critical to UX and reliability):
-    /// - Visible pages: Start with from_surface(false) (no-flash path). If it fails once, retry false quickly.
-    ///   Only as a last resort use from_surface(true), because it can flash a visible window.
+    /// - Visible pages: Start with `from_surface(false)` (no-flash path). If it fails once, retry false quickly.
+    ///   Only as a last resort use `from_surface(true)`, because it can flash a visible window.
     /// - Non-visible pages: Use a fast 8×8 preflight (false) to decide. If compositor is unavailable, start
-    ///   with from_surface(true) immediately (safe when not visible). Fallbacks stay conservative.
+    ///   with `from_surface(true)` immediately (safe when not visible). Fallbacks stay conservative.
     /// - Final fallback: If two attempts with false fail even while visible, we try true once rather than
     ///   failing entirely. This prevents chronic timeouts; the flash trade-off is acceptable as a last resort.
     ///   Do not loosen these guarantees casually; they were tuned to balance reliability and no-flash UX.
@@ -335,8 +335,8 @@ impl Page {
             .clip(chromiumoxide::cdp::browser_protocol::page::Viewport {
                 x: 0.0,
                 y: 0.0,
-                width: target_w as f64,
-                height: target_h as f64,
+                width: f64::from(target_w),
+                height: f64::from(target_h),
                 scale: 1.0,
             });
 
@@ -383,9 +383,9 @@ impl Page {
                 .capture_beyond_viewport(true) // key to avoid scrolling/flash
                 .clip(chromiumoxide::cdp::browser_protocol::page::Viewport {
                     x: 0.0,
-                    y: y as f64,
-                    width: vw as f64,
-                    height: h as f64,
+                    y: f64::from(y),
+                    width: f64::from(vw),
+                    height: f64::from(h),
                     scale: 1.0,
                 });
 
@@ -427,10 +427,10 @@ impl Page {
 
         let params_builder = CaptureScreenshotParams::builder().format(format).clip(
             chromiumoxide::cdp::browser_protocol::page::Viewport {
-                x: region.x as f64,
-                y: region.y as f64,
-                width: region.width as f64,
-                height: region.height as f64,
+                x: f64::from(region.x),
+                y: f64::from(region.y),
+                width: f64::from(region.width),
+                height: f64::from(region.height),
                 scale: 1.0,
             },
         );

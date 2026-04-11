@@ -425,7 +425,7 @@ fn gh_run_wait_title(result: &str, success: bool) -> String {
     }
 }
 
-/// Completed web_fetch tool call with markdown rendering of the `markdown` field.
+/// Completed `web_fetch` tool call with markdown rendering of the `markdown` field.
 // Web fetch preview sizing: show 10 lines at the start and 5 at the end.
 const WEB_FETCH_HEAD_LINES: usize = 10;
 const WEB_FETCH_TAIL_LINES: usize = 5;
@@ -1152,8 +1152,8 @@ fn try_new_completed_mcp_tool_call_with_image_output(
                     }
                 };
 
-                let width = decoded.width().min(u16::MAX as u32) as u16;
-                let height = decoded.height().min(u16::MAX as u32) as u16;
+                let width = decoded.width().min(u32::from(u16::MAX)) as u16;
+                let height = decoded.height().min(u32::from(u16::MAX)) as u16;
                 let sha_hex = format!("{:x}", Sha256::digest(&raw_data));
                 let byte_len = raw_data.len().min(u32::MAX as usize) as u32;
 

@@ -1,4 +1,4 @@
-//! Public wrapper around the internal ChatComposer for simple, reusable text input.
+//! Public wrapper around the internal `ChatComposer` for simple, reusable text input.
 //!
 //! This exposes a minimal interface suitable for other crates (e.g.,
 //! codex-cloud-tasks) to reuse the mature composer behavior: multi-line input,
@@ -16,7 +16,7 @@ use crate::app_event_sender::AppEventSender;
 use crate::bottom_pane::ChatComposer;
 use crate::bottom_pane::InputResult;
 
-/// Action returned from feeding a key event into the ComposerInput.
+/// Action returned from feeding a key event into the `ComposerInput`.
 pub enum ComposerAction {
     /// The user submitted the current text (typically via Enter). Contains the submitted text.
     Submitted(String),

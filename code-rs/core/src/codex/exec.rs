@@ -106,7 +106,7 @@ pub(crate) struct ExecCommandContext {
     pub(crate) command_for_display: Vec<String>,
     pub(crate) cwd: PathBuf,
     pub(crate) apply_patch: Option<ApplyPatchCommandContext>,
-    /// The call_id of the parent tool that dispatched this one (e.g. JS REPL).
+    /// The `call_id` of the parent tool that dispatched this one (e.g. JS REPL).
     pub(crate) parent_call_id: Option<String>,
 }
 
@@ -648,7 +648,7 @@ impl Session {
         result
     }
 
-    /// Helper that emits a BackgroundEvent with explicit ordering metadata.
+    /// Helper that emits a `BackgroundEvent` with explicit ordering metadata.
     pub(crate) async fn notify_background_event_with_order(
         &self,
         sub_id: &str,

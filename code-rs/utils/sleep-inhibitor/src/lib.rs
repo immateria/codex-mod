@@ -1,7 +1,7 @@
 //! Cross-platform helper for preventing idle sleep while a turn is running.
 //!
 //! Platform-specific behavior:
-//! - macOS: Uses native IOKit power assertions instead of spawning `caffeinate`.
+//! - macOS: Uses native `IOKit` power assertions instead of spawning `caffeinate`.
 //! - Linux: Spawns `systemd-inhibit` or `gnome-session-inhibit` while active.
 //! - Windows: Uses `PowerCreateRequest` + `PowerSetRequest` with
 //!   `PowerRequestSystemRequired`.

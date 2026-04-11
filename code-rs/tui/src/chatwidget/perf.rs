@@ -1,4 +1,4 @@
-//! Performance statistics support for ChatWidget.
+//! Performance statistics support for `ChatWidget`.
 //!
 //! Kept as a separate module to keep `chatwidget.rs` lean. Pure data + helpers
 //! with no UI dependencies so it is easy to unit‑test in isolation.

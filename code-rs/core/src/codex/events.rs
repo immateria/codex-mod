@@ -87,7 +87,7 @@ impl Session {
         event
     }
 
-    /// Same as make_event but allows supplying a provider sequence_number
+    /// Same as `make_event` but allows supplying a provider `sequence_number`
     /// (e.g., Responses API SSE event). We DO NOT overwrite `event_seq`
     /// with this hint because `event_seq` must remain monotonic per turn
     /// and local to our runtime. Provider ordering is carried via

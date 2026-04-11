@@ -257,7 +257,7 @@ pub async fn execute_env(
 
     let timeout_ms = match expiration {
         ExecExpiration::DefaultTimeout => Some(DEFAULT_EXEC_COMMAND_TIMEOUT_MS),
-        ExecExpiration::Timeout(duration) => Some(duration.as_millis().min(u64::MAX as u128) as u64),
+        ExecExpiration::Timeout(duration) => Some(duration.as_millis().min(u128::from(u64::MAX)) as u64),
         ExecExpiration::Cancellation(_) => None,
     };
 

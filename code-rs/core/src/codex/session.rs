@@ -139,16 +139,16 @@ pub(super) struct State {
     /// Scratchpad that buffers streamed items/deltas for the current HTTP attempt
     /// so we can seed retries without losing progress.
     pub(super) turn_scratchpad: Option<TurnScratchpad>,
-    /// Per-submission monotonic event sequence (resets at TaskStarted)
+    /// Per-submission monotonic event sequence (resets at `TaskStarted`)
     pub(super) event_seq_by_sub_id: HashMap<String, u64>,
-    /// Per-submission sequence used when synthesizing background OrderMeta.
+    /// Per-submission sequence used when synthesizing background `OrderMeta`.
     pub(super) background_seq_by_sub_id: HashMap<String, u64>,
     /// 1-based ordinal of the current HTTP request attempt in this session.
     pub(super) request_ordinal: u64,
     pub(super) dry_run_guard: DryRunGuardState,
-    /// Background execs by call_id
+    /// Background execs by `call_id`
     pub(super) background_execs: std::collections::HashMap<String, BackgroundExecState>,
-    /// Active foreground exec calls keyed by call_id (ExecCommandBegin/End lifecycle)
+    /// Active foreground exec calls keyed by `call_id` (ExecCommandBegin/End lifecycle)
     pub(super) running_execs: HashMap<String, RunningExecMeta>,
     pub(super) next_internal_sub_id: u64,
     pub(super) token_usage_info: Option<TokenUsageInfo>,
@@ -400,7 +400,7 @@ pub(crate) struct Session {
     /// Default reasoning effort for spawned agents and model calls in this session
     pub(super) model_reasoning_effort: ReasoningEffortConfig,
 
-    /// External notifier command (will be passed as args to exec()). When
+    /// External notifier command (will be passed as args to `exec()`). When
     /// `None` this feature is disabled.
     pub(super) notify: Option<Vec<String>>,
 
@@ -462,7 +462,7 @@ pub(crate) struct ToolCallCtx {
     pub call_id: String,
     pub seq_hint: Option<u64>,
     pub output_index: Option<u32>,
-    /// The call_id of the parent tool that dispatched this one (e.g. JS REPL).
+    /// The `call_id` of the parent tool that dispatched this one (e.g. JS REPL).
     pub parent_call_id: Option<String>,
 }
 

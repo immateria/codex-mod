@@ -46,7 +46,7 @@ pub(crate) fn key_suffix(text: &str) -> String {
     text.chars().skip(skip).collect()
 }
 
-/// Returns an ordering priority for accounts. ChatGPT accounts should appear first.
+/// Returns an ordering priority for accounts. `ChatGPT` accounts should appear first.
 pub(crate) fn account_mode_priority(mode: AuthMode) -> u8 {
     match mode {
         AuthMode::ChatGPT | AuthMode::ChatgptAuthTokens => 0,

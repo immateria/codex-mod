@@ -181,7 +181,7 @@ fn parse_component(component: &str) -> Option<u8> {
         2 => u8::from_str_radix(trimmed, 16).ok(),
         4 => u16::from_str_radix(trimmed, 16)
             .ok()
-            .map(|value| ((value as u32 * 255 + 32_767) / 65_535) as u8),
+            .map(|value| ((u32::from(value) * 255 + 32_767) / 65_535) as u8),
         _ => None,
     }
 }

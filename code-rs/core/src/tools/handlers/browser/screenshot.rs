@@ -66,8 +66,8 @@ pub(super) async fn handle_browser_screenshot(
                 let (vw, vh) = browser_manager.get_viewport_size().await;
                 let x0 = x.floor().max(0.0);
                 let y0 = y.floor().max(0.0);
-                let x1 = (x + w).ceil().min(vw as f64);
-                let y1 = (y + h).ceil().min(vh as f64);
+                let x1 = (x + w).ceil().min(f64::from(vw));
+                let y1 = (y + h).ceil().min(f64::from(vh));
                 if x1 <= x0 || y1 <= y0 {
                     return tool_error(call_id_clone.clone(), "Selector region is empty; try a different selector.");
                 }
@@ -101,8 +101,8 @@ pub(super) async fn handle_browser_screenshot(
                 let (vw, vh) = browser_manager.get_viewport_size().await;
                 let x0 = x.floor().max(0.0);
                 let y0 = y.floor().max(0.0);
-                let x1 = (x + w).ceil().min(vw as f64);
-                let y1 = (y + h).ceil().min(vh as f64);
+                let x1 = (x + w).ceil().min(f64::from(vw));
+                let y1 = (y + h).ceil().min(f64::from(vh));
                 if x1 <= x0 || y1 <= y0 {
                     return tool_error(call_id_clone.clone(), "region is out of bounds");
                 }

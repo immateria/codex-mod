@@ -51,8 +51,8 @@ macro_rules! layout_build_counter {
 /// Stores a computed layout `L` alongside the terminal width it was computed
 /// for. When the width changes the layout is recomputed via a caller-supplied
 /// closure. This eliminates the identical `invalidate` / `ensure_layout` /
-/// `layout_for_width` boilerplate that was duplicated across ExecCell,
-/// JsReplCell, MergedExecCell, and WebFetchToolCell.
+/// `layout_for_width` boilerplate that was duplicated across `ExecCell`,
+/// `JsReplCell`, `MergedExecCell`, and `WebFetchToolCell`.
 pub(crate) struct LayoutCache<L: Default> {
     inner: RefCell<CacheEntry<L>>,
 }

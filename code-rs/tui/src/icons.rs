@@ -1,10 +1,10 @@
-//! Three-tier icon/glyph system: **NerdFont → Unicode → ASCII**.
+//! Three-tier icon/glyph system: **`NerdFont` → Unicode → ASCII**.
 //!
 //! The active tier is controlled by `tui.icon_mode` in config.toml:
 //!
 //! | Value         | Description |
 //! |---------------|-------------|
-//! | `"nerd_fonts"` | NerdFont PUA glyphs (requires a patched font) |
+//! | `"nerd_fonts"` | `NerdFont` PUA glyphs (requires a patched font) |
 //! | `"unicode"`    | Standard Unicode symbols (**default**) |
 //! | `"ascii"`      | Pure ASCII fallbacks (for minimal terminals) |
 //!
@@ -40,7 +40,7 @@ use code_core::config_types::{IconMode, IconOverrideValue};
 
 // ── Global state ─────────────────────────────────────────────────────
 
-/// Stores IconMode as u8: NerdFonts=0, Unicode=1, Ascii=2.
+/// Stores `IconMode` as u8: NerdFonts=0, Unicode=1, Ascii=2.
 static ICON_MODE: AtomicU8 = AtomicU8::new(1); // default: Unicode
 
 /// Tiered override maps built from `[tui.icons]` config.
@@ -64,7 +64,7 @@ static OVERRIDES: OnceLock<IconOverrides> = OnceLock::new();
 pub(crate) struct Icon {
     /// Config key used in `[tui.icons]` (matches the accessor function name).
     pub(crate) key: &'static str,
-    /// NerdFont private-use-area glyph.
+    /// `NerdFont` private-use-area glyph.
     pub(crate) nerd: &'static str,
     /// Standard Unicode symbol.
     pub(crate) unicode: &'static str,
@@ -190,7 +190,7 @@ pub(crate) fn icon_mode() -> IconMode {
     IconMode::from_u8(ICON_MODE.load(Ordering::Relaxed))
 }
 
-/// Whether NerdFont mode is currently active (convenience wrapper).
+/// Whether `NerdFont` mode is currently active (convenience wrapper).
 pub(crate) fn nerd_fonts_enabled() -> bool {
     ICON_MODE.load(Ordering::Relaxed) == 0
 }

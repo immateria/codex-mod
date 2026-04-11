@@ -259,7 +259,7 @@ fn restore_left_half(buf: &mut Buffer, area: Rect, snapshot: &[Cell]) {
 }
 
 /// Flatten a nested draw result of the form `io::Result<Result<()>>` into a
-/// single `io::Result<()>`, preserving error kinds for WouldBlock handling.
+/// single `io::Result<()>`, preserving error kinds for `WouldBlock` handling.
 pub(super) fn flatten_draw_result(res: std::io::Result<Result<()>>) -> std::io::Result<()> {
     let inner = res?;
     inner.map_err(|err| {

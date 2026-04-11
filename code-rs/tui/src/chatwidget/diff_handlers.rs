@@ -1,4 +1,4 @@
-//! Diff overlay key handling extracted from ChatWidget::handle_key_event.
+//! Diff overlay key handling extracted from `ChatWidget::handle_key_event`.
 
 use super::ChatWidget;
 use crossterm::event::{KeyCode, KeyEvent};

@@ -118,7 +118,7 @@ pub struct ModelFamily {
     /// accepts a shell script string instead of argv-style arguments.
     pub uses_shell_command_tool: bool,
 
-    /// Whether web_search should request text-only or multimodal results.
+    /// Whether `web_search` should request text-only or multimodal results.
     pub web_search_tool_type: WebSearchToolType,
 
     /// Whether responses can use `detail: "original"` for tool-returned images.

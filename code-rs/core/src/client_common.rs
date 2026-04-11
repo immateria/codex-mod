@@ -44,7 +44,7 @@ pub struct Prompt {
     /// Conversation context input items.
     pub input: Vec<ResponseItem>,
 
-    /// Whether to store response on server side (disable_response_storage = !store).
+    /// Whether to store response on server side (`disable_response_storage` = !store).
     pub store: bool,
 
     /// Model instructions that are appended to the base instructions.
@@ -62,7 +62,7 @@ pub struct Prompt {
     /// These are generated fresh for each request (screenshots, system status)
     pub status_items: Vec<ResponseItem>,
 
-    /// Optional override for the built-in BASE_INSTRUCTIONS.
+    /// Optional override for the built-in `BASE_INSTRUCTIONS`.
     pub base_instructions_override: Option<String>,
 
     /// Whether to prepend the default developer instructions block.
@@ -290,7 +290,7 @@ pub(crate) struct Reasoning {
     pub(crate) summary: Option<ReasoningSummaryConfig>,
 }
 
-/// Text configuration for verbosity/format in OpenAI API responses.
+/// Text configuration for verbosity/format in `OpenAI` API responses.
 #[derive(Debug, Clone)]
 pub(crate) struct Text {
     pub(crate) verbosity: OpenAiTextVerbosity,
@@ -312,7 +312,7 @@ impl serde::Serialize for Text {
     }
 }
 
-/// OpenAI text verbosity level for serialization.
+/// `OpenAI` text verbosity level for serialization.
 #[derive(Debug, Serialize, Default, Clone, Copy)]
 #[serde(rename_all = "lowercase")]
 pub(crate) enum OpenAiTextVerbosity {

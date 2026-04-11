@@ -87,13 +87,13 @@ impl ChatWidget<'_> {
         const WIDTH: usize = 14;
         let now = Local::now();
         let anchor = now
-            - ChronoDuration::minutes(now.minute() as i64)
-            - ChronoDuration::seconds(now.second() as i64)
-            - ChronoDuration::nanoseconds(now.nanosecond() as i64);
+            - ChronoDuration::minutes(i64::from(now.minute()))
+            - ChronoDuration::seconds(i64::from(now.second()))
+            - ChronoDuration::nanoseconds(i64::from(now.nanosecond()));
 
         let hourly_totals = Self::aggregate_hourly_totals(summary);
         let series: Vec<(DateTime<Local>, TokenTotals)> = (0..12)
-            .map(|offset| anchor - ChronoDuration::hours(offset as i64))
+            .map(|offset| anchor - ChronoDuration::hours(i64::from(offset)))
             .map(|dt| {
                 let utc_key = Self::truncate_utc_hour(dt.with_timezone(&Utc));
                 let totals = hourly_totals
@@ -200,7 +200,7 @@ impl ChatWidget<'_> {
         let today = Local::now().date_naive();
         let day_totals = Self::aggregate_daily_totals(summary);
         let daily: Vec<(chrono::NaiveDate, TokenTotals)> = (0..7)
-            .map(|offset| today - ChronoDuration::days(offset as i64))
+            .map(|offset| today - ChronoDuration::days(i64::from(offset)))
             .map(|day| {
                 let totals = day_totals.get(&day).cloned().unwrap_or_default();
                 (day, totals)

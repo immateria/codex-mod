@@ -188,7 +188,7 @@ fn cleanup_sessions(
     for year_entry in year_dirs {
         let year_path = year_entry.path();
         let Some(year) = parse_u16(&year_entry.file_name()) else { continue };
-        let year = year as i32;
+        let year = i32::from(year);
 
         let month_dirs = list_dir_sorted(&year_path);
         for month_entry in month_dirs {

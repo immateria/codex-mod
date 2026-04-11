@@ -28,7 +28,7 @@ pub struct FreeformToolFormat {
     pub(crate) definition: String,
 }
 
-/// When serialized as JSON, this produces a valid "Tool" in the OpenAI
+/// When serialized as JSON, this produces a valid "Tool" in the `OpenAI`
 /// Responses API.
 #[derive(Debug, Clone, Serialize, PartialEq)]
 #[serde(tag = "type")]

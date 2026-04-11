@@ -952,7 +952,7 @@ fn autodetect_lang(content: &str) -> Option<&'static str> {
         let has_inline_table = lines.iter().any(|l| l.contains("={") || l.contains(" = {"));
         let has_array = lines.iter().any(|l| l.contains("=[") || l.contains(" = ["));
         let has_quoted_assign = lines.iter().any(|l| l.contains("= \"") || l.contains("=\""));
-        (has_dotted_keys as u8 + has_inline_table as u8 + has_array as u8 + has_quoted_assign as u8) >= 2
+        (u8::from(has_dotted_keys) + u8::from(has_inline_table) + u8::from(has_array) + u8::from(has_quoted_assign)) >= 2
     };
     if toml_signals { return Some("toml"); }
     // Fallback to INI if it looks like sectioned key=value without YAML/hints

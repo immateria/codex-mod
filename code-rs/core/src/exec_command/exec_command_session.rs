@@ -39,13 +39,13 @@ pub(crate) struct ExecCommandSession {
     /// of a thread blocked in `.wait()`).
     killer: StdMutex<Option<Box<dyn portable_pty::ChildKiller + Send + Sync>>>,
 
-    /// JoinHandle for the blocking PTY reader task.
+    /// `JoinHandle` for the blocking PTY reader task.
     reader_handle: StdMutex<Option<JoinHandle<()>>>,
 
-    /// JoinHandle for the stdin writer task.
+    /// `JoinHandle` for the stdin writer task.
     writer_handle: StdMutex<Option<JoinHandle<()>>>,
 
-    /// JoinHandle for the child wait task.
+    /// `JoinHandle` for the child wait task.
     wait_handle: StdMutex<Option<JoinHandle<()>>>,
 
     /// Exit code for the process, when available.

@@ -1,6 +1,6 @@
 use unicode_width::UnicodeWidthChar;
 
-/// A single visual row produced by RowBuilder.
+/// A single visual row produced by `RowBuilder`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct Row {
     pub(crate) text: String,
@@ -187,7 +187,7 @@ impl RowBuilder {
 
 
 /// Take a prefix of `text` whose visible width is at most `max_cols`.
-/// Returns (prefix, suffix, prefix_width).
+/// Returns (prefix, suffix, `prefix_width`).
 pub(crate) fn take_prefix_by_width(text: &str, max_cols: usize) -> (String, &str, usize) {
     if max_cols == 0 || text.is_empty() {
         return (String::new(), text, 0);

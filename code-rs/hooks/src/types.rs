@@ -16,10 +16,10 @@ pub type HookFn = Arc<dyn for<'a> Fn(&'a HookPayload) -> BoxFuture<'a, HookResul
 pub enum HookResult {
     /// Success: hook completed successfully.
     Success,
-    /// FailedContinue: hook failed, but other subsequent hooks should still execute and the
+    /// `FailedContinue`: hook failed, but other subsequent hooks should still execute and the
     /// operation should continue.
     FailedContinue(Box<dyn std::error::Error + Send + Sync + 'static>),
-    /// FailedAbort: hook failed, other subsequent hooks should not execute, and the operation
+    /// `FailedAbort`: hook failed, other subsequent hooks should not execute, and the operation
     /// should be aborted.
     FailedAbort(Box<dyn std::error::Error + Send + Sync + 'static>),
 }

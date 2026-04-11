@@ -200,9 +200,9 @@ impl ChatWidget<'_> {
     }
 
     pub(in super::super) fn adjust_browser_overlay_action_scroll(&self, delta: i16) {
-        let current = self.browser_overlay_state.action_scroll() as i32;
-        let max = self.browser_overlay_state.max_action_scroll() as i32;
-        let mut updated = current + delta as i32;
+        let current = i32::from(self.browser_overlay_state.action_scroll());
+        let max = i32::from(self.browser_overlay_state.max_action_scroll());
+        let mut updated = current + i32::from(delta);
         if updated < 0 {
             updated = 0;
         } else if updated > max {

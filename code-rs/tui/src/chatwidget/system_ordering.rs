@@ -1,7 +1,7 @@
 use super::*;
 
 impl ChatWidget<'_> {
-    /// Compute an OrderKey for system (non‑LLM) notices in a way that avoids
+    /// Compute an `OrderKey` for system (non‑LLM) notices in a way that avoids
     /// creating multiple synthetic request buckets before the first provider turn.
     pub(super) fn system_order_key(
         &mut self,

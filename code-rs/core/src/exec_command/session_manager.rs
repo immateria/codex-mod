@@ -245,7 +245,7 @@ pub(crate) fn result_into_payload(
 }
 
 impl SessionManager {
-    /// Start a PTY-backed exec_command session and collect output for up to
+    /// Start a PTY-backed `exec_command` session and collect output for up to
     /// `yield_time_ms`, returning either a completed result or an ongoing
     /// session ID that can be resumed via `write_stdin`.
     pub(crate) async fn handle_exec_command_request(
@@ -524,7 +524,7 @@ fn effective_sandbox_policy_for_exec_command(
     }
 }
 
-/// Spawn PTY and child process per spawn_exec_command_session logic.
+/// Spawn PTY and child process per `spawn_exec_command_session` logic.
 async fn create_exec_command_session(
     params: ExecCommandParams,
     env_overrides: HashMap<String, String>,

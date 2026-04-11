@@ -3,7 +3,7 @@ use unicode_width::UnicodeWidthChar;
 
 /// Sanitization mode:
 /// - Plain: remove all control/escape sequences; output is pure printable text.
-/// - AnsiPreserving: keep CSI (ESC '[' ... final) so color/style can be parsed
+/// - `AnsiPreserving`: keep CSI (ESC '[' ... final) so color/style can be parsed
 ///   later by the ANSI parser; strip OSC/DCS/APC/PM/SOS and other controls.
 #[derive(Clone, Copy)]
 pub(crate) enum Mode {

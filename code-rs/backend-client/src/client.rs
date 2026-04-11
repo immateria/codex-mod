@@ -296,7 +296,7 @@ impl Client {
     /// Fetch the managed requirements file from code-backend.
     ///
     /// `GET /api/codex/config/requirements` (Codex API style) or
-    /// `GET /wham/config/requirements` (ChatGPT backend-api style).
+    /// `GET /wham/config/requirements` (`ChatGPT` backend-api style).
     pub async fn get_config_requirements_file(
         &self,
     ) -> std::result::Result<ConfigFileResponse, RequestError> {
@@ -310,7 +310,7 @@ impl Client {
             .map_err(RequestError::from)
     }
 
-    /// Create a new task (user turn) by POSTing to the appropriate backend path
+    /// Create a new task (user turn) by `POSTing` to the appropriate backend path
     /// based on `path_style`. Returns the created task id.
     pub async fn create_task(&self, request_body: serde_json::Value) -> Result<String> {
         let url = match self.path_style {

@@ -1219,7 +1219,7 @@ fn trim_at_connector(tokens: &[String]) -> Vec<String> {
 /// It also pulls out a useful path from a directory such as:
 /// - webview/src -> webview
 /// - foo/src/ -> foo
-/// - packages/app/node_modules/ -> app
+/// - `packages/app/node_modules`/ -> app
 fn short_display_path(path: &str) -> String {
     // Normalize separators and drop any trailing slash for display.
     let normalized = path.replace('\\', "/");

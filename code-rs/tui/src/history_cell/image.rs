@@ -327,8 +327,8 @@ impl ImageOutputCell {
         };
 
         let cols = image_cols as u32;
-        let rows_by_w = (cols * cell_w as u32 * img_h) as f64
-            / (img_w * cell_h as u32) as f64;
+        let rows_by_w = f64::from(cols * u32::from(cell_w) * img_h)
+            / f64::from(img_w * u32::from(cell_h));
         let rows = rows_by_w.ceil().max(1.0) as usize;
         Some(rows.clamp(MIN_IMAGE_ROWS, MAX_IMAGE_ROWS))
     }

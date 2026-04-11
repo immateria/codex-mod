@@ -101,10 +101,10 @@ impl BrowserSessionCell {
             return None;
         }
 
-        let cw = cell_w as u32;
-        let ch = cell_h as u32;
+        let cw = u32::from(cell_w);
+        let ch = u32::from(cell_h);
 
-        let rows_by_w = (cols * cw * img_h) as f64 / (img_w * ch) as f64;
+        let rows_by_w = f64::from(cols * cw * img_h) / f64::from(img_w * ch);
         let rows = rows_by_w.ceil().max(1.0) as usize;
         Some(rows.clamp(MIN_SCREENSHOT_ROWS, MAX_SCREENSHOT_ROWS))
     }

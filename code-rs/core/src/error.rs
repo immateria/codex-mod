@@ -88,7 +88,7 @@ impl RetryAfter {
 
 #[derive(Error, Debug)]
 pub enum CodexErr {
-    /// Returned by ResponsesClient when the SSE stream disconnects or errors out **after** the HTTP
+    /// Returned by `ResponsesClient` when the SSE stream disconnects or errors out **after** the HTTP
     /// handshake has succeeded but **before** it finished emitting `response.completed`.
     ///
     /// The Session loop treats this as a transient error and will automatically retry the turn.
@@ -103,17 +103,17 @@ pub enum CodexErr {
     #[error("session configured event was not the first event in the stream")]
     SessionConfiguredNotFirstEvent,
 
-    /// Returned by run_command_stream when the spawned child process timed out (default 120s).
+    /// Returned by `run_command_stream` when the spawned child process timed out (default 120s).
     #[error("timeout waiting for child process to exit")]
     Timeout,
 
-    /// Returned by run_command_stream when the child could not be spawned (its stdout/stderr pipes
+    /// Returned by `run_command_stream` when the child could not be spawned (its stdout/stderr pipes
     /// could not be captured). Analogous to the previous `CodexError::Spawn` variant.
     #[error("spawn failed: child stdout/stderr not captured")]
     Spawn,
 
-    /// Returned by run_command_stream when the user pressed Ctrl‑C (SIGINT). Session uses this to
-    /// surface a polite FunctionCallOutput back to the model instead of crashing the CLI.
+    /// Returned by `run_command_stream` when the user pressed Ctrl‑C (SIGINT). Session uses this to
+    /// surface a polite `FunctionCallOutput` back to the model instead of crashing the CLI.
     #[error("interrupted (Ctrl-C)")]
     Interrupted,
 

@@ -645,8 +645,8 @@ struct GenerateTsCommand {
 
 #[derive(Debug, Parser)]
 struct OrderReplayArgs {
-    /// Path to a response.json captured under ~/.code/debug_logs/*_response.json
-    /// (legacy ~/.codex/debug_logs/ is still read).
+    /// Path to a response.json captured under ~/.`code/debug_logs`/*_response.json
+    /// (legacy ~/.`codex/debug_logs`/ is still read).
     response_json: std::path::PathBuf,
     /// Path to codex-tui.log (typically ~/.code/debug_logs/codex-tui.log).
     tui_log: std::path::PathBuf,
@@ -656,7 +656,7 @@ struct OrderReplayArgs {
 struct PreviewArgs {
     /// Slug identifier (e.g., faster-downloads)
     slug: String,
-    /// Optional owner/repo to override (defaults to just-every/code or $GITHUB_REPOSITORY)
+    /// Optional owner/repo to override (defaults to just-every/code or $`GITHUB_REPOSITORY`)
     #[arg(long = "repo", value_name = "OWNER/REPO")]
     repo: Option<String>,
     /// Output directory where the binary will be extracted

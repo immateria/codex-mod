@@ -13,7 +13,7 @@ pub(crate) struct HeaderWaveEffect {
 }
 
 impl HeaderWaveEffect {
-    /// Animation cadence; keep this in sync with the ScheduleFrameIn duration.
+    /// Animation cadence; keep this in sync with the `ScheduleFrameIn` duration.
     pub(crate) const FRAME_INTERVAL: Duration = crate::timing::ANIMATION_FRAME_INTERVAL;
 
     pub(crate) fn new() -> Self {

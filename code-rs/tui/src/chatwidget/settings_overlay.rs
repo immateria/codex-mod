@@ -100,7 +100,7 @@ pub(crate) struct SettingsOverlayView {
     /// Section mapping for each rendered overview list line (None for separators).
     last_overview_line_sections: RefCell<Vec<Option<SettingsSection>>>,
     /// Horizontal hit ranges for each rendered overview list line (separators use `[None; 2]`).
-    /// Stored as (start_x, end_x) in terminal cell coordinates. Some lines have
+    /// Stored as (`start_x`, `end_x`) in terminal cell coordinates. Some lines have
     /// two disjoint hit ranges (e.g., label + summary).
     last_overview_line_hit_ranges: RefCell<OverviewHitRanges>,
     /// Vertical scroll offset used for the overview list.

@@ -118,7 +118,7 @@ impl CodexAuth {
                         return Ok(access);
                     }
                     if err.kind == RefreshTokenErrorKind::Transient && attempt < 4 {
-                        let delay = backoff(attempt as u64);
+                        let delay = backoff(u64::from(attempt));
                         tokio::time::sleep(delay).await;
                         continue;
                     }
@@ -179,7 +179,7 @@ impl CodexAuth {
     }
 
     /// Loads the available auth information from the auth.json or
-    /// OPENAI_API_KEY environment variable.
+    /// `OPENAI_API_KEY` environment variable.
     pub fn from_code_home(
         code_home: &Path,
         preferred_auth_method: AuthMode,
@@ -778,7 +778,7 @@ fn load_auth(
 }
 
 /// Attempt to read and refresh the `auth.json` file in the given `CODEX_HOME` directory.
-/// Returns the full AuthDotJson structure after refreshing if necessary.
+/// Returns the full `AuthDotJson` structure after refreshing if necessary.
 pub fn try_read_auth_json(auth_file: &Path) -> std::io::Result<AuthDotJson> {
     let mut file = File::open(auth_file)?;
     let mut contents = String::new();
@@ -1002,7 +1002,7 @@ fn summarize_body(body: &str) -> String {
     }
 }
 
-/// Expected structure for $CODEX_HOME/auth.json.
+/// Expected structure for $`CODEX_HOME/auth.json`.
 #[derive(Deserialize, Serialize, Clone, Debug, PartialEq)]
 pub struct AuthDotJson {
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -1585,7 +1585,7 @@ impl AuthManager {
         }
     }
 
-    /// Create an AuthManager with a specific CodexAuth, for testing only.
+    /// Create an `AuthManager` with a specific `CodexAuth`, for testing only.
     pub fn from_auth_for_testing(auth: CodexAuth) -> Arc<Self> {
         let preferred_auth_mode = auth.mode;
         let cached = CachedAuth {

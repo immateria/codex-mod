@@ -213,7 +213,7 @@ pub fn set_user_agent_suffix(suffix: &str) {
 
 /// Normalize the configured base URL to a canonical form used by the backend client.
 /// - trims trailing '/'
-/// - appends '/backend-api' for ChatGPT hosts when missing
+/// - appends '/backend-api' for `ChatGPT` hosts when missing
 pub fn normalize_base_url(input: &str) -> String {
     let mut base_url = input.to_string();
     while base_url.ends_with('/') {
@@ -228,7 +228,7 @@ pub fn normalize_base_url(input: &str) -> String {
     base_url
 }
 
-/// Extract the ChatGPT account id from a JWT token, when present.
+/// Extract the `ChatGPT` account id from a JWT token, when present.
 pub fn extract_chatgpt_account_id(token: &str) -> Option<String> {
     let mut parts = token.split('.');
     let (_h, payload_b64, _s) = match (parts.next(), parts.next(), parts.next()) {

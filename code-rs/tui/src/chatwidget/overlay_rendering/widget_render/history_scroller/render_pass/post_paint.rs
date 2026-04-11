@@ -39,8 +39,8 @@ impl ChatWidget<'_> {
                 let dt = t0.elapsed().as_nanos();
                 let mut p = self.perf_state.stats.borrow_mut();
                 p.ns_history_clear = p.ns_history_clear.saturating_add(dt);
-                let cells = (content_area.width as u64)
-                    * ((content_area.y + content_area.height - screen_y) as u64);
+                let cells = u64::from(content_area.width)
+                    * u64::from(content_area.y + content_area.height - screen_y);
                 p.cells_history_clear = p.cells_history_clear.saturating_add(cells);
             }
         }

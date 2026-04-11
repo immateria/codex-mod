@@ -36,7 +36,7 @@ impl GradientBackground {
     pub(crate) fn render_static(buf: &mut Buffer, area: Rect, gradient: &GradientSpec, fg: Color) {
         for row in 0..area.height {
             for col in 0..area.width {
-                let x = col as f32 / area.width.max(1) as f32;
+                let x = f32::from(col) / f32::from(area.width.max(1));
                 let t = (x + gradient.bias).clamp(0.0, 1.0);
                 let color = colors::mix_toward(gradient.left, gradient.right, t);
                 let cell = &mut buf[(area.x + col, area.y + row)];
@@ -75,14 +75,14 @@ impl GradientBackground {
 
         let width = area.width.max(1);
         let height = area.height.max(1);
-        let width_f = width as f32;
-        let height_f = height as f32;
+        let width_f = f32::from(width);
+        let height_f = f32::from(height);
 
         for row in 0..height {
             for col in 0..width {
-                let x_norm = (col as f32 + 0.5) / width_f;
-                let y_norm = (row as f32 + 0.5) / height_f;
-                let gradient_pos = ((col as f32 / width_f) + gradient.bias).clamp(0.0, 1.0);
+                let x_norm = (f32::from(col) + 0.5) / width_f;
+                let y_norm = (f32::from(row) + 0.5) / height_f;
+                let gradient_pos = ((f32::from(col) / width_f) + gradient.bias).clamp(0.0, 1.0);
                 let final_color = colors::mix_toward(gradient.left, gradient.right, gradient_pos);
 
                 let coverage = reveal_coverage(
@@ -281,7 +281,7 @@ fn accent_color(
 }
 
 fn hash_noise(x: u16, y: u16) -> f32 {
-    let mut n = (x as u32).wrapping_mul(73856093) ^ (y as u32).wrapping_mul(19349663);
+    let mut n = u32::from(x).wrapping_mul(73856093) ^ u32::from(y).wrapping_mul(19349663);
     n ^= n >> 13;
     n = n.wrapping_mul(1274126177);
     ((n >> 10) & 0xffff) as f32 / 65535.0

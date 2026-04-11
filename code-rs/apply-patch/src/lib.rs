@@ -216,7 +216,7 @@ pub enum ApplyPatchFileChange {
     Update {
         unified_diff: String,
         move_path: Option<PathBuf>,
-        /// new_content that will result after the unified_diff is applied.
+        /// `new_content` that will result after the `unified_diff` is applied.
         new_content: String,
     },
 }
@@ -236,7 +236,7 @@ pub enum MaybeApplyPatchVerified {
     NotApplyPatch,
 }
 
-/// ApplyPatchAction is the result of parsing an `apply_patch` command. By
+/// `ApplyPatchAction` is the result of parsing an `apply_patch` command. By
 /// construction, all paths should be absolute paths.
 #[derive(Debug, PartialEq)]
 pub struct ApplyPatchAction {
@@ -264,9 +264,7 @@ impl ApplyPatchAction {
     /// Should be used exclusively for testing. (Not worth the overhead of
     /// creating a feature flag for this.)
     pub fn new_add_for_test(path: &Path, content: String) -> Self {
-        if !path.is_absolute() {
-            panic!("path must be absolute");
-        }
+        assert!(path.is_absolute(), "path must be absolute");
 
         let filename = match path.file_name() {
             Some(filename) => filename.to_string_lossy(),
@@ -384,7 +382,7 @@ pub fn maybe_parse_apply_patch_verified(argv: &[String], cwd: &Path) -> MaybeApp
 }
 
 /// Extract the heredoc body (and optional `cd` workdir) from a `bash -lc` script
-/// that invokes the apply_patch tool using a heredoc.
+/// that invokes the `apply_patch` tool using a heredoc.
 ///
 /// Supported top‑level forms (must be the only top‑level statement):
 /// - `apply_patch <<'EOF'\n...\nEOF`
@@ -909,7 +907,7 @@ fn apply_replacements(
     lines
 }
 
-/// Intended result of a file update for apply_patch.
+/// Intended result of a file update for `apply_patch`.
 #[derive(Debug, Eq, PartialEq)]
 pub struct ApplyPatchFileUpdate {
     unified_diff: String,

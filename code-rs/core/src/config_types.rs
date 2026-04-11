@@ -901,7 +901,7 @@ fn default_shell_preset_show_in_picker() -> bool {
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
 #[serde(untagged, deny_unknown_fields, rename_all = "snake_case")]
 pub enum McpServerTransportConfig {
-    /// https://modelcontextprotocol.io/specification/2025-06-18/basic/transports#stdio
+    /// <https://modelcontextprotocol.io/specification/2025-06-18/basic/transports#stdio>
     Stdio {
         command: String,
         #[serde(default)]
@@ -909,7 +909,7 @@ pub enum McpServerTransportConfig {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         env: Option<HashMap<String, String>>,
     },
-    /// https://modelcontextprotocol.io/specification/2025-06-18/basic/transports#streamable-http
+    /// <https://modelcontextprotocol.io/specification/2025-06-18/basic/transports#streamable-http>
     StreamableHttp {
         url: String,
         /// A plain text bearer token to use for authentication.
@@ -1198,7 +1198,7 @@ pub struct GithubConfig {
     #[serde(default = "default_true")]
     pub check_workflows_on_push: bool,
 
-    /// When true, run `actionlint` on modified workflows during apply_patch.
+    /// When true, run `actionlint` on modified workflows during `apply_patch`.
     #[serde(default)]
     pub actionlint_on_patch: bool,
 
@@ -2201,7 +2201,7 @@ impl Default for SettingsMenuConfig {
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Deserialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum IconMode {
-    /// NerdFont PUA glyphs (requires a NerdFont-patched terminal font).
+    /// `NerdFont` PUA glyphs (requires a NerdFont-patched terminal font).
     NerdFonts,
     /// Standard Unicode symbols (the default — works in any modern terminal).
     #[default]
@@ -2611,7 +2611,7 @@ impl Default for Tui {
 impl Tui {
     /// Resolve the effective icon mode, honouring the legacy `nerd_fonts` boolean.
     ///
-    /// Priority: `icon_mode` (if set) > `nerd_fonts = true` → NerdFonts > Unicode.
+    /// Priority: `icon_mode` (if set) > `nerd_fonts = true` → `NerdFonts` > Unicode.
     pub fn effective_icon_mode(&self) -> IconMode {
         if let Some(mode) = self.icon_mode {
             return mode;
@@ -2825,7 +2825,7 @@ pub struct StreamConfig {
     #[serde(default = "default_true")]
     pub show_answer_ellipsis: bool,
 
-    /// Commit animation pacing in milliseconds (lines per CommitTick).
+    /// Commit animation pacing in milliseconds (lines per `CommitTick`).
     /// If unset, defaults to 50ms; in responsive profile, defaults to 30ms.
     #[serde(default)]
     pub commit_tick_ms: Option<u64>,
@@ -2932,7 +2932,7 @@ pub struct CustomSpinner {
 /// `theme` accepts the following values:
 /// - "auto" (default): choose a sensible built-in syntect theme based on
 ///   whether the current UI theme is light or dark.
-/// - "<name>": use a specific syntect theme by name from the default ThemeSet.
+/// - "<name>": use a specific syntect theme by name from the default `ThemeSet`.
 #[derive(Deserialize, Debug, Clone, PartialEq, Default, JsonSchema)]
 pub struct HighlightConfig {
     /// Theme selection preference (see docstring for accepted values)
@@ -3188,7 +3188,7 @@ impl From<ShellEnvironmentPolicyToml> for ShellEnvironmentPolicy {
     }
 }
 
-/// See https://platform.openai.com/docs/guides/reasoning?api-mode=responses#get-started-with-reasoning
+/// See <https://platform.openai.com/docs/guides/reasoning?api-mode=responses#get-started-with-reasoning>
 #[derive(
     Debug, Serialize, Deserialize, Default, Clone, Copy, PartialEq, Eq, Display, Hash, JsonSchema,
 )]
@@ -3211,7 +3211,7 @@ pub enum ReasoningEffort {
 
 /// A summary of the reasoning performed by the model. This can be useful for
 /// debugging and understanding the model's reasoning process.
-/// See https://platform.openai.com/docs/guides/reasoning?api-mode=responses#reasoning-summaries
+/// See <https://platform.openai.com/docs/guides/reasoning?api-mode=responses#reasoning-summaries>
 #[derive(Debug, Serialize, Deserialize, Default, Clone, Copy, PartialEq, Eq, Display, JsonSchema)]
 #[serde(rename_all = "lowercase")]
 #[strum(serialize_all = "lowercase")]
@@ -3233,7 +3233,7 @@ pub enum ServiceTier {
     Fast,
 }
 
-/// Text verbosity level for OpenAI API responses.
+/// Text verbosity level for `OpenAI` API responses.
 /// Controls the level of detail in the model's text responses.
 #[derive(Debug, Serialize, Deserialize, Default, Clone, Copy, PartialEq, Eq, Display, JsonSchema)]
 #[serde(rename_all = "lowercase")]
@@ -3351,7 +3351,7 @@ pub struct ProjectCommandConfig {
     pub timeout_ms: Option<u64>,
 }
 
-/// Retention policy configuration for env_ctx_v2 timeline management.
+/// Retention policy configuration for `env_ctx_v2` timeline management.
 #[derive(Deserialize, Debug, Clone, PartialEq, Eq)]
 #[serde(rename_all = "kebab-case")]
 pub struct RetentionConfig {
@@ -3361,7 +3361,7 @@ pub struct RetentionConfig {
     /// Maximum number of browser snapshots to retain (default: 2)
     #[serde(default = "default_max_browser_snapshots")]
     pub max_browser_snapshots: usize,
-    /// Maximum total bytes for all retained env_ctx items (default: 100KB)
+    /// Maximum total bytes for all retained `env_ctx` items (default: 100KB)
     #[serde(default = "default_max_total_bytes")]
     pub max_total_bytes: usize,
     /// Always keep the most recent environment baseline snapshot (default: true)

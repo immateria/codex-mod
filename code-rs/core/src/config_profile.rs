@@ -64,6 +64,6 @@ pub struct ConfigProfile {
     pub auto_switch_accounts_on_rate_limit: Option<bool>,
 
     /// When true, fall back to an API key account only if every connected
-    /// ChatGPT account is rate/usage limited.
+    /// `ChatGPT` account is rate/usage limited.
     pub api_key_fallback_on_all_accounts_limited: Option<bool>,
 }

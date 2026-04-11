@@ -9,11 +9,7 @@ impl<'a> BottomPane<'a> {
             let is_auto = matches!(self.active_view_kind, ActiveViewKind::AutoCoordinator);
             let top_spacer = if is_auto {
                 0
-            } else if self.top_spacer_enabled {
-                1
-            } else {
-                0
-            };
+            } else { u16::from(self.top_spacer_enabled) };
             let composer_height = if is_auto {
                 let composer_visible = view
                     .as_ref()

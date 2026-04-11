@@ -7,7 +7,7 @@ use super::{ActiveViewKind, BottomPane, CancellationEvent, ChatComposer, Conditi
 
 impl<'a> BottomPane<'a> {
     /// Forward a mouse event to the active view if present, or to the composer.
-    /// Returns (InputResult, bool) where bool indicates if a redraw is needed.
+    /// Returns (`InputResult`, bool) where bool indicates if a redraw is needed.
     pub fn handle_mouse_event(
         &mut self,
         mouse_event: crossterm::event::MouseEvent,

@@ -17,8 +17,8 @@ pub struct ResumeCandidate {
     pub snippet: Option<String>,
 }
 
-/// Return sessions matching the provided cwd using the SessionCatalog.
-/// Includes CLI, VSCode, Exec/model sessions, etc.
+/// Return sessions matching the provided cwd using the `SessionCatalog`.
+/// Includes CLI, `VSCode`, Exec/model sessions, etc.
 pub fn list_sessions_for_cwd(
     cwd: &Path,
     code_home: &Path,

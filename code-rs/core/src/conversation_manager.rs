@@ -50,7 +50,7 @@ impl ConversationManager {
         Arc::clone(&self.auth_manager)
     }
 
-    /// Construct with a dummy AuthManager containing the provided CodexAuth.
+    /// Construct with a dummy `AuthManager` containing the provided `CodexAuth`.
     /// Used for integration tests: should not be used by ordinary business logic.
     pub fn with_auth(auth: CodexAuth) -> Self {
         Self::new(

@@ -7,7 +7,7 @@ use code_core::protocol::Event;
 use super::state::{App, AppState};
 
 impl App<'_> {
-    /// Dispatch a KeyEvent to the current view and let it decide what to do
+    /// Dispatch a `KeyEvent` to the current view and let it decide what to do
     /// with it.
     pub(super) fn dispatch_key_event(&mut self, key_event: KeyEvent) {
         match &mut self.app_state {

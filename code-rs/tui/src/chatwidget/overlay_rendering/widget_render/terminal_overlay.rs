@@ -234,7 +234,7 @@ impl ChatWidget<'_> {
                 }
 
                 if rows > 0 && cols > 0 {
-                    let truncation_offset = if overlay.truncated { 1usize } else { 0 };
+                    let truncation_offset = usize::from(overlay.truncated);
                     let total = truncation_offset + overlay.lines.len();
                     let visible = rows as usize;
                     if visible > 0 {

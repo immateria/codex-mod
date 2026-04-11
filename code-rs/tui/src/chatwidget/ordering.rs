@@ -139,8 +139,8 @@ impl ChatWidget<'_> {
         }
     }
 
-    /// Like near_time_key but never advances to the next request when a prompt is queued.
-    /// Use this for late, provider-origin items that lack OrderMeta (e.g., PlanUpdate)
+    /// Like `near_time_key` but never advances to the next request when a prompt is queued.
+    /// Use this for late, provider-origin items that lack `OrderMeta` (e.g., `PlanUpdate`)
     /// so they remain attached to the current/last request instead of jumping forward.
     pub(super) fn near_time_key_current_req(
         &mut self,

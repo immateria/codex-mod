@@ -22,7 +22,7 @@ pub enum CanonicalApprovalCommandKind {
     ElvishScript,
     /// A CMD wrapper command where we canonicalize to the script text.
     CmdScript,
-    /// A PowerShell wrapper command where we canonicalize to the script text.
+    /// A `PowerShell` wrapper command where we canonicalize to the script text.
     PowerShellScript,
 }
 

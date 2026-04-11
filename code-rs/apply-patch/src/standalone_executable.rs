@@ -7,7 +7,7 @@ pub fn main() -> ! {
 }
 
 /// We would prefer to return `std::process::ExitCode`, but its `exit_process()`
-/// method is still a nightly API and we want main() to return !.
+/// method is still a nightly API and we want `main()` to return !.
 pub fn run_main() -> i32 {
     // Expect either one argument (the full apply_patch payload) or read it from stdin.
     let mut args = std::env::args_os();

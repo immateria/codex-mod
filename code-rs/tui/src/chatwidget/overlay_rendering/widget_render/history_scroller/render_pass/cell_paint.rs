@@ -278,7 +278,7 @@ impl ChatWidget<'_> {
                         let mut p = self.perf_state.stats.borrow_mut();
                         p.ns_gutter_paint = p.ns_gutter_paint.saturating_add(dt);
                         let area_cells: u64 =
-                            (gutter_area.width as u64).saturating_mul(gutter_area.height as u64);
+                            u64::from(gutter_area.width).saturating_mul(u64::from(gutter_area.height));
                         p.cells_gutter_paint = p.cells_gutter_paint.saturating_add(area_cells);
                     }
                 }

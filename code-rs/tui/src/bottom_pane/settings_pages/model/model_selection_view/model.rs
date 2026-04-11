@@ -299,7 +299,7 @@ impl ModelSelectionView {
             if percent > 100 {
                 return Err("Percentage must be between 1% and 100%".to_owned());
             }
-            let computed = ((context_window as u128) * (percent as u128)) / 100_u128;
+            let computed = (u128::from(context_window) * u128::from(percent)) / 100_u128;
             let computed = u64::try_from(computed).unwrap_or(u64::MAX);
             if computed == 0 {
                 return Err("Percentage results in a token limit of zero".to_owned());
@@ -312,7 +312,7 @@ impl ModelSelectionView {
                 return Err("Set a context window before using a ratio".to_owned());
             };
             let (numerator, denominator) = Self::parse_ratio_arg(&lowered)?;
-            let computed = ((context_window as u128) * (numerator as u128)) / (denominator as u128);
+            let computed = (u128::from(context_window) * u128::from(numerator)) / u128::from(denominator);
             let computed = u64::try_from(computed).unwrap_or(u64::MAX);
             if computed == 0 {
                 return Err("Ratio results in a token limit of zero".to_owned());

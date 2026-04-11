@@ -1,8 +1,8 @@
-/// This is designed to be called pre-main() (using `#[ctor::ctor]`) to perform
+/// This is designed to be called `pre-main()` (using `#[ctor::ctor]`) to perform
 /// various process hardening steps, such as
 /// - disabling core dumps
 /// - disabling ptrace attach on Linux and macOS.
-/// - removing dangerous environment variables such as LD_PRELOAD and DYLD_*
+/// - removing dangerous environment variables such as `LD_PRELOAD` and DYLD_*
 pub fn pre_main_hardening() {
     #[cfg(any(target_os = "linux", target_os = "android"))]
     pre_main_hardening_linux();

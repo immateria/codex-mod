@@ -347,7 +347,7 @@ pub enum ConfigLayerSource {
         file: AbsolutePathBuf,
     },
 
-    /// User config layer from $CODEX_HOME/config.toml. This layer is special
+    /// User config layer from $`CODEX_HOME/config.toml`. This layer is special
     /// in that it is expected to be:
     /// - writable by the user
     /// - generally outside the workspace directory
@@ -399,7 +399,7 @@ impl ConfigLayerSource {
     }
 }
 
-/// Compares [ConfigLayerSource] by precedence, so `A < B` means settings from
+/// Compares [`ConfigLayerSource`] by precedence, so `A < B` means settings from
 /// layer `A` will be overridden by settings from layer `B`.
 impl PartialOrd for ConfigLayerSource {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
@@ -1264,7 +1264,7 @@ pub enum LoginAccountParams {
     #[ts(rename = "chatgpt")]
     Chatgpt,
     /// [UNSTABLE] FOR OPENAI INTERNAL USE ONLY - DO NOT USE.
-    /// The access token must contain the same scopes that Codex-managed ChatGPT auth tokens have.
+    /// The access token must contain the same scopes that Codex-managed `ChatGPT` auth tokens have.
     #[experimental("account/login/start.chatgptAuthTokens")]
     #[serde(rename = "chatgptAuthTokens", rename_all = "camelCase")]
     #[ts(rename = "chatgptAuthTokens", rename_all = "camelCase")]
@@ -2155,14 +2155,14 @@ pub struct ThreadStartResponse {
 #[serde(rename_all = "camelCase")]
 #[ts(export_to = "v2/")]
 /// There are three ways to resume a thread:
-/// 1. By thread_id: load the thread from disk by thread_id and resume it.
+/// 1. By `thread_id`: load the thread from disk by `thread_id` and resume it.
 /// 2. By history: instantiate the thread from memory and resume it.
 /// 3. By path: load the thread from disk by path and resume it.
 ///
-/// The precedence is: history > path > thread_id.
-/// If using history or path, the thread_id param will be ignored.
+/// The precedence is: history > path > `thread_id`.
+/// If using history or path, the `thread_id` param will be ignored.
 ///
-/// Prefer using thread_id whenever possible.
+/// Prefer using `thread_id` whenever possible.
 pub struct ThreadResumeParams {
     pub thread_id: String,
 
@@ -2174,7 +2174,7 @@ pub struct ThreadResumeParams {
     pub history: Option<Vec<ResponseItem>>,
 
     /// [UNSTABLE] Specify the rollout path to resume from.
-    /// If specified, the thread_id param will be ignored.
+    /// If specified, the `thread_id` param will be ignored.
     #[experimental("thread/resume.path")]
     #[ts(optional = nullable)]
     pub path: Option<PathBuf>,
@@ -2219,17 +2219,17 @@ pub struct ThreadResumeResponse {
 #[serde(rename_all = "camelCase")]
 #[ts(export_to = "v2/")]
 /// There are two ways to fork a thread:
-/// 1. By thread_id: load the thread from disk by thread_id and fork it into a new thread.
+/// 1. By `thread_id`: load the thread from disk by `thread_id` and fork it into a new thread.
 /// 2. By path: load the thread from disk by path and fork it into a new thread.
 ///
-/// If using path, the thread_id param will be ignored.
+/// If using path, the `thread_id` param will be ignored.
 ///
-/// Prefer using thread_id whenever possible.
+/// Prefer using `thread_id` whenever possible.
 pub struct ThreadForkParams {
     pub thread_id: String,
 
     /// [UNSTABLE] Specify the rollout path to fork from.
-    /// If specified, the thread_id param will be ignored.
+    /// If specified, the `thread_id` param will be ignored.
     #[experimental("thread/fork.path")]
     #[ts(optional = nullable)]
     pub path: Option<PathBuf>,
@@ -2482,7 +2482,7 @@ pub struct ThreadRollbackParams {
 pub struct ThreadRollbackResponse {
     /// The updated thread after applying the rollback, with `turns` populated.
     ///
-    /// The ThreadItems stored in each Turn are lossy since we explicitly do not
+    /// The `ThreadItems` stored in each Turn are lossy since we explicitly do not
     /// persist all agent interactions, such as command executions. This is the same
     /// behavior as `thread/resume`.
     pub thread: Thread,
@@ -2498,7 +2498,7 @@ pub struct ThreadListParams {
     /// Optional page size; defaults to a reasonable server-side value.
     #[ts(optional = nullable)]
     pub limit: Option<u32>,
-    /// Optional sort key; defaults to created_at.
+    /// Optional sort key; defaults to `created_at`.
     #[ts(optional = nullable)]
     pub sort_key: Option<ThreadSortKey>,
     /// Optional provider filter; when set, only sessions recorded under these
@@ -2755,7 +2755,7 @@ pub struct SkillMetadata {
     pub description: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
-    /// Legacy short_description from SKILL.md. Prefer SKILL.json interface.short_description.
+    /// Legacy `short_description` from SKILL.md. Prefer SKILL.json `interface.short_description`.
     pub short_description: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
@@ -3087,7 +3087,7 @@ pub struct Thread {
     pub cwd: PathBuf,
     /// Version of the CLI that created the thread.
     pub cli_version: String,
-    /// Origin of the thread (CLI, VSCode, codex exec, codex app-server, etc.).
+    /// Origin of the thread (CLI, `VSCode`, codex exec, codex app-server, etc.).
     pub source: SessionSource,
     /// Optional Git metadata captured when the thread was created.
     pub git_info: Option<GitInfo>,
@@ -3417,7 +3417,7 @@ pub struct TurnStartParams {
     pub output_schema: Option<JsonValue>,
 
     /// EXPERIMENTAL - Set a pre-set collaboration mode.
-    /// Takes precedence over model, reasoning_effort, and developer instructions if set.
+    /// Takes precedence over model, `reasoning_effort`, and developer instructions if set.
     ///
     /// For `collaboration_mode.settings.developer_instructions`, `null` means
     /// "use the built-in instructions for the selected mode".
@@ -3693,7 +3693,7 @@ pub enum ThreadItem {
         process_id: Option<String>,
         status: CommandExecutionStatus,
         /// A best-effort parsing of the command to understand the action(s) it will perform.
-        /// This returns a list of CommandAction objects because a single shell command may
+        /// This returns a list of `CommandAction` objects because a single shell command may
         /// be composed of many commands piped together.
         command_actions: Vec<CommandAction>,
         /// The command's output, aggregated from stdout and stderr.
@@ -5184,7 +5184,7 @@ impl From<DynamicToolCallOutputContentItem>
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export_to = "v2/")]
-/// EXPERIMENTAL. Defines a single selectable option for request_user_input.
+/// EXPERIMENTAL. Defines a single selectable option for `request_user_input`.
 pub struct ToolRequestUserInputOption {
     pub label: String,
     pub description: String,
@@ -5193,7 +5193,7 @@ pub struct ToolRequestUserInputOption {
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export_to = "v2/")]
-/// EXPERIMENTAL. Represents one request_user_input question and its required options.
+/// EXPERIMENTAL. Represents one `request_user_input` question and its required options.
 pub struct ToolRequestUserInputQuestion {
     pub id: String,
     pub header: String,
@@ -5208,7 +5208,7 @@ pub struct ToolRequestUserInputQuestion {
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export_to = "v2/")]
-/// EXPERIMENTAL. Params sent with a request_user_input event.
+/// EXPERIMENTAL. Params sent with a `request_user_input` event.
 pub struct ToolRequestUserInputParams {
     pub thread_id: String,
     pub turn_id: String,
@@ -5219,7 +5219,7 @@ pub struct ToolRequestUserInputParams {
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export_to = "v2/")]
-/// EXPERIMENTAL. Captures a user's answer to a request_user_input question.
+/// EXPERIMENTAL. Captures a user's answer to a `request_user_input` question.
 pub struct ToolRequestUserInputAnswer {
     pub answers: Vec<String>,
 }

@@ -1,4 +1,4 @@
-//! Bottom pane: shows the ChatComposer or a BottomPaneView, if one is active.
+//! Bottom pane: shows the `ChatComposer` or a `BottomPaneView`, if one is active.
 
 use crate::app_event_sender::AppEventSender;
 use crate::auto_drive_style::AutoDriveVariant;
@@ -54,7 +54,7 @@ pub(crate) enum ActiveViewKind {
 
 /// Pane displayed in the lower half of the chat UI.
 pub(crate) struct BottomPane<'a> {
-    /// Composer is retained even when a BottomPaneView is displayed so the
+    /// Composer is retained even when a `BottomPaneView` is displayed so the
     /// input state is retained when the view is closed.
     composer: ChatComposer,
 

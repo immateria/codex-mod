@@ -14,7 +14,7 @@ const BYTES_PER_TOKEN: usize = 4;
 ///
 /// `converted` mirrors what we previously derived from UI history and is used
 /// when re-seeding the coordinator conversation. `raw` captures the exact
-/// ResponseItems returned by the Auto Drive model so we can retain full
+/// `ResponseItems` returned by the Auto Drive model so we can retain full
 /// reasoning output without depending on UI rendering.
 pub struct AutoDriveHistory {
     converted: Vec<ResponseItem>,
@@ -346,13 +346,13 @@ fn content_text(content: &NormalizedContent) -> Option<&str> {
     }
 }
 
-/// Estimate the total tokens for a slice of ResponseItems.
+/// Estimate the total tokens for a slice of `ResponseItems`.
 fn estimate_tokens(items: &[ResponseItem]) -> usize {
     items.iter().map(estimate_item_tokens).sum()
 }
 
-/// Estimate tokens for a single ResponseItem.
-/// Uses byte count divided by BYTES_PER_TOKEN (4) as fallback, same as core/truncate.rs.
+/// Estimate tokens for a single `ResponseItem`.
+/// Uses byte count divided by `BYTES_PER_TOKEN` (4) as fallback, same as core/truncate.rs.
 fn estimate_item_tokens(item: &ResponseItem) -> usize {
     let byte_count = match item {
         ResponseItem::Message { content, .. } => {

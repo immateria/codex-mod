@@ -119,7 +119,7 @@ pub(crate) struct App<'a> {
     pub(super) consecutive_high_events: u32,
     pub(super) app_state: AppState<'a>,
 
-    /// Config is stored here so we can recreate ChatWidgets as needed.
+    /// Config is stored here so we can recreate `ChatWidgets` as needed.
     pub(super) config: Config,
     pub(super) cli_kv_overrides: Vec<(String, toml::Value)>,
     pub(super) config_overrides: code_core::config::ConfigOverrides,
@@ -158,7 +158,7 @@ pub(crate) struct App<'a> {
     /// Show per-cell ordering overlay when true
     pub(super) show_order_overlay: bool,
 
-    /// Controls the animation thread that sends CommitTick events.
+    /// Controls the animation thread that sends `CommitTick` events.
     pub(super) commit_anim_running: Arc<AtomicBool>,
 
     /// Terminal information queried at startup

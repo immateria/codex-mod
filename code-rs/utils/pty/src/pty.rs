@@ -26,7 +26,7 @@ pub fn conpty_supported() -> bool {
     crate::win::conpty_supported()
 }
 
-/// Returns true when ConPTY support is available (non-Windows always true).
+/// Returns true when `ConPTY` support is available (non-Windows always true).
 #[cfg(not(windows))]
 pub fn conpty_supported() -> bool {
     true

@@ -331,9 +331,9 @@ impl ChatWidget<'_> {
     fn status_line_context_remaining_percent(&self) -> Option<i64> {
         let context_window = self.config.model_context_window?;
         Some(
-            self.last_token_usage
+            i64::from(self.last_token_usage
                 .percent_of_context_window_remaining(context_window)
-                .clamp(0, 100) as i64,
+                .clamp(0, 100)),
         )
     }
 

@@ -283,8 +283,8 @@ fn lerp_gradient_color(gradient: BorderGradient, ratio: f32) -> Color {
     let (lr, lg, lb) = crate::colors::color_to_rgb(gradient.left);
     let (rr, rg, rb) = crate::colors::color_to_rgb(gradient.right);
     let mix = |a: u8, b: u8| -> u8 {
-        let a = a as f32;
-        let b = b as f32;
+        let a = f32::from(a);
+        let b = f32::from(b);
         (a + (b - a) * clamped).round().clamp(0.0, 255.0) as u8
     };
     Color::Rgb(mix(lr, rr), mix(lg, rg), mix(lb, rb))

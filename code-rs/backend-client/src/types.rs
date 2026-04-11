@@ -8,7 +8,7 @@ use serde_json::Value;
 use std::collections::HashMap;
 
 /// Hand-rolled models for the Cloud Tasks task-details response.
-/// The generated OpenAPI models are pretty bad. This is a half-step
+/// The generated `OpenAPI` models are pretty bad. This is a half-step
 /// towards hand-rolling them.
 #[derive(Clone, Debug, Deserialize)]
 pub struct CodeTaskDetailsResponse {

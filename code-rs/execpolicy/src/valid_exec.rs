@@ -2,7 +2,7 @@ use crate::arg_type::ArgType;
 use crate::error::Result;
 use serde::Serialize;
 
-/// exec() invocation that has been accepted by a `Policy`.
+/// `exec()` invocation that has been accepted by a `Policy`.
 #[derive(Clone, Debug, Default, Eq, PartialEq, Serialize)]
 pub struct ValidExec {
     pub program: String,
@@ -54,7 +54,7 @@ impl MatchedArg {
     }
 }
 
-/// A match for an option declared with opt() in a .policy file.
+/// A match for an option declared with `opt()` in a .policy file.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
 pub struct MatchedOpt {
     /// Name of the option that was matched.

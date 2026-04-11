@@ -1,5 +1,5 @@
 impl ChatWidget<'_> {
-    /// Construct a ChatWidget from an existing conversation (forked session).
+    /// Construct a `ChatWidget` from an existing conversation (forked session).
     pub(crate) fn new_from_existing(args: ForkedChatWidgetInit) -> Self {
         let ForkedChatWidgetInit {
             config,

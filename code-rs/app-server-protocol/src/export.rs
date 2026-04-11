@@ -1206,7 +1206,7 @@ fn write_pretty_json(path: PathBuf, value: &impl Serialize) -> Result<()> {
     Ok(())
 }
 
-/// Split a fully-qualified type name like "v2::Type" into its namespace and logical name.
+/// Split a fully-qualified type name like "`v2::Type`" into its namespace and logical name.
 fn split_namespace(name: &str) -> (Option<&str>, &str) {
     name.split_once("::")
         .map_or((None, name), |(ns, rest)| (Some(ns), rest))

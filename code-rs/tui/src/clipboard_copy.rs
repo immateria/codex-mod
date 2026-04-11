@@ -3,7 +3,7 @@ use std::io::Write;
 
 /// Copy text to the system clipboard via OSC 52 escape sequence.
 ///
-/// This works in terminals that support OSC 52 (iTerm2, kitty, WezTerm,
+/// This works in terminals that support OSC 52 (iTerm2, kitty, `WezTerm`,
 /// Alacritty, tmux with `set-clipboard on`, etc.). Terminals that do not
 /// support it will silently ignore the escape.
 pub(crate) fn copy_to_clipboard_osc52(text: &str) {

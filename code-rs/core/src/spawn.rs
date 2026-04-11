@@ -14,7 +14,7 @@ use crate::protocol::SandboxPolicy;
 /// if both of the following are true:
 ///
 /// 1. The process was spawned by Codex as part of a shell tool call.
-/// 2. SandboxPolicy.has_full_network_access() was false for the tool call.
+/// 2. `SandboxPolicy.has_full_network_access()` was false for the tool call.
 ///
 /// We may try to have just one environment variable for all sandboxing
 /// attributes, so this may change in the future.
@@ -90,11 +90,11 @@ pub enum StdioPolicy {
     Inherit,
 }
 
-/// Spawns the appropriate child process for the ExecParams and SandboxPolicy,
+/// Spawns the appropriate child process for the `ExecParams` and `SandboxPolicy`,
 /// ensuring the args and environment variables used to create the `Command`
 /// (and `Child`) honor the configuration.
 ///
-/// For now, we take `SandboxPolicy` as a parameter to spawn_child() because
+/// For now, we take `SandboxPolicy` as a parameter to `spawn_child()` because
 /// we need to determine whether to set the
 /// `CODEX_SANDBOX_NETWORK_DISABLED_ENV_VAR` environment variable.
 pub(crate) async fn spawn_child_async(

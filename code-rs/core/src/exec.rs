@@ -87,7 +87,7 @@ fn append_with_cap(
     }
 }
 
-/// Limit the number of ExecCommandOutputDelta events emitted per exec call.
+/// Limit the number of `ExecCommandOutputDelta` events emitted per exec call.
 /// Aggregation still collects full output; only the live event stream is capped.
 pub(crate) const MAX_EXEC_OUTPUT_DELTAS_PER_CALL: usize = 2_048;
 

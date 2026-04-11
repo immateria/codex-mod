@@ -38,7 +38,7 @@ pub struct AutoDrivePidFile {
 }
 
 impl AutoDrivePidFile {
-    /// Write the PID file under the provided code_home, returning a guard that
+    /// Write the PID file under the provided `code_home`, returning a guard that
     /// will delete it on drop. Errors are swallowed so Auto Drive startup never
     /// fails because of telemetry bookkeeping.
     pub fn write(

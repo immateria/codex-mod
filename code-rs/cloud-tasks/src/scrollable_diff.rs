@@ -77,11 +77,11 @@ impl ScrollableDiff {
 
     /// Scroll by a signed delta; clamps to content.
     pub fn scroll_by(&mut self, delta: i16) {
-        let s = self.state.scroll as i32 + delta as i32;
-        self.state.scroll = s.clamp(0, self.max_scroll() as i32) as u16;
+        let s = i32::from(self.state.scroll) + i32::from(delta);
+        self.state.scroll = s.clamp(0, i32::from(self.max_scroll())) as u16;
     }
 
-    /// Page by a signed delta; typically viewport_h - 1.
+    /// Page by a signed delta; typically `viewport_h` - 1.
     pub fn page_by(&mut self, delta: i16) {
         self.scroll_by(delta);
     }
@@ -102,8 +102,8 @@ impl ScrollableDiff {
         if self.state.content_h <= self.state.viewport_h {
             return None;
         }
-        let visible_bottom = self.state.scroll.saturating_add(self.state.viewport_h) as f32;
-        let pct = (visible_bottom / self.state.content_h as f32 * 100.0).round();
+        let visible_bottom = f32::from(self.state.scroll.saturating_add(self.state.viewport_h));
+        let pct = (visible_bottom / f32::from(self.state.content_h) * 100.0).round();
         Some(pct.clamp(0.0, 100.0) as u8)
     }
 

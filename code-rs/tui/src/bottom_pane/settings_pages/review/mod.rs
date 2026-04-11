@@ -33,7 +33,7 @@ struct ReviewListModel {
     selection_kinds: Vec<SelectionKind>,
     /// Selection index -> absolute line index within the flattened run list.
     selection_line: Vec<usize>,
-    /// Selection index -> inclusive (section_start_line, section_end_line).
+    /// Selection index -> inclusive (`section_start_line`, `section_end_line`).
     section_bounds: Vec<(usize, usize)>,
     /// Total line count across all runs.
     total_lines: usize,

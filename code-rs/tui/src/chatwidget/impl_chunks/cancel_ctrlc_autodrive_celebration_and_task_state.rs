@@ -1,7 +1,7 @@
 impl ChatWidget<'_> {
     /// Handle Ctrl-C key press.
-    /// Returns CancellationEvent::Handled if the event was consumed by the UI, or
-    /// CancellationEvent::Ignored if the caller should handle it (e.g. exit).
+    /// Returns `CancellationEvent::Handled` if the event was consumed by the UI, or
+    /// `CancellationEvent::Ignored` if the caller should handle it (e.g. exit).
     pub(crate) fn on_ctrl_c(&mut self) -> CancellationEvent {
         if let Some(id) = self.terminal_overlay_id() {
             if self.terminal_is_running() {

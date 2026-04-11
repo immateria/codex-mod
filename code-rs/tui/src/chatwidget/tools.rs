@@ -1,4 +1,4 @@
-//! Tool (Web Search, MCP) lifecycle handlers extracted from ChatWidget.
+//! Tool (Web Search, MCP) lifecycle handlers extracted from `ChatWidget`.
 
 use super::{running_tools, web_search_sessions, ChatWidget, OrderKey};
 use crate::history_cell;

@@ -18,7 +18,7 @@ pub enum ApplyPatchToolType {
 }
 
 /// Returns a custom tool that can be used to edit files. Well-suited for GPT-5 models
-/// https://platform.openai.com/docs/guides/function-calling#custom-tools
+/// <https://platform.openai.com/docs/guides/function-calling#custom-tools>
 pub(crate) fn create_apply_patch_freeform_tool() -> OpenAiTool {
     OpenAiTool::Freeform(FreeformTool {
         name: "apply_patch".to_owned(),

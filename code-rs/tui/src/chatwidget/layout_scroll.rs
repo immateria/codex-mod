@@ -1,4 +1,4 @@
-//! Layout computation and scrolling/HUD helpers for ChatWidget.
+//! Layout computation and scrolling/HUD helpers for `ChatWidget`.
 
 use super::ChatWidget;
 use crate::height_manager::HeightEvent;
@@ -178,7 +178,7 @@ pub(super) fn to_bottom(chat: &mut ChatWidget<'_>) {
 }
 
 /// Set scroll position from a scrollbar-derived "from-top" position.
-/// `pos_from_top` is in range [0, max_scroll] where 0 = oldest (top).
+/// `pos_from_top` is in range [0, `max_scroll`] where 0 = oldest (top).
 pub(super) fn set_from_scrollbar(chat: &mut ChatWidget<'_>, pos_from_top: u16) {
     let max = chat.layout.last_max_scroll.get();
     let before = chat.layout.scroll_offset.get();

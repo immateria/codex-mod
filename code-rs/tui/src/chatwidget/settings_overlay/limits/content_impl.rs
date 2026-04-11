@@ -449,8 +449,8 @@ impl LimitsSettingsContent {
     }
 
     fn scroll_by(&self, target: ScrollTarget, delta: i32) -> bool {
-        let current = self.scroll_value_for(target) as i32;
-        let max = self.max_scroll_for(target) as i32;
+        let current = i32::from(self.scroll_value_for(target));
+        let max = i32::from(self.max_scroll_for(target));
         let next = (current + delta).clamp(0, max);
         if next == current {
             false
@@ -461,7 +461,7 @@ impl LimitsSettingsContent {
     }
 
     fn page_scroll(&self, target: ScrollTarget, forward: bool) -> bool {
-        let step = self.overlay.visible_rows().max(1) as i32;
+        let step = i32::from(self.overlay.visible_rows().max(1));
         let delta = if forward { step } else { -step };
         self.scroll_by(target, delta)
     }

@@ -47,7 +47,7 @@ pub(crate) enum SignInState {
 }
 
 #[derive(Debug)]
-/// Used to manage the lifecycle of SpawnedLogin and ensure it gets cleaned up.
+/// Used to manage the lifecycle of `SpawnedLogin` and ensure it gets cleaned up.
 pub(crate) struct ContinueInBrowserState {
     auth_url: String,
     shutdown_handle: Option<ShutdownHandle>,

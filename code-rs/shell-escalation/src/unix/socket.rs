@@ -20,7 +20,7 @@ const MAX_FDS_PER_MESSAGE: usize = 16;
 const LENGTH_PREFIX_SIZE: usize = size_of::<u32>();
 const MAX_DATAGRAM_SIZE: usize = 8192;
 
-/// Converts a slice of MaybeUninit<T> to a slice of T.
+/// Converts a slice of `MaybeUninit`<T> to a slice of T.
 ///
 /// The caller guarantees that every element of `buf` is initialized.
 fn assume_init<T>(buf: &[MaybeUninit<T>]) -> &[T] {
@@ -45,7 +45,7 @@ fn control_space_for_fds(count: usize) -> usize {
     unsafe { libc::CMSG_SPACE((count * size_of::<RawFd>()) as _) as usize }
 }
 
-/// Extracts the FDs from a SCM_RIGHTS control message.
+/// Extracts the FDs from a `SCM_RIGHTS` control message.
 fn extract_fds(control: &[u8]) -> Vec<OwnedFd> {
     let mut fds = Vec::new();
     let mut hdr: libc::msghdr = unsafe { std::mem::zeroed() };
@@ -74,7 +74,7 @@ fn extract_fds(control: &[u8]) -> Vec<OwnedFd> {
     fds
 }
 
-/// Read a frame from a SOCK_STREAM socket.
+/// Read a frame from a `SOCK_STREAM` socket.
 ///
 /// A frame is a message length prefix followed by a payload. FDs may be included in the control
 /// message when receiving the frame header.
@@ -84,7 +84,7 @@ async fn read_frame(async_socket: &AsyncFd<Socket>) -> std::io::Result<(Vec<u8>,
     Ok((payload, fds))
 }
 
-/// Read the frame header (i.e. length) and any FDs from a SOCK_STREAM socket.
+/// Read the frame header (i.e. length) and any FDs from a `SOCK_STREAM` socket.
 async fn read_frame_header(
     async_socket: &AsyncFd<Socket>,
 ) -> std::io::Result<(usize, Vec<OwnedFd>)> {
@@ -140,7 +140,7 @@ async fn read_frame_header(
     unreachable!("header loop always returns")
 }
 
-/// Read `message_len` bytes from a SOCK_STREAM socket.
+/// Read `message_len` bytes from a `SOCK_STREAM` socket.
 async fn read_frame_payload(
     async_socket: &AsyncFd<Socket>,
     message_len: usize,

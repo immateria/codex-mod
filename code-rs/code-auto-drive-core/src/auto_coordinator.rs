@@ -4733,7 +4733,7 @@ fn maybe_compact(request: CompactionRequest<'_>) -> CompactionResult {
 
 /// Determine if compaction should occur based on token usage.
 ///
-/// Uses 80% of the model's max_context as the threshold.
+/// Uses 80% of the model's `max_context` as the threshold.
 /// Returns true if `session_total + estimated_next >= 0.8 * model_context_window`.
 ///
 /// # Arguments

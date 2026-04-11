@@ -72,7 +72,7 @@ enum ClientState {
 }
 
 /// MCP client implemented on top of the official `rmcp` SDK.
-/// https://github.com/modelcontextprotocol/rust-sdk
+/// <https://github.com/modelcontextprotocol/rust-sdk>
 pub struct RmcpClient {
     state: Mutex<ClientState>,
 }
@@ -232,7 +232,7 @@ impl RmcpClient {
     }
 
     /// Perform the initialization handshake with the MCP server.
-    /// https://modelcontextprotocol.io/specification/2025-06-18/basic/lifecycle#initialization
+    /// <https://modelcontextprotocol.io/specification/2025-06-18/basic/lifecycle#initialization>
     pub async fn initialize(
         &self,
         params: InitializeRequestParams,

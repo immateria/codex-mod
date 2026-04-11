@@ -15,7 +15,7 @@ use ts_rs::TS;
 /// guaranteed to be canonicalized or exist on the filesystem).
 ///
 /// IMPORTANT: When deserializing an `AbsolutePathBuf`, a base path must be set
-/// using [AbsolutePathBufGuard::new]. If no base path is set, the
+/// using [`AbsolutePathBufGuard::new`]. If no base path is set, the
 /// deserialization will fail unless the path being deserialized is already
 /// absolute.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, JsonSchema, TS)]

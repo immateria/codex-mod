@@ -4,7 +4,7 @@ use super::types::OpenAiTool;
 
 /// Returns JSON values that are compatible with Function Calling in the
 /// Responses API:
-/// https://platform.openai.com/docs/guides/function-calling?api-mode=responses
+/// <https://platform.openai.com/docs/guides/function-calling?api-mode=responses>
 pub fn create_tools_json_for_responses_api(
     tools: &[OpenAiTool],
 ) -> crate::error::Result<Vec<serde_json::Value>> {
@@ -20,7 +20,7 @@ pub fn create_tools_json_for_responses_api(
 
 /// Returns JSON values that are compatible with Function Calling in the
 /// Chat Completions API:
-/// https://platform.openai.com/docs/guides/function-calling?api-mode=chat
+/// <https://platform.openai.com/docs/guides/function-calling?api-mode=chat>
 pub(crate) fn create_tools_json_for_chat_completions_api(
     tools: &[OpenAiTool],
 ) -> crate::error::Result<Vec<serde_json::Value>> {

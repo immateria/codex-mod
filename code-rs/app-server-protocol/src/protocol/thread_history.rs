@@ -13,8 +13,8 @@ use code_protocol::protocol::UserMessageEvent;
 
 /// Convert persisted [`EventMsg`] entries into a sequence of [`Turn`] values.
 ///
-/// The purpose of this is to convert the EventMsgs persisted in a rollout file
-/// into a sequence of Turns and ThreadItems, which allows the client to render
+/// The purpose of this is to convert the `EventMsgs` persisted in a rollout file
+/// into a sequence of Turns and `ThreadItems`, which allows the client to render
 /// the historical messages when resuming a thread.
 pub fn build_turns_from_event_msgs(events: &[EventMsg]) -> Vec<Turn> {
     let mut builder = ThreadHistoryBuilder::new();
@@ -46,7 +46,7 @@ impl ThreadHistoryBuilder {
         self.turns
     }
 
-    /// This function should handle all EventMsg variants that can be persisted in a rollout file.
+    /// This function should handle all `EventMsg` variants that can be persisted in a rollout file.
     /// See `should_persist_event_msg` in `codex-rs/core/rollout/policy.rs`.
     fn handle_event(&mut self, event: &EventMsg) {
         match event {

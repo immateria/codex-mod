@@ -5,15 +5,15 @@ use crate::PackageManagerError;
 pub enum PackagePlatform {
     /// macOS on Apple Silicon.
     DarwinArm64,
-    /// macOS on x86_64.
+    /// macOS on `x86_64`.
     DarwinX64,
-    /// Linux on AArch64.
+    /// Linux on `AArch64`.
     LinuxArm64,
-    /// Linux on x86_64.
+    /// Linux on `x86_64`.
     LinuxX64,
-    /// Windows on AArch64.
+    /// Windows on `AArch64`.
     WindowsArm64,
-    /// Windows on x86_64.
+    /// Windows on `x86_64`.
     WindowsX64,
 }
 

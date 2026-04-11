@@ -222,8 +222,8 @@ impl BrowserManager {
                 // Snapshot expected config.
                 let cfg = config_arc.read().await.clone();
                 let is_external = cfg.connect_port.is_some() || cfg.connect_ws.is_some();
-                let expected_w = cfg.viewport.width as f64;
-                let expected_h = cfg.viewport.height as f64;
+                let expected_w = f64::from(cfg.viewport.width);
+                let expected_h = f64::from(cfg.viewport.height);
                 let expected_dpr = cfg.viewport.device_scale_factor;
 
                 // Probe current viewport via JS (cheap and non-invasive).

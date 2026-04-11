@@ -49,7 +49,7 @@ pub(crate) struct JsReplCell {
     pub(crate) start_time: Option<Instant>,
     /// When true the code block shows only the first non-empty line + "…".
     pub(crate) code_collapsed: Cell<bool>,
-    /// When true the output block is capped at OUTPUT_FOLD_THRESHOLD lines.
+    /// When true the output block is capped at `OUTPUT_FOLD_THRESHOLD` lines.
     pub(crate) collapsed_output: Cell<bool>,
     child_call_ids: HashSet<String>,
     last_child_call_id: Option<String>,
@@ -105,7 +105,7 @@ impl JsReplCell {
     }
 
     /// Update output data from an `ExecRecord` produced by the history domain.
-    /// Called by the TUI when an `ExecCommandEnd` arrives for this cell's call_id.
+    /// Called by the TUI when an `ExecCommandEnd` arrives for this cell's `call_id`.
     pub(crate) fn sync_from_exec_record(&mut self, record: &ExecRecord) {
         let was_running = matches!(self.record.status, ExecStatus::Running);
         self.record = record.clone();

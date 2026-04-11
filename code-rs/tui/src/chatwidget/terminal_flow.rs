@@ -623,8 +623,8 @@ impl ChatWidget<'_> {
             if visible != overlay.visible_rows {
                 overlay.visible_rows = visible;
             }
-            let current = overlay.scroll as i32;
-            let max_scroll = overlay.max_scroll() as i32;
+            let current = i32::from(overlay.scroll);
+            let max_scroll = i32::from(overlay.max_scroll());
             let mut next = current + delta;
             if next < 0 {
                 next = 0;
@@ -649,7 +649,7 @@ impl ChatWidget<'_> {
             if visible != overlay.visible_rows {
                 overlay.visible_rows = visible;
             }
-            delta = Some((visible.saturating_sub(1)) as i32 * direction);
+            delta = Some(i32::from(visible.saturating_sub(1) ) * direction);
         }
         if let Some(amount) = delta {
             self.terminal_scroll_lines(amount);

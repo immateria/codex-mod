@@ -107,8 +107,8 @@ impl Page {
     pub fn new(cdp_page: CdpPage, config: BrowserConfig) -> Self {
         // Initialize cursor position (Updated)
         let initial_cursor = CursorState {
-            x: (config.viewport.width as f64 / 2.0).floor(),
-            y: (config.viewport.height as f64 / 4.0).floor(),
+            x: (f64::from(config.viewport.width) / 2.0).floor(),
+            y: (f64::from(config.viewport.height) / 4.0).floor(),
             button: MouseButton::None,
             is_mouse_down: false,
         };

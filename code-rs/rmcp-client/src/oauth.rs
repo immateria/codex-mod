@@ -64,7 +64,7 @@ pub enum OAuthCredentialsStoreMode {
     Keyring,
 }
 
-/// Wrap OAuthTokenResponse to allow for partial equality comparison.
+/// Wrap `OAuthTokenResponse` to allow for partial equality comparison.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WrappedOAuthTokenResponse(pub OAuthTokenResponse);
 

@@ -23,7 +23,7 @@ pub struct Opt {
     pub required: bool,
 }
 
-/// When defining an Opt, use as specific an OptMeta as possible.
+/// When defining an Opt, use as specific an `OptMeta` as possible.
 #[derive(Clone, Debug, Display, PartialEq, Eq, ProvidesStaticType, NoSerialize, Allocative)]
 #[display("{}", self)]
 pub enum OptMeta {

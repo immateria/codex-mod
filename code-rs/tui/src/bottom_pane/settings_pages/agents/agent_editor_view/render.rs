@@ -35,9 +35,9 @@ impl AgentEditorView {
     /// Compute the visible portion of a field box within the scrolled viewport.
     /// Returns `None` if the field is entirely outside the visible area.
     fn scrolled_rect(content: Rect, offset: u16, height: u16, scroll: u16) -> Option<Rect> {
-        let v_top = offset as i32 - scroll as i32;
-        let v_bot = v_top + height as i32;
-        let c_bot = content.height as i32;
+        let v_top = i32::from(offset) - i32::from(scroll);
+        let v_bot = v_top + i32::from(height);
+        let c_bot = i32::from(content.height);
 
         if v_bot <= 0 || v_top >= c_bot {
             return None;

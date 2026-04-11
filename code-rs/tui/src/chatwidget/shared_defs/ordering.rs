@@ -345,8 +345,8 @@ fn image_record_from_path(path: &Path) -> Option<ImageRecord> {
     };
     let (width, height) = match image::image_dimensions(path) {
         Ok((w, h)) => (
-            w.min(u16::MAX as u32) as u16,
-            h.min(u16::MAX as u32) as u16,
+            w.min(u32::from(u16::MAX)) as u16,
+            h.min(u32::from(u16::MAX)) as u16,
         ),
         Err(err) => {
             tracing::warn!("Failed to read image dimensions for {}: {err}", path.display());

@@ -49,11 +49,11 @@ const COMPACTION_EMERGENCY_MESSAGE: &str = "Compaction failed: the conversation 
 
 /// Determine whether to use remote compaction (ChatGPT-based) or local compaction.
 ///
-/// Upstream codex-rs checks if auth mode is ChatGPT and RemoteCompaction feature is enabled.
+/// Upstream codex-rs checks if auth mode is `ChatGPT` and `RemoteCompaction` feature is enabled.
 /// In code-rs, remote compaction infrastructure is not yet implemented, so this always
 /// returns false (always use local compaction).
 ///
-/// TODO: Once ChatGPT auth and remote compaction are implemented, update this to:
+/// TODO: Once `ChatGPT` auth and remote compaction are implemented, update this to:
 /// ```
 /// session
 ///     .services

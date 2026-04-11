@@ -150,8 +150,8 @@ pub(super) fn parse_tool_input_schema(input_schema: &JsonValue) -> Result<JsonSc
     serde_json::from_value::<JsonSchema>(input_schema)
 }
 
-/// Sanitize a JSON Schema (as serde_json::Value) so it can fit our limited
-/// JsonSchema enum. This function:
+/// Sanitize a JSON Schema (as `serde_json::Value`) so it can fit our limited
+/// `JsonSchema` enum. This function:
 /// - Ensures every schema object has a "type". If missing, infers it from
 ///   common keywords (properties => object, items => array, enum/const/format => string)
 ///   and otherwise defaults to "string".

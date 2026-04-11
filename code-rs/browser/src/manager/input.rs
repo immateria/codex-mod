@@ -45,7 +45,7 @@ impl BrowserManager {
         page.type_text(text).await
     }
 
-    /// Press a key (e.g., "Enter", "Tab", "Escape", "ArrowDown").
+    /// Press a key (e.g., "Enter", "Tab", "Escape", "`ArrowDown`").
     pub async fn press_key(&self, key: &str) -> Result<()> {
         let page = self.get_or_create_page().await?;
         page.press_key(key).await

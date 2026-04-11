@@ -56,7 +56,7 @@ impl ChatWidget<'_> {
                     let dt = t0.elapsed().as_nanos();
                     let mut p = self.perf_state.stats.borrow_mut();
                     p.ns_overlay_scrim = p.ns_overlay_scrim.saturating_add(dt);
-                    let cells = (area.width as u64) * (area.height as u64);
+                    let cells = u64::from(area.width) * u64::from(area.height);
                     p.cells_overlay_scrim = p.cells_overlay_scrim.saturating_add(cells);
                 }
                 // Match the horizontal padding used by status bar and input
@@ -81,7 +81,7 @@ impl ChatWidget<'_> {
                     let dt = t0.elapsed().as_nanos();
                     let mut p = self.perf_state.stats.borrow_mut();
                     p.ns_overlay_body_bg = p.ns_overlay_body_bg.saturating_add(dt);
-                    let cells = (area.width as u64) * (area.height as u64);
+                    let cells = u64::from(area.width) * u64::from(area.height);
                     p.cells_overlay_body_bg = p.cells_overlay_body_bg.saturating_add(cells);
                 }
 
@@ -135,7 +135,7 @@ impl ChatWidget<'_> {
                     let dt = t0.elapsed().as_nanos();
                     let mut p = self.perf_state.stats.borrow_mut();
                     p.ns_overlay_body_bg = p.ns_overlay_body_bg.saturating_add(dt);
-                    let cells = (inner.width as u64) * (inner.height as u64);
+                    let cells = u64::from(inner.width) * u64::from(inner.height);
                     p.cells_overlay_body_bg = p.cells_overlay_body_bg.saturating_add(cells);
                 }
 
@@ -299,7 +299,7 @@ impl ChatWidget<'_> {
                         let dt = t0.elapsed().as_nanos();
                         let mut p = self.perf_state.stats.borrow_mut();
                         p.ns_overlay_body_bg = p.ns_overlay_body_bg.saturating_add(dt);
-                        let cells = (body_inner.width as u64) * (body_inner.height as u64);
+                        let cells = u64::from(body_inner.width) * u64::from(body_inner.height);
                         p.cells_overlay_body_bg = p.cells_overlay_body_bg.saturating_add(cells);
                     }
                     let paragraph = Paragraph::new(RtText::from(visible_lines))

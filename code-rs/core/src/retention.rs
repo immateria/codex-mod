@@ -1,4 +1,4 @@
-//! Retention and budgeting policies for env_ctx_v2 timeline management.
+//! Retention and budgeting policies for `env_ctx_v2` timeline management.
 //!
 //! This module implements configurable retention defaults and budgeting for
 //! environment context snapshots, deltas, and browser snapshots. It provides:
@@ -12,14 +12,14 @@ use code_protocol::models::ResponseItem;
 use code_protocol::models::ContentItem;
 use serde::{Deserialize, Serialize};
 
-/// Retention policy configuration for env_ctx_v2 timeline items.
+/// Retention policy configuration for `env_ctx_v2` timeline items.
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 pub struct RetentionPolicy {
     /// Maximum number of environment context deltas to retain (default: 3)
     pub max_env_deltas: usize,
     /// Maximum number of browser snapshots to retain (default: 2)
     pub max_browser_snapshots: usize,
-    /// Maximum total bytes for all retained env_ctx items (default: 100KB)
+    /// Maximum total bytes for all retained `env_ctx` items (default: 100KB)
     pub max_total_bytes: usize,
     /// Always keep the most recent environment baseline snapshot
     pub keep_latest_baseline: bool,

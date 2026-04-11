@@ -893,8 +893,8 @@ pub(crate) struct ChatWidget<'a> {
 
     // Guard for out-of-order exec events: track call_ids that already ended
     ended_call_ids: HashSet<ExecCallId>,
-    /// Exec call_ids that were explicitly cancelled by user interrupt. Used to
-    /// drop any late ExecEnd events so we don't render duplicate cells.
+    /// Exec `call_ids` that were explicitly cancelled by user interrupt. Used to
+    /// drop any late `ExecEnd` events so we don't render duplicate cells.
     canceled_exec_call_ids: HashSet<ExecCallId>,
 
     // Accumulated diff/session state
@@ -921,8 +921,8 @@ pub(crate) struct ChatWidget<'a> {
     // State for the Agents Terminal view
     agents_terminal: AgentsTerminalState,
 
-    /// Last seen JS REPL runtime info (kind, version) from a JsReplExecBegin event.
-    /// Used to populate the JsRepl status line item.
+    /// Last seen JS REPL runtime info (kind, version) from a `JsReplExecBegin` event.
+    /// Used to populate the `JsRepl` status line item.
     js_repl_last_runtime: Option<(String, String)>,
 
     pending_git_init_resume: Option<GitInitResume>,

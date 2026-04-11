@@ -69,7 +69,7 @@ pub struct SubagentResolution {
     pub prompt: String,
 }
 
-/// Default read_only for built-in subagent commands.
+/// Default `read_only` for built-in subagent commands.
 pub fn default_read_only_for(name: &str) -> bool {
     match name {
         "plan" | "solve" => true,

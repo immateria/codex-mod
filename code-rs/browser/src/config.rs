@@ -29,8 +29,8 @@ pub struct BrowserConfig {
     #[serde(default)]
     pub headless: bool,
 
-    /// Connect to an already-running Chrome DevTools WS endpoint
-    /// e.g. ws://127.0.0.1:9222/devtools/browser/XXXXXXXX
+    /// Connect to an already-running Chrome `DevTools` WS endpoint
+    /// e.g. <ws://127.0.0.1:9222/devtools/browser/XXXXXXXX>
     #[serde(default)]
     pub connect_ws: Option<String>,
 
@@ -73,7 +73,7 @@ pub struct BrowserConfig {
     pub connect_attempts: u32,
 
     /// Optional proxy server for the launched internal Chrome instance.
-    /// Example: "http://127.0.0.1:8888".
+    /// Example: "<http://127.0.0.1:8888>".
     #[serde(default)]
     pub proxy_server: Option<String>,
 

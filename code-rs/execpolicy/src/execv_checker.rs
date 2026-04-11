@@ -39,8 +39,8 @@ impl ExecvChecker {
         self.execv_policy.check(exec_call)
     }
 
-    /// The caller is responsible for ensuring readable_folders and
-    /// writeable_folders are in canonical form.
+    /// The caller is responsible for ensuring `readable_folders` and
+    /// `writeable_folders` are in canonical form.
     pub fn check(
         &self,
         valid_exec: ValidExec,

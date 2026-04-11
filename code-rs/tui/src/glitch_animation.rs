@@ -828,9 +828,9 @@ pub(crate) fn blend_to_background(color: Color, alpha: f32) -> Color {
 
     match (color, bg) {
         (Color::Rgb(r1, g1, b1), Color::Rgb(r2, g2, b2)) => {
-            let r = (r1 as f32 * alpha + r2 as f32 * (1.0 - alpha)) as u8;
-            let g = (g1 as f32 * alpha + g2 as f32 * (1.0 - alpha)) as u8;
-            let b = (b1 as f32 * alpha + b2 as f32 * (1.0 - alpha)) as u8;
+            let r = (f32::from(r1) * alpha + f32::from(r2) * (1.0 - alpha)) as u8;
+            let g = (f32::from(g1) * alpha + f32::from(g2) * (1.0 - alpha)) as u8;
+            let b = (f32::from(b1) * alpha + f32::from(b2) * (1.0 - alpha)) as u8;
             rgb(r, g, b)
         }
         _ => {
@@ -870,7 +870,7 @@ fn smoothstep(e0: f32, e1: f32, x: f32) -> f32 {
 }
 
 fn lerp_u8(a: u8, b: u8, t: f32) -> u8 {
-    (a as f32 + (b as f32 - a as f32) * t).round() as u8
+    (f32::from(a) + (f32::from(b) - f32::from(a)) * t).round() as u8
 }
 
 // vibrant cyan -> magenta -> amber across the word
@@ -897,7 +897,7 @@ pub(crate) fn gradient_multi(t: f32) -> Color {
 fn bump_rgb(c: Color, amt: f32) -> Color {
     match c {
         Color::Rgb(r, g, b) => {
-            let add = |x: u8| ((x as f32 + 255.0 * amt).min(255.0)) as u8;
+            let add = |x: u8| ((f32::from(x) + 255.0 * amt).min(255.0)) as u8;
             rgb(add(r), add(g), add(b))
         }
         _ => c,

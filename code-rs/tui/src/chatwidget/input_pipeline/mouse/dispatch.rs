@@ -125,11 +125,11 @@ impl ChatWidget<'_> {
                 let status_bar_area = self.layout.last_status_bar_area.get();
                 let in_status_bar = Self::pos_in_rect(mouse_pos, status_bar_area);
                 if in_status_bar {
-                    let cur = self.status_bar_hscroll.get() as i32;
+                    let cur = i32::from(self.status_bar_hscroll.get());
                     self.status_bar_hscroll.set(cur.saturating_add(delta).max(0) as u16);
                     self.request_redraw();
                 } else if in_bottom_pane {
-                    let cur = self.bottom_status_hscroll.get() as i32;
+                    let cur = i32::from(self.bottom_status_hscroll.get());
                     self.bottom_status_hscroll.set(cur.saturating_add(delta).max(0) as u16);
                     self.request_redraw();
                 }
@@ -186,7 +186,7 @@ impl ChatWidget<'_> {
 
                 if let Some((start_col, _start_row)) = self.mouse_down_pos.get() {
                     let current_col = mouse_event.column;
-                    let col_delta = (start_col as i32 - current_col as i32).unsigned_abs() as u16;
+                    let col_delta = (i32::from(start_col) - i32::from(current_col)).unsigned_abs() as u16;
 
                     // Once movement exceeds threshold, mark as drag and start
                     // applying horizontal scroll to status bars.
@@ -195,15 +195,15 @@ impl ChatWidget<'_> {
                     }
 
                     if self.mouse_drag_exceeded.get() {
-                        let delta = start_col as i32 - current_col as i32;
+                        let delta = i32::from(start_col) - i32::from(current_col);
                         if delta != 0 {
                             let status_bar_area = self.layout.last_status_bar_area.get();
                             let in_status_bar = Self::pos_in_rect(mouse_pos, status_bar_area);
                             if in_status_bar {
-                                let cur = self.status_bar_hscroll.get() as i32;
+                                let cur = i32::from(self.status_bar_hscroll.get());
                                 self.status_bar_hscroll.set(cur.saturating_add(delta).max(0) as u16);
                             } else if in_bottom_pane {
-                                let cur = self.bottom_status_hscroll.get() as i32;
+                                let cur = i32::from(self.bottom_status_hscroll.get());
                                 self.bottom_status_hscroll.set(cur.saturating_add(delta).max(0) as u16);
                             }
                             // Update the anchor so subsequent drag events are
@@ -243,7 +243,7 @@ impl ChatWidget<'_> {
             && pos.1 < rect.y.saturating_add(rect.height)
     }
 
-    /// Process InputResult from mouse events (similar to key event handling).
+    /// Process `InputResult` from mouse events (similar to key event handling).
     pub(in super::super) fn process_mouse_input_result(&mut self, input_result: InputResult) {
         match input_result {
             InputResult::Submitted(text) => {

@@ -91,13 +91,13 @@ impl ChatWidget<'_> {
             0
         } else {
             let frac = desired_thumb_start as f64 / max_thumb_start as f64;
-            (frac * max_scroll as f64).round() as u16
+            (frac * f64::from(max_scroll)).round() as u16
         };
 
         layout_scroll::set_from_scrollbar(self, pos_from_top);
     }
 
-    /// The area used for scrollbar hit-testing — matches what post_paint renders.
+    /// The area used for scrollbar hit-testing — matches what `post_paint` renders.
     fn scrollbar_hit_area(&self) -> Rect {
         let history_area = self.layout.last_history_area.get();
         Rect {

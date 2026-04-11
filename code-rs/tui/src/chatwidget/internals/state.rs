@@ -448,7 +448,7 @@ impl HelpTab {
 
 pub(crate) struct HelpOverlay {
     pub(crate) active_tab: HelpTab,
-    /// Lines for each tab, indexed by HelpTab ordinal.
+    /// Lines for each tab, indexed by `HelpTab` ordinal.
     pub(crate) tab_content: [Vec<RtLine<'static>>; 3],
     /// Per-tab scroll offset.
     pub(crate) tab_scroll: [u16; 3],

@@ -18,7 +18,7 @@ pub(crate) struct GenericDisplayRow {
 
 impl GenericDisplayRow {}
 
-/// Render a list of rows using the provided ScrollState, with shared styling
+/// Render a list of rows using the provided `ScrollState`, with shared styling
 /// and behavior for selection popups.
 pub(crate) fn render_rows(
     area: Rect,

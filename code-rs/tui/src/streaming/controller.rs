@@ -103,7 +103,7 @@ fn state_mut(&mut self, kind: StreamKind) -> &mut StreamState {
     &mut self.states[Self::idx(kind)]
 }
 
-/// Record the latest provider sequence_number for this stream kind.
+/// Record the latest provider `sequence_number` for this stream kind.
 pub(crate) fn set_last_sequence_number(&mut self, kind: StreamKind, seq: Option<u64>) {
     self.state_mut(kind).last_sequence_number = seq;
 }

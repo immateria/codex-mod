@@ -55,7 +55,7 @@ impl ChatComposer {
     }
 
     /// Synchronize `self.file_search_popup` with the current text in the textarea.
-    /// Note this is only called when self.active_popup is NOT Command.
+    /// Note this is only called when `self.active_popup` is NOT Command.
     pub(super) fn sync_file_search_popup(&mut self) {
         sync::sync_file_search_popup(self);
     }

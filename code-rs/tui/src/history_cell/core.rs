@@ -179,7 +179,7 @@ pub(crate) trait HistoryCell {
     }
 
     /// When present, indicates this cell was spawned by another tool. The value
-    /// is the parent tool's call_id.
+    /// is the parent tool's `call_id`.
     fn parent_call_id(&self) -> Option<&str> {
         None
     }
@@ -260,7 +260,7 @@ pub(crate) trait HistoryCell {
         false // Default: most cells don't animate
     }
 
-    /// Trigger fade-out animation (for AnimatedWelcomeCell)
+    /// Trigger fade-out animation (for `AnimatedWelcomeCell`)
     fn trigger_fade(&self) {
         // Default: do nothing (only AnimatedWelcomeCell implements this)
     }
@@ -300,8 +300,8 @@ pub(crate) trait HistoryCell {
     }
 
     /// Returns the content of this cell as markdown text for clipboard copy.
-    /// Default extracts plain text from display_lines(); cells with richer
-    /// content (e.g. AssistantMarkdownCell) override to return the raw markdown.
+    /// Default extracts plain text from `display_lines()`; cells with richer
+    /// content (e.g. `AssistantMarkdownCell`) override to return the raw markdown.
     fn copyable_markdown(&self) -> Option<String> {
         let lines = self.display_lines();
         if lines.is_empty() {

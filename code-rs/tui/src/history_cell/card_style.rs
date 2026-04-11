@@ -317,8 +317,8 @@ pub(crate) fn hint_text_style(style: &CardStyle) -> Style {
     Style::default().fg(style.text_secondary)
 }
 
-/// Card accent column style shared by browser, image, agent, and web_search
-/// cards. auto_drive uses a different formula.
+/// Card accent column style shared by browser, image, agent, and `web_search`
+/// cards. `auto_drive` uses a different formula.
 pub(crate) fn accent_style(style: &CardStyle) -> Style {
     if palette_mode() == PaletteMode::Ansi16 {
         return Style::default().fg(ansi16_inverse_color());
@@ -407,7 +407,7 @@ pub(crate) fn top_border_row_with_title(
     CardRow::new(border, accent_style(style), segments, None)
 }
 
-/// Bottom border row with hint text. Used by browser, image, and web_search.
+/// Bottom border row with hint text. Used by browser, image, and `web_search`.
 pub(crate) fn bottom_border_row_with_hint(
     border: &'static str,
     hint: &str,

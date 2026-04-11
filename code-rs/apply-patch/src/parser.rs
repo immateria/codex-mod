@@ -3,22 +3,22 @@
 //!
 //! The official Lark grammar for the apply-patch format is:
 //!
-//! start: begin_patch hunk+ end_patch
-//! begin_patch: "*** Begin Patch" LF
-//! end_patch: "*** End Patch" LF?
+//! start: `begin_patch` hunk+ `end_patch`
+//! `begin_patch`: "*** Begin Patch" LF
+//! `end_patch`: "*** End Patch" LF?
 //!
-//! hunk: add_hunk | delete_hunk | update_hunk
-//! add_hunk: "*** Add File: " filename LF add_line+
-//! delete_hunk: "*** Delete File: " filename LF
-//! update_hunk: "*** Update File: " filename LF change_move? change?
+//! hunk: `add_hunk` | `delete_hunk` | `update_hunk`
+//! `add_hunk`: "*** Add File: " filename LF `add_line`+
+//! `delete_hunk`: "*** Delete File: " filename LF
+//! `update_hunk`: "*** Update File: " filename LF `change_move`? change?
 //! filename: /(.+)/
-//! add_line: "+" /(.+)/ LF -> line
+//! `add_line`: "+" /(.+)/ LF -> line
 //!
-//! change_move: "*** Move to: " filename LF
-//! change: (change_context | change_line)+ eof_line?
-//! change_context: ("@@" | "@@ " /(.+)/) LF
-//! change_line: ("+" | "-" | " ") /(.+)/ LF
-//! eof_line: "*** End of File" LF
+//! `change_move`: "*** Move to: " filename LF
+//! change: (`change_context` | `change_line`)+ `eof_line`?
+//! `change_context`: ("@@" | "@@ " /(.+)/) LF
+//! `change_line`: ("+" | "-" | " ") /(.+)/ LF
+//! `eof_line`: "*** End of File" LF
 //!
 //! The parser below is a little more lenient than the explicit spec and allows for
 //! leading/trailing whitespace around patch markers.
@@ -38,9 +38,9 @@ const EOF_MARKER: &str = "*** End of File";
 const CHANGE_CONTEXT_MARKER: &str = "@@ ";
 const EMPTY_CHANGE_CONTEXT_MARKER: &str = "@@";
 
-/// Currently, the only OpenAI model that knowingly requires lenient parsing is
+/// Currently, the only `OpenAI` model that knowingly requires lenient parsing is
 /// gpt-4.1. While we could try to require everyone to pass in a strictness
-/// param when invoking apply_patch, it is a pain to thread it through all of
+/// param when invoking `apply_patch`, it is a pain to thread it through all of
 /// the call sites, so we resign ourselves allowing lenient parsing for all
 /// models. See [`ParseMode::Lenient`] for details on the exceptions we make for
 /// gpt-4.1.
@@ -147,7 +147,7 @@ enum ParseMode {
     ///
     /// In lenient mode, we check if the argument to `apply_patch` starts with
     /// `<<'EOF'` and ends with `EOF\n`. If so, we strip off these markers,
-    /// trim() the result, and treat what is left as the patch text.
+    /// `trim()` the result, and treat what is left as the patch text.
     Lenient,
 }
 
@@ -241,7 +241,7 @@ fn check_start_and_end_lines_strict(
 }
 
 /// Attempts to parse a single hunk from the start of lines.
-/// Returns the parsed hunk and the number of lines parsed (or a ParseError).
+/// Returns the parsed hunk and the number of lines parsed (or a `ParseError`).
 fn parse_one_hunk(lines: &[&str], line_number: usize) -> Result<(Hunk, usize), ParseError> {
     // Be tolerant of case mismatches and extra padding around marker strings.
     let first_line = lines[0].trim();

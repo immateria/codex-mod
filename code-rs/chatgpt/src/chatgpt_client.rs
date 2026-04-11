@@ -6,7 +6,7 @@ use crate::chatgpt_token::init_chatgpt_token_from_auth;
 use anyhow::Context;
 use serde::de::DeserializeOwned;
 
-/// Make a GET request to the ChatGPT backend API.
+/// Make a GET request to the `ChatGPT` backend API.
 pub(crate) async fn chatgpt_get_request<T: DeserializeOwned>(
     config: &Config,
     path: String,

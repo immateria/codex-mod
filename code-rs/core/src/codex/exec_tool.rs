@@ -690,7 +690,7 @@ pub(crate) async fn handle_apply_patch_action(
             let _ = sess.tx_event.send(event).await;
 
             let hook_output = ExecToolCallOutput {
-                exit_code: if run.success { 0 } else { 1 },
+                exit_code: i32::from(!run.success),
                 stdout: StreamOutput::new(run.stdout.clone()),
                 stderr: StreamOutput::new(run.stderr.clone()),
                 aggregated_output: StreamOutput::new({

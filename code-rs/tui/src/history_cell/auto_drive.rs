@@ -442,7 +442,7 @@ impl AutoDriveCardCell {
                 continue;
             }
 
-            let separator_width = if current.is_empty() { 0 } else { 1 };
+            let separator_width = usize::from(!current.is_empty());
             if current_width + separator_width + word_width > width {
                 if !current.is_empty() {
                     rows.push(current);

@@ -27,7 +27,7 @@ impl ChatWidget<'_> {
         if before == after {
             return;
         }
-        let delta = before.abs_diff(after) as u64;
+        let delta = u64::from(before.abs_diff(after));
         {
             let mut stats = self.perf_state.stats.borrow_mut();
             stats.record_scroll_trigger(delta);
@@ -344,7 +344,7 @@ impl ChatWidget<'_> {
     }
 
 
-    /// Flush any ExecEnd events that arrived before their matching ExecBegin.
+    /// Flush any `ExecEnd` events that arrived before their matching `ExecBegin`.
     /// We briefly stash such ends to allow natural pairing when the Begin shows up
     /// shortly after. If the pairing window expires, render a fallback completed
     /// Exec cell so users still see the output in history.
@@ -373,7 +373,7 @@ impl ChatWidget<'_> {
 
     /// Schedule a short-delay check to flush queued interrupts if the current
     /// stream stalls in an idle state. Avoids the UI appearing frozen when the
-    /// model stops streaming before sending TaskComplete.
+    /// model stops streaming before sending `TaskComplete`.
     fn schedule_interrupt_flush_check(&mut self) {
         if self.interrupt_flush_scheduled || !self.interrupts.has_queued() {
             return;

@@ -90,7 +90,7 @@ pub(crate) struct EventProcessorWithHumanOutput {
     last_turn_diff: Option<String>,
     final_message: Option<String>,
 
-    /// If true, stop after the first TaskComplete event (default exec mode).
+    /// If true, stop after the first `TaskComplete` event (default exec mode).
     /// Auto Drive sessions keep running across multiple turns, so they leave
     /// this false and handle shutdown themselves.
     stop_on_task_complete: bool,

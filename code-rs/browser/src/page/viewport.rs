@@ -9,8 +9,8 @@ impl Page {
     pub async fn set_viewport(&self, viewport: SetViewportParams) -> Result<ViewportResult> {
         // Apply CDP device metrics override once on demand
         let params = SetDeviceMetricsOverrideParams::builder()
-            .width(viewport.width as i64)
-            .height(viewport.height as i64)
+            .width(i64::from(viewport.width))
+            .height(i64::from(viewport.height))
             .device_scale_factor(viewport.device_scale_factor.unwrap_or(1.0))
             .mobile(viewport.mobile.unwrap_or(false))
             .build()

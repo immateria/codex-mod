@@ -47,7 +47,7 @@ pub struct CodexToolCallParam {
     pub sandbox: Option<CodexToolCallSandboxMode>,
 
     /// Individual config settings that will override what is in
-    /// CODEX_HOME/config.toml.
+    /// `CODEX_HOME/config.toml`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub config: Option<HashMap<String, serde_json::Value>>,
 
@@ -86,7 +86,7 @@ impl From<CodexToolCallApprovalPolicy> for AskForApproval {
     }
 }
 
-/// Custom enum mirroring [`SandboxMode`] from config_types.rs, but with
+/// Custom enum mirroring [`SandboxMode`] from `config_types.rs`, but with
 /// `JsonSchema` support.
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, PartialEq)]
 #[serde(rename_all = "kebab-case")]

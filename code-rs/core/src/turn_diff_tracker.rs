@@ -217,7 +217,7 @@ impl TurnDiffTracker {
     }
 
     /// Recompute the aggregated unified diff by comparing all of the in-memory snapshots that were
-    /// collected before the first time they were touched by apply_patch during this turn with
+    /// collected before the first time they were touched by `apply_patch` during this turn with
     /// the current repo state.
     pub fn get_unified_diff(&mut self) -> Result<Option<String>> {
         let mut aggregated = String::new();

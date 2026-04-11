@@ -20,7 +20,7 @@ use crate::config_types::Verbosity;
 
 const PERSONALITY_PLACEHOLDER: &str = "{{ personality }}";
 
-/// See https://platform.openai.com/docs/guides/reasoning?api-mode=responses#get-started-with-reasoning
+/// See <https://platform.openai.com/docs/guides/reasoning?api-mode=responses#get-started-with-reasoning>
 #[derive(
     Debug,
     Serialize,
@@ -327,7 +327,7 @@ impl ModelInfo {
 }
 
 /// A strongly-typed template for assembling model instructions and developer messages. If
-/// instructions_* is populated and valid, it will override base_instructions.
+/// instructions_* is populated and valid, it will override `base_instructions`.
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq, TS, JsonSchema)]
 pub struct ModelMessages {
     pub instructions_template: Option<String>,
@@ -441,7 +441,7 @@ impl From<ModelInfo> for ModelPreset {
 impl ModelPreset {
     /// Filter models based on authentication mode.
     ///
-    /// In ChatGPT mode, all models are visible. Otherwise, only API-supported models are shown.
+    /// In `ChatGPT` mode, all models are visible. Otherwise, only API-supported models are shown.
     pub fn filter_by_auth(models: Vec<ModelPreset>, chatgpt_mode: bool) -> Vec<ModelPreset> {
         models
             .into_iter()

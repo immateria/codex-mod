@@ -10,10 +10,10 @@ use serde::Serialize;
 /// Exec wrappers read this to find the inherited FD for the escalation socket.
 pub const ESCALATE_SOCKET_ENV_VAR: &str = "CODEX_ESCALATE_SOCKET";
 
-/// Patched shells use this to wrap exec() calls.
+/// Patched shells use this to wrap `exec()` calls.
 pub const EXEC_WRAPPER_ENV_VAR: &str = "EXEC_WRAPPER";
 
-/// The client sends this to the server to request an exec() call.
+/// The client sends this to the server to request an `exec()` call.
 #[derive(Clone, Serialize, Deserialize, Debug, PartialEq, Eq)]
 pub struct EscalateRequest {
     /// The executable path from the intercepted exec call.
@@ -27,7 +27,7 @@ pub struct EscalateRequest {
     pub env: HashMap<String, String>,
 }
 
-/// The server sends this to the client to respond to an exec() request.
+/// The server sends this to the client to respond to an `exec()` request.
 #[derive(Clone, Serialize, Deserialize, Debug, PartialEq, Eq)]
 pub struct EscalateResponse {
     pub action: EscalateAction,
@@ -81,7 +81,7 @@ pub struct SuperExecMessage {
     pub fds: Vec<RawFd>,
 }
 
-/// The server responds when the exec()'d command has exited.
+/// The server responds when the `exec()`'d command has exited.
 #[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct SuperExecResult {
     pub exit_code: i32,

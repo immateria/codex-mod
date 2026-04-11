@@ -3,7 +3,7 @@ use std::fmt::Write as _;
 use super::*;
 
 impl ChatWidget<'_> {
-    /// Render a single recorded ResponseItem into history without executing tools
+    /// Render a single recorded `ResponseItem` into history without executing tools
     pub(in super::super) fn render_replay_item(&mut self, item: ResponseItem) {
         match item {
             ResponseItem::Message { id, role, content, .. } => {

@@ -51,7 +51,7 @@ pub(super) fn intro_state<'a>(header_text: &'a str, model: &AutoActiveViewModel)
 
     let now = Instant::now();
     let elapsed = now.saturating_duration_since(started);
-    let interval_ms = LETTER_INTERVAL_MS as u128;
+    let interval_ms = u128::from(LETTER_INTERVAL_MS);
     let stage = (elapsed.as_millis() / interval_ms) as usize;
     let mut visible = stage.saturating_add(1);
     if visible > total_chars {

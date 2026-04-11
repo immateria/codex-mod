@@ -249,8 +249,8 @@ pub(crate) enum AppEvent {
         result: Result<GhostCommit, GitToolingError>,
     },
 
-    /// Internal: flush any pending out-of-order ExecEnd events that did not
-    /// receive a matching ExecBegin within a short pairing window. This lets
+    /// Internal: flush any pending out-of-order `ExecEnd` events that did not
+    /// receive a matching `ExecBegin` within a short pairing window. This lets
     /// the TUI render a fallback "Ran call_<id>" cell so output is not lost.
     FlushPendingExecEnds,
     /// Internal: refresh frozen history cell heights after resize.
@@ -663,7 +663,7 @@ pub(crate) enum AppEvent {
     /// Open a blank agent editor form for adding a new agent
     ShowAgentEditorNew,
     // ShowSubagentEditor removed; use ShowSubagentEditorForName or ShowSubagentEditorNew
-    /// Open the subagent editor for a specific command name; ChatWidget supplies data
+    /// Open the subagent editor for a specific command name; `ChatWidget` supplies data
     ShowSubagentEditorForName { name: String },
     /// Open a blank subagent editor to create a new command
     ShowSubagentEditorNew,
@@ -739,17 +739,17 @@ pub(crate) enum AppEvent {
     StopCommitAnimation,
     CommitTick,
 
-    /// Onboarding: result of login_with_chatgpt.
+    /// Onboarding: result of `login_with_chatgpt`.
     OnboardingAuthComplete(Result<(), String>),
     OnboardingComplete(ChatWidgetArgs),
 
-    /// Begin ChatGPT login flow from the in-app login manager.
+    /// Begin `ChatGPT` login flow from the in-app login manager.
     LoginStartChatGpt,
     /// Begin device code login flow from the in-app login manager.
     LoginStartDeviceCode,
-    /// Cancel an in-progress ChatGPT login flow triggered via `/login`.
+    /// Cancel an in-progress `ChatGPT` login flow triggered via `/login`.
     LoginCancelChatGpt,
-    /// ChatGPT login flow has completed (success or failure).
+    /// `ChatGPT` login flow has completed (success or failure).
     LoginChatGptComplete { result: Result<(), String> },
     /// Device code login flow produced a user code/link.
     LoginDeviceCodeReady { authorize_url: String, user_code: String },
@@ -787,10 +787,10 @@ pub(crate) enum AppEvent {
     },
 
     /// Register an image placeholder inserted by the composer with its backing path
-    /// so ChatWidget can resolve it to a LocalImage on submit.
+    /// so `ChatWidget` can resolve it to a `LocalImage` on submit.
     RegisterPastedImage { placeholder: String, path: PathBuf },
 
-    /// Immediately cancel any running task in the ChatWidget. This is used by
+    /// Immediately cancel any running task in the `ChatWidget`. This is used by
     /// the approval modal to reflect a user's Abort decision instantly in the UI
     /// (clear spinner/status, finalize running exec/tool cells) while the core
     /// continues its own abort/cleanup in parallel.

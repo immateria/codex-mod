@@ -198,7 +198,7 @@ pub fn write_global_mcp_servers(
                     sched_table["dispatch"] = toml_edit::value(config.scheduling.dispatch.to_string());
                 }
                 if config.scheduling.max_concurrent != default_scheduling.max_concurrent {
-                    sched_table["max_concurrent"] = toml_edit::value(config.scheduling.max_concurrent as i64);
+                    sched_table["max_concurrent"] = toml_edit::value(i64::from(config.scheduling.max_concurrent));
                 }
                 if let Some(duration) = config.scheduling.min_interval_sec {
                     sched_table["min_interval_sec"] = toml_edit::value(duration.as_secs_f64());
@@ -207,7 +207,7 @@ pub fn write_global_mcp_servers(
                     sched_table["queue_timeout_sec"] = toml_edit::value(duration.as_secs_f64());
                 }
                 if let Some(depth) = config.scheduling.max_queue_depth {
-                    sched_table["max_queue_depth"] = toml_edit::value(depth as i64);
+                    sched_table["max_queue_depth"] = toml_edit::value(i64::from(depth));
                 }
                 entry["scheduling"] = TomlItem::Table(sched_table);
             }
@@ -222,7 +222,7 @@ pub fn write_global_mcp_servers(
                     let mut override_tbl = TomlTable::new();
                     override_tbl.set_implicit(false);
                     if let Some(max) = override_cfg.max_concurrent {
-                        override_tbl["max_concurrent"] = toml_edit::value(max as i64);
+                        override_tbl["max_concurrent"] = toml_edit::value(i64::from(max));
                     }
                     if let Some(duration) = override_cfg.min_interval_sec {
                         override_tbl["min_interval_sec"] = toml_edit::value(duration.as_secs_f64());
@@ -1645,7 +1645,7 @@ pub fn set_tui_settings_menu(
 
     doc["tui"]["settings_menu"]["open_mode"] = toml_edit::value(open_mode);
     doc["tui"]["settings_menu"]["overlay_min_width"] =
-        toml_edit::value(settings_menu.overlay_min_width as i64);
+        toml_edit::value(i64::from(settings_menu.overlay_min_width));
 
     std::fs::create_dir_all(code_home)?;
     let tmp_file = NamedTempFile::new_in(code_home)?;
@@ -2285,11 +2285,11 @@ pub fn set_auto_drive_settings(
             .to_ascii_lowercase(),
     );
     doc["auto_drive"]["auto_resolve_review_attempts"] =
-        toml_edit::value(settings.auto_resolve_review_attempts.get() as i64);
+        toml_edit::value(i64::from(settings.auto_resolve_review_attempts.get()));
     doc["auto_drive"]["auto_review_followup_attempts"] =
-        toml_edit::value(settings.auto_review_followup_attempts.get() as i64);
+        toml_edit::value(i64::from(settings.auto_review_followup_attempts.get()));
     doc["auto_drive"]["coordinator_turn_cap"] =
-        toml_edit::value(settings.coordinator_turn_cap as i64);
+        toml_edit::value(i64::from(settings.coordinator_turn_cap));
 
     let mode_str = match settings.continue_mode {
         AutoDriveContinueMode::Immediate => "immediate",
@@ -3131,7 +3131,7 @@ pub fn add_mcp_server(
             sched_table["dispatch"] = toml_edit::value(scheduling.dispatch.to_string());
         }
         if scheduling.max_concurrent != default_scheduling.max_concurrent {
-            sched_table["max_concurrent"] = toml_edit::value(scheduling.max_concurrent as i64);
+            sched_table["max_concurrent"] = toml_edit::value(i64::from(scheduling.max_concurrent));
         }
         if let Some(duration) = scheduling.min_interval_sec {
             sched_table["min_interval_sec"] = toml_edit::value(duration.as_secs_f64());
@@ -3140,7 +3140,7 @@ pub fn add_mcp_server(
             sched_table["queue_timeout_sec"] = toml_edit::value(duration.as_secs_f64());
         }
         if let Some(depth) = scheduling.max_queue_depth {
-            sched_table["max_queue_depth"] = toml_edit::value(depth as i64);
+            sched_table["max_queue_depth"] = toml_edit::value(i64::from(depth));
         }
         server_tbl.insert("scheduling", TomlItem::Table(sched_table));
     }
@@ -3155,7 +3155,7 @@ pub fn add_mcp_server(
             let mut override_tbl = toml_edit::Table::new();
             override_tbl.set_implicit(false);
             if let Some(max) = override_cfg.max_concurrent {
-                override_tbl["max_concurrent"] = toml_edit::value(max as i64);
+                override_tbl["max_concurrent"] = toml_edit::value(i64::from(max));
             }
             if let Some(duration) = override_cfg.min_interval_sec {
                 override_tbl["min_interval_sec"] = toml_edit::value(duration.as_secs_f64());
@@ -3417,7 +3417,7 @@ pub fn set_mcp_server_scheduling(
         }
         if scheduling.max_concurrent != default_scheduling.max_concurrent {
             sched_table["max_concurrent"] =
-                toml_edit::value(scheduling.max_concurrent as i64);
+                toml_edit::value(i64::from(scheduling.max_concurrent));
         }
         if let Some(duration) = scheduling.min_interval_sec {
             sched_table["min_interval_sec"] = toml_edit::value(duration.as_secs_f64());
@@ -3426,7 +3426,7 @@ pub fn set_mcp_server_scheduling(
             sched_table["queue_timeout_sec"] = toml_edit::value(duration.as_secs_f64());
         }
         if let Some(depth) = scheduling.max_queue_depth {
-            sched_table["max_queue_depth"] = toml_edit::value(depth as i64);
+            sched_table["max_queue_depth"] = toml_edit::value(i64::from(depth));
         }
         server_table["scheduling"] = TomlItem::Table(sched_table);
     }
@@ -3520,7 +3520,7 @@ pub fn set_mcp_tool_scheduling_override(
         let mut override_tbl = toml_edit::Table::new();
         override_tbl.set_implicit(false);
         if let Some(max) = cfg.max_concurrent {
-            override_tbl["max_concurrent"] = toml_edit::value(max as i64);
+            override_tbl["max_concurrent"] = toml_edit::value(i64::from(max));
         }
         if let Some(duration) = cfg.min_interval_sec {
             override_tbl["min_interval_sec"] = toml_edit::value(duration.as_secs_f64());

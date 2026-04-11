@@ -30,7 +30,7 @@ impl ChatComposer {
         key_router::handle_key_event_inner(self, key_event)
     }
 
-    /// Handle a mouse event. Returns (InputResult, bool) matching handle_key_event.
+    /// Handle a mouse event. Returns (`InputResult`, bool) matching `handle_key_event`.
     /// The `area` parameter is the full area where the composer is rendered.
     pub(crate) fn handle_mouse_event(
         &mut self,

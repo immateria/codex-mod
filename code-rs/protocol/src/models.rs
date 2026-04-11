@@ -413,7 +413,7 @@ pub enum ResponseItem {
 
 pub const BASE_INSTRUCTIONS_DEFAULT: &str = include_str!("prompts/base_instructions/default.md");
 
-/// Base instructions for the model in a thread. Corresponds to the `instructions` field in the ResponsesAPI.
+/// Base instructions for the model in a thread. Corresponds to the `instructions` field in the `ResponsesAPI`.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, JsonSchema, TS)]
 #[serde(rename = "base_instructions", rename_all = "snake_case")]
 pub struct BaseInstructions {
@@ -1037,7 +1037,7 @@ pub struct ShellCommandToolCallParams {
 }
 
 /// Responses API compatible content items that can be returned by a tool call.
-/// This is a subset of ContentItem with the types we support as function call outputs.
+/// This is a subset of `ContentItem` with the types we support as function call outputs.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, JsonSchema, TS)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum FunctionCallOutputContentItem {
@@ -1102,7 +1102,7 @@ impl From<crate::dynamic_tools::DynamicToolCallOutputContentItem>
     }
 }
 
-/// The payload we send back to OpenAI when reporting a tool call result.
+/// The payload we send back to `OpenAI` when reporting a tool call result.
 ///
 /// `body` serializes directly as the wire value for `function_call_output.output`.
 /// `success` remains internal metadata for downstream handling.

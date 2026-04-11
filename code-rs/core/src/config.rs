@@ -291,7 +291,7 @@ pub struct Config {
     /// Optional named context behavior that can override per-model defaults.
     pub context_mode: Option<ContextMode>,
 
-    /// Key into the model_providers map that specifies which provider to use.
+    /// Key into the `model_providers` map that specifies which provider to use.
     pub model_provider_id: String,
 
     /// Info needed to make an API request to the model.
@@ -373,7 +373,7 @@ pub struct Config {
     pub show_raw_agent_reasoning: bool,
 
     /// Disable server-side response storage (sends the full conversation
-    /// context with every request). Currently necessary for OpenAI customers
+    /// context with every request). Currently necessary for `OpenAI` customers
     /// who have opted into Zero Data Retention (ZDR).
     pub disable_response_storage: bool,
 
@@ -538,7 +538,7 @@ pub struct Config {
     /// Effective Windows sandbox level derived from config and legacy feature flags.
     pub windows_sandbox_level: WindowsSandboxLevel,
 
-    /// Base URL for requests to ChatGPT (as opposed to the OpenAI API).
+    /// Base URL for requests to `ChatGPT` (as opposed to the `OpenAI` API).
     pub chatgpt_base_url: String,
 
     /// Experimental / do not use. Overrides the URL used when connecting to
@@ -552,7 +552,7 @@ pub struct Config {
     /// Plugin marketplace source configuration.
     pub plugins: PluginsToml,
 
-    /// Connector-source account pinning for ChatGPT Apps / connectors.
+    /// Connector-source account pinning for `ChatGPT` Apps / connectors.
     pub apps_sources: AppsSourcesToml,
 
     /// Include an experimental plan tool that the model can use to update its current plan and status of each step.
@@ -561,9 +561,9 @@ pub struct Config {
     /// file edits as a structured tool call. When unset, this falls back to the
     /// model family's default preference.
     pub include_apply_patch_tool: bool,
-    /// Enable the native Responses web_search tool.
+    /// Enable the native Responses `web_search` tool.
     pub tools_web_search_request: bool,
-    /// Controls `external_web_access` for the web_search tool payload.
+    /// Controls `external_web_access` for the `web_search` tool payload.
     pub tools_web_search_external: bool,
     /// Enable MCP tool discovery helper (`search_tool_bm25`).
     pub tools_search_tool: bool,
@@ -573,15 +573,15 @@ pub struct Config {
     pub js_repl_runtime: JsReplRuntimeKindToml,
     /// Optional explicit path to the runtime executable used by `js_repl`.
     pub js_repl_runtime_path: Option<PathBuf>,
-    /// Additional arguments passed to the js_repl runtime process.
+    /// Additional arguments passed to the `js_repl` runtime process.
     pub js_repl_runtime_args: Vec<String>,
     /// Extra directories to search for packages when using the Node runtime.
     ///
-    /// These paths are passed to the js_repl kernel via `CODEX_JS_REPL_NODE_MODULE_DIRS`.
+    /// These paths are passed to the `js_repl` kernel via `CODEX_JS_REPL_NODE_MODULE_DIRS`.
     /// Only packages-only (bare) imports are allowed (for example `"lodash"` or `"@scope/pkg"`).
     /// Relative/absolute/file/url imports are rejected by the kernel.
     pub js_repl_node_module_dirs: Vec<PathBuf>,
-    /// Optional allow-list of domains for web_search filters.allowed_domains
+    /// Optional allow-list of domains for `web_search` `filters.allowed_domains`
     pub tools_web_search_allowed_domains: Option<Vec<String>>,
     /// Experimental: enable streamable shell tool selection (off by default).
     pub use_experimental_streamable_shell_tool: bool,
@@ -602,7 +602,7 @@ pub struct Config {
     pub project_memories: Option<MemoriesToml>,
     /// Experimental: enable JSON-based environment context snapshots and deltas (phase gated).
     pub env_ctx_v2: bool,
-    /// Retention policy for env_ctx_v2 timeline management (gated by env_ctx_v2).
+    /// Retention policy for `env_ctx_v2` timeline management (gated by `env_ctx_v2`).
     pub retention: crate::config_types::RetentionConfig,
     /// The value for the `originator` header included with Responses API requests.
     pub responses_originator_header: String,
@@ -610,7 +610,7 @@ pub struct Config {
     /// Enable debug logging of LLM requests and responses
     pub debug: bool,
     
-    /// Whether we're using ChatGPT authentication (affects feature availability)
+    /// Whether we're using `ChatGPT` authentication (affects feature availability)
     pub using_chatgpt_auth: bool,
 
     /// When true, automatically switch to another connected account when the
@@ -618,7 +618,7 @@ pub struct Config {
     pub auto_switch_accounts_on_rate_limit: bool,
 
     /// When true, fall back to an API key account only if every connected
-    /// ChatGPT account is rate/usage limited.
+    /// `ChatGPT` account is rate/usage limited.
     pub api_key_fallback_on_all_accounts_limited: bool,
 
     /// GitHub integration configuration.
@@ -637,7 +637,7 @@ pub struct Config {
     pub subagent_max_depth: i32,
 
     /// Experimental: path to a rollout file to resume a prior session from.
-    /// When set, the core will send this path in the initial ConfigureSession
+    /// When set, the core will send this path in the initial `ConfigureSession`
     /// so the backend can attempt to resume.
     pub experimental_resume: Option<PathBuf>,
 
@@ -779,7 +779,7 @@ pub struct ConfigToml {
     #[serde(default = "default_true_local")]
     pub auto_review_resolve_use_chat_model: bool,
 
-    /// Provider to use from the model_providers map.
+    /// Provider to use from the `model_providers` map.
     pub model_provider: Option<String>,
 
     /// Size of the context window for the model, in tokens.
@@ -835,7 +835,7 @@ pub struct ConfigToml {
     pub confirm_guard: Option<ConfirmGuardConfig>,
 
     /// Disable server-side response storage (sends the full conversation
-    /// context with every request). Currently necessary for OpenAI customers
+    /// context with every request). Currently necessary for `OpenAI` customers
     /// who have opted into Zero Data Retention (ZDR).
     pub disable_response_storage: Option<bool>,
 
@@ -950,7 +950,7 @@ pub struct ConfigToml {
     /// Override to force-enable reasoning summaries for the configured model.
     pub model_supports_reasoning_summaries: Option<bool>,
 
-    /// Base URL for requests to ChatGPT (as opposed to the OpenAI API).
+    /// Base URL for requests to `ChatGPT` (as opposed to the `OpenAI` API).
     pub chatgpt_base_url: Option<String>,
 
     /// Experimental / do not use. Overrides the URL used when connecting to
@@ -974,7 +974,7 @@ pub struct ConfigToml {
     #[serde(default)]
     pub plugins: Option<PluginsToml>,
 
-    /// Experimental path to a file whose contents replace the built-in BASE_INSTRUCTIONS.
+    /// Experimental path to a file whose contents replace the built-in `BASE_INSTRUCTIONS`.
     pub experimental_instructions_file: Option<PathBuf>,
 
     /// Optional override string for the compaction prompt.
@@ -1010,7 +1010,7 @@ pub struct ConfigToml {
     pub auto_switch_accounts_on_rate_limit: Option<bool>,
 
     /// When true, fall back to an API key account only if every connected
-    /// ChatGPT account is rate/usage limited.
+    /// `ChatGPT` account is rate/usage limited.
     #[serde(default)]
     pub api_key_fallback_on_all_accounts_limited: Option<bool>,
 
@@ -1130,7 +1130,7 @@ pub struct ToolsToml {
     #[serde(default, alias = "web_search_request")]
     pub web_search: Option<bool>,
 
-    /// Controls `external_web_access` for the web_search tool payload.
+    /// Controls `external_web_access` for the `web_search` tool payload.
     /// Defaults to true when omitted.
     #[serde(default)]
     pub web_search_external: Option<bool>,
@@ -1162,17 +1162,17 @@ pub struct ToolsToml {
     /// - a `node_modules` directory, or
     /// - a project root containing a `node_modules` directory.
     ///
-    /// These paths are passed to the js_repl kernel via `CODEX_JS_REPL_NODE_MODULE_DIRS` and are
+    /// These paths are passed to the `js_repl` kernel via `CODEX_JS_REPL_NODE_MODULE_DIRS` and are
     /// used only for packages-only (bare) imports.
     #[serde(default)]
     pub js_repl_node_module_dirs: Option<Vec<PathBuf>>,
 
-    /// Optional allow-list of domains used by the Responses API web_search tool.
+    /// Optional allow-list of domains used by the Responses API `web_search` tool.
     /// Example:
     ///
     /// [tools]
-    /// web_search = true
-    /// web_search_allowed_domains = ["openai.com", "arxiv.org"]
+    /// `web_search` = true
+    /// `web_search_allowed_domains` = ["openai.com", "arxiv.org"]
     #[serde(default)]
     pub web_search_allowed_domains: Option<Vec<String>>,
 
@@ -2393,7 +2393,7 @@ impl Config {
         Ok(config)
     }
 
-    /// Check if we're using ChatGPT authentication
+    /// Check if we're using `ChatGPT` authentication
     fn is_using_chatgpt_auth(
         code_home: &Path,
         auth_credentials_store_mode: AuthCredentialsStoreMode,

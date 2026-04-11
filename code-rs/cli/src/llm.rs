@@ -40,7 +40,7 @@ pub struct RequestArgs {
     #[arg(long)]
     pub message: String,
 
-    /// `text.format.type` (e.g. json_schema)
+    /// `text.format.type` (e.g. `json_schema`)
     #[arg(long = "format-type", default_value = "json_schema")]
     pub format_type: String,
 

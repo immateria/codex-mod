@@ -15,8 +15,8 @@ impl ChatWidget<'_> {
     ) {
         self.ensure_render_request_cache();
 
-        let extra_count = (self.active_exec_cell.is_some() as usize)
-            .saturating_add(streaming_cell.is_some() as usize)
+        let extra_count = usize::from(self.active_exec_cell.is_some())
+            .saturating_add(usize::from(streaming_cell.is_some()))
             .saturating_add(queued_preview_cells.len());
         let request_count = self.history_cells.len().saturating_add(extra_count);
 

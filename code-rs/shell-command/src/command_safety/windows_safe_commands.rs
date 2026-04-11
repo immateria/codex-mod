@@ -7,7 +7,7 @@ use std::sync::LazyLock;
 
 const POWERSHELL_PARSER_SCRIPT: &str = include_str!("powershell_parser.ps1");
 
-/// Parse and validate read-only PowerShell invocations against a small safelist.
+/// Parse and validate read-only `PowerShell` invocations against a small safelist.
 ///
 /// This is intentionally PowerShell-specific: callers may still auto-approve
 /// other read-only commands via non-PowerShell rules (for example an argv
@@ -23,7 +23,7 @@ pub fn is_safe_command_windows(command: &[String]) -> bool {
     }
 }
 
-/// Returns each command sequence if the invocation starts with a PowerShell binary.
+/// Returns each command sequence if the invocation starts with a `PowerShell` binary.
 /// For example, the tokens from `pwsh Get-ChildItem | Measure-Object` become two sequences.
 fn try_parse_powershell_command_sequence(command: &[String]) -> Option<Vec<Vec<String>>> {
     let (exe, rest) = command.split_first()?;
@@ -34,7 +34,7 @@ fn try_parse_powershell_command_sequence(command: &[String]) -> Option<Vec<Vec<S
     }
 }
 
-/// Parses a PowerShell invocation into discrete command vectors, rejecting unsafe patterns.
+/// Parses a `PowerShell` invocation into discrete command vectors, rejecting unsafe patterns.
 fn parse_powershell_invocation(executable: &str, args: &[String]) -> Option<Vec<Vec<String>>> {
     if args.is_empty() {
         // Examples rejected here: "pwsh" and "powershell.exe" with no additional arguments.
@@ -98,7 +98,7 @@ fn parse_powershell_invocation(executable: &str, args: &[String]) -> Option<Vec<
     None
 }
 
-/// Tokenizes an inline PowerShell script and delegates to the command splitter.
+/// Tokenizes an inline `PowerShell` script and delegates to the command splitter.
 /// Examples of when this is called: pwsh.exe -Command '<script>' or pwsh.exe -Command:<script>
 fn parse_powershell_script(executable: &str, script: &str) -> Option<Vec<Vec<String>>> {
     if let PowershellParseOutcome::Commands(commands) =
@@ -110,7 +110,7 @@ fn parse_powershell_script(executable: &str, script: &str) -> Option<Vec<Vec<Str
     }
 }
 
-/// Returns true when the executable name is one of the supported PowerShell binaries.
+/// Returns true when the executable name is one of the supported `PowerShell` binaries.
 fn is_powershell_executable(exe: &str) -> bool {
     let executable_name = Path::new(exe)
         .file_name()
@@ -124,7 +124,7 @@ fn is_powershell_executable(exe: &str) -> bool {
     )
 }
 
-/// Attempts to parse PowerShell using the real PowerShell parser, returning every pipeline element
+/// Attempts to parse `PowerShell` using the real `PowerShell` parser, returning every pipeline element
 /// as a flat argv vector when possible. If parsing fails or the AST includes unsupported constructs,
 /// we conservatively reject the command instead of trying to split it manually.
 fn parse_with_powershell_ast(executable: &str, script: &str) -> PowershellParseOutcome {
@@ -222,7 +222,7 @@ fn quote_argument(arg: &str) -> String {
     format!("'{}'", arg.replace('\'', "''"))
 }
 
-/// Validates that a parsed PowerShell command stays within our read-only safelist.
+/// Validates that a parsed `PowerShell` command stays within our read-only safelist.
 /// Everything before this is parsing, and rejecting things that make us feel uncomfortable.
 fn is_safe_powershell_command(words: &[String]) -> bool {
     if words.is_empty() {

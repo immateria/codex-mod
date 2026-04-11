@@ -83,19 +83,19 @@ pub enum Feature {
     CodeMode,
     /// Restrict model-visible tools to code mode entrypoints (`exec`, `wait`).
     CodeModeOnly,
-    /// Only expose js_repl tools directly to the model.
+    /// Only expose `js_repl` tools directly to the model.
     JsReplToolsOnly,
     /// Use the single unified PTY-backed exec tool.
     UnifiedExec,
     /// Route shell tool execution through the zsh exec bridge.
     ShellZshFork,
-    /// Include the freeform apply_patch tool.
+    /// Include the freeform `apply_patch` tool.
     ApplyPatchFreeform,
     /// Allow exec tools to request additional permissions while staying sandboxed.
     ExecPermissionApprovals,
     /// Enable Claude-style lifecycle hooks loaded from hooks.json files.
     CodexHooks,
-    /// Expose the built-in request_permissions tool.
+    /// Expose the built-in `request_permissions` tool.
     RequestPermissionsTool,
     /// Allow the model to request web searches that fetch live content.
     WebSearchRequest,
@@ -124,7 +124,7 @@ pub enum Feature {
     CodexGitCommit,
     /// Enable runtime metrics snapshots via a manual reader.
     RuntimeMetrics,
-    /// Persist rollout metadata to a local SQLite database.
+    /// Persist rollout metadata to a local `SQLite` database.
     Sqlite,
     /// Enable startup memory extraction and file-backed memory consolidation.
     MemoryTool,
@@ -155,7 +155,7 @@ pub enum Feature {
     /// Steer feature flag - when enabled, Enter submits immediately instead of queuing.
     /// Kept for config backward compatibility; behavior is always steer-enabled.
     Steer,
-    /// Allow request_user_input in Default collaboration mode.
+    /// Allow `request_user_input` in Default collaboration mode.
     DefaultModeRequestUserInput,
     /// Enable automatic review for approval prompts.
     GuardianApproval,

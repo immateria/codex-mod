@@ -33,7 +33,7 @@ pub enum TerminalName {
     WarpTerminal,
     /// Visual Studio Code integrated terminal.
     VsCode,
-    /// WezTerm terminal emulator.
+    /// `WezTerm` terminal emulator.
     WezTerm,
     /// kitty terminal emulator.
     Kitty,

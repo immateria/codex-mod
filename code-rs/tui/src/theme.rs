@@ -306,7 +306,7 @@ fn apply_custom_colors(theme: &mut Theme, colors: &ThemeColors) {
 ///
 /// Heuristics:
 /// - Respect `CODE_FORCE_ANSI256=1` to force fallback.
-/// - Default to ANSI-256 on Apple's built-in Terminal (TERM_PROGRAM=Apple_Terminal),
+/// - Default to ANSI-256 on Apple's built-in Terminal (`TERM_PROGRAM=Apple_Terminal`),
 ///   where some profiles are known to misrender truecolor in alternate screen.
 /// - Otherwise, allow truecolor when `COLORTERM` advertises it or when running
 ///   in modern terminals known to support it well.
@@ -531,9 +531,9 @@ pub(crate) fn quantize_color_for_palette(c: Color) -> Color {
 fn rgb_to_ansi256_index(r: u8, g: u8, b: u8) -> u8 {
     // Helper to compute squared distance
     fn dist2(a: (u8, u8, u8), b: (u8, u8, u8)) -> i32 {
-        let dr = a.0 as i32 - b.0 as i32;
-        let dg = a.1 as i32 - b.1 as i32;
-        let db = a.2 as i32 - b.2 as i32;
+        let dr = i32::from(a.0) - i32::from(b.0);
+        let dg = i32::from(a.1) - i32::from(b.1);
+        let db = i32::from(a.2) - i32::from(b.2);
         dr * dr + dg * dg + db * db
     }
 
@@ -544,7 +544,7 @@ fn rgb_to_ansi256_index(r: u8, g: u8, b: u8) -> u8 {
         if candidate_sat >= target_sat {
             return 0;
         }
-        let delta = target_sat as i32 - candidate_sat as i32;
+        let delta = i32::from(target_sat) - i32::from(candidate_sat);
         delta * delta * SAT_PENALTY_FACTOR
     }
 
@@ -555,7 +555,7 @@ fn rgb_to_ansi256_index(r: u8, g: u8, b: u8) -> u8 {
         let mut best_i = 0;
         let mut best_d = i32::MAX;
         for (i, s) in STEPS.iter().enumerate() {
-            let d = (*s as i32 - v as i32).abs();
+            let d = (i32::from(*s) - i32::from(v)).abs();
             if d < best_d { best_d = d; best_i = i; }
         }
         best_i
@@ -620,8 +620,8 @@ fn rgb_to_ansi256_index(r: u8, g: u8, b: u8) -> u8 {
 
     // Candidate 2: grayscale (232..255)
     let gray_level = {
-        let v = (r as u16 + g as u16 + b as u16) / 3;
-        if v <= 8 { 0 } else { ((v as i32 - 8) / 10).clamp(0, 23) as u8 }
+        let v = (u16::from(r) + u16::from(g) + u16::from(b)) / 3;
+        if v <= 8 { 0 } else { ((i32::from(v) - 8) / 10).clamp(0, 23) as u8 }
     };
     let gray_value = 8 + 10 * gray_level;
     let gray_index = 232 + gray_level;
@@ -906,9 +906,9 @@ fn apply_ansi16_profile(theme: &mut Theme, original: &Theme) {
 }
 
 fn color_distance(a: (u8, u8, u8), b: (u8, u8, u8)) -> i32 {
-    let dr = a.0 as i32 - b.0 as i32;
-    let dg = a.1 as i32 - b.1 as i32;
-    let db = a.2 as i32 - b.2 as i32;
+    let dr = i32::from(a.0) - i32::from(b.0);
+    let dg = i32::from(a.1) - i32::from(b.1);
+    let db = i32::from(a.2) - i32::from(b.2);
     dr * dr + dg * dg + db * db
 }
 
@@ -928,8 +928,8 @@ pub(crate) fn relative_luminance_color(color: Color) -> f32 {
 }
 
 fn is_low_saturation((r, g, b): (u8, u8, u8)) -> bool {
-    let max_v = r.max(g.max(b)) as i32;
-    let min_v = r.min(g.min(b)) as i32;
+    let max_v = i32::from(r.max(g.max(b)));
+    let min_v = i32::from(r.min(g.min(b)));
     (max_v - min_v) <= 30
 }
 

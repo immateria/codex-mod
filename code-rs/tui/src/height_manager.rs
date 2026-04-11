@@ -1,6 +1,6 @@
 //! Centralized vertical layout management for the chat UI.
 //!
-//! This module provides a HeightManager that stabilizes per-frame layout by
+//! This module provides a `HeightManager` that stabilizes per-frame layout by
 //! applying small-change hysteresis and quantized HUD heights. It is designed
 //! to be minimally invasive and can be enabled via an environment flag.
 
@@ -137,7 +137,7 @@ impl HeightManager {
         // from 5 to 3 rows so more history is visible. On Termux, always prefer
         // the compact floor regardless of terminal height.
         let min_bottom: u16 = if area.height < 16 || platform_caps::is_termux() { 3 } else { 5 };
-        let percent_cap: u16 = ((area.height as u32).saturating_mul(self.cfg.bottom_percent_cap as u32) / 100) as u16;
+        let percent_cap: u16 = (u32::from(area.height).saturating_mul(u32::from(self.cfg.bottom_percent_cap)) / 100) as u16;
         let bottom_cap = percent_cap.max(min_bottom);
         let desired = bottom_desired_height.max(min_bottom).min(bottom_cap);
 
@@ -188,13 +188,13 @@ impl HeightManager {
                 let padded_area = Rect { x: area.x + 1, y: area.y, width: area.width.saturating_sub(2), height: area.height };
                 let inner_cols = padded_area.width.saturating_sub(2);
                 let (cw, ch) = font_cell;
-                let denom = 4 * (ch as u32);
+                let denom = 4 * u32::from(ch);
                 if denom == 0 {
                     // Fallback: if font cell height is unknown, assume a
                     // reasonable 16:9 aspect by targeting ~12 rows.
                     12u16
                 } else {
-                    let number = (inner_cols as u32) * 3 * (cw as u32);
+                    let number = u32::from(inner_cols) * 3 * u32::from(cw);
                     ((number / denom) as u16).saturating_add(1) // include borders budget
                 }
             });
