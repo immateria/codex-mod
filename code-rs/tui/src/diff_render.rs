@@ -121,7 +121,7 @@ pub(super) fn create_diff_summary_with_width(
     };
 
     let mut files: Vec<FileSummary> = Vec::with_capacity(changes.len());
-    for (path, change) in changes.iter() {
+    for (path, change) in changes {
         match change {
             FileChange::Add { content } => {
                 let added = content.lines().count();

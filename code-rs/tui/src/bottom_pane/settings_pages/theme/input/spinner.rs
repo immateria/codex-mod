@@ -21,7 +21,7 @@ impl ThemeSelectionView {
                 last_raw_output: std::cell::RefCell::new(None),
             }));
         } else {
-            self.confirm_spinner()
+            self.confirm_spinner();
         }
     }
 

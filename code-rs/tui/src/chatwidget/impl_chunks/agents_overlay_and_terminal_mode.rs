@@ -488,7 +488,7 @@ impl ChatWidget<'_> {
         mut line: ratatui::text::Line<'static>,
         base: ratatui::style::Style,
     ) -> ratatui::text::Line<'static> {
-        for span in line.spans.iter_mut() {
+        for span in &mut line.spans {
             span.style = base.patch(span.style);
         }
         line

@@ -9,13 +9,13 @@
                 },
                 AppEvent::RateLimitSnapshotStored { account_id } => match &mut self.app_state {
                     AppState::Chat { widget } => {
-                        widget.on_rate_limit_snapshot_stored(account_id)
+                        widget.on_rate_limit_snapshot_stored(account_id);
                     }
                     AppState::Onboarding { .. } => {}
                 },
                 AppEvent::SwitchAccountFromLimits { account_id } => match &mut self.app_state {
                     AppState::Chat { widget } => {
-                        widget.on_switch_account_from_limits(account_id)
+                        widget.on_switch_account_from_limits(account_id);
                     }
                     AppState::Onboarding { .. } => {}
                 },

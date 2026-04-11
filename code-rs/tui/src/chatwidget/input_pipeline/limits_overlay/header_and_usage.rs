@@ -69,7 +69,7 @@ impl ChatWidget<'_> {
             .map(|(count, _)| count.len())
             .max()
             .unwrap_or(0);
-        for (count, label) in counts.iter() {
+        for (count, label) in &counts {
             let number = format!("{count:>max_width$}");
             lines.push(RtLine::from(vec![
                 RtSpan::raw(indent.clone()),
@@ -137,7 +137,7 @@ impl ChatWidget<'_> {
             " │ ",
             s_text_dim,
         );
-        for (dt, totals) in series.iter() {
+        for (dt, totals) in &series {
             let label = Self::format_hour_label(*dt);
             let bar = Self::bar_segment(totals.total_tokens, max_total, WIDTH);
             let tokens = format_with_separators_u64(totals.total_tokens);
@@ -239,7 +239,7 @@ impl ChatWidget<'_> {
             " │ ",
             s_text_dim,
         );
-        for (day, totals) in daily.iter() {
+        for (day, totals) in &daily {
             let label = Self::format_daily_label(*day);
             let bar = Self::bar_segment(totals.total_tokens, max_total, WIDTH);
             let tokens = format_with_separators_u64(totals.total_tokens);
@@ -393,7 +393,7 @@ impl ChatWidget<'_> {
             " │ ",
             s_text_dim,
         );
-        for (start, totals) in months.iter() {
+        for (start, totals) in &months {
             let label = start.format("%b %Y").to_string();
             let bar = Self::bar_segment(totals.total_tokens, max_total, WIDTH);
             let tokens = format_with_separators_u64(totals.total_tokens);

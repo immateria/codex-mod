@@ -3,9 +3,8 @@ pub(super) fn handle_settings_paste(chat: &mut ChatWidget<'_>, text: String) -> 
         return false;
     }
 
-    let overlay = match chat.settings.overlay.as_mut() {
-        Some(overlay) => overlay,
-        None => return false,
+    let Some(overlay) = chat.settings.overlay.as_mut() else {
+        return false;
     };
 
     if overlay.is_menu_active() || overlay.is_help_visible() {

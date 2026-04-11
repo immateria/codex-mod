@@ -85,7 +85,7 @@ impl ChatWidget<'_> {
         self.diffs.session_patch_sets.push(changes_clone);
         // For any new paths, capture an original baseline snapshot the first time we see them
         if let Some(last) = self.diffs.session_patch_sets.last() {
-            for (src_path, chg) in last.iter() {
+            for (src_path, chg) in last {
                 match chg {
                     code_core::protocol::FileChange::Update {
                         move_path: Some(dest_path),

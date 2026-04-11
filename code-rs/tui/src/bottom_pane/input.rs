@@ -183,9 +183,8 @@ impl<'a> BottomPane<'a> {
     /// chance to consume the event (e.g. to dismiss itself).
     pub(crate) fn on_ctrl_c(&mut self) -> CancellationEvent {
         let kind = self.active_view_kind;
-        let mut view = match self.active_view.take() {
-            Some(view) => view,
-            None => return CancellationEvent::Ignored,
+        let Some(mut view) = self.active_view.take() else {
+            return CancellationEvent::Ignored;
         };
 
         let event = view.on_ctrl_c(self);

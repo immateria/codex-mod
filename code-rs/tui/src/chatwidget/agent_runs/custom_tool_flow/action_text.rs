@@ -40,7 +40,7 @@ pub(super) fn insert_agent_start_message(
     order_key: OrderKey,
     tracker: &AgentRunTracker,
 ) {
-    ui::insert_agent_start_message(chat, order_key, tracker)
+    ui::insert_agent_start_message(chat, order_key, tracker);
 }
 
 pub(super) fn report_missing_batch(
@@ -50,5 +50,5 @@ pub(super) fn report_missing_batch(
     tool_name: Option<&str>,
     extra: Option<&str>,
 ) {
-    ui::report_missing_batch(chat, context, call_id, tool_name, extra)
+    ui::report_missing_batch(chat, context, call_id, tool_name, extra);
 }

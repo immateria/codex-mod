@@ -5,7 +5,7 @@ impl ChatWidget<'_> {
         let mut order: Vec<PathBuf> = Vec::new();
         let mut seen: std::collections::HashSet<PathBuf> = std::collections::HashSet::new();
         for changes in self.diffs.session_patch_sets.iter().rev() {
-            for (path, change) in changes.iter() {
+            for (path, change) in changes {
                 // If this change represents a move/rename, show the destination path in the tabs
                 let display_path: PathBuf = match change {
                     code_core::protocol::FileChange::Update {

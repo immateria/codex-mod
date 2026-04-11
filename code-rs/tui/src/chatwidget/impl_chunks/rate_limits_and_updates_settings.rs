@@ -153,9 +153,8 @@ impl ChatWidget<'_> {
     /// Switch the active account from the limits overlay (triggered by `S` key).
     pub(crate) fn on_switch_account_from_limits(&mut self, account_id: String) {
         let code_home = self.config.code_home.clone();
-        let account = match auth_accounts::find_account(&code_home, &account_id) {
-            Ok(Some(acc)) => acc,
-            _ => return,
+        let Ok(Some(account)) = auth_accounts::find_account(&code_home, &account_id) else {
+            return;
         };
         let mode = account.mode;
         match auth::activate_account_with_store_mode(

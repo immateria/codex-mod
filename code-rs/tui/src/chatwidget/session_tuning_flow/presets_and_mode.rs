@@ -78,7 +78,7 @@ impl ChatWidget<'_> {
         let mut fallback_medium: Option<ModelPreset> = None;
         let mut fallback_first: Option<ModelPreset> = None;
 
-        for preset in presets.iter() {
+        for preset in presets {
             let preset_effort = Self::preset_effort_for_model(preset);
 
             let id_lower = preset.id.to_ascii_lowercase();

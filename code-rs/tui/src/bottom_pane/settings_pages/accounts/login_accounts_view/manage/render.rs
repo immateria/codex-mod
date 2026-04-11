@@ -98,7 +98,7 @@ impl LoginAccountsState {
                 "Connected Accounts",
                 Style::default().add_modifier(Modifier::BOLD),
             ),
-            Span::styled("  ", Style::default()),
+            Span::raw("  "),
             Span::styled(status, crate::colors::style_text_dim()),
         ]));
         lines

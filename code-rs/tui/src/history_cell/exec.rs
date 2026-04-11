@@ -508,7 +508,7 @@ impl ExecCell {
             if note.is_error {
                 style = style.add_modifier(Modifier::BOLD);
             }
-            for span in line.spans.iter_mut() {
+            for span in &mut line.spans {
                 span.style = style;
             }
             lines.push(line);

@@ -611,12 +611,9 @@ impl ChatWidget<'_> {
                 tx.send(AppEvent::SubmitTextWithPreface { visible, preface });
             }
 
-            let git_root = match code_core::git_info::resolve_root_git_project_for_trust(&work_cwd) {
-                Some(p) => p,
-                None => {
-                    send_background(&tx, &ticket, "`/merge` — not a git repo".to_string());
-                    return;
-                }
+            let Some(git_root) = code_core::git_info::resolve_root_git_project_for_trust(&work_cwd) else {
+                send_background(&tx, &ticket, "`/merge` — not a git repo".to_string());
+                return;
             };
             let merge_lock = ChatWidget::merge_lock_for_repo(&git_root);
             let _merge_guard = match merge_lock.try_lock() {

@@ -138,9 +138,8 @@ pub(crate) fn expand_custom_prompt(
         return Ok(None);
     };
 
-    let prompt = match custom_prompts.iter().find(|p| p.name == prompt_name) {
-        Some(prompt) => prompt,
-        None => return Ok(None),
+    let Some(prompt) = custom_prompts.iter().find(|p| p.name == prompt_name) else {
+        return Ok(None);
     };
 
     // If there are named placeholders, expect key=value inputs.

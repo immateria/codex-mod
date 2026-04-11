@@ -180,7 +180,7 @@ fn apply_exec_begin_metadata_to_finished_call(
         }
         HistoryRecord::MergedExec(mut merged_record) => {
             let mut segment_found = false;
-            for segment in merged_record.segments.iter_mut() {
+            for segment in &mut merged_record.segments {
                 let matches_call = segment
                     .call_id
                     .as_deref()

@@ -21,19 +21,19 @@ impl HistorySink for AppEventHistorySink {
     fn insert_history_with_kind(&self, id: Option<String>, kind: StreamKind, lines: Vec<Line<'static>>) {
         tracing::debug!("sink.insert_history_with_kind kind={:?} id={:?} lines={}", kind, id, lines.len());
         self.0
-            .send(crate::app_event::AppEvent::InsertHistoryWithKind { id, kind, lines })
+            .send(crate::app_event::AppEvent::InsertHistoryWithKind { id, kind, lines });
     }
     fn insert_final_answer(&self, id: Option<String>, lines: Vec<Line<'static>>, full_markdown_source: String) {
         tracing::debug!("sink.insert_final_answer id={:?} lines={} source_len={}", id, lines.len(), full_markdown_source.len());
         self.0
-            .send(crate::app_event::AppEvent::InsertFinalAnswer { id, lines, source: full_markdown_source })
+            .send(crate::app_event::AppEvent::InsertFinalAnswer { id, lines, source: full_markdown_source });
     }
     fn start_commit_animation(&self) {
         self.0
-            .send(crate::app_event::AppEvent::StartCommitAnimation)
+            .send(crate::app_event::AppEvent::StartCommitAnimation);
     }
     fn stop_commit_animation(&self) {
-        self.0.send(crate::app_event::AppEvent::StopCommitAnimation)
+        self.0.send(crate::app_event::AppEvent::StopCommitAnimation);
     }
 }
 

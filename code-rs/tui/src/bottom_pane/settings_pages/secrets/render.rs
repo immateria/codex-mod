@@ -28,7 +28,7 @@ impl SecretsSettingsView {
         match &self.mode {
             Mode::List => self.render_list(chrome, area, buf, &snapshot),
             Mode::ConfirmDelete { entry } => {
-                self.render_confirm_delete(chrome, area, buf, &snapshot, entry.clone())
+                self.render_confirm_delete(chrome, area, buf, &snapshot, entry.clone());
             }
         }
     }

@@ -595,7 +595,7 @@ impl ChatWidget<'_> {
         let mut lines: Vec<ratatui::text::Line<'static>> = Vec::new();
         lines.push(ratatui::text::Line::from("performance".dim()));
         for l in text.lines() {
-            lines.push(ratatui::text::Line::from(l.to_string()))
+            lines.push(ratatui::text::Line::from(l.to_string()));
         }
         let state = history_cell::plain_message_state_from_lines(
             lines,

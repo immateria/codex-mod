@@ -122,7 +122,7 @@ impl CommandPopup {
         let mut out: Vec<(CommandItem, Option<Vec<usize>>, i32)> = Vec::new();
         if filter.is_empty() {
             // Built-ins first, in presentation order.
-            for (_, cmd) in self.builtins.iter() {
+            for (_, cmd) in &self.builtins {
                 out.push((CommandItem::Builtin(*cmd), None, 0));
             }
             // Then subagent commands
@@ -136,7 +136,7 @@ impl CommandPopup {
             return out;
         }
 
-        for (_, cmd) in self.builtins.iter() {
+        for (_, cmd) in &self.builtins {
             if let Some((indices, score)) = fuzzy_match(cmd.command(), filter) {
                 out.push((CommandItem::Builtin(*cmd), Some(indices), score));
             }

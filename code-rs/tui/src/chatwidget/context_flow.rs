@@ -343,7 +343,7 @@ impl ChatWidget<'_> {
             }
             if let Some(meta) = obj.get("metadata").and_then(|v| v.as_object()) {
                 let mut map = BTreeMap::new();
-                for (key, value) in meta.iter() {
+                for (key, value) in meta {
                     if let Some(v) = value.as_str() {
                         map.insert(key.clone(), v.to_string());
                     } else {

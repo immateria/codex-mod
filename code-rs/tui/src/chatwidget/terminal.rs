@@ -248,7 +248,7 @@ impl TerminalOverlay {
             ),
         );
         if emphasize {
-            for span in line.spans.iter_mut() {
+            for span in &mut line.spans {
                 span.style = span.style.add_modifier(ratatui::style::Modifier::BOLD);
             }
         }
@@ -630,14 +630,14 @@ fn is_command_plain(plain: &str) -> bool {
 
 fn tint_command_line(line: &mut RtLine<'_>) {
     let primary = colors::primary();
-    for span in line.spans.iter_mut() {
+    for span in &mut line.spans {
         span.style.fg = Some(primary);
     }
 }
 
 fn tint_stderr_line(line: &mut RtLine<'_>) {
     let warn = colors::warning();
-    for span in line.spans.iter_mut() {
+    for span in &mut line.spans {
         if span.style.fg.is_none() {
             span.style.fg = Some(warn);
         }

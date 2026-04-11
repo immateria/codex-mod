@@ -18,7 +18,7 @@ pub(crate) fn action_enum_from_parsed(
 }
 
 pub(crate) fn first_context_path(parsed_commands: &[ParsedCommand]) -> Option<String> {
-    for parsed in parsed_commands.iter() {
+    for parsed in parsed_commands {
         match parsed {
             ParsedCommand::ListFiles { path, .. } | ParsedCommand::Search { path, .. } => {
                 if let Some(p) = path {

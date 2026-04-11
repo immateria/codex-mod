@@ -53,12 +53,12 @@ impl MemoriesSettingsView {
                 let settings = &mut self.global_settings;
                 match row {
                     RowKind::GenerateMemories => {
-                        settings.generate_memories = Some(!effective.generate_memories)
+                        settings.generate_memories = Some(!effective.generate_memories);
                     }
                     RowKind::UseMemories => settings.use_memories = Some(!effective.use_memories),
                     RowKind::SkipMcpOrWebSearch => {
                         settings.no_memories_if_mcp_or_web_search =
-                            Some(!effective.no_memories_if_mcp_or_web_search)
+                            Some(!effective.no_memories_if_mcp_or_web_search);
                     }
                     _ => {}
                 }
@@ -312,7 +312,7 @@ impl MemoriesSettingsView {
         match self.selected_row() {
             RowKind::Scope => self.cycle_scope_from_row(true),
             RowKind::GenerateMemories | RowKind::UseMemories | RowKind::SkipMcpOrWebSearch => {
-                self.toggle_bool_row(self.selected_row())
+                self.toggle_bool_row(self.selected_row());
             }
             RowKind::MaxRawMemories
             | RowKind::MaxRolloutAgeDays
@@ -349,14 +349,14 @@ impl MemoriesSettingsView {
             KeyCode::Left => match self.selected_row() {
                 RowKind::Scope => self.cycle_scope_from_row(false),
                 RowKind::GenerateMemories | RowKind::UseMemories | RowKind::SkipMcpOrWebSearch => {
-                    self.toggle_bool_row(self.selected_row())
+                    self.toggle_bool_row(self.selected_row());
                 }
                 _ => {}
             },
             KeyCode::Right => match self.selected_row() {
                 RowKind::Scope => self.cycle_scope_from_row(true),
                 RowKind::GenerateMemories | RowKind::UseMemories | RowKind::SkipMcpOrWebSearch => {
-                    self.toggle_bool_row(self.selected_row())
+                    self.toggle_bool_row(self.selected_row());
                 }
                 _ => {}
             },

@@ -126,7 +126,7 @@ pub(crate) fn exec_render_parts_parsed_with_meta(
     };
     let use_content_connectors = !(matches!(action, ExecAction::Run) && output.is_none());
 
-    for parsed in parsed_commands.iter() {
+    for parsed in parsed_commands {
         let (label, content) = command_label_content(parsed, search_paths);
         // Enforce per-action grouping: only keep entries matching this cell's action.
         if let Some(exp) = expected_label {
@@ -421,7 +421,7 @@ fn new_parsed_command(
         ExecAction::Run => None,
     };
 
-    for parsed in parsed_commands.iter() {
+    for parsed in parsed_commands {
         let (label, content) = command_label_content(parsed, search_paths);
 
         // Keep only entries that match the primary action grouping.
@@ -779,8 +779,8 @@ fn new_exec_command_generic(
     }
 
     if output.is_some() {
-        for line in highlighted_cmd.iter_mut() {
-            for span in line.spans.iter_mut() {
+        for line in &mut highlighted_cmd {
+            for span in &mut line.spans {
                 span.style = span.style.fg(crate::colors::text_bright());
             }
         }

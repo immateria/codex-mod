@@ -413,7 +413,7 @@ fn render_brand_text_lines(brand_title: &str, max_width: usize, max_rows: usize)
             continue;
         }
         let candidate = format!("{current} {word}");
-        if candidate.chars().count() <= max_width {
+        if unicode_width::UnicodeWidthStr::width(candidate.as_str()) <= max_width {
             current = candidate;
         } else {
             lines.push(center_line(&current, max_width));

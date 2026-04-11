@@ -150,7 +150,7 @@ impl MarkdownRenderer {
             for (idx, l) in highlighted_lines.iter_mut().enumerate() {
                 // Paint background on each span, not the whole line, so width
                 // matches our explicit padding rectangle.
-                for sp in l.spans.iter_mut() {
+                for sp in &mut l.spans {
                     sp.style = sp.style.bg(code_bg);
                 }
                 let w = line_widths.get(idx).copied().unwrap_or(0);
@@ -707,8 +707,8 @@ impl MarkdownRenderer {
                 Style::default().fg(code_bg).bg(code_bg),
             )));
 
-            for l in highlighted.iter_mut() {
-                for sp in l.spans.iter_mut() {
+            for l in &mut highlighted {
+                for sp in &mut l.spans {
                     sp.style = sp.style.bg(code_bg);
                 }
                 let w: usize = l

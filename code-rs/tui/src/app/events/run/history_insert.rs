@@ -7,7 +7,7 @@
                         }
                         tracing::debug!("app: InsertHistory lines={}", lines.len());
                         if self.alt_screen_active {
-                            widget.insert_history_lines(lines)
+                            widget.insert_history_lines(lines);
                         } else {
                             mirror_to_scrollback(terminal, widget, lines);
                             self.schedule_redraw();

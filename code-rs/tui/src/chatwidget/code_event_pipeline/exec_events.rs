@@ -115,7 +115,7 @@ impl ChatWidget<'_> {
         self.diffs.session_patch_sets.push(changes.clone());
         // Capture/adjust baselines, including rename moves
         if let Some(last) = self.diffs.session_patch_sets.last() {
-            for (src_path, chg) in last.iter() {
+            for (src_path, chg) in last {
                 match chg {
                     code_core::protocol::FileChange::Update {
                         move_path: Some(dest_path),
@@ -234,7 +234,7 @@ impl ChatWidget<'_> {
             move |interrupts| interrupts.push_mcp_end(seq, ev, order),
             |this| {
                 tracing::info!("[order] McpToolCallEnd call_id={} seq={}", ev2.call_id, seq);
-                tools::mcp_end(this, ev2, order_ok)
+                tools::mcp_end(this, ev2, order_ok);
             },
         );
     }

@@ -74,7 +74,7 @@ impl ChatWidget<'_> {
         let mut saw_running = false;
         let mut has_running_non_auto_review = false;
         let mut has_running_auto_review = false;
-        for agent in agents.iter() {
+        for agent in &agents {
             let parsed_status = agent_status_from_str(agent.status.as_str());
             // Update runtime map
             let entry = self.agent_runtime.entry(agent.id.clone()).or_default();

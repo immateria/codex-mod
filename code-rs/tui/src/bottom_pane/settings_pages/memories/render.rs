@@ -70,7 +70,7 @@ impl MemoriesSettingsView {
     pub(super) fn render_content_only(&self, area: Rect, buf: &mut Buffer) {
         match &self.mode {
             ViewMode::Main | ViewMode::Transition => {
-                self.render_main_with(area, buf, ChromeMode::ContentOnly)
+                self.render_main_with(area, buf, ChromeMode::ContentOnly);
             }
             ViewMode::Edit { target, field, error } => {
                 self.render_edit_with(
@@ -80,7 +80,7 @@ impl MemoriesSettingsView {
                     field,
                     error.as_deref(),
                     ChromeMode::ContentOnly,
-                )
+                );
             }
         }
     }
@@ -89,7 +89,7 @@ impl MemoriesSettingsView {
         match &self.mode {
             ViewMode::Main | ViewMode::Transition => self.render_main_with(area, buf, ChromeMode::Framed),
             ViewMode::Edit { target, field, error } => {
-                self.render_edit_with(area, buf, *target, field, error.as_deref(), ChromeMode::Framed)
+                self.render_edit_with(area, buf, *target, field, error.as_deref(), ChromeMode::Framed);
             }
         }
     }

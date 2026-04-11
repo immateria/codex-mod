@@ -566,7 +566,7 @@ async fn cleanup_fallback_worktrees(git_root: &Path) -> Result<(), String> {
 
     // Age-based prune
     let now = SystemTime::now();
-    for (path, mtime) in entries.iter() {
+    for (path, mtime) in &entries {
         if let Ok(elapsed) = now.duration_since(*mtime)
             && elapsed.as_secs() > AUTO_REVIEW_FALLBACK_MAX_AGE_SECS
                 && let Ok(Some(g)) = try_acquire_lock("review-fallback", path) {

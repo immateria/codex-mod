@@ -86,10 +86,10 @@ impl InterfaceSettingsView {
         match &self.mode {
             ViewMode::Main => self.render_main(area, buf),
             ViewMode::EditWidth { field, error } => {
-                Self::render_edit_width(area, buf, field, error.as_deref())
+                Self::render_edit_width(area, buf, field, error.as_deref());
             }
             ViewMode::CaptureHotkey { row, error } => {
-                self.render_capture_hotkey(area, buf, *row, error.as_deref())
+                self.render_capture_hotkey(area, buf, *row, error.as_deref());
             }
             ViewMode::Transition => self.render_main(area, buf),
         }

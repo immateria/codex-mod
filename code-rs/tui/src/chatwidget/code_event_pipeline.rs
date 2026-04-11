@@ -156,7 +156,7 @@ impl ChatWidget<'_> {
                     ev.call_id,
                     event.event_seq
                 );
-                tools::web_search_begin(self, ev.call_id, ev.query, event.order.as_ref(), ok)
+                tools::web_search_begin(self, ev.call_id, ev.query, event.order.as_ref(), ok);
             }
             EventMsg::AgentMessage(AgentMessageEvent { message }) => {
                 self.handle_agent_message_event(event.order.as_ref(), event.event_seq, id, message);
@@ -206,7 +206,7 @@ impl ChatWidget<'_> {
                         self.next_internal_key()
                     }
                 };
-                tools::web_search_complete(self, ev.call_id, ev.query, event.order.as_ref(), ok)
+                tools::web_search_complete(self, ev.call_id, ev.query, event.order.as_ref(), ok);
             }
             EventMsg::AgentMessageDelta(AgentMessageDeltaEvent { delta }) => {
                 self.handle_agent_message_delta_event(event.order.as_ref(), id, delta);

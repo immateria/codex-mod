@@ -267,13 +267,13 @@ impl<'a> BottomPane<'a> {
 
         // Otherwise create a new approval modal overlay.
         let modal = ApprovalModalView::new(request, ticket, self.app_event_tx.clone());
-        self.set_other_view(modal, false)
+        self.set_other_view(modal, false);
     }
 
     /// Show the model selection UI
     pub fn show_model_selection(&mut self, params: settings_pages::model::ModelSelectionViewParams) {
         let view = settings_pages::model::ModelSelectionView::new(params, self.app_event_tx.clone());
-        self.set_view(Box::new(view), ActiveViewKind::ModelSelection, true)
+        self.set_view(Box::new(view), ActiveViewKind::ModelSelection, true);
     }
 
     /// Show the shell selection UI
@@ -283,7 +283,7 @@ impl<'a> BottomPane<'a> {
             shell_presets,
             self.app_event_tx.clone(),
         );
-        self.set_view(Box::new(view), ActiveViewKind::ShellSelection, true)
+        self.set_view(Box::new(view), ActiveViewKind::ShellSelection, true);
     }
 
     /// Show the theme selection UI
@@ -299,7 +299,7 @@ impl<'a> BottomPane<'a> {
             tail_ticket,
             before_ticket,
         );
-        self.set_other_view(view, true)
+        self.set_other_view(view, true);
     }
 
     /// Show the verbosity selection UI
@@ -308,7 +308,7 @@ impl<'a> BottomPane<'a> {
             current_verbosity,
             self.app_event_tx.clone(),
         );
-        self.set_other_view(view, true)
+        self.set_other_view(view, true);
     }
 
     /// Show a multi-line prompt input view (used for custom review instructions)
@@ -361,7 +361,7 @@ impl<'a> BottomPane<'a> {
             action,
             self.app_event_tx.clone(),
         );
-        self.set_other_view(view, true)
+        self.set_other_view(view, true);
     }
 
     pub fn show_undo_timeline_view(&mut self, view: UndoTimelineView) {

@@ -29,7 +29,7 @@ impl AppsSettingsView {
         match &self.mode {
             Mode::Overview => self.render_overview(chrome, area, buf, &snapshot),
             Mode::AccountDetail { account_id } => {
-                self.render_account_detail(chrome, area, buf, &snapshot, account_id)
+                self.render_account_detail(chrome, area, buf, &snapshot, account_id);
             }
         }
     }

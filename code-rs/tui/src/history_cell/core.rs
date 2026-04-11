@@ -359,7 +359,7 @@ impl HistoryCell for Box<dyn HistoryCell> {
     }
 
     fn render_with_skip(&self, area: Rect, buf: &mut Buffer, skip_rows: u16) {
-        self.as_ref().render_with_skip(area, buf, skip_rows)
+        self.as_ref().render_with_skip(area, buf, skip_rows);
     }
 
     fn has_custom_render(&self) -> bool {
@@ -367,7 +367,7 @@ impl HistoryCell for Box<dyn HistoryCell> {
     }
 
     fn custom_render(&self, area: Rect, buf: &mut Buffer) {
-        self.as_ref().custom_render(area, buf)
+        self.as_ref().custom_render(area, buf);
     }
 
     fn is_animating(&self) -> bool {
@@ -375,7 +375,7 @@ impl HistoryCell for Box<dyn HistoryCell> {
     }
 
     fn trigger_fade(&self) {
-        self.as_ref().trigger_fade()
+        self.as_ref().trigger_fade();
     }
 
     fn should_remove(&self) -> bool {

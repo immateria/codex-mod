@@ -479,12 +479,9 @@ impl ImageOutputCell {
             return;
         }
 
-        let offscreen = match self.render_image_buffer(path, image_width, full_height) {
-            Ok(buffer) => buffer,
-            Err(_) => {
-                self.render_image_placeholder(path, placeholder_area, buf);
-                return;
-            }
+        let Ok(offscreen) = self.render_image_buffer(path, image_width, full_height) else {
+            self.render_image_placeholder(path, placeholder_area, buf);
+            return;
         };
 
         let src_start_row = (visible_top - shot_top) as u16;

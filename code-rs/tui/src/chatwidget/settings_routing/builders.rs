@@ -448,7 +448,7 @@ impl ChatWidget<'_> {
             }
         }
 
-        for name in ordered.iter() {
+        for name in &ordered {
             let name_lower = name.to_ascii_lowercase();
             if let Some(cfg) = self
                 .config

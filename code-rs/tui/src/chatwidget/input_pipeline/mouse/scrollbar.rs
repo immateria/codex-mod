@@ -21,9 +21,8 @@ impl ChatWidget<'_> {
             return false;
         }
 
-        let (thumb_start, thumb_len) = match self.scrollbar_thumb_geometry(sb_area, max_scroll) {
-            Some(v) => v,
-            None => return false,
+        let Some((thumb_start, thumb_len)) = self.scrollbar_thumb_geometry(sb_area, max_scroll) else {
+            return false;
         };
 
         let rel_y = (y.saturating_sub(sb_area.y)) as usize;
@@ -57,9 +56,8 @@ impl ChatWidget<'_> {
 
     /// Update scroll position during an active scrollbar drag.
     pub(in super::super) fn handle_scrollbar_drag(&mut self, y: u16) {
-        let offset_in_thumb = match self.scrollbar_drag_offset.get() {
-            Some(o) => o,
-            None => return,
+        let Some(offset_in_thumb) = self.scrollbar_drag_offset.get() else {
+            return;
         };
 
         let sb_area = self.scrollbar_hit_area();

@@ -216,7 +216,7 @@ impl<'a> BottomPane<'a> {
 
     /// Sends a redraw request to the app event channel.
     pub(crate) fn request_redraw(&self) {
-        self.app_event_tx.send(AppEvent::RequestRedraw)
+        self.app_event_tx.send(AppEvent::RequestRedraw);
     }
 
     /// Request redraw and notify that the bottom pane view changed.

@@ -83,7 +83,7 @@ impl KeyboardHandler for AuthModeWidget {
                 },
                 SignInState::EnvVarMissing => self.sign_in_state = SignInState::PickMode,
                 SignInState::ChatGptSuccessMessage => {
-                    self.sign_in_state = SignInState::ChatGptSuccess
+                    self.sign_in_state = SignInState::ChatGptSuccess;
                 }
                 _ => {}
             },

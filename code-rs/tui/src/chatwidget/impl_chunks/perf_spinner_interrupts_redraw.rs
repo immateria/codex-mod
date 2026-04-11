@@ -300,7 +300,7 @@ impl ChatWidget<'_> {
             return;
         }
 
-        for agent in self.active_agents.iter_mut() {
+        for agent in &mut self.active_agents {
             if matches!(agent.status, AgentStatus::Pending | AgentStatus::Running) {
                 agent.status = AgentStatus::Completed;
             }
@@ -355,7 +355,7 @@ impl ChatWidget<'_> {
         let now = Instant::now();
         // Collect keys to avoid holding a mutable borrow while iterating
         let mut ready: Vec<ExecCallId> = Vec::new();
-        for (k, (_ev, _order, t0)) in self.exec.pending_exec_ends.iter() {
+        for (k, (_ev, _order, t0)) in &self.exec.pending_exec_ends {
             if now.saturating_duration_since(*t0) >= Duration::from_millis(110) {
                 ready.push(k.clone());
             }

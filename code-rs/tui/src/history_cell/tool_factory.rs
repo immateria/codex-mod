@@ -861,7 +861,7 @@ fn dim_webfetch_emphasis_and_links(lines: &mut Vec<Line<'static>>) {
             || t.starts_with('⋅')
             || digit_prefix_len > 0 && matches!(numbered_list_suffix, Some('.') | Some(')'));
 
-        for sp in line.spans.iter_mut() {
+        for sp in &mut line.spans {
             // Skip code block spans (have a solid code background)
             if sp.style.bg == Some(code_bg) {
                 continue;
@@ -922,12 +922,11 @@ fn format_browser_args_humanized(
                 .and_then(|v| v.as_str())
                 .unwrap_or("click")
                 .to_lowercase();
-            let (x, y) = match (
+            let (Some(x), Some(y)) = (
                 map.get("x").and_then(serde_json::Value::as_f64),
                 map.get("y").and_then(serde_json::Value::as_f64),
-            ) {
-                (Some(x), Some(y)) => (x, y),
-                _ => return None,
+            ) else {
+                return None;
             };
             let msg = format!("└ {ty} at {}", fmt_xy(x, y));
             Some(vec![Line::from(text(msg))])

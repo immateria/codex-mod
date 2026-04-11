@@ -207,12 +207,9 @@ impl BrowserSessionCell {
             return;
         }
 
-        let offscreen = match self.render_screenshot_buffer(path, screenshot_width, full_height) {
-            Ok(buffer) => buffer,
-            Err(_) => {
-                self.render_screenshot_placeholder(path, placeholder_area, buf);
-                return;
-            }
+        let Ok(offscreen) = self.render_screenshot_buffer(path, screenshot_width, full_height) else {
+            self.render_screenshot_placeholder(path, placeholder_area, buf);
+            return;
         };
 
         let src_start_row = (visible_top - shot_top) as u16;

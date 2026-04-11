@@ -105,7 +105,7 @@ impl ChatWidget<'_> {
                     }
                 }
                 // Otherwise, scroll the history
-                layout_scroll::mouse_scroll(self, true)
+                layout_scroll::mouse_scroll(self, true);
             }
             MouseEventKind::ScrollDown => {
                 // If scroll is in the bottom pane area, forward it there first
@@ -117,7 +117,7 @@ impl ChatWidget<'_> {
                     }
                 }
                 // Otherwise, scroll the history
-                layout_scroll::mouse_scroll(self, false)
+                layout_scroll::mouse_scroll(self, false);
             }
             // Horizontal scroll on status bars (mouse wheel left/right).
             MouseEventKind::ScrollLeft | MouseEventKind::ScrollRight => {

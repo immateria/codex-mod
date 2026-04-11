@@ -93,7 +93,7 @@ impl InterruptManager {
                 },
                 QueuedInterrupt::McpEnd { ev, order, .. } => {
                     let ok = match order.as_ref() { Some(om) => chat.provider_order_key_from_order_meta(om), None => { tracing::warn!("missing OrderMeta in queued McpEnd; using synthetic key"); chat.next_internal_key() } };
-                    tools::mcp_end(chat, ev, ok)
+                    tools::mcp_end(chat, ev, ok);
                 },
                 QueuedInterrupt::PatchEnd { seq: _, ev } => {
                     chat.handle_patch_apply_end_now(ev);

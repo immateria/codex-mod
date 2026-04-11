@@ -23,7 +23,7 @@ impl ThemeSelectionView {
                 proposed_is_dark: std::cell::Cell::new(None),
             }));
         } else {
-            self.confirm_theme()
+            self.confirm_theme();
         }
     }
 

@@ -193,7 +193,7 @@ impl ChatWidget<'_> {
         let startup_error = self.startup_mcp_error_detail.clone()
             .or_else(|| self.startup_mcp_error_summary.clone());
         self.open_bottom_pane_settings(move |this| {
-            this.bottom_pane.show_mcp_settings(rows, startup_error)
+            this.bottom_pane.show_mcp_settings(rows, startup_error);
         })
     }
 
@@ -253,14 +253,13 @@ impl ChatWidget<'_> {
     }
 
     pub(crate) fn activate_current_settings_section(&mut self) -> bool {
-        let section = match self
+        let Some(section) = self
             .settings
             .overlay
             .as_ref()
             .map(super::settings_overlay::SettingsOverlayView::active_section)
-        {
-            Some(section) => section,
-            None => return false,
+        else {
+            return false;
         };
 
         let handled = match section {

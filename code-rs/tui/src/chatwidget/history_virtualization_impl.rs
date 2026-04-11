@@ -32,7 +32,7 @@ impl ChatWidget<'_> {
                 let mut has_welcome = false;
                 let mut count = 0u16;
                 let mut height_sum = 0u16;
-                for cell in self.history_cells.iter() {
+                for cell in &self.history_cells {
                     if cell
                         .as_any()
                         .downcast_ref::<crate::history_cell::AnimatedWelcomeCell>()
@@ -61,7 +61,7 @@ impl ChatWidget<'_> {
 
         let welcome_height_hint = height.saturating_sub(reserve_rows).max(1);
         let mut changed = false;
-        for cell in self.history_cells.iter() {
+        for cell in &self.history_cells {
             if let Some(welcome) = cell
                 .as_any()
                 .downcast_ref::<crate::history_cell::AnimatedWelcomeCell>()
@@ -328,9 +328,8 @@ impl ChatWidget<'_> {
         let Some(record) = self.history_state.record(history_id).cloned() else {
             return false;
         };
-        let mut cell = match self.build_cell_from_record(&record) {
-            Some(cell) => cell,
-            None => return false,
+        let Some(mut cell) = self.build_cell_from_record(&record) else {
+            return false;
         };
         Self::assign_history_id_inner(&mut cell, history_id);
         self.history_cells[idx] = cell;

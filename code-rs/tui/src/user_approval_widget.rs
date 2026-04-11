@@ -452,7 +452,7 @@ impl UserApprovalWidget<'_> {
     }
 
     fn send_decision(&mut self, decision: ReviewDecision) {
-        self.send_decision_with_feedback(decision, String::new())
+        self.send_decision_with_feedback(decision, String::new());
     }
 
     fn send_decision_with_feedback(&mut self, decision: ReviewDecision, feedback: String) {

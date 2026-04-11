@@ -99,7 +99,7 @@ pub(crate) fn append_markdown_with_opener_and_cwd_and_bold(
                     for (idx, l) in highlighted_lines.iter_mut().enumerate() {
                         // Apply background to all existing spans instead of the line,
                         // so the painted region matches our explicit padding width.
-                        for sp in l.spans.iter_mut() {
+                        for sp in &mut l.spans {
                             sp.style = sp.style.bg(code_bg);
                         }
                         let w = line_widths.get(idx).copied().unwrap_or(0);

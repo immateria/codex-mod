@@ -31,7 +31,7 @@ impl ChatWidget<'_> {
             match cell.kind() {
                 HistoryCellType::User => user_turns = user_turns.saturating_add(1),
                 HistoryCellType::Assistant => {
-                    assistant_turns = assistant_turns.saturating_add(1)
+                    assistant_turns = assistant_turns.saturating_add(1);
                 }
                 _ => {}
             }

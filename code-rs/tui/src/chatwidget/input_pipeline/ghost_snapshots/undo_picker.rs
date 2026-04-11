@@ -126,7 +126,7 @@ impl ChatWidget<'_> {
 
     pub(in super::super) fn build_undo_timeline_entries(&self) -> Vec<UndoTimelineEntry> {
         let mut entries: Vec<UndoTimelineEntry> = Vec::with_capacity(self.ghost_snapshots.len().saturating_add(1));
-        for snapshot in self.ghost_snapshots.iter() {
+        for snapshot in &self.ghost_snapshots {
             entries.push(self.timeline_entry_for_snapshot(snapshot));
         }
         entries.push(self.timeline_entry_for_current());

@@ -37,7 +37,7 @@ pub(crate) fn merge_remote_models(
         .map(|preset| preset.model.to_ascii_lowercase())
         .collect();
 
-    for preset in remote_presets.iter_mut() {
+    for preset in &mut remote_presets {
         preset.is_default = false;
     }
 

@@ -32,7 +32,7 @@ impl PluginsSettingsView {
             Mode::List => self.render_list(chrome, area, buf, &snapshot),
             Mode::Detail { key } => self.render_detail(chrome, area, buf, &snapshot, key.clone()),
             Mode::ConfirmUninstall { plugin_id_key: _, key } => {
-                self.render_confirm_uninstall(chrome, area, buf, &snapshot, key.clone())
+                self.render_confirm_uninstall(chrome, area, buf, &snapshot, key.clone());
             }
             Mode::Sources(mode) => self.render_sources(chrome, area, buf, &snapshot, mode.clone()),
         }
@@ -170,10 +170,10 @@ impl PluginsSettingsView {
         match mode {
             SourcesMode::List => self.render_sources_list(chrome, area, buf, snapshot),
             SourcesMode::EditCurated | SourcesMode::EditMarketplaceRepo { .. } => {
-                self.render_sources_editor(chrome, area, buf, snapshot, &mode)
+                self.render_sources_editor(chrome, area, buf, snapshot, &mode);
             }
             SourcesMode::ConfirmRemoveRepo { index } => {
-                self.render_sources_confirm_remove(chrome, area, buf, snapshot, index)
+                self.render_sources_confirm_remove(chrome, area, buf, snapshot, index);
             }
         }
     }

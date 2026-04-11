@@ -302,7 +302,7 @@ pub(crate) fn build_output_lines(text: &str) -> Vec<Line<'static>> {
 
     fn ansi_line_with_theme_bg(s: &str) -> Line<'static> {
         let mut ln = ansi_escape_line(s);
-        for sp in ln.spans.iter_mut() {
+        for sp in &mut ln.spans {
             sp.style.bg = None;
         }
         ln
@@ -372,7 +372,7 @@ fn build_preview_lines_windowed(
 
     fn ansi_line_with_theme_bg(s: &str) -> Line<'static> {
         let mut ln = ansi_escape_line(s);
-        for sp in ln.spans.iter_mut() {
+        for sp in &mut ln.spans {
             sp.style.bg = None;
         }
         ln
@@ -424,7 +424,7 @@ pub(crate) fn output_lines(
             let angle_style = Style::default()
                 .fg(crate::colors::text_dim())
                 .add_modifier(Modifier::DIM);
-            for line in stdout_lines.iter_mut() {
+            for line in &mut stdout_lines {
                 line.spans.insert(0, Span::styled("> ", angle_style));
             }
         }

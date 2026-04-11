@@ -83,7 +83,7 @@ impl OnboardingScreen {
                 login_status,
                 preferred_auth_method: code_login::AuthMode::ApiKey,
                 chat_widget_args: shared_chat_args.clone(),
-            })))
+            })));
         }
         let is_git_repo = get_git_repo_root(&cwd).is_some();
         let highlighted = if is_git_repo {
@@ -103,7 +103,7 @@ impl OnboardingScreen {
                 highlighted,
                 error: None,
                 chat_widget_args: shared_chat_args.clone(),
-            })))
+            })));
         }
         steps.push(Step::ContinueToChat(Box::new(ContinueToChatWidget {
             event_tx: event_tx.clone(),
@@ -145,7 +145,7 @@ impl OnboardingScreen {
 
     fn current_steps_mut(&mut self) -> Vec<&mut Step> {
         let mut out: Vec<&mut Step> = Vec::new();
-        for step in self.steps.iter_mut() {
+        for step in &mut self.steps {
             match step.get_step_state() {
                 StepState::Hidden => continue,
                 StepState::Complete => out.push(step),
@@ -160,7 +160,7 @@ impl OnboardingScreen {
 
     fn current_steps(&self) -> Vec<&Step> {
         let mut out: Vec<&Step> = Vec::new();
-        for step in self.steps.iter() {
+        for step in &self.steps {
             match step.get_step_state() {
                 StepState::Hidden => continue,
                 StepState::Complete => out.push(step),

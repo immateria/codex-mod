@@ -52,7 +52,7 @@ impl StreamState {
         self.streamer.is_idle()
     }
     pub(crate) fn enqueue(&mut self, lines: Vec<ratatui::text::Line<'static>>) {
-        self.streamer.enqueue(lines)
+        self.streamer.enqueue(lines);
     }
 }
 

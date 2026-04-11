@@ -356,7 +356,7 @@ impl TextArea {
                 modifiers,
                 ..
             } if modifiers == (KeyModifiers::CONTROL | KeyModifiers::ALT) => {
-                self.delete_backward_word()
+                self.delete_backward_word();
             },
             KeyEvent {
                 code: KeyCode::Backspace,
@@ -940,12 +940,11 @@ impl TextArea {
                 // input feel more natural: when the cursor reaches the last
                 // visible column, the next character starts on the next line.
                 let effective_width = width.saturating_sub(1);
-                for line in textwrap::wrap(
+                for line in &textwrap::wrap(
                     &self.text,
                     Options::new(effective_width as usize)
                         .wrap_algorithm(textwrap::WrapAlgorithm::FirstFit),
                 )
-                .iter()
                 {
                     match line {
                         std::borrow::Cow::Borrowed(slice) => {

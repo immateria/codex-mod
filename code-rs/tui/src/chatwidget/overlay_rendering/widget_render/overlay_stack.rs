@@ -162,7 +162,7 @@ impl ChatWidget<'_> {
                     let mut constraints: Vec<Constraint> = Vec::with_capacity(labels.len().saturating_add(1));
                     let mut total: u16 = 0;
                     for label in &labels {
-                        let w = (label.chars().count() as u16)
+                        let w = (unicode_width::UnicodeWidthStr::width(label.as_str()) as u16)
                             .min(tabs_area.width.saturating_sub(total));
                         constraints.push(Constraint::Length(w));
                         total = total.saturating_add(w);
@@ -214,7 +214,7 @@ impl ChatWidget<'_> {
                             .render(label_rect, buf);
                         // Selected tab: thin underline using text_bright under the label width
                         if selected {
-                            let label_len = labels[i].chars().count() as u16;
+                            let label_len = unicode_width::UnicodeWidthStr::width(labels[i].as_str()) as u16;
                             let accent_w = label_len.min(rect.width.saturating_sub(2)).max(1);
                             let accent_rect = Rect {
                                 x: label_rect.x,

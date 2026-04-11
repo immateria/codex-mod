@@ -1074,7 +1074,7 @@ pub(crate) fn wrap_bullet_line(
         }
         let mut cur_style = None::<Style>;
         let mut buf = String::new();
-        for (g, st) in slice.iter() {
+        for (g, st) in slice {
             if cur_style.is_some_and(|cs| cs == *st) {
                 buf.push_str(g);
             } else {

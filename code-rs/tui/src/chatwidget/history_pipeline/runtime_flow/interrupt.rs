@@ -23,7 +23,7 @@ impl ChatWidget<'_> {
             }
 
         let mut has_wait_running = false;
-        for (call_id, entry) in self.tools_state.running_custom_tools.iter() {
+        for (call_id, entry) in &self.tools_state.running_custom_tools {
             if let Some(idx) = running_tools::resolve_entry_index(self, entry, &call_id.0)
                 && let Some(cell) = self.history_cells.get(idx).and_then(|c| c
                     .as_any()
