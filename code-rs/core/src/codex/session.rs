@@ -2820,7 +2820,7 @@ fn prune_history_items_owned(current_items: Vec<ResponseItem>) -> (Vec<ResponseI
 
     let mut screenshots_to_keep = std::collections::HashSet::new();
     for &user_idx in real_user_messages.iter().rev().take(2) {
-        for &status_idx in status_messages.iter() {
+        for &status_idx in &status_messages {
             if status_idx > user_idx
                 && let Some(ResponseItem::Message { content, .. }) = current_items.get(status_idx)
                     && content.iter().any(|c| matches!(c, ContentItem::InputImage { .. })) {

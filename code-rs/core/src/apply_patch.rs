@@ -97,7 +97,7 @@ pub(crate) async fn apply_patch(
                     lines.push("Validate New Code: no issues".to_string());
                 } else {
                     lines.push(format!("Validate New Code: {total_issues} issue(s)"));
-                    for finding in findings.iter() {
+                    for finding in &findings {
                         let mut parts = vec![finding.tool.clone()];
                         if let Some(rel) = finding
                             .file

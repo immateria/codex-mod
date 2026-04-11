@@ -248,7 +248,7 @@ fn format_batch_message(batch: &CoalescedBatch) -> String {
     };
     lines.push(header);
 
-    for (msg, count) in batch.entries.iter() {
+    for (msg, count) in &batch.entries {
         let prefix = if *count > 1 {
             format!("[{count}x] ")
         } else {

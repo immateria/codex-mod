@@ -228,10 +228,10 @@ pub fn run(
     // Merge results across best_matchers_per_worker.
     let mut global_heap: BinaryHeap<Reverse<(u32, String)>> = BinaryHeap::new();
     let mut total_match_count = 0;
-    for best_list_cell in best_matchers_per_worker.iter() {
+    for best_list_cell in &best_matchers_per_worker {
         let best_list = unsafe { &*best_list_cell.get() };
         total_match_count += best_list.num_matches;
-        for &Reverse((score, ref line)) in best_list.binary_heap.iter() {
+        for &Reverse((score, ref line)) in &best_list.binary_heap {
             if global_heap.len() < limit.get() {
                 global_heap.push(Reverse((score, line.clone())));
             } else if let Some(min_element) = global_heap.peek()

@@ -74,13 +74,13 @@ impl ExternalAgentConfigService {
         for migration_item in migration_items {
             match migration_item.item_type {
                 ExternalAgentConfigMigrationItemType::Config => {
-                    self.import_config(migration_item.cwd.as_deref())?
+                    self.import_config(migration_item.cwd.as_deref())?;
                 }
                 ExternalAgentConfigMigrationItemType::Skills => {
-                    self.import_skills(migration_item.cwd.as_deref())?
+                    self.import_skills(migration_item.cwd.as_deref())?;
                 }
                 ExternalAgentConfigMigrationItemType::AgentsMd => {
-                    self.import_agents_md(migration_item.cwd.as_deref())?
+                    self.import_agents_md(migration_item.cwd.as_deref())?;
                 }
                 ExternalAgentConfigMigrationItemType::McpServerConfig => {}
             }

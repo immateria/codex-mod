@@ -863,7 +863,7 @@ fn parse_marketplace_repos_from_item(item: Option<&TomlItem>) -> Vec<PluginMarke
     };
 
     let mut repos = Vec::new();
-    for table in tables.iter() {
+    for table in tables {
         let Some(url) = table.get("url").and_then(|value| value.as_str()) else {
             continue;
         };
@@ -1250,7 +1250,7 @@ pub async fn upsert_subagent_command(code_home: &Path, cmd: &SubagentCommandConf
     let mut updated = false;
     let mut new_commands = toml_edit::ArrayOfTables::new();
     if let Some(arr) = doc["subagents"].get("commands").and_then(|i| i.as_array_of_tables()) {
-        for tbl_ref in arr.iter() {
+        for tbl_ref in arr {
             let mut tbl = tbl_ref.clone();
             let same = tbl
                 .get("name")
@@ -1387,7 +1387,7 @@ pub async fn upsert_agent_config(
             .await;
         };
         let mut new_arr = toml_edit::ArrayOfTables::new();
-        for tbl_ref in arr.iter() {
+        for tbl_ref in arr {
             let mut tbl = tbl_ref.clone();
             let same = tbl
                 .get("name")

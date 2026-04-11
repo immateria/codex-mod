@@ -142,7 +142,7 @@ impl AutoDriveHistory {
             return;
         }
         self.raw.extend(items.iter().cloned());
-        for item in items.iter() {
+        for item in items {
             if let Some(message) = normalize_message(item) {
                 self.pending_duplicates.push_back(message);
             }

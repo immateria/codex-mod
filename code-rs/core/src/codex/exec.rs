@@ -482,7 +482,7 @@ impl Session {
         {
             let mut state = crate::codex::lock_or_panic!(self.state);
             let mut remove_keys = Vec::new();
-            for (call_id, meta) in state.running_execs.iter() {
+            for (call_id, meta) in &state.running_execs {
                 if meta.sub_id == sub_id && !meta.end_emitted.load(Ordering::Acquire) {
                     to_emit.push((
                         call_id.clone(),

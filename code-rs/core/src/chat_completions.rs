@@ -82,10 +82,10 @@ pub(crate) async fn stream_chat_completions(
             ResponseItem::FunctionCall { .. }
             | ResponseItem::ToolSearchCall { .. }
             | ResponseItem::LocalShellCall { .. } => {
-                last_emitted_role = Some("assistant")
+                last_emitted_role = Some("assistant");
             }
             ResponseItem::FunctionCallOutput { .. } | ResponseItem::ToolSearchOutput { .. } => {
-                last_emitted_role = Some("tool")
+                last_emitted_role = Some("tool");
             }
             ResponseItem::CompactionSummary { .. } => last_emitted_role = Some("assistant"),
             ResponseItem::Reasoning { .. } | ResponseItem::Other => {}

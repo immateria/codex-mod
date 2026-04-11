@@ -160,17 +160,17 @@ async fn traverse_directories_for_paths(
 
     let year_dirs = collect_dirs_desc(&root, |s| s.parse::<u16>().ok()).await?;
 
-    'outer: for (_year, year_path) in year_dirs.iter() {
+    'outer: for (_year, year_path) in &year_dirs {
         if scanned_files >= MAX_SCAN_FILES {
             break;
         }
         let month_dirs = collect_dirs_desc(year_path, |s| s.parse::<u8>().ok()).await?;
-        for (_month, month_path) in month_dirs.iter() {
+        for (_month, month_path) in &month_dirs {
             if scanned_files >= MAX_SCAN_FILES {
                 break 'outer;
             }
             let day_dirs = collect_dirs_desc(month_path, |s| s.parse::<u8>().ok()).await?;
-            for (_day, day_path) in day_dirs.iter() {
+            for (_day, day_path) in &day_dirs {
                 if scanned_files >= MAX_SCAN_FILES {
                     break 'outer;
                 }

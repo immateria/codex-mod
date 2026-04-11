@@ -52,7 +52,7 @@ impl TurnDiffTracker {
     /// - For additions, we intentionally do not create a baseline snapshot so that diffs are proper additions.
     /// - Also updates internal mappings for move/rename events.
     pub fn on_patch_begin(&mut self, changes: &HashMap<PathBuf, FileChange>) {
-        for (path, change) in changes.iter() {
+        for (path, change) in changes {
             // Ensure a stable internal filename exists for this external path.
             if !self.external_to_temp_name.contains_key(path) {
                 let internal = Uuid::new_v4().to_string();

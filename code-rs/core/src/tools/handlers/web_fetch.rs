@@ -277,7 +277,7 @@ pub(crate) async fn handle_web_fetch(sess: &Session, ctx: &ToolCallCtx, argument
                     .header(reqwest::header::ACCEPT, "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8")
                     .header(reqwest::header::ACCEPT_LANGUAGE, "en-US,en;q=0.9");
                 if let Some(pairs) = extra_headers {
-                    for (k, v) in pairs.iter() {
+                    for (k, v) in pairs {
                         req = req.header(k, *v);
                     }
                 }
@@ -355,7 +355,7 @@ pub(crate) async fn handle_web_fetch(sess: &Session, ctx: &ToolCallCtx, argument
 
                 // Keep this conservative to avoid dropping content.
                 let tags = ["script", "style", "noscript"];
-                for tag in tags.iter() {
+                for tag in &tags {
                     let mut guard = 0;
                     loop {
                         if guard > 64 { break; }

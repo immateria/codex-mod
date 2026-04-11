@@ -172,7 +172,7 @@ fn parse_patch_text(patch: &str, mode: ParseMode) -> Result<ApplyPatchArgs, Pars
         let (hunk, hunk_lines) = parse_one_hunk(remaining_lines, line_number)?;
         hunks.push(hunk);
         line_number += hunk_lines;
-        remaining_lines = &remaining_lines[hunk_lines..]
+        remaining_lines = &remaining_lines[hunk_lines..];
     }
     let patch = lines.join("\n");
     Ok(ApplyPatchArgs {
@@ -309,7 +309,7 @@ fn parse_one_hunk(lines: &[&str], line_number: usize) -> Result<(Hunk, usize), P
             )?;
             chunks.push(chunk);
             parsed_lines += chunk_lines;
-            remaining_lines = &remaining_lines[chunk_lines..]
+            remaining_lines = &remaining_lines[chunk_lines..];
         }
 
         if chunks.is_empty() {

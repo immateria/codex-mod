@@ -264,7 +264,7 @@ fn summarize_with_model(
                 while let Some(event) = stream.next().await {
                     match event {
                         Ok(ResponseEvent::OutputTextDelta { delta, .. }) => {
-                            collected.push_str(&delta)
+                            collected.push_str(&delta);
                         }
                         Ok(ResponseEvent::OutputItemDone { item, .. }) => {
                             response_items.push(item);

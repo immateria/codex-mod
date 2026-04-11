@@ -232,7 +232,7 @@ fn is_safe_powershell_command(words: &[String]) -> bool {
     }
 
     // Reject nested unsafe cmdlets inside parentheses or arguments
-    for w in words.iter() {
+    for w in words {
         let inner = w
             .trim_matches(|c| c == '(' || c == ')')
             .trim_start_matches('-')

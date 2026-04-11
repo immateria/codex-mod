@@ -543,21 +543,19 @@ pub(super) async fn preflight_turn_skill_input(
 
     let mut mentioned_plugins: std::collections::HashSet<String> = std::collections::HashSet::new();
     for message in &mention_messages {
-        for path in crate::mentions::extract_tool_mentions(message.as_str())
+        for path in &crate::mentions::extract_tool_mentions(message.as_str())
             .paths
-            .iter()
         {
             if let Some(name) = path.strip_prefix("plugin://").filter(|name| !name.is_empty()) {
                 mentioned_plugins.insert(name.to_string());
             }
         }
 
-        for path in crate::mentions::extract_tool_mentions_with_sigil(
+        for path in &crate::mentions::extract_tool_mentions_with_sigil(
             message.as_str(),
             crate::mentions::PLUGIN_TEXT_MENTION_SIGIL,
         )
         .paths
-        .iter()
         {
             if let Some(name) = path.strip_prefix("plugin://").filter(|name| !name.is_empty()) {
                 mentioned_plugins.insert(name.to_string());

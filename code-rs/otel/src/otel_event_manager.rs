@@ -163,7 +163,7 @@ impl OtelEventManager {
             sandbox_policy = %sandbox_policy,
             mcp_servers = mcp_servers.join(", "),
             active_profile = active_profile,
-        )
+        );
     }
 
     pub async fn log_request<F, Fut>(&self, attempt: u64, f: F) -> Result<Response, Error>
@@ -326,7 +326,7 @@ impl OtelEventManager {
             model = %self.metadata.model,
             slug = %self.metadata.slug,
             error.message = %error,
-        )
+        );
     }
 
     pub fn sse_event_completed(

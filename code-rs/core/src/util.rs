@@ -80,7 +80,7 @@ pub(crate) fn is_shell_like_executable(token: &str) -> bool {
 pub(crate) fn header_map_to_json(headers: &reqwest::header::HeaderMap) -> serde_json::Value {
     let mut ordered: std::collections::BTreeMap<String, Vec<String>> =
         std::collections::BTreeMap::new();
-    for (name, value) in headers.iter() {
+    for (name, value) in headers {
         ordered
             .entry(name.as_str().to_owned())
             .or_default()

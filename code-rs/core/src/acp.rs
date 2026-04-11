@@ -200,7 +200,7 @@ pub fn new_patch_tool_call(
     let mut locations = Vec::with_capacity(changes.len());
     let mut content = Vec::with_capacity(changes.len());
 
-    for (path, change) in changes.iter() {
+    for (path, change) in changes {
         match change {
             FileChange::Add { content: new_content } => {
                 content.push(acp::ToolCallContent::Diff {

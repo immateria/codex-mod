@@ -1036,7 +1036,7 @@ fn find_shell_style_profile_key(
     style: ShellScriptStyle,
 ) -> anyhow::Result<Option<String>> {
     let mut match_key: Option<String> = None;
-    for (key, _) in table.iter() {
+    for (key, _) in table {
         if ShellScriptStyle::parse(key) == Some(style) {
             if let Some(existing) = &match_key {
                 return Err(anyhow::anyhow!(
@@ -1057,7 +1057,7 @@ fn read_string_array(table: &TomlTable, key: &str) -> anyhow::Result<Vec<String>
         .as_array()
         .ok_or_else(|| anyhow::anyhow!("`{key}` must be a TOML array"))?;
     let mut out: Vec<String> = Vec::new();
-    for value in array.iter() {
+    for value in array {
         let as_str = value
             .as_str()
             .ok_or_else(|| anyhow::anyhow!("`{key}` entries must be TOML strings"))?;
@@ -1168,7 +1168,7 @@ fn read_path_array(table: &TomlTable, key: &str) -> anyhow::Result<Vec<PathBuf>>
         .as_array()
         .ok_or_else(|| anyhow::anyhow!("`{key}` must be a TOML array"))?;
     let mut out: Vec<PathBuf> = Vec::new();
-    for value in array.iter() {
+    for value in array {
         let as_str = value
             .as_str()
             .ok_or_else(|| anyhow::anyhow!("`{key}` entries must be TOML strings"))?;
@@ -2795,7 +2795,7 @@ pub fn list_mcp_servers(code_home: &Path) -> anyhow::Result<McpServerListPair> {
 
     fn table_to_list(tbl: &toml_edit::Table) -> anyhow::Result<Vec<(String, McpServerConfig)>> {
         let mut out = Vec::new();
-        for (name, item) in tbl.iter() {
+        for (name, item) in tbl {
             if let Some(t) = item.as_table() {
                 let transport = if let Some(command) = t.get("command").and_then(|v| v.as_str()) {
                     let args: Vec<String> = t
@@ -2913,7 +2913,7 @@ pub fn list_mcp_servers(code_home: &Path) -> anyhow::Result<McpServerListPair> {
                             "tool_scheduling for MCP server '{name}' must be a table",
                         ));
                     };
-                    for (tool_name_raw, override_item) in tool_sched_tbl.iter() {
+                    for (tool_name_raw, override_item) in tool_sched_tbl {
                         let tool_name = tool_name_raw.trim();
                         if tool_name.is_empty() {
                             return Err(anyhow::anyhow!(

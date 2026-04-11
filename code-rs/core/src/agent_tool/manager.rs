@@ -133,7 +133,7 @@ impl AgentManager {
                     continue;
                 }
 
-                for agent_id in timeout_ids.iter() {
+                for agent_id in &timeout_ids {
                     if let Some(handle) = mgr.handles.remove(agent_id) {
                         handle.abort();
                     }

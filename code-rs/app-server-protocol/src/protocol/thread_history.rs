@@ -54,7 +54,7 @@ impl ThreadHistoryBuilder {
             EventMsg::AgentMessage(payload) => self.handle_agent_message(payload.message.clone()),
             EventMsg::AgentReasoning(payload) => self.handle_agent_reasoning(payload),
             EventMsg::AgentReasoningRawContent(payload) => {
-                self.handle_agent_reasoning_raw_content(payload)
+                self.handle_agent_reasoning_raw_content(payload);
             }
             EventMsg::ItemCompleted(payload) => self.handle_item_completed(payload),
             EventMsg::TokenCount(_) => {}
