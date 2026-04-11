@@ -1,6 +1,6 @@
 impl ChatWidget<'_> {
     pub(in super::super) fn try_coordinator_route(
-        &mut self,
+        &self,
         original_text: &str,
     ) -> Option<CoordinatorRouterResponse> {
         let trimmed = original_text.trim();

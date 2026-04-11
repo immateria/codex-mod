@@ -2,7 +2,7 @@ use super::super::prelude::*;
 
 impl ChatWidget<'_> {
     /// Clean up faded-out animation cells
-    pub(in crate::chatwidget) fn process_animation_cleanup(&mut self) {
+    pub(in crate::chatwidget) fn process_animation_cleanup(&self) {
         // With trait-based cells, we can't easily detect and clean up specific cell types
         // Animation cleanup is now handled differently
     }

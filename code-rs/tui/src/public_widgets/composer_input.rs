@@ -126,7 +126,7 @@ impl ComposerInput {
         crate::bottom_pane::ChatComposer::recommended_paste_flush_delay()
     }
 
-    fn drain_app_events(&mut self) {
+    fn drain_app_events(&self) {
         while self.rx.try_recv().is_ok() {}
     }
 }

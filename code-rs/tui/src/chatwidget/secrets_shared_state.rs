@@ -55,7 +55,7 @@ impl ChatWidget<'_> {
         self.secrets_shared_state.clone()
     }
 
-    pub(crate) fn secrets_mark_list_loading(&mut self, env_id: String) {
+    pub(crate) fn secrets_mark_list_loading(&self, env_id: String) {
         let mut state = self.secrets_shared_state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
         state.list = SecretsListState::Loading { env_id };
         state.action_error = None;
@@ -95,7 +95,7 @@ impl ChatWidget<'_> {
         self.refresh_settings_overview_rows();
     }
 
-    pub(crate) fn secrets_mark_delete_in_progress(&mut self, env_id: String, entry: SecretListEntry) {
+    pub(crate) fn secrets_mark_delete_in_progress(&self, env_id: String, entry: SecretListEntry) {
         let mut state = self.secrets_shared_state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
         state.action_error = None;
         state.action_in_progress = Some(SecretsActionInProgress::Delete { env_id, entry });

@@ -16,7 +16,7 @@ impl WaitStatusCell {
         Self { state }
     }
 
-    pub(crate) fn retint(&mut self, _old: &crate::theme::Theme, _new: &crate::theme::Theme) {}
+    pub(crate) fn retint(&self, _old: &crate::theme::Theme, _new: &crate::theme::Theme) {}
 
     pub(crate) fn from_state(state: WaitStatusState) -> Self {
         Self { state }

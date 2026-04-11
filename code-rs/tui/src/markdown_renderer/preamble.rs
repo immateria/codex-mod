@@ -217,7 +217,7 @@ impl MarkdownRenderer {
         Some(Line::from(Span::styled(heading_text.to_string(), style)))
     }
 
-    fn parse_list_item(&mut self, line: &str) -> Option<Line<'static>> {
+    fn parse_list_item(&self, line: &str) -> Option<Line<'static>> {
         let c_text = crate::colors::text();
         let c_text_mid = crate::colors::text_mid();
         let c_text_dim = crate::colors::text_dim();
@@ -363,7 +363,7 @@ impl MarkdownRenderer {
         self.flush_current_line();
     }
 
-    fn process_inline_spans(&mut self, text: &str) -> Vec<Span<'static>> {
+    fn process_inline_spans(&self, text: &str) -> Vec<Span<'static>> {
         let c_text_bright = crate::colors::text_bright();
         let mut spans = Vec::new();
         let chars: Vec<char> = text.chars().collect();

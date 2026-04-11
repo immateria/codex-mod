@@ -76,7 +76,7 @@ impl ChatWidget<'_> {
         )
     }
 
-    fn build_validation_settings_view(&mut self) -> ValidationSettingsView {
+    fn build_validation_settings_view(&self) -> ValidationSettingsView {
         let groups = vec![
             (
                 GroupStatus {
@@ -114,11 +114,11 @@ impl ChatWidget<'_> {
         )
     }
 
-    fn build_validation_settings_content(&mut self) -> ValidationSettingsContent {
+    fn build_validation_settings_content(&self) -> ValidationSettingsContent {
         ValidationSettingsContent::new(self.build_validation_settings_view())
     }
 
-    fn build_review_settings_view(&mut self) -> ReviewSettingsView {
+    fn build_review_settings_view(&self) -> ReviewSettingsView {
         let auto_resolve_enabled = self.config.tui.review_auto_resolve;
         let auto_review_enabled = self.config.tui.auto_review_enabled;
         let attempts = self.configured_auto_resolve_re_reviews();
@@ -143,11 +143,11 @@ impl ChatWidget<'_> {
         })
     }
 
-    fn build_review_settings_content(&mut self) -> ReviewSettingsContent {
+    fn build_review_settings_content(&self) -> ReviewSettingsContent {
         ReviewSettingsContent::new(self.build_review_settings_view())
     }
 
-    fn build_planning_settings_view(&mut self) -> PlanningSettingsView {
+    fn build_planning_settings_view(&self) -> PlanningSettingsView {
         PlanningSettingsView::new(
             self.config.planning_use_chat_model,
             self.config.planning_model.clone(),
@@ -156,11 +156,11 @@ impl ChatWidget<'_> {
         )
     }
 
-    fn build_planning_settings_content(&mut self) -> PlanningSettingsContent {
+    fn build_planning_settings_content(&self) -> PlanningSettingsContent {
         PlanningSettingsContent::new(self.build_planning_settings_view())
     }
 
-    fn build_auto_drive_settings_view(&mut self) -> AutoDriveSettingsView {
+    fn build_auto_drive_settings_view(&self) -> AutoDriveSettingsView {
         let model = self.config.auto_drive.model.clone();
         let model_effort = self.config.auto_drive.model_reasoning_effort;
         let use_chat_model = self.config.auto_drive_use_chat_model;
@@ -192,7 +192,7 @@ impl ChatWidget<'_> {
         })
     }
 
-    fn build_auto_drive_settings_content(&mut self) -> AutoDriveSettingsContent {
+    fn build_auto_drive_settings_content(&self) -> AutoDriveSettingsContent {
         AutoDriveSettingsContent::new(self.build_auto_drive_settings_view())
     }
 

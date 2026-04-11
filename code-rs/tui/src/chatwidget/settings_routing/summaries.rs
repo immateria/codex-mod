@@ -1,5 +1,5 @@
 impl ChatWidget<'_> {
-    pub(super) fn build_settings_overview_rows(&mut self) -> Vec<SettingsOverviewRow> {
+    pub(super) fn build_settings_overview_rows(&self) -> Vec<SettingsOverviewRow> {
         let features = &self.config.features_effective;
         SettingsSection::ALL
             .iter()

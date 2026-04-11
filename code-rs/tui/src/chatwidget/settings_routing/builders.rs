@@ -82,7 +82,7 @@ impl ChatWidget<'_> {
         ShellEscalationSettingsContent::new(self.build_shell_escalation_settings_view())
     }
 
-    pub(super) fn build_shell_profiles_settings_content(&mut self) -> ShellProfilesSettingsContent {
+    pub(super) fn build_shell_profiles_settings_content(&self) -> ShellProfilesSettingsContent {
         let skills = self
             .bottom_pane
             .skills()
@@ -189,7 +189,7 @@ impl ChatWidget<'_> {
         PromptsSettingsContent::new(self.build_prompts_settings_view())
     }
 
-    pub(super) fn build_skills_settings_view(&mut self) -> SkillsSettingsView {
+    pub(super) fn build_skills_settings_view(&self) -> SkillsSettingsView {
         let skills = self.bottom_pane.skills().to_vec();
         SkillsSettingsView::new(
             skills,
@@ -198,11 +198,11 @@ impl ChatWidget<'_> {
         )
     }
 
-    pub(super) fn build_skills_settings_content(&mut self) -> SkillsSettingsContent {
+    pub(super) fn build_skills_settings_content(&self) -> SkillsSettingsContent {
         SkillsSettingsContent::new(self.build_skills_settings_view())
     }
 
-    pub(super) fn build_apps_settings_view(&mut self) -> AppsSettingsView {
+    pub(super) fn build_apps_settings_view(&self) -> AppsSettingsView {
         self.apps_set_sources_snapshot(
             self.config.active_profile.clone(),
             self.config.apps_sources.clone(),
@@ -247,11 +247,11 @@ impl ChatWidget<'_> {
         AppsSettingsView::new(shared_state, self.app_event_tx.clone())
     }
 
-    pub(super) fn build_apps_settings_content(&mut self) -> AppsSettingsContent {
+    pub(super) fn build_apps_settings_content(&self) -> AppsSettingsContent {
         AppsSettingsContent::new(self.build_apps_settings_view())
     }
 
-    pub(super) fn build_plugins_settings_view(&mut self) -> PluginsSettingsView {
+    pub(super) fn build_plugins_settings_view(&self) -> PluginsSettingsView {
         self.plugins_set_sources_snapshot(self.config.plugins.clone());
         let shared_state = self.plugins_shared_state();
         let roots = code_utils_absolute_path::AbsolutePathBuf::try_from(self.config.cwd.clone())
@@ -261,7 +261,7 @@ impl ChatWidget<'_> {
         PluginsSettingsView::new(shared_state, roots, self.app_event_tx.clone())
     }
 
-    pub(super) fn build_plugins_settings_content(&mut self) -> PluginsSettingsContent {
+    pub(super) fn build_plugins_settings_content(&self) -> PluginsSettingsContent {
         PluginsSettingsContent::new(self.build_plugins_settings_view())
     }
 

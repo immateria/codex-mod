@@ -8,7 +8,7 @@ use crate::bottom_pane::settings_ui::menu_page::SettingsMenuPage;
 
 impl AppsSettingsView {
     pub(super) fn handle_mouse_event_direct_framed(
-        &mut self,
+        &self,
         mouse_event: MouseEvent,
         area: Rect,
     ) -> bool {
@@ -16,7 +16,7 @@ impl AppsSettingsView {
     }
 
     pub(super) fn handle_mouse_event_direct_content_only(
-        &mut self,
+        &self,
         mouse_event: MouseEvent,
         area: Rect,
     ) -> bool {

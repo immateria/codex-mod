@@ -62,7 +62,7 @@ impl ChatWidget<'_> {
     }
 
     pub(crate) fn apps_set_sources_snapshot(
-        &mut self,
+        &self,
         active_profile: Option<String>,
         sources: AppsSourcesToml,
     ) {
@@ -71,13 +71,13 @@ impl ChatWidget<'_> {
         state.sources_snapshot = sources;
     }
 
-    pub(crate) fn apps_set_accounts_snapshot(&mut self, accounts: Vec<AppsAccountSnapshot>) {
+    pub(crate) fn apps_set_accounts_snapshot(&self, accounts: Vec<AppsAccountSnapshot>) {
         let mut state = self.apps_shared_state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
         state.accounts_snapshot = accounts;
     }
 
     pub(crate) fn apps_mark_status_loading(
-        &mut self,
+        &self,
         account_ids: &[String],
         force_refresh_tools: bool,
     ) {
@@ -96,7 +96,7 @@ impl ChatWidget<'_> {
         }
     }
 
-    pub(crate) fn apps_take_pending_status_refresh_account_ids(&mut self) -> Option<Vec<String>> {
+    pub(crate) fn apps_take_pending_status_refresh_account_ids(&self) -> Option<Vec<String>> {
         let mut state = self.apps_shared_state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
         state.pending_status_refresh_account_ids.take()
     }
@@ -141,18 +141,18 @@ impl ChatWidget<'_> {
         self.refresh_settings_overview_rows();
     }
 
-    pub(crate) fn apps_set_action_in_progress(&mut self, action: AppsActionInProgress) {
+    pub(crate) fn apps_set_action_in_progress(&self, action: AppsActionInProgress) {
         let mut state = self.apps_shared_state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
         state.action_in_progress = Some(action);
         state.action_error = None;
     }
 
-    pub(crate) fn apps_clear_action_in_progress(&mut self) {
+    pub(crate) fn apps_clear_action_in_progress(&self) {
         let mut state = self.apps_shared_state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
         state.action_in_progress = None;
     }
 
-    pub(crate) fn apps_set_action_error(&mut self, error: Option<String>) {
+    pub(crate) fn apps_set_action_error(&self, error: Option<String>) {
         let mut state = self.apps_shared_state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
         state.action_error = error;
     }

@@ -278,7 +278,7 @@ impl ChatWidget<'_> {
         }
     }
     /// Trigger fade on the welcome cell when the composer expands (e.g., slash popup).
-    pub(crate) fn on_composer_expanded(&mut self) {
+    pub(crate) fn on_composer_expanded(&self) {
         for cell in &self.history_cells {
             cell.trigger_fade();
         }

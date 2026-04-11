@@ -507,13 +507,13 @@ impl ChatWidget<'_> {
 
 
 
-    fn request_redraw(&mut self) {
+    fn request_redraw(&self) {
         self.app_event_tx.send(AppEvent::RequestRedraw);
     }
 
     /// Notify the height manager that the bottom pane view has changed.
     /// This bypasses hysteresis so the new view's height is applied immediately.
-    pub(crate) fn notify_bottom_pane_view_changed(&mut self) {
+    pub(crate) fn notify_bottom_pane_view_changed(&self) {
         self.height_manager
             .borrow_mut()
             .record_event(HeightEvent::ComposerModeChange);

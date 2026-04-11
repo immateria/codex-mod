@@ -181,7 +181,7 @@ impl ChatWidget<'_> {
         self.request_redraw();
     }
 
-    fn with_login_add_view<F>(&mut self, f: F) -> bool
+    fn with_login_add_view<F>(&self, f: F) -> bool
     where
         F: FnOnce(&mut LoginAddAccountState),
     {
@@ -194,42 +194,42 @@ impl ChatWidget<'_> {
         false
     }
 
-    pub(crate) fn notify_login_chatgpt_started(&mut self, auth_url: String) {
+    pub(crate) fn notify_login_chatgpt_started(&self, auth_url: String) {
         if self.with_login_add_view(|state| state.acknowledge_chatgpt_started(auth_url.clone())) {
         }
     }
 
-    pub(crate) fn notify_login_chatgpt_failed(&mut self, error: String) {
+    pub(crate) fn notify_login_chatgpt_failed(&self, error: String) {
         if self.with_login_add_view(|state| state.acknowledge_chatgpt_failed(error.clone())) {
         }
     }
 
-    pub(crate) fn notify_login_chatgpt_complete(&mut self, result: Result<(), String>) {
+    pub(crate) fn notify_login_chatgpt_complete(&self, result: Result<(), String>) {
         if self.with_login_add_view(|state| state.on_chatgpt_complete(result.clone())) {
         }
     }
 
-    pub(crate) fn notify_login_device_code_pending(&mut self) {
+    pub(crate) fn notify_login_device_code_pending(&self) {
         let _ =
             self.with_login_add_view(
                 crate::bottom_pane::settings_pages::accounts::LoginAddAccountState::begin_device_code_flow,
             );
     }
 
-    pub(crate) fn notify_login_device_code_ready(&mut self, authorize_url: String, user_code: String) {
+    pub(crate) fn notify_login_device_code_ready(&self, authorize_url: String, user_code: String) {
         let _ = self.with_login_add_view(|state| state.set_device_code_ready(authorize_url.clone(), user_code.clone()));
     }
 
-    pub(crate) fn notify_login_device_code_failed(&mut self, error: String) {
+    pub(crate) fn notify_login_device_code_failed(&self, error: String) {
         let _ = self.with_login_add_view(|state| state.on_device_code_failed(error.clone()));
     }
 
-    pub(crate) fn notify_login_device_code_complete(&mut self, result: Result<(), String>) {
+    pub(crate) fn notify_login_device_code_complete(&self, result: Result<(), String>) {
         if self.with_login_add_view(|state| state.on_chatgpt_complete(result.clone())) {
         }
     }
 
-    pub(crate) fn notify_login_flow_cancelled(&mut self) {
+    pub(crate) fn notify_login_flow_cancelled(&self) {
         let _ =
             self.with_login_add_view(
                 crate::bottom_pane::settings_pages::accounts::LoginAddAccountState::cancel_active_flow,

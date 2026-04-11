@@ -4,7 +4,7 @@ impl ChatWidget<'_> {
     }
 
     /// Check if there are any animations and trigger redraw if needed
-    pub fn check_for_initial_animations(&mut self) {
+    pub fn check_for_initial_animations(&self) {
         if self
             .history_cells
             .iter()

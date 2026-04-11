@@ -371,7 +371,7 @@ fn browser_key(order: Option<&OrderMeta>, call_id: &str) -> String {
 }
 
 fn select_session_key(
-    chat: &mut ChatWidget<'_>,
+    chat: &ChatWidget<'_>,
     order: Option<&OrderMeta>,
     call_id: &str,
     tool_name: &str,
@@ -403,7 +403,7 @@ fn select_session_key(
 }
 
 fn key_from_order_or_last(
-    chat: &mut ChatWidget<'_>,
+    chat: &ChatWidget<'_>,
     order: Option<&OrderMeta>,
 ) -> Option<String> {
     if let Some(meta) = order {

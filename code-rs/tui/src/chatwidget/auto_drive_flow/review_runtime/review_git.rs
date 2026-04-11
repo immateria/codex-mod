@@ -124,7 +124,7 @@ impl ChatWidget<'_> {
         result
     }
 
-    pub(crate) fn spawn_auto_review_baseline_capture(&mut self) {
+    pub(crate) fn spawn_auto_review_baseline_capture(&self) {
         let turn_sequence = self.turn_sequence;
         let repo_path = self.config.cwd.clone();
         let app_event_tx = self.app_event_tx.clone();

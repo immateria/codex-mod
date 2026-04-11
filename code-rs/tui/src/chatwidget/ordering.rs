@@ -192,7 +192,7 @@ impl ChatWidget<'_> {
     // After inserting a non‑reasoning cell during streaming, restore the
     // in‑progress indicator on the latest reasoning cell so the ellipsis
     // remains visible while the model continues.
-    pub(super) fn restore_reasoning_in_progress_if_streaming(&mut self) {
+    pub(super) fn restore_reasoning_in_progress_if_streaming(&self) {
         if !self.stream.is_write_cycle_active() {
             return;
         }

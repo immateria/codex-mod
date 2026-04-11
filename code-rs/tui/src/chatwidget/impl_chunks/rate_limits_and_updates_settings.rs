@@ -26,7 +26,7 @@ impl ChatWidget<'_> {
         self.refresh_limits_for_other_accounts_if_due();
     }
 
-    fn refresh_limits_for_other_accounts_if_due(&mut self) {
+    fn refresh_limits_for_other_accounts_if_due(&self) {
         let code_home = self.config.code_home.clone();
         let active_id = auth_accounts::get_active_account_id(&code_home)
             .ok()

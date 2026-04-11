@@ -145,7 +145,7 @@ impl ChatWidget<'_> {
         layout_scroll::jump_to_history_index(self, idx);
     }
 
-    fn update_header_hover_state(&mut self, pos: (u16, u16)) -> bool {
+    fn update_header_hover_state(&self, pos: (u16, u16)) -> bool {
         self.last_mouse_pos.set(Some(pos));
         let (x, y) = pos;
         let hovered = {

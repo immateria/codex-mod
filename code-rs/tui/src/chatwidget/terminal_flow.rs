@@ -360,7 +360,7 @@ impl ChatWidget<'_> {
         });
     }
 
-    pub(crate) fn terminal_send_input(&mut self, id: u64, data: Vec<u8>) {
+    pub(crate) fn terminal_send_input(&self, id: u64, data: Vec<u8>) {
         if data.is_empty() {
             return;
         }

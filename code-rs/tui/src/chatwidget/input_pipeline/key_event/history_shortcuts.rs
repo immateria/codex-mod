@@ -58,7 +58,7 @@ impl ChatWidget<'_> {
         (start < end).then_some((start, end))
     }
 
-    fn toggle_bottommost_exec_fold(&mut self) {
+    fn toggle_bottommost_exec_fold(&self) {
         use crate::history_cell::{
             ExecCell,
             JsReplCell,
@@ -131,7 +131,7 @@ impl ChatWidget<'_> {
     }
 
     /// Toggle fold/collapse for a specific history cell by index (used by mouse clicks).
-    pub(in crate::chatwidget) fn toggle_fold_at_index(&mut self, idx: usize) {
+    pub(in crate::chatwidget) fn toggle_fold_at_index(&self, idx: usize) {
         use crate::history_cell::{
             AssistantMarkdownCell,
             ExecCell,
@@ -165,7 +165,7 @@ impl ChatWidget<'_> {
         self.request_redraw();
     }
 
-    fn toggle_bottommost_js_repl_code_fold(&mut self) {
+    fn toggle_bottommost_js_repl_code_fold(&self) {
         use crate::history_cell::JsReplCell;
         let (start, end) = self
             .visible_history_cell_range_for_shortcuts()

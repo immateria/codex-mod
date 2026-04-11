@@ -101,35 +101,35 @@ impl ChatWidget<'_> {
         self.plugins_shared_state.clone()
     }
 
-    pub(crate) fn plugins_set_action_in_progress(&mut self, action: PluginsActionInProgress) {
+    pub(crate) fn plugins_set_action_in_progress(&self, action: PluginsActionInProgress) {
         let mut state = self.plugins_shared_state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
         state.action_in_progress = Some(action);
         state.action_error = None;
     }
 
-    pub(crate) fn plugins_clear_action_in_progress(&mut self) {
+    pub(crate) fn plugins_clear_action_in_progress(&self) {
         let mut state = self.plugins_shared_state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
         state.action_in_progress = None;
     }
 
-    pub(crate) fn plugins_set_action_error(&mut self, error: Option<String>) {
+    pub(crate) fn plugins_set_action_error(&self, error: Option<String>) {
         let mut state = self.plugins_shared_state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
         state.action_error = error;
     }
 
-    pub(crate) fn plugins_set_sources_snapshot(&mut self, sources: PluginsToml) {
+    pub(crate) fn plugins_set_sources_snapshot(&self, sources: PluginsToml) {
         let mut state = self.plugins_shared_state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
         state.sources = sources;
     }
 
-    pub(crate) fn plugins_set_sources_sync_status(&mut self, in_progress: bool, error: Option<String>) {
+    pub(crate) fn plugins_set_sources_sync_status(&self, in_progress: bool, error: Option<String>) {
         let mut state = self.plugins_shared_state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
         state.sources_sync_in_progress = in_progress;
         state.sources_sync_error = error;
     }
 
     pub(crate) fn plugins_mark_list_loading(
-        &mut self,
+        &self,
         roots: Vec<AbsolutePathBuf>,
         force_remote_sync: bool,
     ) {
@@ -143,7 +143,7 @@ impl ChatWidget<'_> {
     }
 
     pub(crate) fn plugins_apply_list_loaded(
-        &mut self,
+        &self,
         roots: Vec<AbsolutePathBuf>,
         result: Result<PluginListSnapshot, String>,
     ) {
@@ -177,7 +177,7 @@ impl ChatWidget<'_> {
         }
     }
 
-    pub(crate) fn plugins_mark_detail_loading(&mut self, key: PluginDetailKey) {
+    pub(crate) fn plugins_mark_detail_loading(&self, key: PluginDetailKey) {
         let mut state = self.plugins_shared_state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
         state
             .details
@@ -187,7 +187,7 @@ impl ChatWidget<'_> {
     }
 
     pub(crate) fn plugins_apply_detail_loaded(
-        &mut self,
+        &self,
         key: PluginDetailKey,
         result: Result<PluginReadOutcome, String>,
     ) {

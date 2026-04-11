@@ -68,7 +68,7 @@ impl ToolCallCell {
         self.collapsed_details.set(!self.collapsed_details.get());
     }
 
-    pub(crate) fn retint(&mut self, _old: &crate::theme::Theme, _new: &crate::theme::Theme) {}
+    pub(crate) fn retint(&self, _old: &crate::theme::Theme, _new: &crate::theme::Theme) {}
 
     fn header_line(&self) -> Line<'static> {
         let s_text_dim = crate::colors::style_text_dim();
