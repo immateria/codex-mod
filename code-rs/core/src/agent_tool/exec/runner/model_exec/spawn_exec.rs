@@ -30,37 +30,7 @@ pub(super) async fn run_agent_process(
     use crate::protocol::SandboxPolicy;
     use crate::spawn::StdioPolicy;
 
-    if !read_only {
-        // Resolve the command and args we prepared above into Vec<String> for spawn helpers.
-        let program = resolve_program_path(use_current_exe, command_for_spawn)?;
-        let args = final_args.to_vec();
-
-        let child_result: std::io::Result<tokio::process::Child> = crate::spawn::spawn_child_async(
-            program.clone(),
-            args,
-            Some(program.to_string_lossy().as_ref()),
-            working_dir.clone().unwrap_or_else(|| {
-                std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."))
-            }),
-            &SandboxPolicy::DangerFullAccess,
-            StdioPolicy::RedirectForShellTool,
-            env.clone(),
-        )
-        .await;
-
-        match child_result {
-            Ok(child) => process_output::stream_child_output(agent_id, child).await,
-            Err(err) => {
-                if err.kind() == std::io::ErrorKind::NotFound {
-                    return Err(runtime_paths::format_agent_not_found_error(
-                        command,
-                        command_for_spawn,
-                    ));
-                }
-                Err(format!("Failed to spawn sandboxed agent: {err}"))
-            }
-        }
-    } else {
+    if read_only {
         // Read-only path: must honor resolve_program_path (and CODE_BINARY_PATH) just
         // like the write path; skipping this can regress to PATH resolution and
         // launch the npm shim on Windows (issue #497).
@@ -92,6 +62,36 @@ pub(super) async fn run_agent_process(
                 }
 
                 Err(format!("Failed to execute {model}: {err}"))
+            }
+        }
+    } else {
+        // Resolve the command and args we prepared above into Vec<String> for spawn helpers.
+        let program = resolve_program_path(use_current_exe, command_for_spawn)?;
+        let args = final_args.to_vec();
+
+        let child_result: std::io::Result<tokio::process::Child> = crate::spawn::spawn_child_async(
+            program.clone(),
+            args,
+            Some(program.to_string_lossy().as_ref()),
+            working_dir.clone().unwrap_or_else(|| {
+                std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."))
+            }),
+            &SandboxPolicy::DangerFullAccess,
+            StdioPolicy::RedirectForShellTool,
+            env.clone(),
+        )
+        .await;
+
+        match child_result {
+            Ok(child) => process_output::stream_child_output(agent_id, child).await,
+            Err(err) => {
+                if err.kind() == std::io::ErrorKind::NotFound {
+                    return Err(runtime_paths::format_agent_not_found_error(
+                        command,
+                        command_for_spawn,
+                    ));
+                }
+                Err(format!("Failed to spawn sandboxed agent: {err}"))
             }
         }
     }

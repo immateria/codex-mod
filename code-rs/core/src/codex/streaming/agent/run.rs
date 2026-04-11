@@ -587,10 +587,10 @@ pub(super) async fn run_agent(sess: Arc<Session>, turn_context: Arc<TurnContext>
     }
     }
     if is_review_mode && !review_exit_emitted {
-        let combined = if !review_messages.is_empty() {
-            review_messages.join("\n\n")
-        } else {
+        let combined = if review_messages.is_empty() {
             last_task_message.clone().unwrap_or_default()
+        } else {
+            review_messages.join("\n\n")
         };
         let output = if combined.trim().is_empty() {
             None

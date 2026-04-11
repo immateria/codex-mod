@@ -55,11 +55,11 @@ impl FrameTimer {
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
         state.deadlines.push(Reverse(deadline));
-        let should_spawn = if !state.worker_running {
+        let should_spawn = if state.worker_running {
+            false
+        } else {
             state.worker_running = true;
             true
-        } else {
-            false
         };
         self.cv.notify_one();
         drop(state);

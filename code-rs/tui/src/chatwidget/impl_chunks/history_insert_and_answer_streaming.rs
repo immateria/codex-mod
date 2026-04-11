@@ -228,7 +228,7 @@ impl ChatWidget<'_> {
                         self.mark_history_dirty();
                     }
                     HistoryMutation::Noop => {}
-                    other => tracing::debug!(
+                    other @ HistoryMutation::Removed { .. } => tracing::debug!(
                         "unexpected streaming mutation {:?} for id={:?}",
                         other,
                         explicit_id

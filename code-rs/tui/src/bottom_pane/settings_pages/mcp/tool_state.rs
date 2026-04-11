@@ -36,7 +36,7 @@ impl McpSettingsView {
         };
         let server_name = row.name.clone();
         let entries = self.tool_entries();
-        let Some(entry) = entries.get(self.tools_selected).cloned() else {
+        let Some(entry) = entries.get(self.tools_selected).copied() else {
             return;
         };
         let tool_name = entry.name.to_string();

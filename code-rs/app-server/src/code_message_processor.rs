@@ -2117,7 +2117,7 @@ fn snippet_from_content(content: &[code_protocol::models::ContentItem]) -> Optio
                 Some(text.chars().take(100).collect())
             }
         }
-        _ => None,
+        code_protocol::models::ContentItem::InputImage { .. } => None,
     })
 }
 

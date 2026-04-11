@@ -82,7 +82,7 @@ pub(super) fn create_diff_summary_with_width(
                 .fold((0, 0), |(a, d), l| match l {
                     diffy::Line::Insert(_) => (a + 1, d),
                     diffy::Line::Delete(_) => (a, d + 1),
-                    _ => (a, d),
+                    diffy::Line::Context(_) => (a, d),
                 });
             DiffTally {
                 added,

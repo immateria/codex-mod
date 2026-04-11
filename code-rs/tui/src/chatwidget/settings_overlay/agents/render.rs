@@ -104,10 +104,10 @@ impl AgentsSettingsContent {
 
             if selected && !showed_desc {
                 spans.push(Span::raw("  "));
-                let hint = if !row.installed {
-                    "Enter to install"
-                } else {
+                let hint = if row.installed {
                     "Enter to configure"
+                } else {
+                    "Enter to install"
                 };
                 spans.push(Span::styled(hint, s_text_dim));
             }

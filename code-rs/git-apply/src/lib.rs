@@ -232,7 +232,7 @@ pub fn parse_git_apply_output(
     let combined = [stdout, stderr]
         .iter()
         .filter(|s| !s.is_empty())
-        .cloned()
+        .copied()
         .collect::<Vec<&str>>()
         .join("\n");
 

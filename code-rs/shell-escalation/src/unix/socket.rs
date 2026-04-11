@@ -96,7 +96,13 @@ async fn read_frame_header(
     while filled < LENGTH_PREFIX_SIZE {
         let mut guard = async_socket.readable().await?;
         // The first read should come with a control message containing any FDs.
-        let read = if !captured_control {
+        let read = if captured_control {
+            match guard.try_io(|inner| inner.get_ref().recv(&mut header[filled..])) {
+                Ok(Ok(read)) => read,
+                Ok(Err(err)) => return Err(err),
+                Err(_would_block) => continue,
+            }
+        } else {
             match guard.try_io(|inner| {
                 let mut bufs = [MaybeUninitSlice::new(&mut header[filled..])];
                 let (read, control_len) = {
@@ -110,12 +116,6 @@ async fn read_frame_header(
                 captured_control = true;
                 Ok(read)
             }) {
-                Ok(Ok(read)) => read,
-                Ok(Err(err)) => return Err(err),
-                Err(_would_block) => continue,
-            }
-        } else {
-            match guard.try_io(|inner| inner.get_ref().recv(&mut header[filled..])) {
                 Ok(Ok(read)) => read,
                 Ok(Err(err)) => return Err(err),
                 Err(_would_block) => continue,

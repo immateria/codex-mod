@@ -45,10 +45,10 @@ pub(super) async fn handle_response_item(
             encrypted_content: _,
         } => {
             // Use the item_id if present and not empty, otherwise fall back to sub_id
-            let event_id = if !id.is_empty() {
-                id.clone()
-            } else {
+            let event_id = if id.is_empty() {
                 sub_id.to_string()
+            } else {
+                id.clone()
             };
             for (i, item) in summary.into_iter().enumerate() {
                 let text = match item {

@@ -143,7 +143,12 @@ pub(super) fn handle_complete(
         tracker.ensure_insert(chat);
     }
 
-    if !tracker.active_calls.is_empty() {
+    if tracker.active_calls.is_empty() {
+        chat
+            .tools_state
+            .web_search_by_order
+            .remove(&request_ordinal);
+    } else {
         chat
             .tools_state
             .web_search_sessions
@@ -152,11 +157,6 @@ pub(super) fn handle_complete(
             .tools_state
             .web_search_by_order
             .insert(request_ordinal, key);
-    } else {
-        chat
-            .tools_state
-            .web_search_by_order
-            .remove(&request_ordinal);
     }
 
     chat.bottom_pane.update_status_text("responding");

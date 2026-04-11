@@ -196,7 +196,7 @@ pub(in super::super::super) fn handle_exec_end_now(
                     if exit_code == 2 { "invalid pattern".to_string() } else { format!("search failed (exit {exit_code})") }
                 }
                 ExecAction::List => format!("list failed (exit {exit_code})"),
-                _ => format!("exploration failed (exit {exit_code})"),
+                ExecAction::Run => format!("exploration failed (exit {exit_code})"),
             },
             history_cell::ExploreEntryStatus::Running => "exploring…".to_string(),
         };

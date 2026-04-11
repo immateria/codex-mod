@@ -48,7 +48,7 @@ lazy_static! {
                 // If this is the pointer entry (Default: "name"), skip it;
                 // but allow a group actually named "Default" (object).
                 if k == "Default" {
-                    if !v.is_string() { /* fall through to parse group */ } else { continue; }
+                    if v.is_string() { continue; } else { /* fall through to parse group */ }
                 }
                 if let Value::Object(inner) = v {
                     if inner.get("interval").is_some() {

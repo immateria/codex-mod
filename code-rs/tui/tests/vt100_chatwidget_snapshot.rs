@@ -342,7 +342,7 @@ fn blank_between_pipes(line: &str) -> Option<String> {
         return None;
     }
 
-    let indent = &line[..first_pipe + 1];
+    let indent = &line[..=first_pipe];
     let tail = &line[last_pipe..];
     let span_width = last_pipe.saturating_sub(first_pipe + 1);
     Some(format!("{indent}{}{tail}", " ".repeat(span_width)))

@@ -296,7 +296,7 @@ fn map_child<'a>(node: &TomlNode<'a>, key: &str) -> Option<TomlNode<'a>> {
         }
         TomlNode::Table(table) => table.get(key).map(TomlNode::Item),
         TomlNode::Value(Value::InlineTable(table)) => table.get(key).map(TomlNode::Value),
-        _ => None,
+        TomlNode::Value(_) => None,
     }
 }
 

@@ -2255,7 +2255,7 @@ impl MessageProcessor {
                 env_http_headers,
                 ..
             } => (url.clone(), http_headers.clone(), env_http_headers.clone()),
-            _ => {
+            code_core::config_types::McpServerTransportConfig::Stdio { .. } => {
                 self.outgoing
                     .send_error_to_connection(
                         connection_id,

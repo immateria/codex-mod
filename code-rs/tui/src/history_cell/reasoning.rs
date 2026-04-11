@@ -536,11 +536,11 @@ fn sections_from_entries(lines: &[ReasoningLineEntry]) -> Vec<ReasoningSection> 
             }
 
             let spans = spans_from_entry(entry);
-            if !spans_are_blank(&spans) {
+            if spans_are_blank(&spans) {
+                summary_set = false;
+            } else {
                 current.summary = Some(spans.clone());
                 summary_set = true;
-            } else {
-                summary_set = false;
             }
             current.heading = Some(plain.trim().to_string());
             idx += 1;

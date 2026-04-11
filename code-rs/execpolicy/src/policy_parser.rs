@@ -143,10 +143,10 @@ fn policy_builtins(builder: &mut GlobalsBuilder) {
         eval: &mut Evaluator,
     ) -> anyhow::Result<NoneType> {
         let option_bundling = option_bundling.unwrap_or(false);
-        let system_path = system_path.map_or_else(Vec::new, |v| v.items.to_vec());
+        let system_path = system_path.map_or_else(Vec::new, |v| v.items);
         let combined_format = combined_format.unwrap_or(false);
-        let options = options.map_or_else(Vec::new, |v| v.items.to_vec());
-        let args = args.map_or_else(Vec::new, |v| v.items.to_vec());
+        let options = options.map_or_else(Vec::new, |v| v.items);
+        let args = args.map_or_else(Vec::new, |v| v.items);
 
         let mut allowed_options = HashMap::<String, Opt>::new();
         for opt in options {
@@ -168,14 +168,14 @@ fn policy_builtins(builder: &mut GlobalsBuilder) {
             arg_patterns: args,
             forbidden,
             should_match: should_match
-                .map_or_else(Vec::new, |v| v.items.to_vec())
+                .map_or_else(Vec::new, |v| v.items)
                 .into_iter()
-                .map(|v| v.items.to_vec())
+                .map(|v| v.items)
                 .collect(),
             should_not_match: should_not_match
-                .map_or_else(Vec::new, |v| v.items.to_vec())
+                .map_or_else(Vec::new, |v| v.items)
                 .into_iter()
-                .map(|v| v.items.to_vec())
+                .map(|v| v.items)
                 .collect(),
         });
 
@@ -189,7 +189,7 @@ fn policy_builtins(builder: &mut GlobalsBuilder) {
         eval: &mut Evaluator,
     ) -> anyhow::Result<NoneType> {
         let policy_builder = get_policy_builder(eval)?;
-        policy_builder.add_forbidden_substrings(&strings.items.to_vec());
+        policy_builder.add_forbidden_substrings(&strings.items);
         Ok(NoneType)
     }
 

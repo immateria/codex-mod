@@ -53,7 +53,9 @@ impl ValidationSettingsView {
             SelectionKind::Group(idx) => self.toggle_group(idx),
             SelectionKind::Tool(idx) => {
                 if let Some(tool) = self.tools.get(idx) {
-                    if !tool.status.installed {
+                    if tool.status.installed {
+                        self.toggle_tool(idx);
+                    } else {
                         let command = tool.status.install_hint.trim().to_string();
                         let tool_name = tool.status.name.to_string();
                         if command.is_empty() {
@@ -66,8 +68,6 @@ impl ValidationSettingsView {
                                 command,
                             });
                         }
-                    } else {
-                        self.toggle_tool(idx);
                     }
                 }
             }

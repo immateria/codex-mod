@@ -25,15 +25,15 @@ impl ThemeSelectionView {
     }
 
     fn latest_progress_line(current: &str, history: &[String]) -> String {
-        if !current.trim().is_empty() {
-            current.trim().to_string()
-        } else {
+        if current.trim().is_empty() {
             history
                 .iter()
                 .rev()
                 .find(|line| !line.trim().is_empty())
                 .cloned()
                 .unwrap_or_else(|| "Waiting for model…".to_string())
+        } else {
+            current.trim().to_string()
         }
     }
 

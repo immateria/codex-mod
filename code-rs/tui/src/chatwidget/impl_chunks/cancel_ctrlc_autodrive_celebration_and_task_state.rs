@@ -238,13 +238,13 @@ impl ChatWidget<'_> {
         self.bottom_pane
             .update_status_text("Waiting in background");
 
-        if !wait_ids.is_empty() {
+        if wait_ids.is_empty() {
+            self.push_background_tail("Input unblocked after 10s; wait still running.".to_string());
+        } else {
             self.push_background_tail(format!(
                 "Input unblocked after 10s; wait still running ({}).",
                 wait_ids.join(", ")
             ));
-        } else {
-            self.push_background_tail("Input unblocked after 10s; wait still running.".to_string());
         }
 
         if let Some(front) = self.queued_user_messages.front().cloned() {

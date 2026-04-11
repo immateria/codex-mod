@@ -126,7 +126,40 @@ pub(crate) async fn execute_agent(agent_id: String, config: Option<AgentConfig>)
     // Track optional review output path for /review agents (AutoReview)
     let mut review_output_json_path_capture: Option<PathBuf> = None;
 
-    let result = if !read_only {
+    let result = if read_only {
+        // Execute in read-only mode
+        full_prompt = format!(
+            "{full_prompt}\n\n[Running in read-only mode - no modifications allowed]"
+        );
+        let use_built_in_cloud = config.is_none()
+            && model_spec.map_or_else(|| model.eq_ignore_ascii_case("cloud"), |spec| spec.cli.eq_ignore_ascii_case("cloud"));
+
+        if use_built_in_cloud {
+            if let Some(spec) = model_spec {
+                if spec.is_enabled() {
+                    cloud::execute_cloud_built_in_streaming(&agent_id, &full_prompt, None, config, spec.slug).await
+                } else {
+                    Err(gating_error_message(spec))
+                }
+            } else {
+                cloud::execute_cloud_built_in_streaming(&agent_id, &full_prompt, None, config, model.as_str()).await
+            }
+        } else {
+            execute_model_with_permissions(ExecuteModelRequest {
+                agent_id: &agent_id,
+                model: &model,
+                prompt: &full_prompt,
+                read_only: true,
+                working_dir: None,
+                config,
+                reasoning_effort,
+                review_output_json_path: None,
+                source_kind,
+                log_tag: log_tag.as_deref(),
+            })
+            .await
+        }
+    } else {
         // Check git and setup worktree for non-read-only mode
         match get_git_root().await {
             Ok(git_root) => {
@@ -175,9 +208,7 @@ pub(crate) async fn execute_agent(agent_id: String, config: Option<AgentConfig>)
 
                         if use_built_in_cloud {
                             if let Some(spec) = model_spec {
-                                if !spec.is_enabled() {
-                                    Err(gating_error_message(spec))
-                                } else {
+                                if spec.is_enabled() {
                                     cloud::execute_cloud_built_in_streaming(
                                         &agent_id,
                                         &full_prompt,
@@ -186,6 +217,8 @@ pub(crate) async fn execute_agent(agent_id: String, config: Option<AgentConfig>)
                                         spec.slug,
                                     )
                                     .await
+                                } else {
+                                    Err(gating_error_message(spec))
                                 }
                             } else {
                                 cloud::execute_cloud_built_in_streaming(
@@ -217,39 +250,6 @@ pub(crate) async fn execute_agent(agent_id: String, config: Option<AgentConfig>)
                 }
             }
             Err(e) => Err(format!("Git is required for non-read-only agents: {e}")),
-        }
-    } else {
-        // Execute in read-only mode
-        full_prompt = format!(
-            "{full_prompt}\n\n[Running in read-only mode - no modifications allowed]"
-        );
-        let use_built_in_cloud = config.is_none()
-            && model_spec.map_or_else(|| model.eq_ignore_ascii_case("cloud"), |spec| spec.cli.eq_ignore_ascii_case("cloud"));
-
-        if use_built_in_cloud {
-            if let Some(spec) = model_spec {
-                if !spec.is_enabled() {
-                    Err(gating_error_message(spec))
-                } else {
-                    cloud::execute_cloud_built_in_streaming(&agent_id, &full_prompt, None, config, spec.slug).await
-                }
-            } else {
-                cloud::execute_cloud_built_in_streaming(&agent_id, &full_prompt, None, config, model.as_str()).await
-            }
-        } else {
-            execute_model_with_permissions(ExecuteModelRequest {
-                agent_id: &agent_id,
-                model: &model,
-                prompt: &full_prompt,
-                read_only: true,
-                working_dir: None,
-                config,
-                reasoning_effort,
-                review_output_json_path: None,
-                source_kind,
-                log_tag: log_tag.as_deref(),
-            })
-            .await
         }
     };
 

@@ -212,7 +212,7 @@ pub(crate) async fn stream_chat_completions(
                             | ContentItem::OutputText { text: t } => {
                                 text.push_str(t);
                             }
-                            _ => {}
+                            ContentItem::InputImage { .. } => {}
                         }
                     }
                     messages.push(json!({"role": role, "content": text}));

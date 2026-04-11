@@ -91,7 +91,7 @@ impl ChatWidget<'_> {
                         entry.completed_at = entry.completed_at.or(Some(now));
                     }
                 }
-                _ => {}
+                AgentStatus::Pending => {}
             }
 
             // Mirror agent list for rendering

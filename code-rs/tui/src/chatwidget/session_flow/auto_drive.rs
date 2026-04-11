@@ -280,10 +280,10 @@ impl ChatWidget<'_> {
                     if let Some(plan) = cell.as_any().downcast_ref::<PlanUpdateCell>() {
                         let state = plan.state();
                         let mut lines: Vec<String> = Vec::new();
-                        if !state.name.trim().is_empty() {
-                            lines.push(format!("Plan update: {}", state.name.trim()));
-                        } else {
+                        if state.name.trim().is_empty() {
                             lines.push("Plan update".to_string());
+                        } else {
+                            lines.push(format!("Plan update: {}", state.name.trim()));
                         }
                         if state.progress.total > 0 {
                             lines.push(format!(
@@ -505,10 +505,10 @@ impl ChatWidget<'_> {
                     {
                         let state = plan.state();
                         let mut lines: Vec<String> = Vec::new();
-                        if !state.name.trim().is_empty() {
-                            lines.push(format!("Plan update: {}", state.name.trim()));
-                        } else {
+                        if state.name.trim().is_empty() {
                             lines.push("Plan update".to_string());
+                        } else {
+                            lines.push(format!("Plan update: {}", state.name.trim()));
                         }
 
                         if state.progress.total > 0 {

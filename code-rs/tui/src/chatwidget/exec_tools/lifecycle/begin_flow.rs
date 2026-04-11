@@ -521,9 +521,7 @@ pub(in super::super::super) fn handle_exec_begin_now(
             .or_else(|| chat.history_cell_ids.get(history_idx).and_then(|slot| *slot));
         running.history_id = history_id;
     }
-    if !chat.tools_state.web_search_sessions.is_empty() {
-        chat.bottom_pane.update_status_text("Search");
-    } else {
+    if chat.tools_state.web_search_sessions.is_empty() {
         let preview = chat
             .exec
             .running_commands
@@ -537,6 +535,8 @@ pub(in super::super::super) fn handle_exec_begin_now(
         };
         chat.bottom_pane
             .update_status_text(&format!("running command: {preview_short}"));
+    } else {
+        chat.bottom_pane.update_status_text("Search");
     }
     chat.refresh_auto_drive_visuals();
 }

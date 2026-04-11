@@ -383,14 +383,14 @@ pub async fn persist_shell(code_home: &Path, shell: Option<&ShellConfig>) -> any
             };
 
             shell_table["path"] = toml_edit::value(shell_config.path.clone());
-            if !shell_config.args.is_empty() {
+            if shell_config.args.is_empty() {
+                shell_table.remove("args");
+            } else {
                 let mut args_array = toml_edit::Array::new();
                 for arg in &shell_config.args {
                     args_array.push(arg.as_str());
                 }
                 shell_table["args"] = toml_edit::value(args_array);
-            } else {
-                shell_table.remove("args");
             }
             if let Some(style) = shell_config.script_style {
                 shell_table["script_style"] = toml_edit::value(style.to_string());

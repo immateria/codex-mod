@@ -101,19 +101,19 @@ impl ValidationSettingsView {
                             Style::new().fg(colors::text_dim()),
                         ));
 
-                    tool_row = if !row.status.installed {
+                    tool_row = if row.status.installed {
+                        tool_row.with_value(toggle::enabled_word_warning_off(row.enabled))
+                    } else {
                         tool_row.with_value(StyledText::new(
                             "missing",
                             Style::new().fg(colors::warning()).bold(),
                         ))
-                    } else {
-                        tool_row.with_value(toggle::enabled_word_warning_off(row.enabled))
                     };
 
-                    let tool_hint = if !row.status.installed {
-                        "(press Enter to install)"
-                    } else {
+                    let tool_hint = if row.status.installed {
                         "(press Enter to toggle)"
+                    } else {
+                        "(press Enter to install)"
                     };
                     tool_row = tool_row.with_selected_hint(tool_hint);
 

@@ -12,7 +12,7 @@ pub(in crate::codex) fn debug_history(label: &str, items: &[ResponseItem]) {
                         ContentItem::InputText { text } | ContentItem::OutputText { text } => {
                             Some(text.as_str())
                         }
-                        _ => None,
+                        ContentItem::InputImage { .. } => None,
                     })
                     .collect::<Vec<_>>()
                     .join(" ");

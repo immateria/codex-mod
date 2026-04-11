@@ -67,7 +67,9 @@ impl ChatWidget<'_> {
 
         // Build streaming cell only when the live builder actually has content,
         // avoiding display_rows() Vec clone + collect on every idle frame.
-        let streaming_cell = if !self.live_builder.is_empty() {
+        let streaming_cell = if self.live_builder.is_empty() {
+            None
+        } else {
             let row_count = self.live_builder.display_row_count();
             let mut streaming_lines: Vec<ratatui::text::Line<'static>> =
                 Vec::with_capacity(row_count);
@@ -79,8 +81,6 @@ impl ChatWidget<'_> {
             }
             let state = self.synthesize_stream_state_from_lines(None, &streaming_lines, true);
             Some(history_cell::new_streaming_content(state, &self.config))
-        } else {
-            None
         };
 
         let mut queued_preview_cells: Vec<crate::history_cell::PlainHistoryCell> =

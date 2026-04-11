@@ -57,17 +57,7 @@ impl BufferDiffProfiler {
         if let Some(prev_buffer) = &self.prev
             && self.should_log_frame()
         {
-            if prev_buffer.area != current_buffer.area {
-                tracing::info!(
-                    target: "code_tui::buffer_diff",
-                    frame = self.frame_seq,
-                    prev_width = prev_buffer.area.width,
-                    prev_height = prev_buffer.area.height,
-                    width = current_buffer.area.width,
-                    height = current_buffer.area.height,
-                    "Buffer area changed; skipping diff metrics for this frame"
-                );
-            } else {
+            if prev_buffer.area == current_buffer.area {
                 let inspected = prev_buffer.content.len().min(current_buffer.content.len());
                 let updates = prev_buffer.diff(&current_buffer);
                 let changed = updates.len();
@@ -156,6 +146,16 @@ impl BufferDiffProfiler {
                     row_spans = ?top_spans,
                     skipped_cells,
                     "Buffer diff metrics"
+                );
+            } else {
+                tracing::info!(
+                    target: "code_tui::buffer_diff",
+                    frame = self.frame_seq,
+                    prev_width = prev_buffer.area.width,
+                    prev_height = prev_buffer.area.height,
+                    width = current_buffer.area.width,
+                    height = current_buffer.area.height,
+                    "Buffer area changed; skipping diff metrics for this frame"
                 );
             }
         }

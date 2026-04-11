@@ -64,14 +64,7 @@ impl ChatWidget<'_> {
             }
         }
 
-        if !snapshot.order.is_empty() {
-            self.cell_order_seq = snapshot
-                .order
-                .iter()
-                .copied()
-                .map(OrderKey::from)
-                .collect();
-        } else {
+        if snapshot.order.is_empty() {
             self.cell_order_seq = self
                 .history_cells
                 .iter()
@@ -81,6 +74,13 @@ impl ChatWidget<'_> {
                     out: i32::MAX,
                     seq: (idx as u64).saturating_add(1),
                 })
+                .collect();
+        } else {
+            self.cell_order_seq = snapshot
+                .order
+                .iter()
+                .copied()
+                .map(OrderKey::from)
                 .collect();
         }
 

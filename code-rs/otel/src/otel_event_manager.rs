@@ -360,7 +360,7 @@ impl OtelEventManager {
     pub fn user_prompt(&self, items: &[InputItem]) {
         let prompt = items
             .iter()
-            .flat_map(|item| match item {
+            .filter_map(|item| match item {
                 InputItem::Text { text } => Some(text.as_str()),
                 _ => None,
             })

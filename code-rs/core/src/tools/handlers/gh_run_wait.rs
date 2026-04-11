@@ -81,7 +81,7 @@ pub(crate) async fn handle_gh_run_wait(
         if !output.status.success() {
             let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
             let stdout = String::from_utf8_lossy(&output.stdout).trim().to_string();
-            let message = if !stderr.is_empty() { stderr } else { stdout };
+            let message = if stderr.is_empty() { stdout } else { stderr };
             return Err(format!(
                 "gh {} failed{}",
                 display_args.join(" "),

@@ -409,7 +409,7 @@ fn terminal_from_tmux_client_info(
 
     termname
         .as_ref()
-        .map(|termname| TerminalInfo::from_term(termname.to_string(), multiplexer))
+        .map(|termname| TerminalInfo::from_term(termname.clone(), multiplexer))
 }
 
 fn tmux_version_from_env(env: &dyn Environment) -> Option<String> {

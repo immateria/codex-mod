@@ -380,7 +380,15 @@ impl ChatWidget<'_> {
             .args(&args_vec)
             .output()
             .map_err(|err| format!("git {} failed: {err}", args_vec.join(" ")))?;
-        if !output.status.success() {
+        if output.status.success() {
+            if args_vec
+                .iter()
+                .any(|arg| matches!(arg.as_str(), "pull" | "checkout" | "merge" | "apply"))
+            {
+                bump_snapshot_epoch_for(&self.config.cwd);
+            }
+            parser(String::from_utf8_lossy(&output.stdout).into_owned())
+        } else {
             let stderr = String::from_utf8_lossy(&output.stderr);
             let msg = stderr.trim();
             if msg.is_empty() {
@@ -392,14 +400,6 @@ impl ChatWidget<'_> {
             } else {
                 Err(msg.to_string())
             }
-        } else {
-            if args_vec
-                .iter()
-                .any(|arg| matches!(arg.as_str(), "pull" | "checkout" | "merge" | "apply"))
-            {
-                bump_snapshot_epoch_for(&self.config.cwd);
-            }
-            parser(String::from_utf8_lossy(&output.stdout).into_owned())
         }
     }
 

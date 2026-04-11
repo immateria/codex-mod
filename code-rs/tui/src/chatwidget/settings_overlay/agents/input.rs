@@ -44,14 +44,14 @@ impl AgentsSettingsContent {
                     app_event_tx.send(AppEvent::ShowAgentEditorNew);
                 } else if idx < add_agent_idx {
                     let row = &state.rows[idx];
-                    if !row.installed {
+                    if row.installed {
+                        app_event_tx.send(AppEvent::ShowAgentEditor {
+                            name: row.name.clone(),
+                        });
+                    } else {
                         app_event_tx.send(AppEvent::RequestAgentInstall {
                             name: row.name.clone(),
                             selected_index: idx,
-                        });
-                    } else {
-                        app_event_tx.send(AppEvent::ShowAgentEditor {
-                            name: row.name.clone(),
                         });
                     }
                 } else {

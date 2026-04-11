@@ -27,11 +27,11 @@ impl<'a> BottomPane<'a> {
             // Only restore the local view if the callback did not already
             // claim active view ownership by mutating `self.active_view`.
             if !self.callback_claimed_active_view(kind) {
-                if !is_complete {
+                if is_complete {
+                    self.clear_active_view_state();
+                } else {
                     self.active_view = Some(view);
                     self.active_view_kind = kind;
-                } else {
-                    self.clear_active_view_state();
                 }
             }
 
@@ -76,11 +76,11 @@ impl<'a> BottomPane<'a> {
                     let update = view.handle_key_event_with_result(self, key_event);
                     let is_complete = view.is_complete();
                     if !self.callback_claimed_active_view(kind) {
-                        if !is_complete {
+                        if is_complete {
+                            self.clear_active_view_state();
+                        } else {
                             self.active_view = Some(view);
                             self.active_view_kind = kind;
-                        } else {
-                            self.clear_active_view_state();
                         }
                     }
                     if matches!(update, ConditionalUpdate::NeedsRedraw) || is_complete {
@@ -90,11 +90,11 @@ impl<'a> BottomPane<'a> {
                 };
 
                 if !self.callback_claimed_active_view(kind) {
-                    if !view.is_complete() {
+                    if view.is_complete() {
+                        self.clear_active_view_state();
+                    } else {
                         self.active_view = Some(view);
                         self.active_view_kind = kind;
-                    } else {
-                        self.clear_active_view_state();
                     }
                 }
 
@@ -118,11 +118,11 @@ impl<'a> BottomPane<'a> {
             let update = view.handle_key_event_with_result(self, key_event);
             let is_complete = view.is_complete();
             if !self.callback_claimed_active_view(kind) {
-                if !is_complete {
+                if is_complete {
+                    self.clear_active_view_state();
+                } else {
                     self.active_view = Some(view);
                     self.active_view_kind = kind;
-                } else {
-                    self.clear_active_view_state();
                 }
             }
             let needs_redraw = matches!(update, ConditionalUpdate::NeedsRedraw) || is_complete;
@@ -191,21 +191,21 @@ impl<'a> BottomPane<'a> {
         match event {
             CancellationEvent::Handled => {
                 if !self.callback_claimed_active_view(kind) {
-                    if !view.is_complete() {
+                    if view.is_complete() {
+                        self.clear_active_view_state();
+                    } else {
                         self.active_view = Some(view);
                         self.active_view_kind = kind;
-                    } else {
-                        self.clear_active_view_state();
                     }
                 }
             }
             CancellationEvent::Ignored => {
                 if !self.callback_claimed_active_view(kind) {
-                    if !view.is_complete() {
+                    if view.is_complete() {
+                        self.clear_active_view_state();
+                    } else {
                         self.active_view = Some(view);
                         self.active_view_kind = kind;
-                    } else {
-                        self.clear_active_view_state();
                     }
                 }
             }
@@ -217,11 +217,11 @@ impl<'a> BottomPane<'a> {
         if let Some(mut view) = self.active_view.take() {
             let kind = self.active_view_kind;
             let update = view.handle_paste_with_composer(&mut self.composer, pasted);
-            if !view.is_complete() {
+            if view.is_complete() {
+                self.clear_active_view_state();
+            } else {
                 self.active_view = Some(view);
                 self.active_view_kind = kind;
-            } else {
-                self.clear_active_view_state();
             }
             if matches!(update, ConditionalUpdate::NeedsRedraw) {
                 self.request_redraw();

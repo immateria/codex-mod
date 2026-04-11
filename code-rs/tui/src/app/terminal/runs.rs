@@ -64,7 +64,7 @@ pub(super) fn start_terminal_run_inner(
         AppState::Chat { widget } => widget
             .terminal_dimensions_hint()
             .unwrap_or((DEFAULT_PTY_ROWS, DEFAULT_PTY_COLS)),
-        _ => (DEFAULT_PTY_ROWS, DEFAULT_PTY_COLS),
+        AppState::Onboarding { .. } => (DEFAULT_PTY_ROWS, DEFAULT_PTY_COLS),
     };
 
     let pty_system = native_pty_system();

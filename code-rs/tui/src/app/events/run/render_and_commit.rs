@@ -67,7 +67,10 @@
                     if self.timing_enabled { self.timing.on_redraw_begin(); }
                     let t0 = Instant::now();
                     let mut used_nonblocking = false;
-                    let draw_result = if !tui::stdout_ready_for_writes() {
+                    let draw_result = if tui::stdout_ready_for_writes() {
+                        self.stdout_backpressure_skips = 0;
+                        std::io::stdout().sync_update(|_| self.draw_next_frame(terminal))
+                    } else {
                         self.stdout_backpressure_skips = self.stdout_backpressure_skips.saturating_add(1);
                         if self.stdout_backpressure_skips == 1
                             || self.stdout_backpressure_skips.is_multiple_of(25)
@@ -91,9 +94,6 @@
                             "stdout still blocked; forcing nonblocking redraw"
                         );
                         self.draw_frame_with_nonblocking_stdout(terminal)
-                    } else {
-                        self.stdout_backpressure_skips = 0;
-                        std::io::stdout().sync_update(|_| self.draw_next_frame(terminal))
                     };
 
                     self.redraw_inflight.store(false, Ordering::Release);

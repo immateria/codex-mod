@@ -193,17 +193,17 @@ impl SettingsOverlayView {
                         let Some(section) = self.sidebar_section_at(selected_idx) else {
                             return false;
                         };
-                        if section != self.active_section() {
-                            self.set_mode_section(section);
-                            self.set_focus_sidebar();
-                            true
-                        } else {
+                        if section == self.active_section() {
                             let activated =
                                 matches!(outcome.result, SelectableListMouseResult::Activated);
                             if activated {
                                 self.set_focus_sidebar();
                             }
                             activated
+                        } else {
+                            self.set_mode_section(section);
+                            self.set_focus_sidebar();
+                            true
                         }
                     }
                 }

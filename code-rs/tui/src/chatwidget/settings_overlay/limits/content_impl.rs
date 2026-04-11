@@ -452,11 +452,11 @@ impl LimitsSettingsContent {
         let current = self.scroll_value_for(target) as i32;
         let max = self.max_scroll_for(target) as i32;
         let next = (current + delta).clamp(0, max);
-        if next != current {
+        if next == current {
+            false
+        } else {
             self.set_scroll_for(target, next as u16);
             true
-        } else {
-            false
         }
     }
 
@@ -469,11 +469,11 @@ impl LimitsSettingsContent {
     fn jump_scroll(&self, target: ScrollTarget, end: bool) -> bool {
         let next = if end { self.max_scroll_for(target) } else { 0 };
         let current = self.scroll_value_for(target);
-        if next != current {
+        if next == current {
+            false
+        } else {
             self.set_scroll_for(target, next);
             true
-        } else {
-            false
         }
     }
 

@@ -55,7 +55,7 @@ impl ChatWidget<'_> {
                         match l {
                             diffy::Line::Insert(_) => total_added += 1,
                             diffy::Line::Delete(_) => total_removed += 1,
-                            _ => {}
+                            diffy::Line::Context(_) => {}
                         }
                     }
                 }

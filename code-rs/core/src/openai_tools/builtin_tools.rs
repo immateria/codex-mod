@@ -745,10 +745,10 @@ The shell tool is used to execute shell commands.
 
 Long-running commands may be backgrounded after an initial window. Use `wait` to await background tasks. Optional `timeout` can set a hard kill if needed."#,
                 roots_str,
-                if !network_access {
-                    "\n    - Commands that require network access\n"
-                } else {
+                if *network_access {
                     ""
+                } else {
+                    "\n    - Commands that require network access\n"
                 }
             )
         }

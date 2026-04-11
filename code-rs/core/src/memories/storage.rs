@@ -786,7 +786,7 @@ fn snippet_from_content(content: &[ContentItem]) -> Option<String> {
         ContentItem::InputText { text } | ContentItem::OutputText { text } => {
             Some(text.chars().take(100).collect())
         }
-        _ => None,
+        ContentItem::InputImage { .. } => None,
     })
 }
 

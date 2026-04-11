@@ -86,7 +86,7 @@ impl ExecvChecker {
             }
         }
 
-        let mut program = valid_exec.program.to_string();
+        let mut program = valid_exec.program.clone();
         for system_path in valid_exec.system_path {
             if is_executable_file(&system_path) {
                 program = system_path;

@@ -256,27 +256,7 @@ impl ChatWidget<'_> {
         // command_args contains only the arguments after the command (e.g., "high" not "/reasoning high")
         let trimmed = command_args.trim();
 
-        if !trimmed.is_empty() {
-            // User specified a level: e.g., "high"
-            let new_effort = match trimmed.to_lowercase().as_str() {
-                "minimal" | "min" => ReasoningEffort::Minimal,
-                "low" => ReasoningEffort::Low,
-                "medium" | "med" => ReasoningEffort::Medium,
-                "xhigh" | "extra-high" | "extra_high" => ReasoningEffort::XHigh,
-                "high" => ReasoningEffort::High,
-                // Backwards compatibility: map legacy values to minimal.
-                "none" | "off" => ReasoningEffort::Minimal,
-                _ => {
-                    // Invalid parameter, show error and return
-                    let message = format!(
-                        "Invalid reasoning level: '{trimmed}'. Use: minimal, low, medium, or high"
-                    );
-                    self.history_push_plain_state(history_cell::new_error_event(message));
-                    return;
-                }
-            };
-            self.set_reasoning_effort(new_effort);
-        } else {
+        if trimmed.is_empty() {
             let presets = self.available_model_presets();
             if presets.is_empty() {
                 let message =
@@ -297,6 +277,26 @@ impl ChatWidget<'_> {
                 use_chat_model: false,
                 target: ModelSelectionTarget::Session,
             });
+        } else {
+            // User specified a level: e.g., "high"
+            let new_effort = match trimmed.to_lowercase().as_str() {
+                "minimal" | "min" => ReasoningEffort::Minimal,
+                "low" => ReasoningEffort::Low,
+                "medium" | "med" => ReasoningEffort::Medium,
+                "xhigh" | "extra-high" | "extra_high" => ReasoningEffort::XHigh,
+                "high" => ReasoningEffort::High,
+                // Backwards compatibility: map legacy values to minimal.
+                "none" | "off" => ReasoningEffort::Minimal,
+                _ => {
+                    // Invalid parameter, show error and return
+                    let message = format!(
+                        "Invalid reasoning level: '{trimmed}'. Use: minimal, low, medium, or high"
+                    );
+                    self.history_push_plain_state(history_cell::new_error_event(message));
+                    return;
+                }
+            };
+            self.set_reasoning_effort(new_effort);
         }
     }
 
@@ -453,7 +453,11 @@ impl ChatWidget<'_> {
         // command_args contains only the arguments after the command (e.g., "high" not "/verbosity high")
         let trimmed = command_args.trim();
 
-        if !trimmed.is_empty() {
+        if trimmed.is_empty() {
+            // No parameter specified, show interactive UI
+            self.bottom_pane
+                .show_verbosity_selection(self.config.model_text_verbosity);
+        } else {
             // User specified a level: e.g., "high"
             let new_verbosity = match trimmed.to_lowercase().as_str() {
                 "low" => TextVerbosity::Low,
@@ -479,10 +483,6 @@ impl ChatWidget<'_> {
             // Send the update to the backend
             let op = self.current_configure_session_op();
             let _ = self.code_op_tx.send(op);
-        } else {
-            // No parameter specified, show interactive UI
-            self.bottom_pane
-                .show_verbosity_selection(self.config.model_text_verbosity);
         }
     }
 

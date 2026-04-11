@@ -1795,7 +1795,7 @@ async fn handle_list_agents(
                 let status_msg = format!(
                     "Agents: {} agent{} currently running",
                     running_count,
-                    if running_count != 1 { "s" } else { "" }
+                    if running_count == 1 { "" } else { "s" }
                 );
                 let event = sess.make_event(
                     "agent-status",

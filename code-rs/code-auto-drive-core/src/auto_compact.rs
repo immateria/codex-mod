@@ -325,7 +325,7 @@ fn deterministic_summary(items: &[ResponseItem], prev_summary: Option<&str>) -> 
                     .filter_map(|chunk| match chunk {
                         ContentItem::InputText { text }
                         | ContentItem::OutputText { text } => Some(text.trim()),
-                        _ => None,
+                        ContentItem::InputImage { .. } => None,
                     })
                     .collect::<Vec<_>>()
                     .join(" ");

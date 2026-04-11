@@ -50,10 +50,7 @@ impl FileSearchPopup {
 
         self.waiting = true; // waiting for new results
 
-        if !keep_existing {
-            self.matches.clear();
-            self.state.reset();
-        } else {
+        if keep_existing {
             // While waiting for new results, proactively trim any rows that
             // no longer plausibly match the refined query to avoid stale
             // completions completing the wrong path on double-Tab.
@@ -68,6 +65,9 @@ impl FileSearchPopup {
                 false
             });
             self.state.clamp_selection(self.matches.len());
+        } else {
+            self.matches.clear();
+            self.state.reset();
         }
     }
 

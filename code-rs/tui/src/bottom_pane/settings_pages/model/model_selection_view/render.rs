@@ -131,10 +131,10 @@ impl ModelSelectionView {
             } else {
                 base
             };
-            if !context_available {
-                with_mode.fg(colors::text_dim())
-            } else {
+            if context_available {
                 with_mode
+            } else {
+                with_mode.fg(colors::text_dim())
             }
         };
         let arrow_style = if is_selected {

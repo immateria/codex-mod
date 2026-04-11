@@ -174,11 +174,11 @@ impl<'a> BottomPane<'a> {
             // modal views (e.g. approval dialogs).
             if let Some(mut view) = self.active_view.take() {
                 let kind = self.active_view_kind;
-                if !view.should_hide_when_task_is_done() {
+                if view.should_hide_when_task_is_done() {
+                    self.clear_active_view_state();
+                } else {
                     self.active_view = Some(view);
                     self.active_view_kind = kind;
-                } else {
-                    self.clear_active_view_state();
                 }
             }
         }
@@ -303,10 +303,10 @@ impl<'a> BottomPane<'a> {
     pub(crate) fn ensure_input_focus(&mut self) {
         // Only ensure focus if there's no active modal view
         if self.active_view.is_none() {
-            if !self.has_input_focus {
-                self.set_input_focus(true);
-            } else {
+            if self.has_input_focus {
                 self.composer.set_ctrl_c_quit_hint(self.ctrl_c_quit_hint);
+            } else {
+                self.set_input_focus(true);
             }
         }
     }

@@ -583,10 +583,10 @@ impl ChatWidget<'_> {
                 Ok(out) => {
                     let stderr = String::from_utf8_lossy(&out.stderr);
                     let stdout = String::from_utf8_lossy(&out.stdout);
-                    let detail = if !stderr.trim().is_empty() {
-                        stderr.trim().to_string()
-                    } else {
+                    let detail = if stderr.trim().is_empty() {
                         stdout.trim().to_string()
+                    } else {
+                        stderr.trim().to_string()
                     };
                     let msg = if detail.is_empty() {
                         "git init failed.".to_string()

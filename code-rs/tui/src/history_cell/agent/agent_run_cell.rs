@@ -1012,10 +1012,10 @@ impl AgentRunCell {
         for (kind, count) in counts.glyph_counts() {
             count_parts.push(format!("{}{}", kind.glyph(), count));
         }
-        if !count_parts.is_empty() {
-            lines.push(format!("Agents: {} ({})", counts.total, count_parts.join(", ")));
-        } else {
+        if count_parts.is_empty() {
             lines.push(format!("Agents: {}", counts.total));
+        } else {
+            lines.push(format!("Agents: {} ({})", counts.total, count_parts.join(", ")));
         }
 
         for (idx, agent) in self.agents.iter().enumerate().take(MAX_AGENT_DISPLAY) {

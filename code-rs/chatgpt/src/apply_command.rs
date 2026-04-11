@@ -52,7 +52,7 @@ pub async fn apply_diff_from_task(
     };
     let output_diff = diff_turn.output_items.iter().find_map(|item| match item {
         OutputItem::Pr(PrOutputItem { output_diff }) => Some(output_diff),
-        _ => None,
+        OutputItem::Other => None,
     });
     match output_diff {
         Some(output_diff) => apply_diff(&output_diff.diff, cwd).await,

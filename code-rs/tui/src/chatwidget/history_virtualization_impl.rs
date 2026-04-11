@@ -157,17 +157,15 @@ impl ChatWidget<'_> {
 
         let mut fallback_lines: Option<Rc<Vec<Line<'static>>>> = None;
         if !cell_has_custom_render && !is_streaming {
-            if history_id != HistoryId::ZERO {
-                if let Some(record) = self.history_state.record(history_id)
-                    && let Some(lines) = self.fallback_lines_for_record(cell, record) {
-                        let cached = self.history_render.cached_fallback_lines(history_id, || lines);
-                        fallback_lines = Some(cached);
-                    }
-            } else {
+            if history_id == HistoryId::ZERO {
                 let lines = cell.display_lines_trimmed();
                 if !lines.is_empty() {
                     fallback_lines = Some(Rc::new(lines));
                 }
+            } else if let Some(record) = self.history_state.record(history_id)
+            && let Some(lines) = self.fallback_lines_for_record(cell, record) {
+                let cached = self.history_render.cached_fallback_lines(history_id, || lines);
+                fallback_lines = Some(cached);
             }
         }
 

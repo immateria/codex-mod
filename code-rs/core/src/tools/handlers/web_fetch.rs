@@ -416,7 +416,7 @@ pub(crate) async fn handle_web_fetch(sess: &Session, ctx: &ToolCallCtx, argument
                             let mut j = i + tag_close.len();
                             while j < bytes.len() && bytes[j] != b'>' { j += 1; }
                             if j < bytes.len() {
-                                return Some(html[start..j+1].to_string());
+                                return Some(html[start..=j].to_string());
                             }
                             return Some(html[start..].to_string());
                         }
@@ -609,9 +609,7 @@ pub(crate) async fn handle_web_fetch(sess: &Session, ctx: &ToolCallCtx, argument
                                         let author = node.and_then(|n| n.get("author")).and_then(|a| a.get("login")).and_then(|v| v.as_str()).unwrap_or("");
                                         let created = node.and_then(|n| n.get("createdAt")).and_then(|v| v.as_str()).unwrap_or("");
                                         let body = node.and_then(|n| n.get("body")).and_then(|v| v.as_str()).unwrap_or("");
-                                        if !body.is_empty() {
-                                            comments.push((author.to_string(), created.to_string(), body.to_string()));
-                                        } else {
+                                        if body.is_empty() {
                                             let body_html = node.and_then(|n| n.get("bodyHTML")).and_then(|v| v.as_str()).unwrap_or("");
                                             if !body_html.is_empty() {
                                                 // Minimal HTML→MD for comments if body missing
@@ -621,6 +619,8 @@ pub(crate) async fn handle_web_fetch(sess: &Session, ctx: &ToolCallCtx, argument
                                                     comments.push((author.to_string(), created.to_string(), md));
                                                 }
                                             }
+                                        } else {
+                                            comments.push((author.to_string(), created.to_string(), body.to_string()));
                                         }
                                     }
                                 }

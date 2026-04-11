@@ -2129,7 +2129,7 @@ impl Session {
             })
             .map(|content| match content {
                 ContentItem::InputText { text } | ContentItem::OutputText { text } => text.len(),
-                _ => 0,
+                ContentItem::InputImage { .. } => 0,
             })
             .sum();
 

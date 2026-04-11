@@ -30,13 +30,13 @@ impl ArgType {
     pub fn validate(&self, value: &str) -> Result<()> {
         match self {
             ArgType::Literal(literal_value) => {
-                if value != *literal_value {
+                if value == *literal_value {
+                    Ok(())
+                } else {
                     Err(Error::LiteralValueDidNotMatch {
                         expected: literal_value.clone(),
                         actual: value.to_string(),
                     })
-                } else {
-                    Ok(())
                 }
             }
             ArgType::ReadableFile => {

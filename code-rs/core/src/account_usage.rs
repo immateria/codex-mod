@@ -551,13 +551,13 @@ pub fn mark_rate_limit_refresh_attempt_if_due(
                 let attempted_after_reset = last_attempt
                     .is_some_and(|attempt| attempt >= reset_at);
 
-                if !attempted_after_reset {
-                    true
-                } else {
+                if attempted_after_reset {
                     match last_attempt {
                         Some(attempt) => now.signed_duration_since(attempt) >= stale_interval,
                         None => true,
                     }
+                } else {
+                    true
                 }
             }
         } else {

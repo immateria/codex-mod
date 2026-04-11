@@ -333,7 +333,7 @@ mod tests {
             assert_eq!(
                 default_user_shell().await,
                 Shell::Zsh(ZshShell {
-                    shell_path: shell_path.to_string(),
+                    shell_path: shell_path.clone(),
                     zshrc_path: format!("{home}/.zshrc",),
                 })
             );

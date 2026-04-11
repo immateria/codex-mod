@@ -426,14 +426,14 @@ impl ChatWidget<'_> {
                 needs_refresh = true;
             }
 
-        let cleaned_delta = if !self.auto_state.thinking_prefix_stripped {
+        let cleaned_delta = if self.auto_state.thinking_prefix_stripped {
+            delta.to_string()
+        } else {
             let (without_prefix, stripped) = strip_role_prefix_if_present(delta);
             if stripped {
                 self.auto_state.thinking_prefix_stripped = true;
             }
             without_prefix.to_string()
-        } else {
-            delta.to_string()
         };
 
         if !self.auto_state.thinking_prefix_stripped && !cleaned_delta.trim().is_empty() {

@@ -99,10 +99,7 @@ fn diff_contains_line_edits(diff: &str) -> bool {
         if line.starts_with("+++") || line.starts_with("---") || line.starts_with("@@") {
             continue;
         }
-        match line.as_bytes().first() {
-            Some(b'+' | b'-') => return true,
-            _ => {}
-        }
+        if let Some(b'+' | b'-') = line.as_bytes().first() { return true }
     }
     false
 }

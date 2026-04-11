@@ -265,10 +265,10 @@ impl ChatWidget<'_> {
             self.cell_order_dbg.insert(pos, Some(dbg));
         }
         if let Some(id) = maybe_id {
-            if id != HistoryId::ZERO {
-                self.history_render.invalidate_history_id(id);
-            } else {
+            if id == HistoryId::ZERO {
                 self.history_render.invalidate_prefix_only();
+            } else {
+                self.history_render.invalidate_history_id(id);
             }
         } else {
             self.history_render.invalidate_prefix_only();

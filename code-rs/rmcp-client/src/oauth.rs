@@ -456,7 +456,7 @@ fn save_oauth_tokens_to_file(code_home: &Path, tokens: &StoredOAuthTokens) -> Re
         .or_else(|| compute_expires_at_millis(token_response));
     let refresh_token = token_response
         .refresh_token()
-        .map(|token| token.secret().to_string());
+        .map(|token| token.secret().clone());
     let scopes = token_response
         .scopes()
         .map(|s| s.iter().map(|s| s.to_string()).collect())
@@ -465,7 +465,7 @@ fn save_oauth_tokens_to_file(code_home: &Path, tokens: &StoredOAuthTokens) -> Re
         server_name: tokens.server_name.clone(),
         server_url: tokens.url.clone(),
         client_id: tokens.client_id.clone(),
-        access_token: token_response.access_token().secret().to_string(),
+        access_token: token_response.access_token().secret().clone(),
         expires_at,
         refresh_token,
         scopes,
@@ -650,12 +650,12 @@ mod tests {
                 .token_response
                 .0
                 .refresh_token()
-                .map(|t| t.secret().to_string()),
+                .map(|t| t.secret().clone()),
             expected
                 .token_response
                 .0
                 .refresh_token()
-                .map(|t| t.secret().to_string())
+                .map(|t| t.secret().clone())
         );
     }
 

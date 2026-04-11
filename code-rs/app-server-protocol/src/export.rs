@@ -306,7 +306,7 @@ fn filter_experimental_fields_in_ts_file(
         })
         .collect();
     let new_inner = filtered_fields.join(", ");
-    let prefix = &content[..open_brace + 1];
+    let prefix = &content[..=open_brace];
     let suffix = &content[close_brace..];
     content = format!("{prefix}{new_inner}{suffix}");
     let import_usage_scope = split_type_alias(&content).map_or_else(|| new_inner.clone(), |(_, body, _)| body);
@@ -626,7 +626,7 @@ fn split_type_alias(content: &str) -> Option<(String, String, String)> {
     if semi_index <= eq_index {
         return None;
     }
-    let prefix = content[..eq_index + 1].to_string();
+    let prefix = content[..=eq_index].to_string();
     let body = content[eq_index + 1..semi_index].to_string();
     let suffix = content[semi_index..].to_string();
     Some((prefix, body, suffix))

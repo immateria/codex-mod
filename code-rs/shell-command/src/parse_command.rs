@@ -1812,7 +1812,7 @@ fn summarize_main_tokens(main_cmd: &[String]) -> ParsedCommand {
                 (None, non_flags.first().map(|s| short_display_path(s)))
             } else {
                 (
-                    non_flags.first().cloned().map(ToString::to_string),
+                    non_flags.first().copied().map(ToString::to_string),
                     non_flags.get(1).map(|s| short_display_path(s)),
                 )
             };
@@ -1847,7 +1847,7 @@ fn summarize_main_tokens(main_cmd: &[String]) -> ParsedCommand {
                 .collect();
             // Do not shorten the query: grep patterns may legitimately contain slashes
             // and should be preserved verbatim. Only paths should be shortened.
-            let query = non_flags.first().cloned().map(ToString::to_string);
+            let query = non_flags.first().copied().map(ToString::to_string);
             let path = non_flags.get(1).map(|s| short_display_path(s));
             ParsedCommand::Search {
                 cmd: shlex_join(main_cmd),

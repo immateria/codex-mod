@@ -337,7 +337,7 @@ impl ChatWidget<'_> {
                         }
                     }
             }
-            _ => {}
+            AgentStatus::Completed => {}
         }
 
         let header_style = ratatui::style::Style::default()

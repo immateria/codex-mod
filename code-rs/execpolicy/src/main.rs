@@ -77,7 +77,7 @@ fn main() -> Result<()> {
     let exec = match args.command {
         Command::Check { command } => match command.split_first() {
             Some((first, rest)) => ExecArg {
-                program: first.to_string(),
+                program: first.clone(),
                 args: rest.to_vec(),
             },
             None => {

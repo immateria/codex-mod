@@ -889,7 +889,7 @@ async fn detect_runtime_version(
         .map_err(|err| format!("failed to run `{executable}`: {err}", executable = executable.display()))?;
     let stdout = String::from_utf8_lossy(&output.stdout).trim().to_string();
     let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
-    let text = if !stdout.is_empty() { stdout } else { stderr };
+    let text = if stdout.is_empty() { stderr } else { stdout };
     if text.is_empty() {
         return Err(format!("`{executable}` produced no version output", executable = executable.display()));
     }

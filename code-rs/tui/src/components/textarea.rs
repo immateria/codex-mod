@@ -202,11 +202,11 @@ impl TextArea {
         } else {
             (eff + 3).min(max_scroll)
         };
-        if new != eff {
+        if new == eff {
+            false
+        } else {
             state.scroll = new;
             true
-        } else {
-            false
         }
     }
 

@@ -27,7 +27,7 @@ impl ChatWidget<'_> {
                             }
                             text.push_str(&t);
                         }
-                        _ => {}
+                        ContentItem::InputImage { .. } => {}
                     }
                 }
                 let text = text.trim();

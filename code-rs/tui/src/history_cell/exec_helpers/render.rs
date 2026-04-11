@@ -189,7 +189,12 @@ pub(crate) fn exec_render_parts_parsed_with_meta(
                             ));
                         }
                         if let Some((left, right)) = chunk.rsplit_once(" and ") {
-                            if !left.is_empty() {
+                            if left.is_empty() {
+                                spans.push(Span::styled(
+                                    chunk.to_string(),
+                                    s_text,
+                                ));
+                            } else {
                                 spans.push(Span::styled(
                                     left.to_string(),
                                     s_text,
@@ -200,11 +205,6 @@ pub(crate) fn exec_render_parts_parsed_with_meta(
                                 ));
                                 spans.push(Span::styled(
                                     right.to_string(),
-                                    s_text,
-                                ));
-                            } else {
-                                spans.push(Span::styled(
-                                    chunk.to_string(),
                                     s_text,
                                 ));
                             }
@@ -495,7 +495,12 @@ fn new_parsed_command(
                         }
                         // Within each chunk, if it contains " and ", split into left and right with dimmed " and "
                         if let Some((left, right)) = chunk.rsplit_once(" and ") {
-                            if !left.is_empty() {
+                            if left.is_empty() {
+                                spans.push(Span::styled(
+                                    chunk.to_string(),
+                                    s_text,
+                                ));
+                            } else {
                                 spans.push(Span::styled(
                                     left.to_string(),
                                     s_text,
@@ -506,11 +511,6 @@ fn new_parsed_command(
                                 ));
                                 spans.push(Span::styled(
                                     right.to_string(),
-                                    s_text,
-                                ));
-                            } else {
-                                spans.push(Span::styled(
-                                    chunk.to_string(),
                                     s_text,
                                 ));
                             }

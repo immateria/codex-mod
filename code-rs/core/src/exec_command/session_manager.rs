@@ -177,7 +177,7 @@ fn pick_prefix_slice(input: &str, left_budget: usize) -> &str {
     }
     if let Some(head) = input.get(..left_budget)
         && let Some(idx) = head.rfind('\n') {
-            return &input[..idx + 1];
+            return &input[..=idx];
         }
     crate::util::truncate_on_char_boundary(input, left_budget)
 }
