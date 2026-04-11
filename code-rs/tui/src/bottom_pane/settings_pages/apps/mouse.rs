@@ -24,7 +24,7 @@ impl AppsSettingsView {
     }
 
     fn handle_mouse_event_in_chrome(
-        &mut self,
+        &self,
         chrome: ChromeMode,
         mouse_event: MouseEvent,
         area: Rect,
@@ -36,7 +36,7 @@ impl AppsSettingsView {
     }
 
     fn handle_mouse_overview(
-        &mut self,
+        &self,
         chrome: ChromeMode,
         mouse_event: MouseEvent,
         area: Rect,

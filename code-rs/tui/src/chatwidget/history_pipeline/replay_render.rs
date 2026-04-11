@@ -289,7 +289,7 @@ impl ChatWidget<'_> {
         layout_scroll::autoscroll_if_near_bottom(self);
     }
 
-    pub(in super::super) fn clear_reasoning_in_progress(&mut self) {
+    pub(in super::super) fn clear_reasoning_in_progress(&self) {
         let last_reasoning_index = self
             .history_cells
             .iter()

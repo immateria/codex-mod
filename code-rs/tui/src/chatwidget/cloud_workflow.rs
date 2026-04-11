@@ -246,7 +246,7 @@ impl ChatWidget<'_> {
         }
     }
 
-    pub(super) fn request_cloud_task_refresh(&mut self, env_override: Option<String>) {
+    pub(super) fn request_cloud_task_refresh(&self, env_override: Option<String>) {
         let selected = env_override.or_else(|| self.current_cloud_env_id());
         self.app_event_tx
             .send(AppEvent::FetchCloudTasks { environment: selected });

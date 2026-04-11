@@ -27,8 +27,8 @@ impl AutoCoordinatorView {
     }
 
     pub(crate) fn handle_active_key_event(
-        &mut self,
-        _pane: &mut BottomPane<'_>,
+        &self,
+        _pane: &BottomPane<'_>,
         key_event: KeyEvent,
     ) -> bool {
         if !matches!(key_event.kind, KeyEventKind::Press | KeyEventKind::Repeat) {
@@ -72,7 +72,7 @@ impl AutoCoordinatorView {
         false
     }
 
-    pub(super) fn handle_key_event_direct(&mut self, key_event: KeyEvent) -> bool {
+    pub(super) fn handle_key_event_direct(&self, key_event: KeyEvent) -> bool {
         if !matches!(key_event.kind, KeyEventKind::Press | KeyEventKind::Repeat) {
             return false;
         }

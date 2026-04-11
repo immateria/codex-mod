@@ -50,7 +50,7 @@ impl AccountSwitchSettingsView {
         self.app_event_tx.send(AppEvent::ShowLoginAddAccount);
     }
 
-    fn request_store_mode_change(&mut self, target: AuthCredentialsStoreMode, migrate_existing: bool) {
+    fn request_store_mode_change(&self, target: AuthCredentialsStoreMode, migrate_existing: bool) {
         self.app_event_tx.send(AppEvent::RequestSetAuthCredentialsStoreMode {
             mode: target,
             migrate_existing,

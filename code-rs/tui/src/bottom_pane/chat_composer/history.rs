@@ -272,7 +272,7 @@ impl ChatComposerHistory {
     ///
     /// This is a *pure peek* — it does NOT update `last_history_text`.
     fn peek_text_at_index(
-        &mut self,
+        &self,
         global_idx: usize,
         app_event_tx: &AppEventSender,
     ) -> Option<String> {

@@ -35,7 +35,7 @@ impl ChatWidget<'_> {
         ThemeSettingsContent::new(view)
     }
 
-    pub(super) fn build_interface_settings_view(&mut self) -> InterfaceSettingsView {
+    pub(super) fn build_interface_settings_view(&self) -> InterfaceSettingsView {
         InterfaceSettingsView::new(
             self.config.code_home.clone(),
             self.config.tui.settings_menu.clone(),
@@ -45,11 +45,11 @@ impl ChatWidget<'_> {
         )
     }
 
-    pub(super) fn build_interface_settings_content(&mut self) -> InterfaceSettingsContent {
+    pub(super) fn build_interface_settings_content(&self) -> InterfaceSettingsContent {
         InterfaceSettingsContent::new(self.build_interface_settings_view())
     }
 
-    pub(super) fn build_experimental_features_settings_view(&mut self) -> ExperimentalFeaturesSettingsView {
+    pub(super) fn build_experimental_features_settings_view(&self) -> ExperimentalFeaturesSettingsView {
         ExperimentalFeaturesSettingsView::new(
             self.config.active_profile.clone(),
             self.config.features_effective.clone(),
@@ -57,17 +57,17 @@ impl ChatWidget<'_> {
         )
     }
 
-    pub(super) fn build_experimental_features_settings_content(&mut self) -> ExperimentalFeaturesSettingsContent {
+    pub(super) fn build_experimental_features_settings_content(&self) -> ExperimentalFeaturesSettingsContent {
         ExperimentalFeaturesSettingsContent::new(self.build_experimental_features_settings_view())
     }
 
-    pub(super) fn build_shell_settings_content(&mut self) -> ShellSettingsContent {
+    pub(super) fn build_shell_settings_content(&self) -> ShellSettingsContent {
         let presets = self.available_shell_presets();
         let view = ShellSelectionView::new(self.config.shell.clone(), presets, self.app_event_tx.clone());
         ShellSettingsContent::new(view)
     }
 
-    pub(super) fn build_shell_escalation_settings_view(&mut self) -> ShellEscalationSettingsView {
+    pub(super) fn build_shell_escalation_settings_view(&self) -> ShellEscalationSettingsView {
         ShellEscalationSettingsView::new(
             self.config.active_profile.clone(),
             self.config.features_effective.enabled("shell_zsh_fork"),
@@ -78,7 +78,7 @@ impl ChatWidget<'_> {
         )
     }
 
-    pub(super) fn build_shell_escalation_settings_content(&mut self) -> ShellEscalationSettingsContent {
+    pub(super) fn build_shell_escalation_settings_content(&self) -> ShellEscalationSettingsContent {
         ShellEscalationSettingsContent::new(self.build_shell_escalation_settings_view())
     }
 
@@ -154,11 +154,11 @@ impl ChatWidget<'_> {
         NetworkSettingsContent::new(self.build_network_settings_view())
     }
 
-    pub(super) fn build_exec_limits_settings_view(&mut self) -> ExecLimitsSettingsView {
+    pub(super) fn build_exec_limits_settings_view(&self) -> ExecLimitsSettingsView {
         ExecLimitsSettingsView::new(self.config.exec_limits.clone(), self.app_event_tx.clone())
     }
 
-    pub(super) fn build_exec_limits_settings_content(&mut self) -> ExecLimitsSettingsContent {
+    pub(super) fn build_exec_limits_settings_content(&self) -> ExecLimitsSettingsContent {
         ExecLimitsSettingsContent::new(self.build_exec_limits_settings_view())
     }
 
@@ -180,12 +180,12 @@ impl ChatWidget<'_> {
         JsReplSettingsContent::new(self.build_js_repl_settings_view())
     }
 
-    pub(super) fn build_prompts_settings_view(&mut self) -> PromptsSettingsView {
+    pub(super) fn build_prompts_settings_view(&self) -> PromptsSettingsView {
         let prompts = self.bottom_pane.custom_prompts().to_vec();
         PromptsSettingsView::new(prompts, self.app_event_tx.clone())
     }
 
-    pub(super) fn build_prompts_settings_content(&mut self) -> PromptsSettingsContent {
+    pub(super) fn build_prompts_settings_content(&self) -> PromptsSettingsContent {
         PromptsSettingsContent::new(self.build_prompts_settings_view())
     }
 
@@ -265,13 +265,13 @@ impl ChatWidget<'_> {
         PluginsSettingsContent::new(self.build_plugins_settings_view())
     }
 
-    pub(super) fn build_secrets_settings_view(&mut self) -> SecretsSettingsView {
+    pub(super) fn build_secrets_settings_view(&self) -> SecretsSettingsView {
         let shared_state = self.secrets_shared_state();
         let env_id = code_secrets::environment_id_from_cwd(&self.config.cwd);
         SecretsSettingsView::new(shared_state, env_id, self.app_event_tx.clone())
     }
 
-    pub(super) fn build_secrets_settings_content(&mut self) -> SecretsSettingsContent {
+    pub(super) fn build_secrets_settings_content(&self) -> SecretsSettingsContent {
         SecretsSettingsContent::new(self.build_secrets_settings_view())
     }
 

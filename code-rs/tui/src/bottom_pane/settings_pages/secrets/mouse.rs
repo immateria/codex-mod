@@ -38,7 +38,7 @@ impl SecretsSettingsView {
     }
 
     fn handle_list_mouse_event_in_chrome(
-        &mut self,
+        &self,
         chrome: ChromeMode,
         mouse_event: MouseEvent,
         area: Rect,

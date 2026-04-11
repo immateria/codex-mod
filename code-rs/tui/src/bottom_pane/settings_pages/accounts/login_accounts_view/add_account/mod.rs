@@ -40,7 +40,7 @@ impl LoginAddAccountView {
         (Self { state: state.clone() }, state)
     }
 
-    fn handle_key_event_direct(&mut self, key_event: KeyEvent) -> bool {
+    fn handle_key_event_direct(&self, key_event: KeyEvent) -> bool {
         self.state.borrow_mut().handle_key_event(key_event)
     }
 }

@@ -114,7 +114,7 @@ impl SubagentEditorView {
         }
     }
 
-    pub(super) fn save(&mut self) {
+    pub(super) fn save(&self) {
         let agents: Vec<String> = if self.selected_agent_indices.is_empty() {
             Vec::new()
         } else {

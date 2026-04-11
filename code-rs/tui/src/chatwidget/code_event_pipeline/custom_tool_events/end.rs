@@ -476,7 +476,7 @@ impl ChatWidget<'_> {
         }
     }
 
-    fn merge_wait_end_history_state(&mut self, duration: Duration, state: &mut WaitEndState) {
+    fn merge_wait_end_history_state(&self, duration: Duration, state: &mut WaitEndState) {
         let Some(history_id) = state.history_id else {
             return;
         };

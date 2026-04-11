@@ -9,7 +9,7 @@ impl PlanningSettingsView {
         self.handle_key(key_event)
     }
 
-    pub(super) fn handle_enter(&mut self, row: PlanningRow) {
+    pub(super) fn handle_enter(&self, row: PlanningRow) {
         match row {
             PlanningRow::CustomModel => {
                 self.app_event_tx.send(AppEvent::ShowPlanningModelSelector);

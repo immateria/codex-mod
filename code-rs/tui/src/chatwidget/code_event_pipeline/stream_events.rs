@@ -336,7 +336,7 @@ impl ChatWidget<'_> {
         self.mark_needs_redraw();
     }
 
-    fn clear_latest_reasoning_in_progress_flag(&mut self) {
+    fn clear_latest_reasoning_in_progress_flag(&self) {
         if let Some(last) = self.history_cells.iter().rposition(|c| {
             c.as_any()
                 .downcast_ref::<history_cell::CollapsibleReasoningCell>()

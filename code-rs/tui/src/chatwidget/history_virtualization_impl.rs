@@ -1,7 +1,7 @@
 use super::*;
 
 impl ChatWidget<'_> {
-    pub(super) fn invalidate_height_cache(&mut self) {
+    pub(super) fn invalidate_height_cache(&self) {
         self.history_render.invalidate_height_cache();
         self.mark_render_requests_dirty();
         self.history_prefix_append_only.set(false);

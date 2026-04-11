@@ -234,7 +234,7 @@ impl ServerSchedulingEditor {
         }
     }
 
-    pub(super) fn commit(&mut self) -> Result<McpServerSchedulingToml, String> {
+    pub(super) fn commit(&self) -> Result<McpServerSchedulingToml, String> {
         let max_concurrent = parse_u32_field("Max concurrent", self.max_concurrent_field.text())?;
         let min_interval_sec = parse_secs_field("Min interval", self.min_interval_field.text())?;
         let queue_timeout_sec = parse_secs_field("Queue timeout", self.queue_timeout_field.text())?;
@@ -404,7 +404,7 @@ impl ToolSchedulingEditor {
         }
     }
 
-    pub(super) fn commit(&mut self) -> Result<Option<McpToolSchedulingOverrideToml>, String> {
+    pub(super) fn commit(&self) -> Result<Option<McpToolSchedulingOverrideToml>, String> {
         let min_interval_sec = if self.override_min_interval {
             let raw = self.min_interval_field.text().trim();
             if raw.is_empty() {

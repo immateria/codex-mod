@@ -848,11 +848,11 @@ impl TextArea {
         range
     }
 
-    fn shift_elements(&mut self, _at: usize, _removed: usize, _inserted: usize) {
+    fn shift_elements(&self, _at: usize, _removed: usize, _inserted: usize) {
         // No-op: elements feature removed
     }
 
-    fn update_elements_after_replace(&mut self, start: usize, end: usize, inserted_len: usize) {
+    fn update_elements_after_replace(&self, start: usize, end: usize, inserted_len: usize) {
         self.shift_elements(start, end.saturating_sub(start), inserted_len);
     }
 

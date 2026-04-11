@@ -35,13 +35,13 @@ impl LoginAccountsView {
         (Self { state: state.clone() }, state)
     }
 
-    fn handle_key_event_direct(&mut self, key_event: KeyEvent) -> bool {
+    fn handle_key_event_direct(&self, key_event: KeyEvent) -> bool {
         let mut state = self.state.borrow_mut();
         let handled = state.handle_key_event(key_event);
         handled || state.is_complete()
     }
 
-    fn handle_mouse_event_direct(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
+    fn handle_mouse_event_direct(&self, mouse_event: MouseEvent, area: Rect) -> bool {
         self.state.borrow_mut().handle_mouse_event(mouse_event, area)
     }
 }
