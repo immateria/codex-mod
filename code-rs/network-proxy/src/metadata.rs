@@ -22,8 +22,7 @@ pub fn attempt_id_from_proxy_authorization(header: Option<&HeaderValue>) -> Opti
     let decoded = String::from_utf8(decoded).ok()?;
     let username = decoded
         .split_once(':')
-        .map(|(user, _)| user)
-        .unwrap_or(decoded.as_str());
+        .map_or(decoded.as_str(), |(user, _)| user);
     let attempt_id = username.strip_prefix(NETWORK_ATTEMPT_USERNAME_PREFIX)?;
     if attempt_id.is_empty() {
         None

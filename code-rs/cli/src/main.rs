@@ -689,7 +689,7 @@ async fn cli_main(code_linux_sandbox_exe: Option<PathBuf>) -> anyhow::Result<()>
     // The TUI already runs housekeeping. For headless `exec` sessions, kick off
     // housekeeping early so stale worktrees/branches don't accumulate.
     let housekeeping_handle = match &subcommand {
-        Some(Subcommand::Exec(_)) | Some(Subcommand::Auto(_)) | Some(Subcommand::Review(_)) => {
+        Some(Subcommand::Exec(_) | Subcommand::Auto(_) | Subcommand::Review(_)) => {
             match code_core::config::find_code_home() {
                 Ok(code_home) => Some(std::thread::spawn(move || {
                     if let Err(err) = code_core::run_housekeeping_if_due(&code_home) {
@@ -1239,9 +1239,7 @@ async fn run_bridge_screenshot(cmd: BridgeScreenshotCommand) -> anyhow::Result<(
         let ok = res.get("ok").and_then(serde_json::Value::as_bool).unwrap_or(false);
         if ok {
             let payload = res
-                .get("result")
-                .map(ToString::to_string)
-                .unwrap_or_else(|| "ok".to_string());
+                .get("result").map_or_else(|| "ok".to_string(), ToString::to_string);
             println!("Control result  : {payload}");
         } else {
             let msg = res
@@ -1279,9 +1277,7 @@ async fn run_bridge_javascript(cmd: BridgeJavascriptCommand) -> anyhow::Result<(
         let ok = res.get("ok").and_then(serde_json::Value::as_bool).unwrap_or(false);
         if ok {
             let payload = res
-                .get("result")
-                .map(ToString::to_string)
-                .unwrap_or_else(|| "ok".to_string());
+                .get("result").map_or_else(|| "ok".to_string(), ToString::to_string);
             println!("Result          : {payload}");
         } else {
             let msg = res
@@ -1873,9 +1869,7 @@ async fn preview_main(args: PreviewArgs) -> anyhow::Result<()> {
         } else {
             env::var_os("HOME")
         };
-        let base = home
-            .map(PathBuf::from)
-            .unwrap_or_else(|| PathBuf::from("."));
+        let base = home.map_or_else(|| PathBuf::from("."), PathBuf::from);
         base.join(".code").join("bin")
     };
     let _ = fs::create_dir_all(&out_dir);
@@ -1885,26 +1879,7 @@ async fn preview_main(args: PreviewArgs) -> anyhow::Result<()> {
     #[cfg(target_family = "windows")]
     fn make_exec(_p: &Path) { }
 
-    if os != "windows" {
-        // If we downloaded a tar.gz, extract
-        if path.extension().and_then(|e| e.to_str()) == Some("gz") {
-            let tgz = path;
-            let file = fs::File::open(&tgz)?;
-            let gz = GzDecoder::new(file);
-            let mut ar = tar::Archive::new(gz);
-            ar.unpack(&out_dir)?;
-            // Find extracted binary
-            let bin = first_match(&out_dir, "code-").unwrap_or(out_dir.join("code"));
-            let dest_name = format!("{}-{}", bin.file_name().and_then(|s| s.to_str()).unwrap_or("code"), slug);
-            let dest = out_dir.join(dest_name);
-            // Rename/move to include PR number suffix
-            let _ = fs::rename(&bin, &dest).or_else(|_| { fs::copy(&bin, &dest).map(|_| () ) });
-            make_exec(&dest);
-            println!("Downloaded preview to {}", dest.display());
-            if !args.extra.is_empty() { let _ = std::process::Command::new(&dest).args(&args.extra).status(); } else { let _ = std::process::Command::new(&dest).status(); }
-            return Ok(());
-        }
-    } else {
+    if os == "windows" {
         // Windows: expand zip
         if path.extension().and_then(|e| e.to_str()) == Some("zip") {
             let f = fs::File::open(&path)?;
@@ -1921,14 +1896,33 @@ async fn preview_main(args: PreviewArgs) -> anyhow::Result<()> {
             };
             let _ = fs::rename(&exe, &dest).or_else(|_| { fs::copy(&exe, &dest).map(|_| () ) });
             println!("Downloaded preview to {}", dest.display());
-            if !args.extra.is_empty() {
+            if args.extra.is_empty() {
                 let mut cmd = std::process::Command::new(&dest);
-                cmd.args(&args.extra);
                 let _ = spawn_std_command_with_retry(&mut cmd);
             } else {
                 let mut cmd = std::process::Command::new(&dest);
+                cmd.args(&args.extra);
                 let _ = spawn_std_command_with_retry(&mut cmd);
             }
+            return Ok(());
+        }
+    } else {
+        // If we downloaded a tar.gz, extract
+        if path.extension().and_then(|e| e.to_str()) == Some("gz") {
+            let tgz = path;
+            let file = fs::File::open(&tgz)?;
+            let gz = GzDecoder::new(file);
+            let mut ar = tar::Archive::new(gz);
+            ar.unpack(&out_dir)?;
+            // Find extracted binary
+            let bin = first_match(&out_dir, "code-").unwrap_or(out_dir.join("code"));
+            let dest_name = format!("{}-{}", bin.file_name().and_then(|s| s.to_str()).unwrap_or("code"), slug);
+            let dest = out_dir.join(dest_name);
+            // Rename/move to include PR number suffix
+            let _ = fs::rename(&bin, &dest).or_else(|_| { fs::copy(&bin, &dest).map(|_| () ) });
+            make_exec(&dest);
+            println!("Downloaded preview to {}", dest.display());
+            if args.extra.is_empty() { let _ = std::process::Command::new(&dest).status(); } else { let _ = std::process::Command::new(&dest).args(&args.extra).status(); }
             return Ok(());
         }
     }
@@ -1947,7 +1941,7 @@ async fn preview_main(args: PreviewArgs) -> anyhow::Result<()> {
             if status.success() {
                 make_exec(&dest);
                 println!("Downloaded preview from {} to {}", url_used, dest.display());
-                if !args.extra.is_empty() { let _ = std::process::Command::new(&dest).args(&args.extra).status(); } else { let _ = std::process::Command::new(&dest).status(); }
+                if args.extra.is_empty() { let _ = std::process::Command::new(&dest).status(); } else { let _ = std::process::Command::new(&dest).args(&args.extra).status(); }
                 return Ok(());
             }
         }
@@ -1958,7 +1952,7 @@ async fn preview_main(args: PreviewArgs) -> anyhow::Result<()> {
         fs::copy(&bin, &dest)?;
         make_exec(&dest);
         println!("Downloaded preview to {}", dest.display());
-        if !args.extra.is_empty() { let _ = std::process::Command::new(&dest).args(&args.extra).status(); } else { let _ = std::process::Command::new(&dest).status(); }
+        if args.extra.is_empty() { let _ = std::process::Command::new(&dest).status(); } else { let _ = std::process::Command::new(&dest).args(&args.extra).status(); }
         return Ok(());
     }
 
@@ -1971,9 +1965,7 @@ async fn doctor_main() -> anyhow::Result<()> {
     use tokio::process::Command;
 
     // Print current executable and version
-    let exe = std::env::current_exe()
-        .map(|p| p.display().to_string())
-        .unwrap_or_else(|_| "<unknown>".to_string());
+    let exe = std::env::current_exe().map_or_else(|_| "<unknown>".to_string(), |p| p.display().to_string());
     println!("code version: {}", code_version::version());
     println!("current_exe: {exe}");
 

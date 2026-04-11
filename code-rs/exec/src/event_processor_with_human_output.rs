@@ -191,9 +191,7 @@ impl EventProcessor for EventProcessorWithHumanOutput {
 
         // Show which binary is being used to execute sub-agents so users can
         // confirm path mismatches when testing new builds.
-        let exe_path = std::env::current_exe()
-            .map(|p| p.display().to_string())
-            .unwrap_or_else(|_| "<unknown>".to_owned());
+        let exe_path = std::env::current_exe().map_or_else(|_| "<unknown>".to_owned(), |p| p.display().to_string());
         ts_println!(self, "binary: {}", exe_path);
 
         eprintln!("--------");
@@ -331,12 +329,12 @@ impl EventProcessor for EventProcessorWithHumanOutput {
                 if !self.show_raw_agent_reasoning {
                     return CodexStatus::Running;
                 }
-                if !self.raw_reasoning_started {
-                    eprint!("{text}");
-                    flush_stderr_or_panic();
-                } else {
+                if self.raw_reasoning_started {
                     eprintln!();
                     self.raw_reasoning_started = false;
+                } else {
+                    eprint!("{text}");
+                    flush_stderr_or_panic();
                 }
             }
             EventMsg::AgentReasoningRawContentDelta(AgentReasoningRawContentDeltaEvent {
@@ -355,16 +353,16 @@ impl EventProcessor for EventProcessorWithHumanOutput {
                 self.final_message = Some(message.clone());
                 // if answer_started is false, this means we haven't received any
                 // delta. Thus, we need to print the message as a new answer.
-                if !self.answer_started {
+                if self.answer_started {
+                    eprintln!();
+                    self.answer_started = false;
+                } else {
                     ts_println!(
                         self,
                         "{}\n{}",
                         "codex".style(self.italic).style(self.magenta),
                         message,
                     );
-                } else {
-                    eprintln!();
-                    self.answer_started = false;
                 }
             }
             EventMsg::ExecCommandBegin(ExecCommandBeginEvent {

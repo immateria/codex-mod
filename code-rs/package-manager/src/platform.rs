@@ -21,11 +21,11 @@ impl PackagePlatform {
     /// Detects the current process platform.
     pub fn detect_current() -> Result<Self, PackageManagerError> {
         match (std::env::consts::OS, std::env::consts::ARCH) {
-            ("macos", "aarch64") | ("macos", "arm64") => Ok(Self::DarwinArm64),
+            ("macos", "aarch64" | "arm64") => Ok(Self::DarwinArm64),
             ("macos", "x86_64") => Ok(Self::DarwinX64),
-            ("linux", "aarch64") | ("linux", "arm64") => Ok(Self::LinuxArm64),
+            ("linux", "aarch64" | "arm64") => Ok(Self::LinuxArm64),
             ("linux", "x86_64") => Ok(Self::LinuxX64),
-            ("windows", "aarch64") | ("windows", "arm64") => Ok(Self::WindowsArm64),
+            ("windows", "aarch64" | "arm64") => Ok(Self::WindowsArm64),
             ("windows", "x86_64") => Ok(Self::WindowsX64),
             (os, arch) => Err(PackageManagerError::UnsupportedPlatform {
                 os: os.to_owned(),

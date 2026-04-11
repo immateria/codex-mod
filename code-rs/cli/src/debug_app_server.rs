@@ -198,14 +198,14 @@ impl AppServerClient {
                 }
                 ServerNotification::TurnCompleted(payload) => {
                     if payload.thread_id == thread_id && payload.turn.id == turn_id {
-                        if payload.turn.status != TurnStatus::Completed {
+                        if payload.turn.status == TurnStatus::Completed {
+                            // Ensure the final assistant output ends with a newline.
+                            println!();
+                        } else {
                             eprintln!(
                                 "\n[turn completed: {status:?}]",
                                 status = payload.turn.status
                             );
-                        } else {
-                            // Ensure the final assistant output ends with a newline.
-                            println!();
                         }
                         break;
                     }

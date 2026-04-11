@@ -326,8 +326,7 @@ impl NetworkProxyState {
             let local_literal = {
                 let host_no_scope = host_str
                     .split_once('%')
-                    .map(|(ip, _)| ip)
-                    .unwrap_or(host_str);
+                    .map_or(host_str, |(ip, _)| ip);
                 if is_loopback_host(&host) {
                     true
                 } else if let Ok(ip) = host_no_scope.parse::<IpAddr>() {

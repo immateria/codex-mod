@@ -78,7 +78,7 @@ async fn wait_ready_state(
             .and_then(|r| r.value().and_then(|v| v.as_str().map(ToString::to_string)));
         let done = match target {
             ReadyStateTarget::InteractiveOrComplete => {
-                matches!(state.as_deref(), Some("interactive") | Some("complete"))
+                matches!(state.as_deref(), Some("interactive" | "complete"))
             }
             ReadyStateTarget::Complete => matches!(state.as_deref(), Some("complete")),
         };

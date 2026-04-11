@@ -71,7 +71,19 @@ impl BrowserManager {
                 }
             }
 
-            if !pages.is_empty() {
+            if pages.is_empty() {
+                // No existing tabs found. Do NOT create a new tab for external Chrome if avoidable.
+                info!("No existing tabs found; waiting briefly for targets");
+                tokio::time::sleep(Duration::from_millis(200)).await;
+                let mut pages2 = browser.pages().await?;
+                if let Some(page) = pages2.pop() {
+                    page
+                } else {
+                    // As a last resort, still create a tab, but log it clearly
+                    warn!("Creating a new about:blank tab because none were available");
+                    browser.new_page("about:blank").await?
+                }
+            } else {
                 // Try to find the active/visible tab
                 // We'll check each page to see if it's visible/focused
                 let mut active_page = None; // focused && visible
@@ -85,11 +97,11 @@ impl BrowserManager {
                         Ok(Ok(Some(u))) => u,
                         _ => "unknown".to_owned(),
                     };
-                    if !targets::is_controllable_target_url(&url) {
+                    if targets::is_controllable_target_url(&url) {
+                        last_allowed = Some(page.clone());
+                    } else {
                         debug!("Skipping uncontrollable tab: {}", url);
                         continue;
-                    } else {
-                        last_allowed = Some(page.clone());
                     }
                     // Evaluate visibility/focus of the tab. We avoid focus listeners since they won't fire when attaching.
                     let eval = page.evaluate(
@@ -156,18 +168,6 @@ impl BrowserManager {
                 } else {
                     // No allowed pages at all, create an about:blank tab
                     warn!("No controllable tabs found; creating about:blank");
-                    browser.new_page("about:blank").await?
-                }
-            } else {
-                // No existing tabs found. Do NOT create a new tab for external Chrome if avoidable.
-                info!("No existing tabs found; waiting briefly for targets");
-                tokio::time::sleep(Duration::from_millis(200)).await;
-                let mut pages2 = browser.pages().await?;
-                if let Some(page) = pages2.pop() {
-                    page
-                } else {
-                    // As a last resort, still create a tab, but log it clearly
-                    warn!("Creating a new about:blank tab because none were available");
                     browser.new_page("about:blank").await?
                 }
             }

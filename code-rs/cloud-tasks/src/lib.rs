@@ -178,7 +178,7 @@ pub async fn run_main(cli: Cli, _code_linux_sandbox_exe: Option<PathBuf>) -> any
     // Default to online unless explicitly configured to use mock.
     let use_mock = matches!(
         std::env::var("CODEX_CLOUD_TASKS_MODE").ok().as_deref(),
-        Some("mock") | Some("MOCK")
+        Some("mock" | "MOCK")
     );
 
     let backend: Arc<dyn code_cloud_tasks_client::CloudBackend> = if use_mock {
@@ -286,7 +286,7 @@ pub async fn run_main(cli: Cli, _code_linux_sandbox_exe: Option<PathBuf>) -> any
         std::env::var("CODEX_CLOUD_TASKS_FORCE_INTERNAL")
             .ok()
             .as_deref(),
-        Some("1") | Some("true") | Some("TRUE")
+        Some("1" | "true" | "TRUE")
     );
     append_info_log(format!(
         "startup: wham_force_internal={} ua={}",
@@ -830,7 +830,7 @@ pub async fn run_main(cli: Cli, _code_linux_sandbox_exe: Option<PathBuf>) -> any
                     Some(Ok(Event::Key(key))) if matches!(key.kind, KeyEventKind::Press | KeyEventKind::Repeat) => {
                         // Treat Ctrl-C like pressing 'q' in the current context.
                         if key.modifiers.contains(KeyModifiers::CONTROL)
-                            && matches!(key.code, KeyCode::Char('c') | KeyCode::Char('C'))
+                            && matches!(key.code, KeyCode::Char('c' | 'C'))
                         {
                             if app.env_modal.is_some() {
                                 // Close environment selector if open (don’t quit composer).
@@ -860,7 +860,7 @@ pub async fn run_main(cli: Cli, _code_linux_sandbox_exe: Option<PathBuf>) -> any
                             continue;
                         }
                         let is_ctrl_n = key.modifiers.contains(KeyModifiers::CONTROL)
-                            && matches!(key.code, KeyCode::Char('n') | KeyCode::Char('N'))
+                            && matches!(key.code, KeyCode::Char('n' | 'N'))
                             || matches!(key.code, KeyCode::Char('\u{000E}'));
                         if is_ctrl_n {
                             if app.new_task.is_none() {
@@ -900,7 +900,7 @@ pub async fn run_main(cli: Cli, _code_linux_sandbox_exe: Option<PathBuf>) -> any
                                     }
                                     needs_redraw = true;
                                 }
-                                KeyCode::Char('1') | KeyCode::Char('2') | KeyCode::Char('3') | KeyCode::Char('4') => {
+                                KeyCode::Char('1' | '2' | '3' | '4') => {
                                     if let Some(m) = app.best_of_modal.as_mut() {
                                         let val = match key.code {
                                             KeyCode::Char('1') => 0,
@@ -935,7 +935,7 @@ pub async fn run_main(cli: Cli, _code_linux_sandbox_exe: Option<PathBuf>) -> any
                         }
                         // New Task page: Ctrl+O opens environment switcher while composing.
                         let is_ctrl_o = key.modifiers.contains(KeyModifiers::CONTROL)
-                            && matches!(key.code, KeyCode::Char('o') | KeyCode::Char('O'))
+                            && matches!(key.code, KeyCode::Char('o' | 'O'))
                             || matches!(key.code, KeyCode::Char('\u{000F}'));
                         if is_ctrl_o && app.new_task.is_some() {
                             // Close task modal/pending apply if present before opening env modal
@@ -1055,10 +1055,7 @@ pub async fn run_main(cli: Cli, _code_linux_sandbox_exe: Option<PathBuf>) -> any
                                         needs_redraw = true;
                                     }
                                 }
-                                KeyCode::Esc
-                                | KeyCode::Char('n')
-                                | KeyCode::Char('q')
-                                | KeyCode::Char('Q') => { app.apply_modal = None; app.status = "Apply canceled".to_string(); needs_redraw = true; }
+                                KeyCode::Esc | KeyCode::Char('n' | 'q' | 'Q') => { app.apply_modal = None; app.status = "Apply canceled".to_string(); needs_redraw = true; }
                                 _ => {}
                             }
                         } else if app.diff_overlay.is_some() {
@@ -1120,7 +1117,7 @@ pub async fn run_main(cli: Cli, _code_linux_sandbox_exe: Option<PathBuf>) -> any
                                     cycle_attempt(-1);
                                 }
                                 // From task modal, 'o' should close it and open the env selector
-                                KeyCode::Char('o') | KeyCode::Char('O') => {
+                                KeyCode::Char('o' | 'O') => {
                                     app.diff_overlay = None;
                                     app.env_modal = Some(app::EnvModalState { query: String::new(), selected: 0 });
                                     // Use cached environments unless empty
@@ -1161,10 +1158,10 @@ pub async fn run_main(cli: Cli, _code_linux_sandbox_exe: Option<PathBuf>) -> any
                                         }
                                     }
                                 }
-                                KeyCode::Char(']') | KeyCode::Char('}') => {
+                                KeyCode::Char(']' | '}') => {
                                     cycle_attempt(1);
                                 }
-                                KeyCode::Char('[') | KeyCode::Char('{') => {
+                                KeyCode::Char('[' | '{') => {
                                     cycle_attempt(-1);
                                 }
                                 KeyCode::Esc | KeyCode::Char('q') => {
@@ -1195,7 +1192,7 @@ pub async fn run_main(cli: Cli, _code_linux_sandbox_exe: Option<PathBuf>) -> any
                             // Environment modal key handling
                             match key.code {
                                 KeyCode::Esc => { app.env_modal = None; needs_redraw = true; }
-                                KeyCode::Char('r') | KeyCode::Char('R') => {
+                                KeyCode::Char('r' | 'R') => {
                                     // Trigger refresh of environments
                                     app.env_loading = true; app.env_error = None; needs_redraw = true;
                                     let _ = frame_tx.send(Instant::now() + Duration::from_millis(100));
@@ -1299,7 +1296,7 @@ pub async fn run_main(cli: Cli, _code_linux_sandbox_exe: Option<PathBuf>) -> any
                                     needs_redraw = true;
                                 }
                                 // Ensure 'r' does not refresh tasks when the env modal is open.
-                                KeyCode::Char('r') | KeyCode::Char('R') => {
+                                KeyCode::Char('r' | 'R') => {
                                     if app.env_modal.is_some() { break 0; }
                                     append_debug_log(format!(
                                         "refresh.request: env={}",
@@ -1320,7 +1317,7 @@ pub async fn run_main(cli: Cli, _code_linux_sandbox_exe: Option<PathBuf>) -> any
                                         let _ = tx.send(app::AppEvent::TasksLoaded { env: env_sel, result: res });
                                     });
                                 }
-                                KeyCode::Char('o') | KeyCode::Char('O') => {
+                                KeyCode::Char('o' | 'O') => {
                                     app.env_modal = Some(app::EnvModalState { query: String::new(), selected: 0 });
                                     // Cache environments until user explicitly refreshes with 'r' inside the modal.
                                     let should_fetch = app.environments.is_empty();
@@ -1522,7 +1519,7 @@ async fn run_submit(args: crate::cli::SubmitArgs) -> anyhow::Result<()> {
 
     let use_mock = matches!(
         std::env::var("CODEX_CLOUD_TASKS_MODE").ok().as_deref(),
-        Some("mock") | Some("MOCK")
+        Some("mock" | "MOCK")
     );
 
     let backend: Arc<dyn code_cloud_tasks_client::CloudBackend> = if use_mock {

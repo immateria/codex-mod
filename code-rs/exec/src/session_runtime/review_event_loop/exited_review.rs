@@ -45,8 +45,7 @@ pub(super) async fn handle_exited_review_mode_event(
         let findings_count = event
             .review_output
             .as_ref()
-            .map(|output| output.findings.len())
-            .unwrap_or(0);
+            .map_or(0, |output| output.findings.len());
         let branch = current_branch_name(&config.cwd)
             .await
             .unwrap_or_else(|| "unknown".to_owned());

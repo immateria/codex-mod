@@ -272,13 +272,11 @@ fn parse_host_port(url: &str, default_port: u16) -> Result<SocketAddressParts> {
 fn parse_host_port_fallback(input: &str, default_port: u16) -> Result<SocketAddressParts> {
     let without_scheme = input
         .split_once("://")
-        .map(|(_, rest)| rest)
-        .unwrap_or(input);
+        .map_or(input, |(_, rest)| rest);
     let host_port = without_scheme.split('/').next().unwrap_or(without_scheme);
     let host_port = host_port
         .rsplit_once('@')
-        .map(|(_, rest)| rest)
-        .unwrap_or(host_port);
+        .map_or(host_port, |(_, rest)| rest);
 
     if host_port.starts_with('[')
         && let Some(end) = host_port.find(']')

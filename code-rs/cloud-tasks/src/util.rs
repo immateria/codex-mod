@@ -156,9 +156,7 @@ pub fn log_path_hint() -> Option<String> {
         return None;
     }
     Some(
-        resolve_log_path()
-            .map(|path| path.display().to_string())
-            .unwrap_or_else(|| CLOUD_TASKS_LOG_FILE.to_string()),
+        resolve_log_path().map_or_else(|| CLOUD_TASKS_LOG_FILE.to_string(), |path| path.display().to_string()),
     )
 }
 

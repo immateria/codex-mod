@@ -609,8 +609,7 @@ async fn proxy_via_unix_socket(req: Request, socket_path: &str) -> Result<Respon
         let path = parts
             .uri
             .path_and_query()
-            .map(rama_http::uri::PathAndQuery::as_str)
-            .unwrap_or("/");
+            .map_or("/", rama_http::uri::PathAndQuery::as_str);
         parts.uri = path
             .parse()
             .with_context(|| format!("invalid unix socket request path: {path}"))?;
@@ -678,7 +677,7 @@ fn remove_hop_by_hop_request_headers(headers: &mut HeaderMap) {
 
 fn json_blocked(host: &str, reason: &str, details: Option<&PolicyDecisionDetails<'_>>) -> Response {
     let (message, decision, source, protocol, port) = details
-        .map(|details| {
+        .map_or((None, None, None, None, None), |details| {
             (
                 Some(blocked_message_with_policy(reason, details)),
                 Some(details.decision.as_str()),
@@ -686,8 +685,7 @@ fn json_blocked(host: &str, reason: &str, details: Option<&PolicyDecisionDetails
                 Some(details.protocol.as_policy_protocol()),
                 Some(details.port),
             )
-        })
-        .unwrap_or((None, None, None, None, None));
+        });
     let response = BlockedResponse {
         status: "blocked",
         host,

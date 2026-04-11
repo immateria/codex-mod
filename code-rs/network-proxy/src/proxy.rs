@@ -338,9 +338,7 @@ fn apply_proxy_env_overrides(
     network_attempt_id: Option<&str>,
 ) {
     let http_proxy_url = network_attempt_id
-        .map(proxy_username_for_attempt_id)
-        .map(|username| format!("http://{username}@{http_addr}"))
-        .unwrap_or_else(|| format!("http://{http_addr}"));
+        .map(proxy_username_for_attempt_id).map_or_else(|| format!("http://{http_addr}"), |username| format!("http://{username}@{http_addr}"));
     let socks_proxy_url = format!("socks5h://{socks_addr}");
     env.insert(
         ALLOW_LOCAL_BINDING_ENV_KEY.to_owned(),

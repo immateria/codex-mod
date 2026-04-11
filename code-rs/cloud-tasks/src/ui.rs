@@ -140,8 +140,7 @@ pub fn draw_new_task_page(frame: &mut Frame, area: Rect, app: &mut App) {
     let desired = app
         .new_task
         .as_ref()
-        .map(|p| p.composer.desired_height(content.width))
-        .unwrap_or(3)
+        .map_or(3, |p| p.composer.desired_height(content.width))
         .clamp(3, max_allowed);
 
     // Anchor the composer to the bottom-left by allocating a flexible spacer
@@ -236,12 +235,12 @@ fn draw_footer(frame: &mut Frame, area: Rect, app: &mut App) {
     ];
     // Apply hint; show disabled note when overlay is open without a diff.
     if let Some(ov) = app.diff_overlay.as_ref() {
-        if !ov.current_can_apply() {
-            help.push("a".dim());
-            help.push(": Apply (disabled)  ".dim());
-        } else {
+        if ov.current_can_apply() {
             help.push("a".dim());
             help.push(": Apply  ".dim());
+        } else {
+            help.push("a".dim());
+            help.push(": Apply (disabled)  ".dim());
         }
         if ov.attempt_count() > 1 {
             help.push("Tab".dim());
@@ -442,8 +441,7 @@ fn draw_diff_overlay(frame: &mut Frame, area: Rect, app: &mut App) {
         let scroll = app
             .diff_overlay
             .as_ref()
-            .map(|o| o.sd.state.scroll)
-            .unwrap_or(0);
+            .map_or(0, |o| o.sd.state.scroll);
         let content = Paragraph::new(Text::from(styled_lines)).scroll((scroll, 0));
         frame.render_widget(content, content_area);
     }

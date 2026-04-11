@@ -67,7 +67,7 @@ async fn spawn_child_with_retry(cmd: &mut Command) -> io::Result<tokio::process:
             Ok(child) => return Ok(child),
             Err(err)
                 if err.kind() == io::ErrorKind::WouldBlock
-                    || matches!(err.raw_os_error(), Some(35) | Some(12)) =>
+                    || matches!(err.raw_os_error(), Some(35 | 12)) =>
             {
                 last_err = Some(err);
                 if delay_ms > 0 {

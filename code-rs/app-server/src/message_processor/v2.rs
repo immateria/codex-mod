@@ -317,9 +317,7 @@ impl MessageProcessor {
         };
 
         let effective_policy = sandbox_policy
-            .as_ref()
-            .map(SandboxPolicy::to_core)
-            .unwrap_or_else(|| code_core::sandboxing::protocol_policy_from_local(&config.sandbox_policy));
+            .as_ref().map_or_else(|| code_core::sandboxing::protocol_policy_from_local(&config.sandbox_policy), SandboxPolicy::to_core);
         let local_policy = code_core::sandboxing::local_policy_from_protocol(&effective_policy);
 
         let mut env_map = code_core::exec_env::create_env(&config.shell_environment_policy);
@@ -548,9 +546,7 @@ impl MessageProcessor {
             }
         };
         let command_cwd = params
-            .cwd
-            .map(PathBuf::from)
-            .unwrap_or_else(|| self.base_config.cwd.clone());
+            .cwd.map_or_else(|| self.base_config.cwd.clone(), PathBuf::from);
         let connection_id = request_id.connection_id;
         let outgoing = Arc::clone(&self.outgoing);
         let code_home = self.base_config.code_home.clone();

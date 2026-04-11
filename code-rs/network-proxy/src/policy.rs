@@ -31,7 +31,7 @@ impl Host {
 /// Returns true if the host is a loopback hostname or IP literal.
 pub fn is_loopback_host(host: &Host) -> bool {
     let host = host.as_str();
-    let host = host.split_once('%').map(|(ip, _)| ip).unwrap_or(host);
+    let host = host.split_once('%').map_or(host, |(ip, _)| ip);
     if host == "localhost" {
         return true;
     }

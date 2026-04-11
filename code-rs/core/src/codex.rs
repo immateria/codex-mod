@@ -608,7 +608,10 @@ async fn build_turn_status_items_legacy(sess: &Session) -> Vec<ResponseItem> {
                                 last_phash, last_dhash, cur_phash, cur_dhash,
                             );
 
-                            if !similar {
+                            if similar {
+                                // Screenshot unchanged
+                                false
+                            } else {
                                 // Screenshot has changed, include it
                                 *last_screenshot_info = Some((
                                     screenshot_path.clone(),
@@ -616,9 +619,6 @@ async fn build_turn_status_items_legacy(sess: &Session) -> Vec<ResponseItem> {
                                     cur_dhash.clone(),
                                 ));
                                 true
-                            } else {
-                                // Screenshot unchanged
-                                false
                             }
                         } else {
                             // No previous screenshot or hash computation failed, include it
@@ -631,9 +631,7 @@ async fn build_turn_status_items_legacy(sess: &Session) -> Vec<ResponseItem> {
                         if should_include_screenshot {
                             if let Ok(bytes) = std::fs::read(&screenshot_path) {
                                 let mime = mime_guess::from_path(&screenshot_path)
-                                    .first()
-                                    .map(|m| m.to_string())
-                                    .unwrap_or_else(|| crate::util::MIME_IMAGE_PNG.to_owned());
+                                    .first().map_or_else(|| crate::util::MIME_IMAGE_PNG.to_owned(), |m| m.to_string());
                                 let encoded = base64::engine::general_purpose::STANDARD.encode(bytes);
                                 screenshot_content = Some(ContentItem::InputImage {
                                     image_url: format!("data:{mime};base64,{encoded}"),
@@ -822,9 +820,7 @@ async fn build_turn_status_items_v2(sess: &Session) -> Vec<ResponseItem> {
                 match std::fs::read(&path) {
                     Ok(bytes) => {
                         let mime = mime_guess::from_path(&path)
-                            .first()
-                            .map(|m| m.to_string())
-                            .unwrap_or_else(|| crate::util::MIME_IMAGE_PNG.to_owned());
+                            .first().map_or_else(|| crate::util::MIME_IMAGE_PNG.to_owned(), |m| m.to_string());
                         let encoded = base64::engine::general_purpose::STANDARD.encode(bytes);
                         items.push(ResponseItem::Message {
                             id: Some(browser_stream_id),

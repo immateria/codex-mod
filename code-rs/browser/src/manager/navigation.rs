@@ -177,9 +177,7 @@ impl BrowserManager {
             let subtype = target.subtype.as_deref().unwrap_or("-");
             let opener = target
                 .opener_id
-                .as_ref()
-                .map(|opener_id| format!("{opener_id:?}"))
-                .unwrap_or_else(|| "-".to_owned());
+                .as_ref().map_or_else(|| "-".to_owned(), |opener_id| format!("{opener_id:?}"));
             let url = &target.url;
             let title = &target.title;
             let attached = target.attached;

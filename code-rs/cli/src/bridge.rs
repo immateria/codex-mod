@@ -296,8 +296,7 @@ async fn connect_and_subscribe(
             .as_deref()
             .unwrap_or("workspace")
             .rsplit_once('/')
-            .map(|(_, tail)| tail)
-            .unwrap_or("workspace"),
+            .map_or("workspace", |(_, tail)| tail),
     );
 
     let auth = serde_json::json!({
@@ -475,9 +474,7 @@ fn format_bridge_message(val: &Value) -> Option<String> {
             let ok = val.get("ok").and_then(serde_json::Value::as_bool).unwrap_or(false);
             let id = val.get("id").and_then(|v| v.as_str()).unwrap_or("");
             let summary = if ok {
-                val.get("result")
-                    .map(format_result)
-                    .unwrap_or_else(|| "ok".to_string())
+                val.get("result").map_or_else(|| "ok".to_string(), format_result)
             } else {
                 val.get("error")
                     .and_then(|e| e.get("message"))
@@ -491,9 +488,7 @@ fn format_bridge_message(val: &Value) -> Option<String> {
             let level = val.get("level").and_then(|v| v.as_str()).unwrap_or("info");
             let ts = val
                 .get("timestamp")
-                .and_then(serde_json::Value::as_i64)
-                .map(format_ts)
-                .unwrap_or_else(|| "--:--:--".to_string());
+                .and_then(serde_json::Value::as_i64).map_or_else(|| "--:--:--".to_string(), format_ts);
 
             let body = match t {
                 "screenshot" => {
@@ -501,8 +496,7 @@ fn format_bridge_message(val: &Value) -> Option<String> {
                     let bytes = val
                         .get("data")
                         .and_then(|v| v.as_str())
-                        .map(str::len)
-                        .unwrap_or(0);
+                        .map_or(0, str::len);
                     format!("screenshot {mime} ({} KB)", bytes / 1024)
                 }
                 "navigation" => {
@@ -516,9 +510,7 @@ fn format_bridge_message(val: &Value) -> Option<String> {
                 }
                 _ => val
                     .get("message")
-                    .and_then(|m| m.as_str())
-                    .map(ToString::to_string)
-                    .unwrap_or_else(|| t.to_string()),
+                    .and_then(|m| m.as_str()).map_or_else(|| t.to_string(), ToString::to_string),
             };
 
             Some(format!("{ts} [{level}/{t}] {body}"))
