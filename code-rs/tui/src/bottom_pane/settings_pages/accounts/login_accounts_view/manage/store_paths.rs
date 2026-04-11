@@ -53,15 +53,15 @@ impl StorePathEditorState {
         if trimmed.is_empty() {
             None
         } else {
-            Some(trimmed.to_string())
+            Some(trimmed.to_owned())
         }
     }
 }
 
 impl LoginAccountsState {
     fn load_store_path_inputs(&self) -> (String, String) {
-        let mut read_paths = vec!["auth_accounts.json".to_string()];
-        let mut write_path = "auth_accounts.json".to_string();
+        let mut read_paths = vec!["auth_accounts.json".to_owned()];
+        let mut write_path = "auth_accounts.json".to_owned();
 
         if let Ok(root) = load_config_as_toml(&self.code_home)
             && let Some(accounts) = root.get("accounts").and_then(|value| value.as_table())
@@ -82,7 +82,7 @@ impl LoginAccountsState {
             if let Some(value) = accounts.get("write_path").and_then(|value| value.as_str()) {
                 let trimmed = value.trim();
                 if !trimmed.is_empty() {
-                    write_path = trimmed.to_string();
+                    write_path = trimmed.to_owned();
                 }
             }
         }
@@ -105,7 +105,7 @@ impl LoginAccountsState {
         match set_account_store_paths(&self.code_home, &read_paths, write_path.as_deref()) {
             Ok(()) => {
                 self.feedback = Some(Feedback {
-                    message: "Account store paths updated".to_string(),
+                    message: "Account store paths updated".to_owned(),
                     is_error: false,
                 });
                 self.reload_accounts();

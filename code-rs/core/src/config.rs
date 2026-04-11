@@ -215,7 +215,7 @@ fn sanitize_auto_drive_routing_entries(entries: &mut Vec<AutoDriveModelRoutingEn
             model,
             enabled: entry.enabled,
             reasoning_levels,
-            description: entry.description.trim().to_string(),
+            description: entry.description.trim().to_owned(),
         });
     }
     *entries = normalized_entries;
@@ -1326,15 +1326,15 @@ impl NetworkModeToml {
 }
 
 fn default_network_proxy_url() -> String {
-    "http://127.0.0.1:3128".to_string()
+    "http://127.0.0.1:3128".to_owned()
 }
 
 fn default_network_admin_url() -> String {
-    "http://127.0.0.1:8080".to_string()
+    "http://127.0.0.1:8080".to_owned()
 }
 
 fn default_network_socks_url() -> String {
-    "http://127.0.0.1:8081".to_string()
+    "http://127.0.0.1:8081".to_owned()
 }
 
 #[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq, JsonSchema)]
@@ -1647,7 +1647,7 @@ impl Config {
 
         // Apps are disabled by default; users can opt in with
         // `features.apps = true` in their config.toml.
-        features_effective.entries.entry("apps".to_string()).or_insert(false);
+        features_effective.entries.entry("apps".to_owned()).or_insert(false);
 
         let windows_sandbox_mode =
             resolve_windows_sandbox_mode(&cfg, &config_profile, Some(&features_effective));
@@ -1663,7 +1663,7 @@ impl Config {
         let model_provider_id = model_provider
             .or(config_profile.model_provider)
             .or(cfg.model_provider)
-            .unwrap_or_else(|| "openai".to_string());
+            .unwrap_or_else(|| "openai".to_owned());
         let model_provider = model_providers
             .get(&model_provider_id)
             .ok_or_else(|| {
@@ -1895,7 +1895,7 @@ impl Config {
         let model = model
             .or(config_profile.model)
             .or(cfg.model)
-            .unwrap_or_else(|| default_model_slug.to_string());
+            .unwrap_or_else(|| default_model_slug.to_owned());
 
         let model_personality = config_profile
             .model_personality
@@ -2148,7 +2148,7 @@ impl Config {
             .unwrap_or_else(|| {
                 let mut defaults = AutoDriveSettings::default();
                 if using_chatgpt_auth {
-                    defaults.model = GPT_5_CODEX_MEDIUM_MODEL.to_string();
+                    defaults.model = GPT_5_CODEX_MEDIUM_MODEL.to_owned();
                     defaults.model_reasoning_effort = ReasoningEffort::XHigh;
                 }
                 defaults
@@ -2274,7 +2274,7 @@ impl Config {
                     if trimmed.is_empty() {
                         None
                     } else {
-                        Some(trimmed.to_string())
+                        Some(trimmed.to_owned())
                     }
                 })
                 .collect(),
@@ -2316,11 +2316,11 @@ impl Config {
             chatgpt_base_url: config_profile
                 .chatgpt_base_url
                 .or(cfg.chatgpt_base_url)
-                .unwrap_or("https://chatgpt.com/backend-api/".to_string()),
+                .unwrap_or("https://chatgpt.com/backend-api/".to_owned()),
             experimental_exec_server_url: cfg
                 .experimental_exec_server_url
                 .as_ref()
-                .map(|url| url.trim().to_string())
+                .map(|url| url.trim().to_owned())
                 .filter(|url| !url.is_empty()),
             experimental_spawn_exec_server: cfg.experimental_spawn_exec_server,
             plugins: cfg.plugins.unwrap_or_default(),
@@ -2379,7 +2379,7 @@ impl Config {
                 let log_user_prompt = t.log_user_prompt.unwrap_or(false);
                 let environment = t
                     .environment
-                    .unwrap_or(DEFAULT_OTEL_ENVIRONMENT.to_string());
+                    .unwrap_or(DEFAULT_OTEL_ENVIRONMENT.to_owned());
                 let exporter = t.exporter.unwrap_or(OtelExporterKind::None);
                 OtelConfig {
                     log_user_prompt,

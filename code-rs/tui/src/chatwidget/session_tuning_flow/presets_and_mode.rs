@@ -146,7 +146,7 @@ impl ChatWidget<'_> {
 
     pub(crate) fn handle_mode_command(&mut self, command_args: String) {
         if self.is_task_running() {
-            let message = "'/mode' is disabled while a task is in progress.".to_string();
+            let message = "'/mode' is disabled while a task is in progress.".to_owned();
             self.history_push_plain_state(history_cell::new_error_event(message));
             return;
         }

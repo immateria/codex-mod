@@ -39,10 +39,10 @@ pub(super) fn update_mappings(
     }
 
     if let Some(cid) = call_id {
-        tracker.call_ids.insert(cid.to_string());
+        tracker.call_ids.insert(cid.to_owned());
         chat.tools_state
             .agent_run_by_call
-            .insert(cid.to_string(), key.clone());
+            .insert(cid.to_owned(), key.clone());
     }
     if let Some(meta) = order {
         chat.tools_state

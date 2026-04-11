@@ -245,7 +245,7 @@ impl Runner<'_> {
     async fn send_error_event(&self, sub_id: &str, message: String) {
         error!("{message}");
         let event = Event {
-            id: sub_id.to_string(),
+            id: sub_id.to_owned(),
             event_seq: 0,
             msg: EventMsg::Error(ErrorEvent { message }),
             order: None,
@@ -258,7 +258,7 @@ impl Runner<'_> {
     async fn send_warning_event(&self, sub_id: &str, message: String) {
         warn!("{message}");
         let event = Event {
-            id: sub_id.to_string(),
+            id: sub_id.to_owned(),
             event_seq: 0,
             msg: EventMsg::Warning(crate::protocol::WarningEvent { message }),
             order: None,
@@ -270,11 +270,10 @@ impl Runner<'_> {
 
     async fn send_no_session_event(&self, sub_id: &str) {
         let event = Event {
-            id: sub_id.to_string(),
+            id: sub_id.to_owned(),
             event_seq: 0,
             msg: EventMsg::Error(ErrorEvent {
-                message: "No session initialized, expected 'ConfigureSession' as first Op"
-                    .to_string(),
+                message: "No session initialized, expected 'ConfigureSession' as first Op".to_owned(),
             }),
             order: None,
         };

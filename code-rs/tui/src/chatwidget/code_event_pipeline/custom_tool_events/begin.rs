@@ -87,11 +87,11 @@ impl ChatWidget<'_> {
     ) {
         // Animated running cell with live timer and formatted args.
         let mut cell = if tool_name.starts_with("browser_") {
-            history_cell::new_running_browser_tool_call(tool_name.to_string(), params_string)
+            history_cell::new_running_browser_tool_call(tool_name.to_owned(), params_string)
         } else {
-            history_cell::new_running_custom_tool_call(tool_name.to_string(), params_string)
+            history_cell::new_running_custom_tool_call(tool_name.to_owned(), params_string)
         };
-        cell.state_mut().call_id = Some(call_id.to_string());
+        cell.state_mut().call_id = Some(call_id.to_owned());
         cell.parent_call_id = parent_call_id.map(str::to_owned);
 
         let order_key = self.custom_tool_order_key(order, "CustomToolCallBegin");
@@ -104,7 +104,7 @@ impl ChatWidget<'_> {
         // Track index so we can replace it on completion.
         if idx < self.history_cells.len() {
             self.tools_state.running_custom_tools.insert(
-                ToolCallId(call_id.to_string()),
+                ToolCallId(call_id.to_owned()),
                 RunningToolEntry::new(order_key, idx).with_history_id(history_id),
             );
         }
@@ -169,7 +169,7 @@ impl ChatWidget<'_> {
 
         self.tools_state
             .running_wait_tools
-            .insert(ToolCallId(call_id.to_string()), exec_call_id.clone());
+            .insert(ToolCallId(call_id.to_owned()), exec_call_id.clone());
 
         let mut wait_update: Option<WaitHistoryUpdate> = None;
         if let Some(running) = self.exec.running_commands.get_mut(&exec_call_id) {
@@ -213,7 +213,7 @@ impl ChatWidget<'_> {
 
         self.tools_state
             .running_kill_tools
-            .insert(ToolCallId(call_id.to_string()), exec_call_id);
+            .insert(ToolCallId(call_id.to_owned()), exec_call_id);
         self.bottom_pane
             .update_status_text("cancelling command");
         self.invalidate_height_cache();

@@ -14,7 +14,7 @@ impl NotificationsSettingsView {
             }
             NotificationsMode::Custom { entries } => {
                 let filters = if entries.is_empty() {
-                    "(none)".to_string()
+                    "(none)".to_owned()
                 } else {
                     entries.join(", ")
                 };
@@ -24,7 +24,7 @@ impl NotificationsSettingsView {
                 );
                 self.app_event_tx.send_background_event_with_ticket(
                     &self.ticket,
-                    "Edit ~/.code/config.toml [tui].notifications to change filters.".to_string(),
+                    "Edit ~/.code/config.toml [tui].notifications to change filters.".to_owned(),
                 );
             }
         }

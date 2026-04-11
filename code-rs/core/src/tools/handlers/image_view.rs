@@ -57,7 +57,7 @@ async fn handle_image_view(sess: &Session, ctx: &ToolCallCtx, arguments: String)
     execute_custom_tool(
         sess,
         ctx,
-        "image_view".to_string(),
+        "image_view".to_owned(),
         params_for_event.take(),
         move || async move {
             let call_id = ctx.call_id.clone();
@@ -99,7 +99,7 @@ async fn handle_image_view(sess: &Session, ctx: &ToolCallCtx, arguments: String)
                 }
             };
             let mime = mime_guess::from_path(&resolved)
-                .first().map_or_else(|| crate::util::MIME_OCTET_STREAM.to_string(), |m| m.essence_str().to_owned());
+                .first().map_or_else(|| crate::util::MIME_OCTET_STREAM.to_owned(), |m| m.essence_str().to_owned());
             if !mime.starts_with("image/") {
                 return tool_error(
                     call_id,
@@ -119,7 +119,7 @@ async fn handle_image_view(sess: &Session, ctx: &ToolCallCtx, arguments: String)
                 .unwrap_or(filename);
             let marker = format!("[image: {label}]");
             let image_message = ResponseInputItem::Message {
-                role: "user".to_string(),
+                role: "user".to_owned(),
                 content: vec![
                     ContentItem::InputText { text: marker },
                     ContentItem::InputImage {

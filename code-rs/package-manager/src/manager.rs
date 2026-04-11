@@ -120,8 +120,8 @@ impl<P: ManagedPackage> PackageManager<P> {
         let manifest = self.fetch_release_manifest().await?;
         if self.config.package.release_version(&manifest) != self.config.package.version() {
             return Err(PackageManagerError::UnexpectedPackageVersion {
-                expected: self.config.package.version().to_string(),
-                actual: self.config.package.release_version(&manifest).to_string(),
+                expected: self.config.package.version().to_owned(),
+                actual: self.config.package.release_version(&manifest).to_owned(),
             }
             .into());
         }
@@ -192,8 +192,8 @@ impl<P: ManagedPackage> PackageManager<P> {
             .load_installed(extracted_root.clone(), platform)?;
         if self.config.package.installed_version(&package) != self.config.package.version() {
             return Err(PackageManagerError::UnexpectedPackageVersion {
-                expected: self.config.package.version().to_string(),
-                actual: self.config.package.installed_version(&package).to_string(),
+                expected: self.config.package.version().to_owned(),
+                actual: self.config.package.installed_version(&package).to_owned(),
             }
             .into());
         }

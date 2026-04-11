@@ -8,7 +8,7 @@ pub(super) fn delete_current_inner(view: &mut SkillsSettingsView) {
     let selected = view.selected_list_index();
     if selected >= view.skills.len() {
         view.status = Some((
-            "Nothing to delete".to_string(),
+            "Nothing to delete".to_owned(),
             Style::default().fg(colors::warning()),
         ));
         view.mode = Mode::List;
@@ -19,7 +19,7 @@ pub(super) fn delete_current_inner(view: &mut SkillsSettingsView) {
     let skill = view.skills[selected].clone();
     if skill.scope != SkillScope::User {
         view.status = Some((
-            "Only user skills can be deleted".to_string(),
+            "Only user skills can be deleted".to_owned(),
             Style::default().fg(colors::error()),
         ));
         return;
@@ -88,7 +88,7 @@ pub(super) fn delete_current_inner(view: &mut SkillsSettingsView) {
             format!("Deleted skill with warnings: {msg}"),
             Style::default().fg(colors::warning()),
         ),
-        None => ("Deleted.".to_string(), Style::default().fg(colors::success())),
+        None => ("Deleted.".to_owned(), Style::default().fg(colors::success())),
     });
 
     view.app_event_tx.send(AppEvent::codex_op(Op::ListSkills));

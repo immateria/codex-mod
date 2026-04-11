@@ -107,7 +107,7 @@ pub(crate) fn new_completed_wait_tool_call(target: String, duration: Duration) -
     }
 
     let header = crate::history::WaitStatusHeader {
-        title: "Waited".to_string(),
+        title: "Waited".to_owned(),
         title_tone: crate::history::TextTone::Success,
         summary: Some(duration_str),
         summary_tone: crate::history::TextTone::Dim,
@@ -116,7 +116,7 @@ pub(crate) fn new_completed_wait_tool_call(target: String, duration: Duration) -
     let mut details: Vec<crate::history::WaitStatusDetail> = Vec::new();
     if !target.is_empty() {
         details.push(crate::history::WaitStatusDetail {
-            label: "for".to_string(),
+            label: "for".to_owned(),
             value: Some(target),
             tone: crate::history::TextTone::Dim,
         });

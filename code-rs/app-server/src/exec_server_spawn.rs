@@ -94,7 +94,7 @@ pub(crate) async fn spawn_exec_server(binary: &Path) -> std::io::Result<SpawnedE
         ));
     }
 
-    let listen_url = first_line.trim().to_string();
+    let listen_url = first_line.trim().to_owned();
     if !listen_url.starts_with("ws://") {
         return Err(std::io::Error::other(format!(
             "exec-server printed unexpected listen URL: {listen_url:?}"

@@ -28,7 +28,7 @@ pub fn attempt_id_from_proxy_authorization(header: Option<&HeaderValue>) -> Opti
     if attempt_id.is_empty() {
         None
     } else {
-        Some(attempt_id.to_string())
+        Some(attempt_id.to_owned())
     }
 }
 

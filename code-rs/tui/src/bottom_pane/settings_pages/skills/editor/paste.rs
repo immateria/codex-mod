@@ -17,7 +17,7 @@ pub(super) fn handle_paste_direct_inner(view: &mut SkillsSettingsView, text: Str
             true
         }
         Focus::StyleReferences => {
-            let before = view.editor.style_references_field.text().to_string();
+            let before = view.editor.style_references_field.text().to_owned();
             view.editor.style_references_field.handle_paste(text);
             if view.editor.style_references_field.text() != before {
                 view.editor.style_references_dirty = true;
@@ -25,7 +25,7 @@ pub(super) fn handle_paste_direct_inner(view: &mut SkillsSettingsView, text: Str
             true
         }
         Focus::StyleSkillRoots => {
-            let before = view.editor.style_skill_roots_field.text().to_string();
+            let before = view.editor.style_skill_roots_field.text().to_owned();
             view.editor.style_skill_roots_field.handle_paste(text);
             if view.editor.style_skill_roots_field.text() != before {
                 view.editor.style_skill_roots_dirty = true;
@@ -33,7 +33,7 @@ pub(super) fn handle_paste_direct_inner(view: &mut SkillsSettingsView, text: Str
             true
         }
         Focus::StyleMcpInclude => {
-            let before = view.editor.style_mcp_include_field.text().to_string();
+            let before = view.editor.style_mcp_include_field.text().to_owned();
             view.editor.style_mcp_include_field.handle_paste(text);
             if view.editor.style_mcp_include_field.text() != before {
                 view.editor.style_mcp_include_dirty = true;
@@ -41,7 +41,7 @@ pub(super) fn handle_paste_direct_inner(view: &mut SkillsSettingsView, text: Str
             true
         }
         Focus::StyleMcpExclude => {
-            let before = view.editor.style_mcp_exclude_field.text().to_string();
+            let before = view.editor.style_mcp_exclude_field.text().to_owned();
             view.editor.style_mcp_exclude_field.handle_paste(text);
             if view.editor.style_mcp_exclude_field.text() != before {
                 view.editor.style_mcp_exclude_dirty = true;

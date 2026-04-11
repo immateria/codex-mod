@@ -108,7 +108,7 @@ impl ChatWidget<'_> {
                     }
                 }
 
-        let summary_label = cell_opt.map_or_else(|| self.browser_title().to_string(), crate::history_cell::BrowserSessionCell::summary_label);
+        let summary_label = cell_opt.map_or_else(|| self.browser_title().to_owned(), crate::history_cell::BrowserSessionCell::summary_label);
         let summary_value = screenshot_url
             
             .filter(|value| !value.is_empty())
@@ -117,7 +117,7 @@ impl ChatWidget<'_> {
         let screenshot_info = if screenshot_count > 0 {
             format!("Shot {}/{}", selected_index + 1, screenshot_count)
         } else {
-            "No screenshots yet".to_string()
+            "No screenshots yet".to_owned()
         };
 
         let is_active = screenshot_path.is_some();
@@ -286,7 +286,7 @@ impl ChatWidget<'_> {
                     } else {
                         secondary_style
                     };
-                    spans.push(Span::styled(marker.to_string(), marker_style));
+                    spans.push(Span::styled(marker.to_owned(), marker_style));
                     spans.push(Span::raw(" "));
                     spans.push(Span::styled(
                         self.format_overlay_mm_ss(entry.timestamp),
@@ -332,7 +332,7 @@ impl ChatWidget<'_> {
                     let detail_trimmed = detail.trim();
                     if !detail_trimmed.is_empty() {
                         spans.push(Span::raw(" "));
-                        spans.push(Span::styled(detail_trimmed.to_string(), secondary_style));
+                        spans.push(Span::styled(detail_trimmed.to_owned(), secondary_style));
                     }
                     info_lines.push(RLine::from(spans));
                 }

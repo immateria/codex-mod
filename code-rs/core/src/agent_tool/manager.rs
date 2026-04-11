@@ -419,7 +419,7 @@ impl AgentManager {
         let agent_ids: Vec<String> = self
             .agents
             .values()
-            .filter(|agent| agent.batch_id.as_ref() == Some(&batch_id.to_string()))
+            .filter(|agent| agent.batch_id.as_ref() == Some(&batch_id.to_owned()))
             .map(|agent| agent.id.clone())
             .collect();
 
@@ -463,7 +463,7 @@ impl AgentManager {
                     Ok(output) => {
                         log_lines.push(format!("{stamp}: [result] completed"));
                         if !output.trim().is_empty() {
-                            log_lines.push(output.trim_end().to_string());
+                            log_lines.push(output.trim_end().to_owned());
                         }
                     }
                     Err(error) => {

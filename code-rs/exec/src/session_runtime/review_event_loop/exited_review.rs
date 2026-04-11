@@ -49,7 +49,7 @@ pub(super) async fn handle_exited_review_mode_event(
             .unwrap_or(0);
         let branch = current_branch_name(&config.cwd)
             .await
-            .unwrap_or_else(|| "unknown".to_string());
+            .unwrap_or_else(|| "unknown".to_owned());
         let worktree = config.cwd.clone();
         let summary = event.review_output.as_ref().and_then(review_summary_line);
 
@@ -89,7 +89,7 @@ pub(super) async fn handle_exited_review_mode_event(
             {
                 let limit = resolve_state.max_attempts;
                 let msg = if limit == 1 {
-                    "Auto-resolve: reached the review attempt limit (1 allowed re-review). Handing control back.".to_string()
+                    "Auto-resolve: reached the review attempt limit (1 allowed re-review). Handing control back.".to_owned()
                 } else {
                     format!(
                         "Auto-resolve: reached the review attempt limit ({limit} allowed re-reviews). Handing control back."

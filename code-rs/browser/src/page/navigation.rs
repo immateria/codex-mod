@@ -107,7 +107,7 @@ impl Page {
                         continue;
                     }
                     // If this was the last attempt, return a synthetic timeout error
-                    return Err(BrowserError::CdpError("Navigation timed out".to_string()));
+                    return Err(BrowserError::CdpError("Navigation timed out".to_owned()));
                 }
             }
         }
@@ -267,7 +267,7 @@ impl Page {
             tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
         }
 
-        let final_url = final_url.unwrap_or_else(|| url.to_string());
+        let final_url = final_url.unwrap_or_else(|| url.to_owned());
 
         let mut current_url = self.current_url.write().await;
         *current_url = Some(final_url.clone());

@@ -1,7 +1,7 @@
 impl ChatWidget<'_> {
     pub(crate) fn handle_model_command(&mut self, command_args: String) {
         if self.is_task_running() {
-            let message = "'/model' is disabled while a task is in progress.".to_string();
+            let message = "'/model' is disabled while a task is in progress.".to_owned();
             self.history_push_plain_state(history_cell::new_error_event(message));
             return;
         }
@@ -9,8 +9,7 @@ impl ChatWidget<'_> {
         let presets = self.available_model_presets();
         if presets.is_empty() {
             let message =
-                "No model presets are available. Update your configuration to define models."
-                    .to_string();
+                "No model presets are available. Update your configuration to define models.".to_owned();
             self.history_push_plain_state(history_cell::new_error_event(message));
             return;
         }
@@ -51,8 +50,7 @@ impl ChatWidget<'_> {
         let presets = self.available_model_presets();
         if presets.is_empty() {
             self.bottom_pane.flash_footer_notice(
-                "No model presets are available for review. Update configuration to define models."
-                    .to_string(),
+                "No model presets are available for review. Update configuration to define models.".to_owned(),
             );
             return;
         }
@@ -77,7 +75,7 @@ impl ChatWidget<'_> {
         let presets = self.available_model_presets();
         if presets.is_empty() {
             self.bottom_pane.flash_footer_notice(
-                "No model presets are available for review resolution.".to_string(),
+                "No model presets are available for review resolution.".to_owned(),
             );
             return;
         }
@@ -112,7 +110,7 @@ impl ChatWidget<'_> {
         let presets = self.available_model_presets();
         if presets.is_empty() {
             self.bottom_pane.flash_footer_notice(
-                "No model presets are available for Auto Review. Update configuration to define models.".to_string(),
+                "No model presets are available for Auto Review. Update configuration to define models.".to_owned(),
             );
             return;
         }
@@ -147,7 +145,7 @@ impl ChatWidget<'_> {
         let presets = self.available_model_presets();
         if presets.is_empty() {
             self.bottom_pane.flash_footer_notice(
-                "No model presets are available for Auto Review resolution.".to_string(),
+                "No model presets are available for Auto Review resolution.".to_owned(),
             );
             return;
         }
@@ -182,8 +180,7 @@ impl ChatWidget<'_> {
         let presets = self.available_model_presets();
         if presets.is_empty() {
             self.bottom_pane.flash_footer_notice(
-                "No model presets are available for planning. Update configuration to define models."
-                    .to_string(),
+                "No model presets are available for planning. Update configuration to define models.".to_owned(),
             );
             return;
         }
@@ -214,8 +211,7 @@ impl ChatWidget<'_> {
         let presets = self.available_model_presets();
         if presets.is_empty() {
             self.bottom_pane.flash_footer_notice(
-                "No model presets are available for Auto Drive. Update configuration to define models."
-                    .to_string(),
+                "No model presets are available for Auto Drive. Update configuration to define models.".to_owned(),
             );
             return;
         }
@@ -297,7 +293,7 @@ impl ChatWidget<'_> {
         if !confirmed {
             self.history_push_plain_paragraphs(
                 crate::history::state::PlainMessageKind::Notice,
-                vec!["Shell selection cancelled.".to_string()],
+                vec!["Shell selection cancelled.".to_owned()],
             );
         }
     }

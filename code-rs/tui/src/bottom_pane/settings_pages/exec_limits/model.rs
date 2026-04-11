@@ -46,10 +46,10 @@ impl ExecLimitsSettingsView {
     pub(super) fn format_limit_pids(limit: code_core::config::ExecLimitToml) -> String {
         match limit {
             code_core::config::ExecLimitToml::Mode(code_core::config::ExecLimitModeToml::Auto) => {
-                "Auto".to_string()
+                "Auto".to_owned()
             }
             code_core::config::ExecLimitToml::Mode(code_core::config::ExecLimitModeToml::Disabled) => {
-                "Disabled".to_string()
+                "Disabled".to_owned()
             }
             code_core::config::ExecLimitToml::Value(v) => v.to_string(),
         }
@@ -58,10 +58,10 @@ impl ExecLimitsSettingsView {
     pub(super) fn format_limit_memory(limit: code_core::config::ExecLimitToml) -> String {
         match limit {
             code_core::config::ExecLimitToml::Mode(code_core::config::ExecLimitModeToml::Auto) => {
-                "Auto".to_string()
+                "Auto".to_owned()
             }
             code_core::config::ExecLimitToml::Mode(code_core::config::ExecLimitModeToml::Disabled) => {
-                "Disabled".to_string()
+                "Disabled".to_owned()
             }
             code_core::config::ExecLimitToml::Value(v) => format!("{v} MiB"),
         }

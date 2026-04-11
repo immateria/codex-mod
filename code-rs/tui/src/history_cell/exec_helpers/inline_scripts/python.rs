@@ -57,7 +57,7 @@ fn build_python_script_block(script: &str) -> Option<String> {
     let lines: Vec<String> = if normalized.contains('\n') {
         normalized
             .lines()
-            .map(|line| line.trim_end().to_string())
+            .map(|line| line.trim_end().to_owned())
             .collect()
     } else if script_has_semicolon_outside_quotes(&normalized) {
         split_semicolon_statements(&normalized)
@@ -67,7 +67,7 @@ fn build_python_script_block(script: &str) -> Option<String> {
 
     let meaningful: Vec<String> = merge_from_import_lines(lines)
         .into_iter()
-        .map(|line| line.trim_end().to_string())
+        .map(|line| line.trim_end().to_owned())
         .filter(|line| !line.trim().is_empty())
         .collect();
 
@@ -163,7 +163,7 @@ fn heredoc_delimiter(token: &str) -> Option<String> {
     if !token.starts_with("<<") {
         return None;
     }
-    let mut delim = token.trim_start_matches("<<").to_string();
+    let mut delim = token.trim_start_matches("<<").to_owned();
     if delim.is_empty() {
         return None;
     }
@@ -171,7 +171,7 @@ fn heredoc_delimiter(token: &str) -> Option<String> {
         && let Some(inner) = delim.strip_prefix('"').and_then(|s| s.strip_suffix('"'))
             .or_else(|| delim.strip_prefix('\'').and_then(|s| s.strip_suffix('\'')))
     {
-        delim = inner.to_string();
+        delim = inner.to_owned();
     }
     if delim.is_empty() {
         None
@@ -200,7 +200,7 @@ fn split_heredoc_script_lines(script_tokens: &[String]) -> Vec<String> {
                 && !(token_lower == "import" && current_first.as_deref() == Some("from"));
             if should_flush_before {
                 let line = current.join(" ");
-                lines.push(line.trim().to_string());
+                lines.push(line.trim().to_owned());
                 current.clear();
                 current_has_assignment = false;
             }
@@ -269,7 +269,7 @@ fn split_heredoc_script_lines(script_tokens: &[String]) -> Vec<String> {
 
         if break_here {
             let line = current.join(" ");
-            lines.push(line.trim().to_string());
+            lines.push(line.trim().to_owned());
             current.clear();
             current_has_assignment = false;
             continue;
@@ -277,7 +277,7 @@ fn split_heredoc_script_lines(script_tokens: &[String]) -> Vec<String> {
 
         if should_break {
             let line = current.join(" ");
-            lines.push(line.trim().to_string());
+            lines.push(line.trim().to_owned());
             current.clear();
             current_has_assignment = false;
         }
@@ -285,7 +285,7 @@ fn split_heredoc_script_lines(script_tokens: &[String]) -> Vec<String> {
 
     if !current.is_empty() {
         let line = current.join(" ");
-        lines.push(line.trim().to_string());
+        lines.push(line.trim().to_owned());
     }
 
     lines
@@ -381,7 +381,7 @@ fn merge_from_import_lines(lines: Vec<String>) -> Vec<String> {
     let mut merged: Vec<String> = Vec::with_capacity(lines.len());
     let mut idx = 0;
     while idx < lines.len() {
-        let line = lines[idx].trim().to_string();
+        let line = lines[idx].trim().to_owned();
         if line.starts_with("from ")
             && idx + 1 < lines.len()
             && lines[idx + 1].trim_start().starts_with("import ")
@@ -530,7 +530,7 @@ fn split_semicolon_statements(script: &str) -> Vec<String> {
             ';' if !in_single && !in_double => {
                 let trimmed = current.trim();
                 if !trimmed.is_empty() {
-                    segments.push(trimmed.to_string());
+                    segments.push(trimmed.to_owned());
                 }
                 current.clear();
             }
@@ -540,7 +540,7 @@ fn split_semicolon_statements(script: &str) -> Vec<String> {
 
     let trimmed = current.trim();
     if !trimmed.is_empty() {
-        segments.push(trimmed.to_string());
+        segments.push(trimmed.to_owned());
     }
 
     segments

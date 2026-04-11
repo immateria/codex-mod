@@ -205,7 +205,7 @@ impl JsReplManager {
             Err(_) => {
                 return Err(JsExecError {
                     output: String::new(),
-                    error: "js_repl kernel is unavailable".to_string(),
+                    error: "js_repl kernel is unavailable".to_owned(),
                 });
             }
         };
@@ -238,7 +238,7 @@ impl JsReplManager {
             let Some(kernel) = guard.as_ref() else {
                 return Err(JsExecError {
                     output: String::new(),
-                    error: "js_repl kernel failed to start".to_string(),
+                    error: "js_repl kernel failed to start".to_owned(),
                 });
             };
             (
@@ -308,7 +308,7 @@ impl JsReplManager {
                         if let Err(e) = self.reset().await { tracing::warn!("js_repl reset failed during error recovery: {e}"); }
                         return Err(JsExecError {
                             output: String::new(),
-                            error: "js_repl kernel terminated while waiting for tool requests".to_string(),
+                            error: "js_repl kernel terminated while waiting for tool requests".to_owned(),
                         });
                     };
                     self.handle_tool_request(
@@ -333,7 +333,7 @@ impl JsReplManager {
                         if let Err(e) = self.reset().await { tracing::warn!("js_repl reset failed during error recovery: {e}"); }
                         return Err(JsExecError {
                             output: String::new(),
-                            error: "js_repl kernel stopped before returning a result".to_string(),
+                            error: "js_repl kernel stopped before returning a result".to_owned(),
                         });
                     }
                 }
@@ -352,7 +352,7 @@ impl JsReplManager {
         } else {
             Err(JsExecError {
                 output: result.output,
-                error: result.error.unwrap_or_else(|| "js_repl failed".to_string()),
+                error: result.error.unwrap_or_else(|| "js_repl failed".to_owned()),
             })
         }
     }
@@ -381,7 +381,7 @@ impl JsReplManager {
             let _ = tx.send(ExecResultMessage {
                 ok: false,
                 output: String::new(),
-                error: Some("js_repl kernel was reset".to_string()),
+                error: Some("js_repl kernel was reset".to_owned()),
             });
         }
         drop(pending);
@@ -413,15 +413,15 @@ impl JsReplManager {
         let stdin = child
             .stdin
             .take()
-            .ok_or_else(|| "js_repl kernel missing stdin".to_string())?;
+            .ok_or_else(|| "js_repl kernel missing stdin".to_owned())?;
         let stdout = child
             .stdout
             .take()
-            .ok_or_else(|| "js_repl kernel missing stdout".to_string())?;
+            .ok_or_else(|| "js_repl kernel missing stdout".to_owned())?;
         let stderr = child
             .stderr
             .take()
-            .ok_or_else(|| "js_repl kernel missing stderr".to_string())?;
+            .ok_or_else(|| "js_repl kernel missing stderr".to_owned())?;
 
         let stdin = Arc::new(Mutex::new(stdin));
         let pending_execs: Arc<Mutex<HashMap<String, oneshot::Sender<ExecResultMessage>>>> =
@@ -483,8 +483,7 @@ impl JsReplManager {
             )
         {
             return Err(
-                "js_repl Node runtime cannot be enforced with network mediation on this platform. Set `[tools].js_repl_runtime = \"deno\"` (recommended) or disable network mediation."
-                    .to_string(),
+                "js_repl Node runtime cannot be enforced with network mediation on this platform. Set `[tools].js_repl_runtime = \"deno\"` (recommended) or disable network mediation.".to_owned(),
             );
         }
 
@@ -495,8 +494,7 @@ impl JsReplManager {
                         && !crate::seatbelt::has_loopback_proxy_endpoints(&env_overrides)
                     {
                         return Err(
-                            "managed network enforcement active but no usable proxy endpoints"
-                                .to_string(),
+                            "managed network enforcement active but no usable proxy endpoints".to_owned(),
                         );
                     }
 
@@ -604,7 +602,7 @@ impl JsReplManager {
                 "id": tool_req.id,
                 "ok": false,
                 "response": JsonValue::Null,
-                "error": "js_repl cannot call itself via codex.tool".to_string(),
+                "error": "js_repl cannot call itself via codex.tool".to_owned(),
             });
             let _ = send_json_line(stdin, &response).await;
             return;
@@ -734,8 +732,7 @@ async fn kernel_stdout_loop(
                 let output = message
                     .get("output")
                     .and_then(JsonValue::as_str)
-                    .unwrap_or_default()
-                    .to_string();
+                    .unwrap_or_default().to_owned();
                 let error = message
                     .get("error")
                     .and_then(JsonValue::as_str)
@@ -752,8 +749,7 @@ async fn kernel_stdout_loop(
                 let exec_id = message
                     .get("exec_id")
                     .and_then(JsonValue::as_str)
-                    .unwrap_or_default()
-                    .to_string();
+                    .unwrap_or_default().to_owned();
                 let should_accept = {
                     let active = active_exec_id.lock().await;
                     active.as_deref() == Some(exec_id.as_str())
@@ -764,7 +760,7 @@ async fn kernel_stdout_loop(
                         "id": id,
                         "ok": false,
                         "response": JsonValue::Null,
-                        "error": "js_repl exec context not found".to_string(),
+                        "error": "js_repl exec context not found".to_owned(),
                     });
                     let _ = send_json_line(&stdin, &response).await;
                     continue;
@@ -772,16 +768,14 @@ async fn kernel_stdout_loop(
                 let tool_name = message
                     .get("tool_name")
                     .and_then(JsonValue::as_str)
-                    .unwrap_or_default()
-                    .to_string();
+                    .unwrap_or_default().to_owned();
                 let arguments = message
                     .get("arguments")
                     .and_then(JsonValue::as_str)
-                    .unwrap_or_default()
-                    .to_string();
+                    .unwrap_or_default().to_owned();
 
                 if let Err(err) = tool_tx.send(ToolRequest {
-                    id: id.to_string(),
+                    id: id.to_owned(),
                     tool_name: tool_name.clone(),
                     arguments,
                 }) {
@@ -804,7 +798,7 @@ async fn kernel_stdout_loop(
         let _ = tx.send(ExecResultMessage {
             ok: false,
             output: String::new(),
-            error: Some("js_repl kernel terminated".to_string()),
+            error: Some("js_repl kernel terminated".to_owned()),
         });
     }
 }
@@ -859,7 +853,7 @@ async fn resolve_runtime(cfg: JsReplRuntimeConfig) -> Result<ResolvedRuntime, St
     if matches!(cfg.kind, crate::config::JsReplRuntimeKindToml::Node)
         && !cfg.runtime_args.iter().any(|arg| arg == "--experimental-vm-modules")
     {
-        args.push("--experimental-vm-modules".to_string());
+        args.push("--experimental-vm-modules".to_owned());
     }
     args.extend(cfg.runtime_args);
 
@@ -881,15 +875,15 @@ async fn detect_runtime_version(
         .output()
         .await
         .map_err(|err| format!("failed to run `{executable}`: {err}", executable = executable.display()))?;
-    let stdout = String::from_utf8_lossy(&output.stdout).trim().to_string();
-    let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
+    let stdout = String::from_utf8_lossy(&output.stdout).trim().to_owned();
+    let stderr = String::from_utf8_lossy(&output.stderr).trim().to_owned();
     let text = if stdout.is_empty() { stderr } else { stdout };
     if text.is_empty() {
         return Err(format!("`{executable}` produced no version output", executable = executable.display()));
     }
 
     match kind {
-        crate::config::JsReplRuntimeKindToml::Node => Ok(text.trim().trim_start_matches('v').to_string()),
+        crate::config::JsReplRuntimeKindToml::Node => Ok(text.trim().trim_start_matches('v').to_owned()),
         crate::config::JsReplRuntimeKindToml::Deno => {
             for line in text.lines() {
                 let l = line.trim();
@@ -900,7 +894,7 @@ async fn detect_runtime_version(
                         .unwrap_or_default()
                         .trim();
                     if !version.is_empty() {
-                        return Ok(version.to_string());
+                        return Ok(version.to_owned());
                     }
                 }
             }
@@ -909,8 +903,7 @@ async fn detect_runtime_version(
                 .lines()
                 .next()
                 .unwrap_or_default()
-                .trim()
-                .to_string())
+                .trim().to_owned())
         }
     }
 }

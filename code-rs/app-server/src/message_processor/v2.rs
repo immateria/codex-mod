@@ -216,7 +216,7 @@ impl MessageProcessor {
                     request_id.request_id,
                     JSONRPCErrorError {
                         code: INVALID_REQUEST_ERROR_CODE,
-                        message: "command must not be empty".to_string(),
+                        message: "command must not be empty".to_owned(),
                         data: None,
                     },
                 )
@@ -231,7 +231,7 @@ impl MessageProcessor {
                     request_id.request_id,
                     JSONRPCErrorError {
                         code: INVALID_REQUEST_ERROR_CODE,
-                        message: "command/exec size requires tty=true".to_string(),
+                        message: "command/exec size requires tty=true".to_owned(),
                         data: None,
                     },
                 )
@@ -246,8 +246,7 @@ impl MessageProcessor {
                     request_id.request_id,
                     JSONRPCErrorError {
                         code: INVALID_PARAMS_ERROR_CODE,
-                        message: "command/exec disableTimeout and timeoutMs are mutually exclusive"
-                            .to_string(),
+                        message: "command/exec disableTimeout and timeoutMs are mutually exclusive".to_owned(),
                         data: None,
                     },
                 )
@@ -264,7 +263,7 @@ impl MessageProcessor {
                     request_id.request_id,
                     JSONRPCErrorError {
                         code: INVALID_PARAMS_ERROR_CODE,
-                        message: "command/exec timeoutMs must be non-negative".to_string(),
+                        message: "command/exec timeoutMs must be non-negative".to_owned(),
                         data: None,
                     },
                 )
@@ -280,8 +279,7 @@ impl MessageProcessor {
                     JSONRPCErrorError {
                         code: INVALID_PARAMS_ERROR_CODE,
                         message:
-                            "command/exec disableOutputCap and outputBytesCap are mutually exclusive"
-                                .to_string(),
+                            "command/exec disableOutputCap and outputBytesCap are mutually exclusive".to_owned(),
                         data: None,
                     },
                 )
@@ -467,7 +465,7 @@ impl MessageProcessor {
                         request_id.request_id,
                         error,
                     )
-                    .await
+                    .await;
             }
         }
     }
@@ -493,7 +491,7 @@ impl MessageProcessor {
                         request_id.request_id,
                         error,
                     )
-                    .await
+                    .await;
             }
         }
     }
@@ -523,7 +521,7 @@ impl MessageProcessor {
                         request_id.request_id,
                         error,
                     )
-                    .await
+                    .await;
             }
         }
     }
@@ -1122,7 +1120,7 @@ impl MessageProcessor {
                 if !root.is_absolute() {
                     entry_errors.push(SkillErrorInfo {
                         path: root.clone(),
-                        message: "extra_user_roots entries must be absolute paths".to_string(),
+                        message: "extra_user_roots entries must be absolute paths".to_owned(),
                     });
                     continue;
                 }
@@ -1228,7 +1226,7 @@ impl MessageProcessor {
                     request_id,
                     JSONRPCErrorError {
                         code: INVALID_PARAMS_ERROR_CODE,
-                        message: "skills/config/write path must not be empty".to_string(),
+                        message: "skills/config/write path must not be empty".to_owned(),
                         data: None,
                     },
                 )
@@ -1243,7 +1241,7 @@ impl MessageProcessor {
                     request_id,
                     JSONRPCErrorError {
                         code: INVALID_PARAMS_ERROR_CODE,
-                        message: "skills/config/write path must be an absolute path".to_string(),
+                        message: "skills/config/write path must be an absolute path".to_owned(),
                         data: None,
                     },
                 )
@@ -1426,7 +1424,7 @@ impl MessageProcessor {
                     request_id,
                     JSONRPCErrorError {
                         code: INVALID_PARAMS_ERROR_CODE,
-                        message: "plugin/read plugin_name must not be empty".to_string(),
+                        message: "plugin/read plugin_name must not be empty".to_owned(),
                         data: None,
                     },
                 )
@@ -1491,7 +1489,7 @@ impl MessageProcessor {
                     request_id,
                     JSONRPCErrorError {
                         code: INVALID_PARAMS_ERROR_CODE,
-                        message: "plugin/install plugin_name must not be empty".to_string(),
+                        message: "plugin/install plugin_name must not be empty".to_owned(),
                         data: None,
                     },
                 )
@@ -1587,7 +1585,7 @@ impl MessageProcessor {
                     request_id,
                     JSONRPCErrorError {
                         code: INVALID_PARAMS_ERROR_CODE,
-                        message: "plugin/uninstall plugin_id must not be empty".to_string(),
+                        message: "plugin/uninstall plugin_id must not be empty".to_owned(),
                         data: None,
                     },
                 )
@@ -2262,8 +2260,7 @@ impl MessageProcessor {
                         request_id,
                         JSONRPCErrorError {
                             code: INVALID_REQUEST_ERROR_CODE,
-                            message: "OAuth login is only supported for streamable HTTP servers."
-                                .to_string(),
+                            message: "OAuth login is only supported for streamable HTTP servers.".to_owned(),
                             data: None,
                         },
                     )
@@ -2287,7 +2284,7 @@ impl MessageProcessor {
         .await
         {
             Ok(handle) => {
-                let authorization_url = handle.authorization_url().to_string();
+                let authorization_url = handle.authorization_url().to_owned();
                 let notification_name = name.clone();
                 let outgoing = Arc::clone(&self.outgoing);
 
@@ -2521,7 +2518,7 @@ impl MessageProcessor {
                     request_id,
                     JSONRPCErrorError {
                         code: INVALID_REQUEST_ERROR_CODE,
-                        message: "thread/resume history is not supported".to_string(),
+                        message: "thread/resume history is not supported".to_owned(),
                         data: None,
                     },
                 )
@@ -2581,7 +2578,7 @@ impl MessageProcessor {
                     request_id,
                     JSONRPCErrorError {
                         code: INVALID_REQUEST_ERROR_CODE,
-                        message: "thread/resume requires thread_id or path".to_string(),
+                        message: "thread/resume requires thread_id or path".to_owned(),
                         data: None,
                     },
                 )
@@ -2802,7 +2799,7 @@ impl MessageProcessor {
                     request_id,
                     JSONRPCErrorError {
                         code: INVALID_REQUEST_ERROR_CODE,
-                        message: "thread/fork requires thread_id or path".to_string(),
+                        message: "thread/fork requires thread_id or path".to_owned(),
                         data: None,
                     },
                 )
@@ -4246,8 +4243,8 @@ async fn list_accessible_connector_metadata_from_codex_apps_mcp(
             .map(str::to_string);
 
         accessible
-            .entry(connector_id.to_string())
-            .or_insert_with(|| (connector_name.to_string(), connector_description.clone()));
+            .entry(connector_id.to_owned())
+            .or_insert_with(|| (connector_name.to_owned(), connector_description.clone()));
     }
     manager.shutdown_all().await;
 
@@ -4412,7 +4409,7 @@ fn session_entry_to_thread(
         model_provider: entry
             .model_provider
             .clone()
-            .unwrap_or_else(|| "openai".to_string()),
+            .unwrap_or_else(|| "openai".to_owned()),
         created_at: parse_rfc3339_to_unix_seconds(&entry.created_at),
         updated_at: parse_rfc3339_to_unix_seconds(&entry.last_event_at),
         path: Some(path),
@@ -4603,14 +4600,14 @@ fn content_item_to_user_input(item: &ContentItem) -> Option<UserInput> {
                 {
                     let normalized = path.strip_prefix("skill://").unwrap_or(path);
                     return Some(UserInput::Skill {
-                        name: name.to_string(),
+                        name: name.to_owned(),
                         path: PathBuf::from(normalized),
                     });
                 }
 
                 return Some(UserInput::Mention {
-                    name: name.to_string(),
-                    path: path.to_string(),
+                    name: name.to_owned(),
+                    path: path.to_owned(),
                 });
             }
 

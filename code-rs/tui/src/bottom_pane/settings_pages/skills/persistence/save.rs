@@ -10,7 +10,7 @@ pub(super) fn save_current_inner(view: &mut SkillsSettingsView) {
         && skill.scope != SkillScope::User
     {
         view.status = Some((
-            "Only user skills can be saved".to_string(),
+            "Only user skills can be saved".to_owned(),
             Style::default().fg(colors::error()),
         ));
         return;
@@ -18,11 +18,11 @@ pub(super) fn save_current_inner(view: &mut SkillsSettingsView) {
 
     let existing_skill = view.skills.get(selected).cloned();
 
-    let name = view.editor.name_field.text().trim().to_string();
-    let description = view.editor.description_field.text().trim().to_string();
-    let shell_style_raw = view.editor.style_field.text().trim().to_string();
-    let trigger_examples = view.editor.examples_field.text().trim().to_string();
-    let body = view.editor.body_field.text().to_string();
+    let name = view.editor.name_field.text().trim().to_owned();
+    let description = view.editor.description_field.text().trim().to_owned();
+    let shell_style_raw = view.editor.style_field.text().trim().to_owned();
+    let trigger_examples = view.editor.examples_field.text().trim().to_owned();
+    let body = view.editor.body_field.text().to_owned();
     if let Err(msg) = view.validate_name(&name) {
         view.status = Some((msg, Style::default().fg(colors::error())));
         return;
@@ -40,7 +40,7 @@ pub(super) fn save_current_inner(view: &mut SkillsSettingsView) {
     };
     if parsed_shell_style.is_none() && view.editor.style_profile_mode != StyleProfileMode::Inherit {
         view.status = Some((
-            "Style profile behavior requires a shell style value.".to_string(),
+            "Style profile behavior requires a shell style value.".to_owned(),
             Style::default().fg(colors::error()),
         ));
         return;
@@ -50,7 +50,7 @@ pub(super) fn save_current_inner(view: &mut SkillsSettingsView) {
         let skill_roots = crate::text_formatting::parse_path_list(view.editor.style_skill_roots_field.text());
         if !references.is_empty() || !skill_roots.is_empty() {
             view.status = Some((
-                "Style references/skill roots require a shell style value.".to_string(),
+                "Style references/skill roots require a shell style value.".to_owned(),
                 Style::default().fg(colors::error()),
             ));
             return;
@@ -61,7 +61,7 @@ pub(super) fn save_current_inner(view: &mut SkillsSettingsView) {
         let mcp_exclude = crate::text_formatting::parse_string_list(view.editor.style_mcp_exclude_field.text());
         if !mcp_include.is_empty() || !mcp_exclude.is_empty() {
             view.status = Some((
-                "Style MCP include/exclude requires a shell style value.".to_string(),
+                "Style MCP include/exclude requires a shell style value.".to_owned(),
                 Style::default().fg(colors::error()),
             ));
             return;
@@ -244,7 +244,7 @@ pub(super) fn save_current_inner(view: &mut SkillsSettingsView) {
             format!("Saved skill with warnings: {msg}"),
             Style::default().fg(colors::warning()),
         ),
-        None => ("Saved.".to_string(), Style::default().fg(colors::success())),
+        None => ("Saved.".to_owned(), Style::default().fg(colors::success())),
     });
 
     view.app_event_tx.send(AppEvent::codex_op(Op::ListSkills));

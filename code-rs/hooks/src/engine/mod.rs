@@ -80,8 +80,7 @@ impl ClaudeHooksEngine {
             return Self {
                 handlers: Vec::new(),
                 warnings: vec![
-                    "Disabled `code_hooks` for this session because `hooks.json` lifecycle hooks are not supported on Windows yet."
-                        .to_string(),
+                    "Disabled `code_hooks` for this session because `hooks.json` lifecycle hooks are not supported on Windows yet.".to_owned(),
                 ],
                 shell,
             };

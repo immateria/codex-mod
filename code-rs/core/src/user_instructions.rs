@@ -31,7 +31,7 @@ impl From<UserInstructions> for ResponseItem {
         let contents = ui.text;
         ResponseItem::Message {
             id: None,
-            role: "user".to_string(),
+            role: "user".to_owned(),
             content: vec![ContentItem::InputText {
                 text: format!(
                     "{USER_INSTRUCTIONS_PREFIX}{directory}\n\n<INSTRUCTIONS>\n{contents}\n</INSTRUCTIONS>",
@@ -55,7 +55,7 @@ impl From<SkillInstructions> for ResponseItem {
         let contents = si.contents;
         ResponseItem::Message {
             id: None,
-            role: "user".to_string(),
+            role: "user".to_owned(),
             content: vec![ContentItem::InputText {
                 text: format!(
                     "<skill>\n<name>{name}</name>\n<path>{path}</path>\n{contents}\n</skill>",

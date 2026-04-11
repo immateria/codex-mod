@@ -6,16 +6,16 @@ pub(super) fn begin_action_for(tool_name: &str, metadata: &InvocationMetadata) -
         .label
         .clone()
         .or_else(|| metadata.agent_ids.first().cloned())
-        .unwrap_or_else(|| "agent".to_string());
+        .unwrap_or_else(|| "agent".to_owned());
     let action = resolved_action(tool_name, metadata.action.as_deref());
 
     match action {
         "create" => Some(format!("Started agent run for {label}")),
-        "wait" => Some("Waiting for agents".to_string()),
+        "wait" => Some("Waiting for agents".to_owned()),
         "result" => Some(format!("Requested results for {label}")),
         "cancel" => Some(format!("Cancelling agent batch for {label}")),
         "status" => Some(format!("Checking agent status for {label}")),
-        "list" => Some("Listing available agents".to_string()),
+        "list" => Some("Listing available agents".to_owned()),
         _ => None,
     }
 }
@@ -57,7 +57,7 @@ pub(super) fn end_action_for(
         }
         "cancel" => Some(format!("Cancel request completed in {elapsed}")),
         "status" => Some(format!("Status check finished in {elapsed}")),
-        "list" => Some("Listed agents".to_string()),
+        "list" => Some("Listed agents".to_owned()),
         _ => None,
     }
 }

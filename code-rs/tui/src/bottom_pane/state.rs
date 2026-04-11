@@ -189,7 +189,7 @@ impl<'a> BottomPane<'a> {
     }
 
     pub(crate) fn composer_text(&self) -> String {
-        self.composer.text().to_string()
+        self.composer.text().to_owned()
     }
 
     pub(crate) fn is_task_running(&self) -> bool {

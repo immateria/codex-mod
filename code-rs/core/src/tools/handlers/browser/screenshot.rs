@@ -20,7 +20,7 @@ pub(super) async fn handle_browser_screenshot(
     execute_custom_tool(
         sess,
         ctx,
-        "browser_screenshot".to_string(),
+        "browser_screenshot".to_owned(),
         params.clone(),
         || async move {
             let browser_manager = get_browser_manager_for_session(sess_clone).await;
@@ -133,7 +133,7 @@ pub(super) async fn handle_browser_screenshot(
                         "paths": paths,
                     });
                     let pretty = serde_json::to_string_pretty(&payload)
-                        .unwrap_or_else(|_| "{}".to_string());
+                        .unwrap_or_else(|_| "{}".to_owned());
                     tool_output(call_id_clone, pretty)
                 }
                 Err(e) => tool_error(call_id_clone, format!("Screenshot failed: {e}")),

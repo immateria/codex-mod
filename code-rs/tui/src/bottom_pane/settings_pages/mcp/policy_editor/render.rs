@@ -145,8 +145,8 @@ impl McpSettingsView {
                         editor.editing == Some(ServerRow::MaxQueueDepth),
                     )),
                 ),
-                ServerRow::Save => ("Save", Some("Ctrl+S".to_string()), None),
-                ServerRow::Cancel => ("Cancel", Some("Esc".to_string()), None),
+                ServerRow::Save => ("Save", Some("Ctrl+S".to_owned()), None),
+                ServerRow::Cancel => ("Cancel", Some("Esc".to_owned()), None),
             };
 
             let label_rect = Rect {
@@ -193,7 +193,7 @@ impl McpSettingsView {
                 height: 1,
             };
             Paragraph::new(Line::from(vec![Span::styled(
-                err.to_string(),
+                err.to_owned(),
                 err_style,
             )]))
             .render(err_area, buf);
@@ -284,13 +284,13 @@ impl McpSettingsView {
 
         let effective_line = {
             let max_conc = if override_max_concurrent_invalid {
-                "?".to_string()
+                "?".to_owned()
             } else {
-                effective_max_concurrent.map_or_else(|| "?".to_string(), |v| v.to_string())
+                effective_max_concurrent.map_or_else(|| "?".to_owned(), |v| v.to_string())
             };
 
             let min_int = if override_min_interval_invalid {
-                "?".to_string()
+                "?".to_owned()
             } else {
                 format_opt_secs_compact(effective_min_interval)
             };
@@ -346,7 +346,7 @@ impl McpSettingsView {
                 ToolRow::MinInterval => {
                     if editor.override_min_interval {
                         (
-                            "Min interval (override)".to_string(),
+                            "Min interval (override)".to_owned(),
                             None,
                             Some((
                                 &editor.min_interval_field,
@@ -357,7 +357,7 @@ impl McpSettingsView {
                         let server_v =
                             format_opt_secs_compact(editor.server_scheduling.min_interval_sec);
                         (
-                            "Min interval (inherit)".to_string(),
+                            "Min interval (inherit)".to_owned(),
                             Some(format!("server {server_v}")),
                             None,
                         )
@@ -366,7 +366,7 @@ impl McpSettingsView {
                 ToolRow::MaxConcurrent => {
                     if editor.override_max_concurrent {
                         (
-                            "Max concurrent (override)".to_string(),
+                            "Max concurrent (override)".to_owned(),
                             None,
                             Some((
                                 &editor.max_concurrent_field,
@@ -375,19 +375,19 @@ impl McpSettingsView {
                         )
                     } else {
                         (
-                            "Max concurrent (inherit)".to_string(),
+                            "Max concurrent (inherit)".to_owned(),
                             Some(format!("server {}", editor.server_scheduling.max_concurrent)),
                             None,
                         )
                     }
                 }
                 ToolRow::ClearOverride => (
-                    "Clear override".to_string(),
-                    Some("remove all tool limits".to_string()),
+                    "Clear override".to_owned(),
+                    Some("remove all tool limits".to_owned()),
                     None,
                 ),
-                ToolRow::Save => ("Save".to_string(), Some("Ctrl+S".to_string()), None),
-                ToolRow::Cancel => ("Cancel".to_string(), Some("Esc".to_string()), None),
+                ToolRow::Save => ("Save".to_owned(), Some("Ctrl+S".to_owned()), None),
+                ToolRow::Cancel => ("Cancel".to_owned(), Some("Esc".to_owned()), None),
             };
 
             let label_line = Line::from(vec![
@@ -421,7 +421,7 @@ impl McpSettingsView {
                 height: 1,
             };
             Paragraph::new(Line::from(vec![Span::styled(
-                err.to_string(),
+                err.to_owned(),
                 err_style,
             )]))
             .render(err_area, buf);

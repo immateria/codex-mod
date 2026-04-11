@@ -186,7 +186,7 @@ impl ChatWidget<'_> {
             render_request_cache_dirty: Cell::new(true),
             history_prefix_append_only: Cell::new(true),
             pending_auto_turn_config: None,
-            overall_task_status: "preparing".to_string(),
+            overall_task_status: "preparing".to_owned(),
             active_plan_title: None,
             agent_runtime: HashMap::new(),
             pending_agent_updates: HashMap::new(),

@@ -241,7 +241,7 @@ pub fn find_family_for_model(slug: &str) -> Option<ModelFamily> {
     if let Some(suffix) = namespaced_model_suffix(slug)
         && let Some(mut family) = find_family_for_model(suffix)
     {
-        family.slug = slug.to_string();
+        family.slug = slug.to_owned();
         return Some(family);
     }
 
@@ -250,7 +250,7 @@ pub fn find_family_for_model(slug: &str) -> Option<ModelFamily> {
             slug, "o3",
             supports_reasoning_summaries: true,
             needs_special_apply_patch_instructions: true,
-            base_instructions: BASE_INSTRUCTIONS_WITH_APPLY_PATCH.to_string(),
+            base_instructions: BASE_INSTRUCTIONS_WITH_APPLY_PATCH.to_owned(),
             context_window: Some(CONTEXT_WINDOW_200K),
             max_output_tokens: Some(100_000),
         )
@@ -259,7 +259,7 @@ pub fn find_family_for_model(slug: &str) -> Option<ModelFamily> {
             slug, "o4-mini",
             supports_reasoning_summaries: true,
             needs_special_apply_patch_instructions: true,
-            base_instructions: BASE_INSTRUCTIONS_WITH_APPLY_PATCH.to_string(),
+            base_instructions: BASE_INSTRUCTIONS_WITH_APPLY_PATCH.to_owned(),
             context_window: Some(CONTEXT_WINDOW_200K),
             max_output_tokens: Some(100_000),
         )
@@ -269,7 +269,7 @@ pub fn find_family_for_model(slug: &str) -> Option<ModelFamily> {
             supports_reasoning_summaries: true,
             uses_local_shell_tool: true,
             needs_special_apply_patch_instructions: true,
-            base_instructions: BASE_INSTRUCTIONS_WITH_APPLY_PATCH.to_string(),
+            base_instructions: BASE_INSTRUCTIONS_WITH_APPLY_PATCH.to_owned(),
             context_window: Some(CONTEXT_WINDOW_200K),
             max_output_tokens: Some(100_000),
         )
@@ -277,7 +277,7 @@ pub fn find_family_for_model(slug: &str) -> Option<ModelFamily> {
         model_family!(
             slug, "gpt-4.1",
             needs_special_apply_patch_instructions: true,
-            base_instructions: BASE_INSTRUCTIONS_WITH_APPLY_PATCH.to_string(),
+            base_instructions: BASE_INSTRUCTIONS_WITH_APPLY_PATCH.to_owned(),
             context_window: Some(CONTEXT_WINDOW_1M),
             max_output_tokens: Some(32_768),
         )
@@ -288,19 +288,19 @@ pub fn find_family_for_model(slug: &str) -> Option<ModelFamily> {
             max_output_tokens: Some(32_000))
     } else if slug.starts_with("gpt-4o") {
         model_family!(slug, "gpt-4o", needs_special_apply_patch_instructions: true,
-            base_instructions: BASE_INSTRUCTIONS_WITH_APPLY_PATCH.to_string(),
+            base_instructions: BASE_INSTRUCTIONS_WITH_APPLY_PATCH.to_owned(),
             context_window: Some(CONTEXT_WINDOW_128K),
             max_output_tokens: Some(16_384))
     } else if slug.starts_with("gpt-3.5") {
         model_family!(slug, "gpt-3.5", needs_special_apply_patch_instructions: true,
-            base_instructions: BASE_INSTRUCTIONS_WITH_APPLY_PATCH.to_string(),
+            base_instructions: BASE_INSTRUCTIONS_WITH_APPLY_PATCH.to_owned(),
             context_window: Some(CONTEXT_WINDOW_16K),
             max_output_tokens: Some(4_096))
     } else if slug.starts_with("test-gpt-5") {
         model_family!(
             slug, slug,
             supports_reasoning_summaries: true,
-            base_instructions: GPT_5_CODEX_INSTRUCTIONS.to_string(),
+            base_instructions: GPT_5_CODEX_INSTRUCTIONS.to_owned(),
             apply_patch_tool_type: Some(ApplyPatchToolType::Freeform),
             supports_parallel_tool_calls: true,
             default_reasoning_effort: Some(ReasoningEffort::Medium),
@@ -311,7 +311,7 @@ pub fn find_family_for_model(slug: &str) -> Option<ModelFamily> {
         model_family!(
             slug, slug,
             supports_reasoning_summaries: true,
-            base_instructions: GPT_5_2_CODEX_INSTRUCTIONS.to_string(),
+            base_instructions: GPT_5_2_CODEX_INSTRUCTIONS.to_owned(),
             apply_patch_tool_type: Some(ApplyPatchToolType::Freeform),
             supports_parallel_tool_calls: true,
             truncation_policy: TruncationPolicy::Tokens(10_000),
@@ -329,7 +329,7 @@ pub fn find_family_for_model(slug: &str) -> Option<ModelFamily> {
         model_family!(
             slug, slug,
             supports_reasoning_summaries: true,
-            base_instructions: GPT_5_1_CODEX_MAX_INSTRUCTIONS.to_string(),
+            base_instructions: GPT_5_1_CODEX_MAX_INSTRUCTIONS.to_owned(),
             apply_patch_tool_type: Some(ApplyPatchToolType::Freeform),
             context_window: Some(CONTEXT_WINDOW_272K),
             max_output_tokens: Some(MAX_OUTPUT_DEFAULT),
@@ -342,7 +342,7 @@ pub fn find_family_for_model(slug: &str) -> Option<ModelFamily> {
         model_family!(
             slug, slug,
             supports_reasoning_summaries: true,
-            base_instructions: GPT_5_CODEX_INSTRUCTIONS.to_string(),
+            base_instructions: GPT_5_CODEX_INSTRUCTIONS.to_owned(),
             apply_patch_tool_type: Some(ApplyPatchToolType::Freeform),
             context_window: Some(CONTEXT_WINDOW_272K),
             max_output_tokens: Some(MAX_OUTPUT_DEFAULT),
@@ -353,7 +353,7 @@ pub fn find_family_for_model(slug: &str) -> Option<ModelFamily> {
         model_family!(
             slug, slug,
             supports_reasoning_summaries: true,
-            base_instructions: GPT_5_2_CODEX_INSTRUCTIONS.to_string(),
+            base_instructions: GPT_5_2_CODEX_INSTRUCTIONS.to_owned(),
             apply_patch_tool_type: Some(ApplyPatchToolType::Freeform),
             supports_parallel_tool_calls: true,
             context_window: Some(CONTEXT_WINDOW_272K),
@@ -365,7 +365,7 @@ pub fn find_family_for_model(slug: &str) -> Option<ModelFamily> {
         model_family!(
             slug, slug,
             supports_reasoning_summaries: true,
-            base_instructions: GPT_5_2_CODEX_INSTRUCTIONS.to_string(),
+            base_instructions: GPT_5_2_CODEX_INSTRUCTIONS.to_owned(),
             apply_patch_tool_type: Some(ApplyPatchToolType::Freeform),
             supports_parallel_tool_calls: true,
             context_window: Some(CONTEXT_WINDOW_272K),
@@ -376,7 +376,7 @@ pub fn find_family_for_model(slug: &str) -> Option<ModelFamily> {
         model_family!(
             slug, slug,
             supports_reasoning_summaries: true,
-            base_instructions: GPT_5_2_CODEX_INSTRUCTIONS.to_string(),
+            base_instructions: GPT_5_2_CODEX_INSTRUCTIONS.to_owned(),
             apply_patch_tool_type: Some(ApplyPatchToolType::Freeform),
             supports_parallel_tool_calls: true,
             context_window: Some(CONTEXT_WINDOW_272K),
@@ -387,7 +387,7 @@ pub fn find_family_for_model(slug: &str) -> Option<ModelFamily> {
         model_family!(
             slug, "gpt-5.3",
             supports_reasoning_summaries: true,
-            base_instructions: GPT_5_2_INSTRUCTIONS.to_string(),
+            base_instructions: GPT_5_2_INSTRUCTIONS.to_owned(),
             apply_patch_tool_type: Some(ApplyPatchToolType::Freeform),
             default_reasoning_effort: Some(ReasoningEffort::Medium),
             supports_parallel_tool_calls: true,
@@ -399,7 +399,7 @@ pub fn find_family_for_model(slug: &str) -> Option<ModelFamily> {
         model_family!(
             slug, "gpt-5.2",
             supports_reasoning_summaries: true,
-            base_instructions: GPT_5_2_INSTRUCTIONS.to_string(),
+            base_instructions: GPT_5_2_INSTRUCTIONS.to_owned(),
             apply_patch_tool_type: Some(ApplyPatchToolType::Freeform),
             default_reasoning_effort: Some(ReasoningEffort::Medium),
             supports_parallel_tool_calls: true,
@@ -411,7 +411,7 @@ pub fn find_family_for_model(slug: &str) -> Option<ModelFamily> {
         model_family!(
             slug, slug,
             supports_reasoning_summaries: true,
-            base_instructions: GPT_5_2_INSTRUCTIONS.to_string(),
+            base_instructions: GPT_5_2_INSTRUCTIONS.to_owned(),
             apply_patch_tool_type: Some(ApplyPatchToolType::Freeform),
             default_reasoning_effort: Some(ReasoningEffort::Medium),
             supports_parallel_tool_calls: true,
@@ -423,7 +423,7 @@ pub fn find_family_for_model(slug: &str) -> Option<ModelFamily> {
         model_family!(
             slug, "gpt-5.1",
             supports_reasoning_summaries: true,
-            base_instructions: GPT_5_1_INSTRUCTIONS.to_string(),
+            base_instructions: GPT_5_1_INSTRUCTIONS.to_owned(),
             apply_patch_tool_type: Some(ApplyPatchToolType::Freeform),
             default_reasoning_effort: Some(ReasoningEffort::Medium),
             supports_parallel_tool_calls: true,
@@ -435,7 +435,7 @@ pub fn find_family_for_model(slug: &str) -> Option<ModelFamily> {
         model_family!(
             slug, "gpt-5",
             supports_reasoning_summaries: true,
-            base_instructions: BASE_INSTRUCTIONS.to_string(),
+            base_instructions: BASE_INSTRUCTIONS.to_owned(),
             context_window: Some(CONTEXT_WINDOW_272K),
             max_output_tokens: Some(MAX_OUTPUT_DEFAULT),
             truncation_policy: TruncationPolicy::Bytes(10_000),
@@ -447,8 +447,8 @@ pub fn find_family_for_model(slug: &str) -> Option<ModelFamily> {
 
 pub fn derive_default_model_family(model: &str) -> ModelFamily {
     apply_upstream_model_overrides(ModelFamily {
-        slug: model.to_string(),
-        family: model.to_string(),
+        slug: model.to_owned(),
+        family: model.to_owned(),
         needs_special_apply_patch_instructions: false,
         context_window: None,
         max_output_tokens: None,
@@ -465,7 +465,7 @@ pub fn derive_default_model_family(model: &str) -> ModelFamily {
         web_search_tool_type: WebSearchToolType::Text,
         supports_image_detail_original: false,
         supports_image_generation: false,
-        base_instructions: BASE_INSTRUCTIONS.to_string(),
+        base_instructions: BASE_INSTRUCTIONS.to_owned(),
     })
 }
 

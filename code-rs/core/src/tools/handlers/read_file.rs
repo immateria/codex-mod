@@ -109,7 +109,7 @@ impl ToolHandler for ReadFileToolHandler {
         execute_custom_tool(
             sess,
             &ctx,
-            crate::openai_tools::READ_FILE_TOOL_NAME.to_string(),
+            crate::openai_tools::READ_FILE_TOOL_NAME.to_owned(),
             params_for_event,
             move || async move {
                 let args: ReadFileArgs = match serde_json::from_str(&arguments) {
@@ -229,7 +229,7 @@ mod slice {
         }
 
         if seen < offset {
-            return Err("offset exceeds file length".to_string());
+            return Err("offset exceeds file length".to_owned());
         }
 
         Ok(collected)
@@ -256,17 +256,17 @@ mod indentation {
     ) -> Result<Vec<String>, String> {
         let anchor_line = options.anchor_line.unwrap_or(offset);
         if anchor_line == 0 {
-            return Err("anchor_line must be a 1-indexed line number".to_string());
+            return Err("anchor_line must be a 1-indexed line number".to_owned());
         }
 
         let guard_limit = options.max_lines.unwrap_or(limit);
         if guard_limit == 0 {
-            return Err("max_lines must be greater than zero".to_string());
+            return Err("max_lines must be greater than zero".to_owned());
         }
 
         let collected = collect_file_lines(path).await?;
         if collected.is_empty() || anchor_line > collected.len() {
-            return Err("anchor_line exceeds file length".to_string());
+            return Err("anchor_line exceeds file length".to_owned());
         }
 
         let anchor_index = anchor_line - 1;

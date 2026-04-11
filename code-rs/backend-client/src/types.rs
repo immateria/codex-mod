@@ -241,8 +241,8 @@ impl TurnError {
         let message = self.message.as_deref().unwrap_or("");
         match (code.is_empty(), message.is_empty()) {
             (true, true) => None,
-            (false, true) => Some(code.to_string()),
-            (true, false) => Some(message.to_string()),
+            (false, true) => Some(code.to_owned()),
+            (true, false) => Some(message.to_owned()),
             (false, false) => Some(format!("{code}: {message}")),
         }
     }

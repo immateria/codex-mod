@@ -14,7 +14,7 @@ impl ChatWidget<'_> {
             let current_shell = self
                 .config
                 .shell
-                .as_ref().map_or_else(|| "auto-detected".to_string(), Self::format_shell_config);
+                .as_ref().map_or_else(|| "auto-detected".to_owned(), Self::format_shell_config);
             self.history_push_plain_paragraphs(
                 crate::history::state::PlainMessageKind::Notice,
                 vec![format!("Current shell: {current_shell}")],
@@ -35,7 +35,7 @@ impl ChatWidget<'_> {
         self.update_shell_config(shell_config);
         self.history_push_plain_paragraphs(
             crate::history::state::PlainMessageKind::Notice,
-            vec!["Updating shell setting...".to_string()],
+            vec!["Updating shell setting...".to_owned()],
         );
     }
 
@@ -58,16 +58,16 @@ impl ChatWidget<'_> {
         }
 
         let display_name = if preset.display_name.trim().is_empty() {
-            command.to_string()
+            command.to_owned()
         } else {
-            preset.display_name.trim().to_string()
+            preset.display_name.trim().to_owned()
         };
 
         Some(ShellPreset {
-            id: id.to_string(),
-            command: command.to_string(),
+            id: id.to_owned(),
+            command: command.to_owned(),
             display_name,
-            description: preset.description.trim().to_string(),
+            description: preset.description.trim().to_owned(),
             default_args: preset.default_args.clone(),
             script_style: preset.script_style.map(|style| style.to_string()),
             show_in_picker: preset.show_in_picker,
@@ -83,13 +83,13 @@ impl ChatWidget<'_> {
         }
 
         let Some(mut parts) = shlex::split(input) else {
-            return Err("could not parse command (check quoting)".to_string());
+            return Err("could not parse command (check quoting)".to_owned());
         };
 
         let mut explicit_style: Option<ShellScriptStyle> = None;
         if parts.first().map(String::as_str) == Some("--style") {
             if parts.len() < 2 {
-                return Err("missing value after --style".to_string());
+                return Err("missing value after --style".to_owned());
             }
             let style_value = parts.remove(1);
             parts.remove(0);
@@ -105,7 +105,7 @@ impl ChatWidget<'_> {
 
         if parts.is_empty() {
             let Some(existing_shell) = current_shell else {
-                return Err("missing shell executable".to_string());
+                return Err("missing shell executable".to_owned());
             };
             let mut shell = existing_shell.clone();
             if let Some(style) = explicit_style {
@@ -304,7 +304,7 @@ impl ChatWidget<'_> {
                 let label = Self::format_shell_config(shell);
                 format!("Shell set to: {label}")
             }
-            None => "Shell setting cleared.".to_string(),
+            None => "Shell setting cleared.".to_owned(),
         };
         self.push_background_tail(message);
     }
@@ -329,7 +329,7 @@ impl ChatWidget<'_> {
                 let label = Self::format_shell_config(shell);
                 format!("Restored previous shell: {label}")
             }
-            None => "Restored previous shell: auto-detected".to_string(),
+            None => "Restored previous shell: auto-detected".to_owned(),
         };
         self.push_background_tail(restored);
     }

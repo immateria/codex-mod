@@ -111,11 +111,11 @@ impl AutoDriveSettingsView {
 
     pub(super) fn main_menu_rows(&self) -> Vec<SettingsMenuRow<'static, usize>> {
         let model_value = if self.use_chat_model {
-            "Follow Chat Mode".to_string()
+            "Follow Chat Mode".to_owned()
         } else {
             let model_label = self.model.trim();
             if model_label.is_empty() {
-                "(not set)".to_string()
+                "(not set)".to_owned()
             } else {
                 format!(
                     "{} · {}",
@@ -210,7 +210,7 @@ impl AutoDriveSettingsView {
             .collect::<Vec<_>>()
             .join("  ");
         let description = if editor.description.trim().is_empty() {
-            "(empty)".to_string()
+            "(empty)".to_owned()
         } else {
             editor.description.clone()
         };

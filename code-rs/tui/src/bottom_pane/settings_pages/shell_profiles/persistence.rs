@@ -27,7 +27,7 @@ impl ShellProfilesSettingsView {
             if trimmed.is_empty() {
                 None
             } else {
-                Some(trimmed.to_string())
+                Some(trimmed.to_owned())
             }
         };
 
@@ -137,9 +137,9 @@ impl ShellProfilesSettingsView {
 
         self.dirty = false;
         if changed_any {
-            self.status = Some("Shell style profiles applied.".to_string());
+            self.status = Some("Shell style profiles applied.".to_owned());
         } else {
-            self.status = Some("No changes to apply.".to_string());
+            self.status = Some("No changes to apply.".to_owned());
         }
     }
 }

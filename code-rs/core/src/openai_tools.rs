@@ -38,40 +38,38 @@ pub(crate) fn create_additional_permissions_schema() -> JsonSchema {
     JsonSchema::Object {
         properties: std::collections::BTreeMap::from([
             (
-                "network".to_string(),
+                "network".to_owned(),
                 JsonSchema::Boolean {
                     description: Some(
-                        "Whether this command needs sandboxed network access.".to_string(),
+                        "Whether this command needs sandboxed network access.".to_owned(),
                     ),
                 },
             ),
             (
-                "file_system".to_string(),
+                "file_system".to_owned(),
                 JsonSchema::Object {
                     properties: std::collections::BTreeMap::from([
                         (
-                            "read".to_string(),
+                            "read".to_owned(),
                             JsonSchema::Array {
                                 items: Box::new(JsonSchema::String {
                                     description: None,
                                     allowed_values: None,
                                 }),
                                 description: Some(
-                                    "Additional filesystem paths to grant read access for this command."
-                                        .to_string(),
+                                    "Additional filesystem paths to grant read access for this command.".to_owned(),
                                 ),
                             },
                         ),
                         (
-                            "write".to_string(),
+                            "write".to_owned(),
                             JsonSchema::Array {
                                 items: Box::new(JsonSchema::String {
                                     description: None,
                                     allowed_values: None,
                                 }),
                                 description: Some(
-                                    "Additional filesystem paths to grant write access for this command."
-                                        .to_string(),
+                                    "Additional filesystem paths to grant write access for this command.".to_owned(),
                                 ),
                             },
                         ),
@@ -81,47 +79,43 @@ pub(crate) fn create_additional_permissions_schema() -> JsonSchema {
                 },
             ),
             (
-                "macos".to_string(),
+                "macos".to_owned(),
                 JsonSchema::Object {
                     properties: std::collections::BTreeMap::from([
                         (
-                            "preferences".to_string(),
+                            "preferences".to_owned(),
                             JsonSchema::String {
                                 description: Some(
-                                    "Optional macOS preferences access mode (for example: readonly or readwrite)."
-                                        .to_string(),
+                                    "Optional macOS preferences access mode (for example: readonly or readwrite).".to_owned(),
                                 ),
                                 allowed_values: None,
                             },
                         ),
                         (
-                            "automations".to_string(),
+                            "automations".to_owned(),
                             JsonSchema::Array {
                                 items: Box::new(JsonSchema::String {
                                     description: None,
                                     allowed_values: None,
                                 }),
                                 description: Some(
-                                    "Optional list of macOS bundle IDs that need automation access."
-                                        .to_string(),
+                                    "Optional list of macOS bundle IDs that need automation access.".to_owned(),
                                 ),
                             },
                         ),
                         (
-                            "accessibility".to_string(),
+                            "accessibility".to_owned(),
                             JsonSchema::Boolean {
                                 description: Some(
-                                    "Whether this command needs macOS Accessibility access."
-                                        .to_string(),
+                                    "Whether this command needs macOS Accessibility access.".to_owned(),
                                 ),
                             },
                         ),
                         (
-                            "calendar".to_string(),
+                            "calendar".to_owned(),
                             JsonSchema::Boolean {
                                 description: Some(
-                                    "Whether this command needs macOS Calendar access."
-                                        .to_string(),
+                                    "Whether this command needs macOS Calendar access.".to_owned(),
                                 ),
                             },
                         ),

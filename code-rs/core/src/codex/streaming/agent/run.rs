@@ -469,7 +469,7 @@ pub(super) async fn run_agent(sess: Arc<Session>, turn_context: Arc<TurnContext>
                         .notify_background_event_with_order(
                             &sub_id,
                             order,
-                            "Token limit reached; running /compact and continuing…".to_string(),
+                            "Token limit reached; running /compact and continuing…".to_owned(),
                         )
                         .await;
 
@@ -551,8 +551,7 @@ pub(super) async fn run_agent(sess: Arc<Session>, turn_context: Arc<TurnContext>
                         let event = sess.make_event(
                             &sub_id,
                             EventMsg::Warning(crate::protocol::WarningEvent {
-                                message: "Stop hook requested continuation without a prompt; ignoring the block."
-                                    .to_string(),
+                                message: "Stop hook requested continuation without a prompt; ignoring the block.".to_owned(),
                             }),
                         );
                         let _ = sess.tx_event.send(event).await;

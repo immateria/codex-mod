@@ -90,7 +90,7 @@ impl PluginsSettingsView {
         let detail_state = snapshot.details.get(&key);
         if detail_state.is_none() {
             status = Some(StyledText::new(
-                "Loading plugin details...".to_string(),
+                "Loading plugin details...".to_owned(),
                 Style::new().fg(colors::function()),
             ));
         }
@@ -252,11 +252,11 @@ impl PluginsSettingsView {
             .map_or("(unknown repo)", |repo| repo.url.as_str());
         let lines = vec![
             Line::from(Span::styled(
-                "Remove marketplace repo?".to_string(),
+                "Remove marketplace repo?".to_owned(),
                 Style::new().fg(colors::warning()),
             )),
             Line::from(Span::styled(
-                label.to_string(),
+                label.to_owned(),
                 Style::new().fg(colors::text_dim()),
             )),
         ];
@@ -280,7 +280,7 @@ fn build_detail_body_lines(
         )],
         Some(crate::chatwidget::PluginsDetailState::Uninitialized) => vec![Line::from(
             Span::styled(
-                "Loading plugin details...".to_string(),
+                "Loading plugin details...".to_owned(),
                 Style::new().fg(colors::function()),
             ),
         )],

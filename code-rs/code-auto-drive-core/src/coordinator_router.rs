@@ -99,15 +99,15 @@ fn status_response(ctx: &CoordinatorContext) -> CoordinatorRouterResponse {
 
 fn plan_response() -> CoordinatorRouterResponse {
     CoordinatorRouterResponse {
-        user_response: Some("Starting a fresh plan via the planner.".to_string()),
-        cli_command: Some("/plan".to_string()),
+        user_response: Some("Starting a fresh plan via the planner.".to_owned()),
+        cli_command: Some("/plan".to_owned()),
     }
 }
 
 fn stop_response() -> CoordinatorRouterResponse {
     CoordinatorRouterResponse {
-        user_response: Some("Stopping all active automation.".to_string()),
-        cli_command: Some("/stop".to_string()),
+        user_response: Some("Stopping all active automation.".to_owned()),
+        cli_command: Some("/stop".to_owned()),
     }
 }
 

@@ -168,7 +168,7 @@ impl ThemeSelectionView {
                 let input: Vec<code_protocol::models::ResponseItem> = vec![
                     code_protocol::models::ResponseItem::Message {
                         id: None,
-                        role: "developer".to_string(),
+                        role: "developer".to_owned(),
                         content: vec![code_protocol::models::ContentItem::InputText {
                             text: developer,
                         }],
@@ -177,7 +177,7 @@ impl ThemeSelectionView {
                     },
                     code_protocol::models::ResponseItem::Message {
                         id: None,
-                        role: "user".to_string(),
+                        role: "user".to_owned(),
                         content: vec![code_protocol::models::ContentItem::InputText {
                             text: user_prompt,
                         }],
@@ -228,7 +228,7 @@ impl ThemeSelectionView {
                     "required": ["name", "is_dark", "colors"],
                     "additionalProperties": false
                 });
-                let format = code_core::TextFormat { r#type: "json_schema".to_string(), name: Some("custom_theme".to_string()), strict: Some(true), schema: Some(schema) };
+                let format = code_core::TextFormat { r#type: "json_schema".to_owned(), name: Some("custom_theme".to_owned()), strict: Some(true), schema: Some(schema) };
 
                 let mut prompt = code_core::Prompt::default();
                 prompt.input = input;
@@ -237,7 +237,7 @@ impl ThemeSelectionView {
                 prompt.set_log_tag("ui/theme_builder");
 
                 use futures::StreamExt;
-                let _ = progress_tx.send(ProgressMsg::ThinkingDelta("(connecting to model)".to_string()));
+                let _ = progress_tx.send(ProgressMsg::ThinkingDelta("(connecting to model)".to_owned()));
                 let mut stream = match client.stream(&prompt).await {
                     Ok(s) => s,
                     Err(e) => {
@@ -254,7 +254,7 @@ impl ThemeSelectionView {
                 while let Some(ev) = stream.next().await {
                     match ev {
                         Ok(code_core::ResponseEvent::Created { .. }) => {
-                            let _ = progress_tx.send(ProgressMsg::SetStatus("(starting generation)".to_string()));
+                            let _ = progress_tx.send(ProgressMsg::SetStatus("(starting generation)".to_owned()));
                         }
                         Ok(code_core::ResponseEvent::ReasoningSummaryDelta { delta, .. }) => {
                             let _ = progress_tx.send(ProgressMsg::ThinkingDelta(delta));
@@ -295,7 +295,7 @@ impl ThemeSelectionView {
                 let _ = progress_tx.send(ProgressMsg::RawOutput(out.clone()));
                 // If we received no content at all, surface the transport error explicitly
                 if out.trim().is_empty() {
-                    let err = last_err.map_or_else(|| "model stream returned no content".to_string(), |e| format!("model stream error: {e}"));
+                    let err = last_err.map_or_else(|| "model stream returned no content".to_owned(), |e| format!("model stream error: {e}"));
                     let _ = progress_tx.send(ProgressMsg::CompletedErr {
                         error: err,
                         _raw_snippet: String::new(),
@@ -350,7 +350,7 @@ impl ThemeSelectionView {
                         }
                     }
                 };
-                let name = v.get("name").and_then(|x| x.as_str()).unwrap_or("Custom").trim().to_string();
+                let name = v.get("name").and_then(|x| x.as_str()).unwrap_or("Custom").trim().to_owned();
                 let is_dark = v.get("is_dark").and_then(serde_json::Value::as_bool);
                 let mut colors = code_core::config_types::ThemeColors::default();
                 if let Some(map) = v.get("colors").and_then(|x| x.as_object()) {
@@ -398,12 +398,12 @@ impl ThemeSelectionView {
         .is_none()
         {
             let _ = completion_tx.send(ProgressMsg::CompletedErr {
-                error: "background worker unavailable".to_string(),
+                error: "background worker unavailable".to_owned(),
                 _raw_snippet: String::new(),
             });
             fallback_tx.send_background_before_next_output_with_ticket(
                 &fallback_ticket,
-                "Failed to generate theme: background worker unavailable".to_string(),
+                "Failed to generate theme: background worker unavailable".to_owned(),
             );
         }
     }

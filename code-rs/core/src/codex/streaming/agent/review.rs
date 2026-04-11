@@ -30,7 +30,7 @@ pub(super) async fn spawn_review_thread(
     review_config.model_reasoning_summary = ReasoningSummaryConfig::Detailed;
     review_config.model_text_verbosity = config.model_text_verbosity;
     review_config.user_instructions = None;
-    review_config.base_instructions = Some(REVIEW_PROMPT.to_string());
+    review_config.base_instructions = Some(REVIEW_PROMPT.to_owned());
     if let Some(cw) = review_family.context_window {
         review_config.model_context_window = Some(cw);
     }
@@ -75,7 +75,7 @@ pub(super) async fn spawn_review_thread(
     let review_turn_context = Arc::new(TurnContext {
         client: review_client,
         cwd: parent_turn_context.cwd.clone(),
-        base_instructions: Some(REVIEW_PROMPT.to_string()),
+        base_instructions: Some(REVIEW_PROMPT.to_owned()),
         user_instructions: None,
         demo_developer_message: review_demo_message,
         compact_prompt_override: parent_turn_context.compact_prompt_override.clone(),
@@ -129,7 +129,7 @@ pub(super) async fn exit_review_mode(
         Some(output) => {
             let mut sections: Vec<String> = Vec::new();
             if !output.overall_explanation.trim().is_empty() {
-                sections.push(output.overall_explanation.trim().to_string());
+                sections.push(output.overall_explanation.trim().to_owned());
             }
             if !output.findings.is_empty() {
                 sections.push(format_review_findings_block(&output.findings, None));
@@ -148,7 +148,7 @@ pub(super) async fn exit_review_mode(
             }
 
             let results = if sections.is_empty() {
-                "Reviewer did not provide any findings.".to_string()
+                "Reviewer did not provide any findings.".to_owned()
             } else {
                 sections.join("\n\n")
             };
@@ -158,14 +158,13 @@ pub(super) async fn exit_review_mode(
             )
         }
         None => {
-            "<user_action>\n  <context>User initiated a review task, but it ended without a final response. If the user asks about this, tell them to re-initiate a review with `/review` and wait for it to complete.</context>\n  <action>review</action>\n  <results>\n  None.\n  </results>\n</user_action>\n"
-                .to_string()
+            "<user_action>\n  <context>User initiated a review task, but it ended without a final response. If the user asks about this, tell them to re-initiate a review with `/review` and wait for it to complete.</context>\n  <action>review</action>\n  <results>\n  None.\n  </results>\n</user_action>\n".to_owned()
         }
     };
 
     let developer_message = ResponseItem::Message {
         id: None,
-        role: "user".to_string(),
+        role: "user".to_owned(),
         content: vec![ContentItem::InputText { text: developer_text.clone() }],
         end_turn: None,
         phase: None,
@@ -210,7 +209,7 @@ pub(super) fn parse_review_output_event(text: &str) -> ReviewOutputEvent {
     ReviewOutputEvent {
         findings: Vec::new(),
         overall_correctness: String::new(),
-        overall_explanation: text.trim().to_string(),
+        overall_explanation: text.trim().to_owned(),
         overall_confidence_score: 0.0,
     }
 }

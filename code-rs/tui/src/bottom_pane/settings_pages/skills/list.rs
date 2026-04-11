@@ -193,7 +193,7 @@ impl SkillsSettingsView {
         self.editor.edit_scroll_top = 0;
         self.editor.hovered_button = None;
         self.status = Some((
-            "New skill. Fill fields, then Generate draft or Save.".to_string(),
+            "New skill. Fill fields, then Generate draft or Save.".to_owned(),
             Style::default().fg(colors::info()),
         ));
         self.mode = Mode::Edit;

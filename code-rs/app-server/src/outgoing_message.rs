@@ -121,7 +121,7 @@ impl OutgoingMessageSender {
 
         let outgoing_message = OutgoingMessage::Request(OutgoingRequest {
             id: outgoing_message_id.clone(),
-            method: method.to_string(),
+            method: method.to_owned(),
             params,
         });
         let envelope = match connection_id {
@@ -338,7 +338,7 @@ impl OutgoingMessageSender {
         id: RequestId,
         error: JSONRPCErrorError,
     ) {
-        let outgoing_message = OutgoingMessage::Error(OutgoingError { id, error });
+        let outgoing_message = OutgoingMessage::Error(OutgoingError { error, id });
         let envelope = match connection_id {
             Some(connection_id) => OutgoingEnvelope::ToConnection {
                 connection_id,

@@ -80,8 +80,7 @@ pub fn install_system_skills(code_home: &Path) -> Result<(), SystemSkillsError> 
 fn read_marker(path: &AbsolutePathBuf) -> Result<String, SystemSkillsError> {
     Ok(fs::read_to_string(path.as_path())
         .map_err(|source| SystemSkillsError::io("read system skills marker", source))?
-        .trim()
-        .to_string())
+        .trim().to_owned())
 }
 
 fn embedded_system_skills_fingerprint() -> String {

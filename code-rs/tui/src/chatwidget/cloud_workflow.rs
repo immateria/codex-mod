@@ -18,7 +18,7 @@ impl ChatWidget<'_> {
                 if rest.is_empty() {
                     self.request_cloud_task_refresh(None);
                 } else {
-                    self.request_cloud_task_refresh(Some(rest.to_string()));
+                    self.request_cloud_task_refresh(Some(rest.to_owned()));
                 }
             }
             "env" => {
@@ -30,21 +30,21 @@ impl ChatWidget<'_> {
                 } else if let Some(env) = self.cloud_tasks_selected_env.clone() {
                     if self.cloud_tasks_creation_inflight {
                         self.bottom_pane.flash_footer_notice(
-                            "Cloud task creation already in progress".to_string(),
+                            "Cloud task creation already in progress".to_owned(),
                         );
                     } else {
                         self.cloud_tasks_creation_inflight = true;
                         self.cloud_task_create_ticket = Some(self.make_background_tail_ticket());
                         self.app_event_tx.send(AppEvent::SubmitCloudTaskCreate {
                             env_id: env.id,
-                            prompt: rest.to_string(),
+                            prompt: rest.to_owned(),
                             best_of_n: self.cloud_tasks_best_of_n,
                         });
                         self.show_cloud_task_create_progress();
                     }
                 } else {
                     self.show_cloud_tasks_error(
-                        "Select an environment before creating a cloud task".to_string(),
+                        "Select an environment before creating a cloud task".to_owned(),
                     );
                     self.app_event_tx.send(AppEvent::FetchCloudEnvironments);
                 }
@@ -67,7 +67,7 @@ impl ChatWidget<'_> {
         let fetch_action_env = env_id;
         let mut items: Vec<SelectionItem> = Vec::new();
         items.push(SelectionItem {
-            name: "Browse cloud tasks".to_string(),
+            name: "Browse cloud tasks".to_owned(),
             description: Some(format!("Current filter: {current}")),
             is_current: false,
             actions: vec![Box::new(move |tx: &AppEventSender| {
@@ -77,16 +77,16 @@ impl ChatWidget<'_> {
             })],
         });
         items.push(SelectionItem {
-            name: "Select environment".to_string(),
-            description: Some("Choose which environment to browse".to_string()),
+            name: "Select environment".to_owned(),
+            description: Some("Choose which environment to browse".to_owned()),
             is_current: false,
             actions: vec![Box::new(|tx: &AppEventSender| {
                 tx.send(AppEvent::FetchCloudEnvironments);
             })],
         });
         items.push(SelectionItem {
-            name: "Create new task".to_string(),
-            description: Some("Open the composer to submit a new cloud task".to_string()),
+            name: "Create new task".to_owned(),
+            description: Some("Open the composer to submit a new cloud task".to_owned()),
             is_current: false,
             actions: vec![Box::new(|tx: &AppEventSender| {
                 tx.send(AppEvent::OpenCloudTaskCreate);
@@ -94,9 +94,9 @@ impl ChatWidget<'_> {
         });
 
         let view = ListSelectionView::new(
-            " Cloud tasks ".to_string(),
-            Some("Choose an action".to_string()),
-            Some("Enter select · Esc cancel".to_string()),
+            " Cloud tasks ".to_owned(),
+            Some("Choose an action".to_owned()),
+            Some("Enter select · Esc cancel".to_owned()),
             items,
             self.app_event_tx.clone(),
             6,
@@ -107,15 +107,15 @@ impl ChatWidget<'_> {
 
     pub(crate) fn show_cloud_tasks_loading(&mut self) {
         let loading_item = SelectionItem {
-            name: "Loading cloud tasks…".to_string(),
-            description: Some("Fetching latest tasks from Codex Cloud".to_string()),
+            name: "Loading cloud tasks…".to_owned(),
+            description: Some("Fetching latest tasks from Codex Cloud".to_owned()),
             is_current: true,
             actions: Vec::new(),
         };
         let view = ListSelectionView::new(
-            " Cloud tasks ".to_string(),
+            " Cloud tasks ".to_owned(),
             Some(self.cloud_env_label()),
-            Some("Esc cancel".to_string()),
+            Some("Esc cancel".to_owned()),
             vec![loading_item],
             self.app_event_tx.clone(),
             6,
@@ -134,7 +134,7 @@ impl ChatWidget<'_> {
                 .cloud_tasks_selected_env
                 .as_ref()
                 .filter(|env| env.id == *id).map_or_else(|| format!("Environment {id}"), |env| self.display_name_for_env(env)),
-            None => "All environments".to_string(),
+            None => "All environments".to_owned(),
         };
         let view = CloudTasksView::new(
             tasks,
@@ -156,15 +156,15 @@ impl ChatWidget<'_> {
 
     pub(crate) fn show_cloud_environment_loading(&mut self) {
         let loading_item = SelectionItem {
-            name: "Loading environments…".to_string(),
-            description: Some("Fetching available Codex Cloud environments".to_string()),
+            name: "Loading environments…".to_owned(),
+            description: Some("Fetching available Codex Cloud environments".to_owned()),
             is_current: true,
             actions: Vec::new(),
         };
         let view = ListSelectionView::new(
-            " Select environment ".to_string(),
-            Some("Choose which environment to browse".to_string()),
-            Some("Esc cancel".to_string()),
+            " Select environment ".to_owned(),
+            Some("Choose which environment to browse".to_owned()),
+            Some("Esc cancel".to_owned()),
             vec![loading_item],
             self.app_event_tx.clone(),
             8,
@@ -177,15 +177,15 @@ impl ChatWidget<'_> {
         environments: Vec<CloudEnvironment>,
     ) {
         if environments.is_empty() {
-            self.show_cloud_tasks_error("No environments available".to_string());
+            self.show_cloud_tasks_error("No environments available".to_owned());
             return;
         }
         self.cloud_tasks_environments = environments.clone();
 
         let mut items: Vec<SelectionItem> = Vec::with_capacity(environments.len() + 1);
         items.push(SelectionItem {
-            name: "All environments".to_string(),
-            description: Some("Show tasks across every environment".to_string()),
+            name: "All environments".to_owned(),
+            description: Some("Show tasks across every environment".to_owned()),
             is_current: self.cloud_tasks_selected_env.is_none(),
             actions: vec![Box::new(|tx: &AppEventSender| {
                 tx.send(AppEvent::SetCloudEnvironment { environment: None });
@@ -215,9 +215,9 @@ impl ChatWidget<'_> {
         }
 
         let view = ListSelectionView::new(
-            " Select environment ".to_string(),
-            Some("Pick the environment to browse".to_string()),
-            Some("Enter select · Esc cancel".to_string()),
+            " Select environment ".to_owned(),
+            Some("Pick the environment to browse".to_owned()),
+            Some("Enter select · Esc cancel".to_owned()),
             items,
             self.app_event_tx.clone(),
             10,
@@ -229,7 +229,7 @@ impl ChatWidget<'_> {
     pub(crate) fn set_cloud_environment(&mut self, environment: Option<CloudEnvironment>) {
         self.cloud_tasks_selected_env = environment.clone();
         let label = environment
-            .as_ref().map_or_else(|| "All environments".to_string(), |env| self.display_name_for_env(env));
+            .as_ref().map_or_else(|| "All environments".to_owned(), |env| self.display_name_for_env(env));
         self.bottom_pane
             .flash_footer_notice(format!("Cloud tasks filter set to {label}"));
         self.request_cloud_task_refresh(None);
@@ -250,7 +250,7 @@ impl ChatWidget<'_> {
 
     pub(super) fn cloud_env_label(&self) -> String {
         self.cloud_tasks_selected_env
-            .as_ref().map_or_else(|| "All environments".to_string(), |env| self.display_name_for_env(env))
+            .as_ref().map_or_else(|| "All environments".to_owned(), |env| self.display_name_for_env(env))
     }
 
     pub(super) fn current_cloud_env_id(&self) -> Option<String> {
@@ -271,13 +271,13 @@ impl ChatWidget<'_> {
             .as_ref()
             .or(task.environment_id.as_ref())
             .cloned()
-            .unwrap_or_else(|| "Unknown environment".to_string());
+            .unwrap_or_else(|| "Unknown environment".to_owned());
 
         let mut items: Vec<SelectionItem> = Vec::new();
         let diff_id = task.id.0.clone();
         items.push(SelectionItem {
-            name: "View diff".to_string(),
-            description: Some("Open the unified diff in history".to_string()),
+            name: "View diff".to_owned(),
+            description: Some("Open the unified diff in history".to_owned()),
             is_current: true,
             actions: vec![Box::new(move |tx: &AppEventSender| {
                 tx.send(AppEvent::FetchCloudTaskDiff {
@@ -288,8 +288,8 @@ impl ChatWidget<'_> {
 
         let msg_id = task.id.0.clone();
         items.push(SelectionItem {
-            name: "View assistant output".to_string(),
-            description: Some("Show assistant messages associated with this task".to_string()),
+            name: "View assistant output".to_owned(),
+            description: Some("Show assistant messages associated with this task".to_owned()),
             is_current: false,
             actions: vec![Box::new(move |tx: &AppEventSender| {
                 tx.send(AppEvent::FetchCloudTaskMessages {
@@ -300,8 +300,8 @@ impl ChatWidget<'_> {
 
         let preflight_id = task.id.0.clone();
         items.push(SelectionItem {
-            name: "Preflight apply".to_string(),
-            description: Some("Check whether the patch applies cleanly".to_string()),
+            name: "Preflight apply".to_owned(),
+            description: Some("Check whether the patch applies cleanly".to_owned()),
             is_current: false,
             actions: vec![Box::new(move |tx: &AppEventSender| {
                 tx.send(AppEvent::ApplyCloudTask {
@@ -313,8 +313,8 @@ impl ChatWidget<'_> {
 
         let apply_id = task.id.0.clone();
         items.push(SelectionItem {
-            name: "Apply task".to_string(),
-            description: Some("Apply the diff to the working tree".to_string()),
+            name: "Apply task".to_owned(),
+            description: Some("Apply the diff to the working tree".to_owned()),
             is_current: false,
             actions: vec![Box::new(move |tx: &AppEventSender| {
                 tx.send(AppEvent::ApplyCloudTask {
@@ -328,7 +328,7 @@ impl ChatWidget<'_> {
         let view = ListSelectionView::new(
             format!(" Task {} ", task.title),
             Some(subtitle),
-            Some("Enter choose · Esc cancel".to_string()),
+            Some("Enter choose · Esc cancel".to_owned()),
             items,
             self.app_event_tx.clone(),
             8,
@@ -340,7 +340,7 @@ impl ChatWidget<'_> {
     pub(crate) fn show_cloud_task_create_prompt(&mut self) {
         let Some(env) = self.cloud_tasks_selected_env.clone() else {
             self.show_cloud_tasks_error(
-                "Select an environment before creating a cloud task".to_string(),
+                "Select an environment before creating a cloud task".to_owned(),
             );
             return;
         };
@@ -362,8 +362,8 @@ impl ChatWidget<'_> {
 
         let view = CustomPromptView::new(
             format!("Create cloud task ({env_display})"),
-            "Describe the change you want Codex to implement".to_string(),
-            Some("Press Enter to submit · Esc cancel".to_string()),
+            "Describe the change you want Codex to implement".to_owned(),
+            Some("Press Enter to submit · Esc cancel".to_owned()),
             self.app_event_tx.clone(),
             None,
             on_submit,
@@ -406,7 +406,7 @@ impl ChatWidget<'_> {
     }
 
     pub(crate) fn show_cloud_task_apply_status(&mut self, task_id: &str, preflight: bool) {
-        let key = (task_id.to_string(), preflight);
+        let key = (task_id.to_owned(), preflight);
         if !self.cloud_task_apply_tickets.contains_key(&key) {
             let ticket = self.make_background_tail_ticket();
             self.cloud_task_apply_tickets.insert(key.clone(), ticket);
@@ -495,7 +495,7 @@ impl ChatWidget<'_> {
             );
             self.history_push_plain_paragraphs(
                 PlainMessageKind::Notice,
-                vec!["Git repository not initialized.".to_string(), notice],
+                vec!["Git repository not initialized.".to_owned(), notice],
             );
             self.request_redraw();
             return true;
@@ -513,8 +513,8 @@ impl ChatWidget<'_> {
         let resume_init = resume;
         let items = vec![
             SelectionItem {
-                name: "Initialize git repository".to_string(),
-                description: Some("Run `git init` in this folder (recommended).".to_string()),
+                name: "Initialize git repository".to_owned(),
+                description: Some("Run `git init` in this folder (recommended).".to_owned()),
                 is_current: true,
                 actions: vec![Box::new(move |tx: &AppEventSender| {
                     tx.send(AppEvent::ConfirmGitInit {
@@ -523,8 +523,8 @@ impl ChatWidget<'_> {
                 })],
             },
             SelectionItem {
-                name: "Continue without git".to_string(),
-                description: Some("Write-enabled agents and worktrees will be unavailable.".to_string()),
+                name: "Continue without git".to_owned(),
+                description: Some("Write-enabled agents and worktrees will be unavailable.".to_owned()),
                 is_current: false,
                 actions: vec![Box::new(|tx: &AppEventSender| {
                     tx.send(AppEvent::DeclineGitInit);
@@ -533,9 +533,9 @@ impl ChatWidget<'_> {
         ];
 
         let view = ListSelectionView::new(
-            " Git repository required ".to_string(),
+            " Git repository required ".to_owned(),
             Some(subtitle),
-            Some("Enter select - Esc cancel".to_string()),
+            Some("Enter select - Esc cancel".to_owned()),
             items,
             self.app_event_tx.clone(),
             6,
@@ -576,7 +576,7 @@ impl ChatWidget<'_> {
                     let msg = if trimmed.is_empty() {
                         format!("Initialized git repository in {}.", cwd.display())
                     } else {
-                        trimmed.to_string()
+                        trimmed.to_owned()
                     };
                     (true, msg)
                 }
@@ -584,12 +584,12 @@ impl ChatWidget<'_> {
                     let stderr = String::from_utf8_lossy(&out.stderr);
                     let stdout = String::from_utf8_lossy(&out.stdout);
                     let detail = if stderr.trim().is_empty() {
-                        stdout.trim().to_string()
+                        stdout.trim().to_owned()
                     } else {
-                        stderr.trim().to_string()
+                        stderr.trim().to_owned()
                     };
                     let msg = if detail.is_empty() {
-                        "git init failed.".to_string()
+                        "git init failed.".to_owned()
                     } else {
                         format!("git init failed: {detail}")
                     };
@@ -610,7 +610,7 @@ impl ChatWidget<'_> {
         );
         self.history_push_plain_paragraphs(
             PlainMessageKind::Notice,
-            vec!["Git repository not initialized.".to_string(), notice],
+            vec!["Git repository not initialized.".to_owned(), notice],
         );
         self.request_redraw();
     }
@@ -644,7 +644,7 @@ impl ChatWidget<'_> {
             }
         } else {
             let err = if message.trim().is_empty() {
-                "git init failed.".to_string()
+                "git init failed.".to_owned()
             } else {
                 message
             };

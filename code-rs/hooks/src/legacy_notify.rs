@@ -46,7 +46,7 @@ pub fn legacy_notify_json(payload: &HookPayload) -> Result<String, serde_json::E
 pub fn notify_hook(argv: Vec<String>) -> Hook {
     let argv = Arc::new(argv);
     Hook {
-        name: "legacy_notify".to_string(),
+        name: "legacy_notify".to_owned(),
         func: Arc::new(move |payload: &HookPayload| {
             let argv = Arc::clone(&argv);
             Box::pin(async move {

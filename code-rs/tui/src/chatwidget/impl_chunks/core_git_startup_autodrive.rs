@@ -45,8 +45,8 @@ impl ChatWidget<'_> {
         {
             Ok(out) if out.status.success() => Ok(String::from_utf8_lossy(&out.stdout).into_owned()),
             Ok(out) => {
-                let stderr_s = String::from_utf8_lossy(&out.stderr).trim().to_string();
-                let stdout_s = String::from_utf8_lossy(&out.stdout).trim().to_string();
+                let stderr_s = String::from_utf8_lossy(&out.stderr).trim().to_owned();
+                let stdout_s = String::from_utf8_lossy(&out.stdout).trim().to_owned();
                 if !stderr_s.is_empty() {
                     Err(stderr_s)
                 } else if !stdout_s.is_empty() {
@@ -54,7 +54,7 @@ impl ChatWidget<'_> {
                 } else {
                     let code = out
                         .status
-                        .code().map_or_else(|| "terminated by signal".to_string(), |c| format!("exit status {c}"));
+                        .code().map_or_else(|| "terminated by signal".to_owned(), |c| format!("exit status {c}"));
                     Err(format!("{label} failed: {code}"))
                 }
             }
@@ -102,7 +102,7 @@ impl ChatWidget<'_> {
                 "MCP server '{name}' failed to initialize. Run /mcp status for diagnostics."
             );
         }
-        "MCP server failed to initialize. Run /mcp status for diagnostics.".to_string()
+        "MCP server failed to initialize. Run /mcp status for diagnostics.".to_owned()
     }
 
     fn background_tail_order_ticket_internal(&mut self) -> BackgroundOrderTicket {
@@ -204,9 +204,9 @@ impl ChatWidget<'_> {
             return;
         }
 
-        self.push_background_tail(AUTO_DRIVE_SESSION_SUMMARY_NOTICE.to_string());
+        self.push_background_tail(AUTO_DRIVE_SESSION_SUMMARY_NOTICE.to_owned());
         self.request_redraw();
-        self.submit_hidden_text_message_with_preface(prompt.to_string(), String::new());
+        self.submit_hidden_text_message_with_preface(prompt.to_owned(), String::new());
     }
 
     fn spawn_conversation_runtime(

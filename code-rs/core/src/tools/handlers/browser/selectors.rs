@@ -21,7 +21,7 @@ pub(super) async fn handle_browser_click_selector(
     execute_custom_tool(
         sess,
         ctx,
-        "browser_click_selector".to_string(),
+        "browser_click_selector".to_owned(),
         params.clone(),
         || async move {
             let browser_manager = get_browser_manager_for_session(sess_clone).await;
@@ -67,11 +67,11 @@ pub(super) async fn handle_browser_click_selector(
 
             let action_result = match click_type.as_str() {
                 "mousedown" => browser_manager.mouse_down_at_current().await
-                    .map(|(mx, my)| (mx, my, "Mouse down".to_string())),
+                    .map(|(mx, my)| (mx, my, "Mouse down".to_owned())),
                 "mouseup" => browser_manager.mouse_up_at_current().await
-                    .map(|(mx, my)| (mx, my, "Mouse up".to_string())),
+                    .map(|(mx, my)| (mx, my, "Mouse up".to_owned())),
                 _ => browser_manager.click_at_current().await
-                    .map(|(mx, my)| (mx, my, "Clicked".to_string())),
+                    .map(|(mx, my)| (mx, my, "Clicked".to_owned())),
             };
 
             match action_result {
@@ -100,7 +100,7 @@ pub(super) async fn handle_browser_type_selector(
     execute_custom_tool(
         sess,
         ctx,
-        "browser_type_selector".to_string(),
+        "browser_type_selector".to_owned(),
         params.clone(),
         || async move {
             let browser_manager = get_browser_manager_for_session(sess_clone).await;
@@ -175,7 +175,7 @@ pub(super) async fn handle_browser_scroll_into_view(
     execute_custom_tool(
         sess,
         ctx,
-        "browser_scroll_into_view".to_string(),
+        "browser_scroll_into_view".to_owned(),
         params.clone(),
         || async move {
             let browser_manager = get_browser_manager_for_session(sess_clone).await;
@@ -206,7 +206,7 @@ pub(super) async fn handle_browser_scroll_into_view(
                 "rect": { "x": x, "y": y, "width": w, "height": h }
             });
             let pretty = serde_json::to_string_pretty(&payload)
-                .unwrap_or_else(|_| "{}".to_string());
+                .unwrap_or_else(|_| "{}".to_owned());
             tool_output(call_id_clone, pretty)
         },
     )
@@ -226,7 +226,7 @@ pub(super) async fn handle_browser_wait_for(
     execute_custom_tool(
         sess,
         ctx,
-        "browser_wait_for".to_string(),
+        "browser_wait_for".to_owned(),
         params.clone(),
         || async move {
             let browser_manager = get_browser_manager_for_session(sess_clone).await;
@@ -275,13 +275,13 @@ pub(super) async fn handle_browser_wait_for(
             }
 
             let selector_json = match selector.as_deref() {
-                Some(sel) => serde_json::to_string(sel).unwrap_or_else(|_| "null".to_string()),
-                None => "null".to_string(),
+                Some(sel) => serde_json::to_string(sel).unwrap_or_else(|_| "null".to_owned()),
+                None => "null".to_owned(),
             };
 
             let ready_json = match ready_state.as_deref() {
-                Some(target) => serde_json::to_string(target).unwrap_or_else(|_| "null".to_string()),
-                None => "null".to_string(),
+                Some(target) => serde_json::to_string(target).unwrap_or_else(|_| "null".to_owned()),
+                None => "null".to_owned(),
             };
 
             let start = tokio::time::Instant::now();
@@ -357,7 +357,7 @@ pub(super) async fn handle_browser_wait_for(
                                 "state": value,
                             });
                             let pretty = serde_json::to_string_pretty(&payload)
-                                .unwrap_or_else(|_| "{}".to_string());
+                                .unwrap_or_else(|_| "{}".to_owned());
                             return tool_output(call_id_clone, pretty);
                         }
                     }
@@ -374,7 +374,7 @@ pub(super) async fn handle_browser_wait_for(
                         "last_state": last_state,
                     });
                     let pretty = serde_json::to_string_pretty(&payload)
-                        .unwrap_or_else(|_| "{}".to_string());
+                        .unwrap_or_else(|_| "{}".to_owned());
                     return tool_error(call_id_clone, format!(
                         "wait_for timed out.\n{pretty}"
                     ));

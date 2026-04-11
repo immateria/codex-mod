@@ -4,7 +4,7 @@ impl ChatWidget<'_> {
     pub(crate) fn handle_branch_command(&mut self, args: String) {
         self.consume_pending_prompt_for_ui_only_turn();
         let command_text = if args.trim().is_empty() {
-            "/branch".to_string()
+            "/branch".to_owned()
         } else {
             format!("/branch {}", args.trim())
         };
@@ -19,20 +19,19 @@ impl ChatWidget<'_> {
         }
         if Self::is_branch_worktree_path(&self.config.cwd) {
             self.history_push_plain_state(crate::history_cell::new_error_event(
-                "`/branch` — already inside a branch worktree; switch to the repo root before creating another branch."
-                    .to_string(),
+                "`/branch` — already inside a branch worktree; switch to the repo root before creating another branch.".to_owned(),
             ));
             self.request_redraw();
             return;
         }
-        let args_trim = args.trim().to_string();
+        let args_trim = args.trim().to_owned();
         let cwd = self.config.cwd.clone();
         let tx = self.app_event_tx.clone();
         let branch_tail_ticket = self.make_background_tail_ticket();
         // Add a quick notice into history, include task preview if provided
         if args_trim.is_empty() {
             self.insert_background_event_with_placement(
-                "Creating branch worktree...".to_string(),
+                "Creating branch worktree...".to_owned(),
                 BackgroundPlacement::BeforeNextOutput,
                 None,
             );
@@ -67,7 +66,7 @@ impl ChatWidget<'_> {
                 .ok()
                 .filter(|o| o.status.success())
                 .and_then(|o| {
-                    let name = String::from_utf8_lossy(&o.stdout).trim().to_string();
+                    let name = String::from_utf8_lossy(&o.stdout).trim().to_owned();
                     if name.is_empty() { None } else { Some(name) }
                 });
             // Determine branch name
@@ -147,7 +146,7 @@ impl ChatWidget<'_> {
                 .ok()
                 .filter(|o| o.status.success())
                 .and_then(|o| {
-                    let s = String::from_utf8_lossy(&o.stdout).trim().to_string();
+                    let s = String::from_utf8_lossy(&o.stdout).trim().to_owned();
                     if s.is_empty() { None } else { Some(s) }
                 });
             // Ensure origin/HEAD points at the remote default, if origin exists.
@@ -177,7 +176,7 @@ impl ChatWidget<'_> {
                         _upstream_msg =
                             Some(format!("Set upstream for '{used_branch}' to {up}"));
                     } else {
-                        let e = String::from_utf8_lossy(&o.stderr).trim().to_string();
+                        let e = String::from_utf8_lossy(&o.stderr).trim().to_owned();
                         if !e.is_empty() {
                             _upstream_msg = Some(format!("Upstream not set ({e})."));
                         }
@@ -230,7 +229,7 @@ impl ChatWidget<'_> {
         if self.ensure_git_repo_for_action(
             GitInitResume::DispatchCommand {
                 command: SlashCommand::Push,
-                command_text: "/push".to_string(),
+                command_text: "/push".to_owned(),
             },
             "Pushing changes requires a git repository.",
         ) {
@@ -239,12 +238,12 @@ impl ChatWidget<'_> {
         let Some(git_root) =
             code_core::git_info::resolve_root_git_project_for_trust(&self.config.cwd)
         else {
-            self.push_background_tail("`/push` — run this command inside a git repository.".to_string());
+            self.push_background_tail("`/push` — run this command inside a git repository.".to_owned());
             self.request_redraw();
             return;
         };
 
-        self.push_background_tail("Commit, push and monitor workflows.".to_string());
+        self.push_background_tail("Commit, push and monitor workflows.".to_owned());
         self.request_redraw();
 
         let tx = self.app_event_tx.clone();
@@ -300,9 +299,9 @@ impl ChatWidget<'_> {
             };
 
             let status_snippet = if short_status.trim().is_empty() {
-                "(clean working tree)".to_string()
+                "(clean working tree)".to_owned()
             } else {
-                short_status.trim_end().to_string()
+                short_status.trim_end().to_owned()
             };
 
             let diff_output = Command::new("git")
@@ -314,7 +313,7 @@ impl ChatWidget<'_> {
                 Ok(out) if out.status.success() => {
                     let diff_text = String::from_utf8_lossy(&out.stdout);
                     if diff_text.trim().is_empty() {
-                        "(no staged changes)".to_string()
+                        "(no staged changes)".to_owned()
                     } else {
                         const MAX_LINES: usize = 200;
                         const MAX_CHARS: usize = 16_000;
@@ -333,13 +332,13 @@ impl ChatWidget<'_> {
                         if truncated {
                             preview.push_str("…\n(truncated)\n");
                         }
-                        preview.trim_end().to_string()
+                        preview.trim_end().to_owned()
                     }
                 }
                 Ok(out) => {
-                    let err = String::from_utf8_lossy(&out.stderr).trim().to_string();
+                    let err = String::from_utf8_lossy(&out.stderr).trim().to_owned();
                     if err.is_empty() {
-                        "(failed to read staged diff)".to_string()
+                        "(failed to read staged diff)".to_owned()
                     } else {
                         format!("(failed to read staged diff: {err})")
                     }
@@ -350,23 +349,19 @@ impl ChatWidget<'_> {
             let mut steps = Vec::new();
             if has_dirty_changes {
                 steps.push(
-                    "Briefly clean this repo (add working files/secrets to .gitignore, delete any temporary files) if neccessary, then commit all remaining dirty files."
-                        .to_string(),
+                    "Briefly clean this repo (add working files/secrets to .gitignore, delete any temporary files) if neccessary, then commit all remaining dirty files.".to_owned(),
                 );
             }
             steps.push(
-                "Run git pull and merge any remote changes, carefully. Ensure conflicts are resolved line-by-line, do not bulk checkout or prefer changes from one side or the other."
-                    .to_string(),
+                "Run git pull and merge any remote changes, carefully. Ensure conflicts are resolved line-by-line, do not bulk checkout or prefer changes from one side or the other.".to_owned(),
             );
-            steps.push("Perform a git push.".to_string());
+            steps.push("Perform a git push.".to_owned());
             if gh_available && workflows_exist {
                 steps.push(
-                    "Use gh_run_wait to monitor any triggered workflows."
-                        .to_string(),
+                    "Use gh_run_wait to monitor any triggered workflows.".to_owned(),
                 );
                 steps.push(
-                    "If the workflow fails, then view errors, commit, push, monitor and repeat until the workflow succeeds."
-                        .to_string(),
+                    "If the workflow fails, then view errors, commit, push, monitor and repeat until the workflow succeeds.".to_owned(),
                 );
             }
 
@@ -396,7 +391,7 @@ impl ChatWidget<'_> {
         let name = args.trim();
         if name.is_empty() {
             self.history_push_plain_state(crate::history_cell::new_error_event(
-                "`/cmd` — provide a project command name".to_string(),
+                "`/cmd` — provide a project command name".to_owned(),
             ));
             self.request_redraw();
             return;
@@ -404,7 +399,7 @@ impl ChatWidget<'_> {
 
         if self.config.project_commands.is_empty() {
             self.history_push_plain_state(crate::history_cell::new_error_event(
-                "No project commands configured for this workspace.".to_string(),
+                "No project commands configured for this workspace.".to_owned(),
             ));
             self.request_redraw();
             return;
@@ -496,7 +491,7 @@ impl ChatWidget<'_> {
                         }
                     })
                     .or(meta.base_branch.clone())
-                    .unwrap_or_else(|| code_core::git_worktree::LOCAL_DEFAULT_REMOTE.to_string());
+                    .unwrap_or_else(|| code_core::git_worktree::LOCAL_DEFAULT_REMOTE.to_owned());
                 let mut note = format!(
                     "System: Working directory changed from {} to {}{}. You are now working on branch '{}' checked out at {}. Compare against '{}' for the parent branch and run all commands from this directory.",
                     previous_cwd.display(),
@@ -528,7 +523,7 @@ impl ChatWidget<'_> {
 
         if let Some(prompt) = initial_prompt
             && !prompt.is_empty() {
-                let preface = "[internal] When you finish this task, ask the user if they want any changes. If they are happy, offer to merge the branch back into the repository's default branch and delete the worktree. Use '/merge' (or an equivalent git worktree remove + switch) rather than deleting the folder directly so the UI can switch back cleanly. Wait for explicit confirmation before merging.".to_string();
+                let preface = "[internal] When you finish this task, ask the user if they want any changes. If they are happy, offer to merge the branch back into the repository's default branch and delete the worktree. Use '/merge' (or an equivalent git worktree remove + switch) rather than deleting the folder directly so the UI can switch back cleanly. Wait for explicit confirmation before merging.".to_owned();
                 self.submit_text_message_with_preface(prompt, preface);
             }
 
@@ -543,7 +538,7 @@ impl ChatWidget<'_> {
         if self.ensure_git_repo_for_action(
             GitInitResume::DispatchCommand {
                 command: SlashCommand::Merge,
-                command_text: "/merge".to_string(),
+                command_text: "/merge".to_owned(),
             },
             "Merging a branch worktree requires a git repository.",
         ) {
@@ -551,7 +546,7 @@ impl ChatWidget<'_> {
         }
         if !Self::is_branch_worktree_path(&self.config.cwd) {
             self.history_push_plain_state(crate::history_cell::new_error_event(
-                "`/merge` — run this command from inside a branch worktree created with '/branch'.".to_string(),
+                "`/merge` — run this command from inside a branch worktree created with '/branch'.".to_owned(),
             ));
             self.request_redraw();
             return;
@@ -562,7 +557,7 @@ impl ChatWidget<'_> {
         let work_cwd = self.config.cwd.clone();
         let ticket = merge_ticket;
         self.push_background_before_next_output(
-            "Evaluating repository state before merging current branch...".to_string(),
+            "Evaluating repository state before merging current branch...".to_owned(),
         );
         self.request_redraw();
 
@@ -591,7 +586,7 @@ impl ChatWidget<'_> {
                 mut reasons: Vec<String>,
             ) {
                 if reasons.is_empty() {
-                    reasons.push("manual follow-up requested".to_string());
+                    reasons.push("manual follow-up requested".to_owned());
                 }
                 let reason_text = reasons.join(", ");
                 if state.git_root != state.worktree_path {
@@ -610,7 +605,7 @@ impl ChatWidget<'_> {
             }
 
             let Some(git_root) = code_core::git_info::resolve_root_git_project_for_trust(&work_cwd) else {
-                send_background(&tx, &ticket, "`/merge` — not a git repo".to_string());
+                send_background(&tx, &ticket, "`/merge` — not a git repo".to_owned());
                 return;
             };
             let merge_lock = ChatWidget::merge_lock_for_repo(&git_root);
@@ -618,7 +613,7 @@ impl ChatWidget<'_> {
                 send_background(
                     &tx,
                     &ticket,
-                    "`/merge` — waiting for an in-progress merge to finish".to_string(),
+                    "`/merge` — waiting for an in-progress merge to finish".to_owned(),
                 );
                 merge_lock.lock().await
             };

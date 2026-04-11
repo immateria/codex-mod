@@ -220,8 +220,8 @@ impl ChatWidget<'_> {
         self.browser_is_external = true;
         let latest_screenshot = self.latest_browser_screenshot.clone();
         let app_event_tx = self.app_event_tx.clone();
-        let port_display = port.map_or("auto-detect".to_string(), |p| p.to_string());
-        let host_display = host.clone().unwrap_or_else(|| "127.0.0.1".to_string());
+        let port_display = port.map_or("auto-detect".to_owned(), |p| p.to_string());
+        let host_display = host.clone().unwrap_or_else(|| "127.0.0.1".to_owned());
 
         // Add status message to chat (use BackgroundEvent with header so it renders reliably)
         let status_msg = format!(
@@ -281,7 +281,7 @@ impl ChatWidget<'_> {
                     // Notify UI
                     app_event_tx.send_background_event_with_ticket(
                         &ticket,
-                        "Disconnected from Chrome".to_string(),
+                        "Disconnected from Chrome".to_owned(),
                     );
                     let _ = tx.send(true);
                 } else {
@@ -314,7 +314,7 @@ impl ChatWidget<'_> {
                 });
                 let status = status_rx
                     .recv()
-                    .unwrap_or_else(|_| "Failed to get browser status.".to_string());
+                    .unwrap_or_else(|_| "Failed to get browser status.".to_owned());
 
                 let lines: Vec<String> =
                     status.lines().map(ToString::to_string).collect();
@@ -343,7 +343,7 @@ impl ChatWidget<'_> {
                     match bm.capture_screenshot_with_url().await {
                         Ok((paths, url)) => {
                             if let Some(first_path) = paths.first() {
-                                let url_text = url.unwrap_or_else(|| "Browser".to_string());
+                                let url_text = url.unwrap_or_else(|| "Browser".to_owned());
                                 set_latest_screenshot(
                                     &latest_screenshot,
                                     first_path.clone(),

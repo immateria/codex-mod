@@ -57,7 +57,7 @@ pub(super) async fn try_run_turn(
             // Channel closed without yielding a final Completed event or explicit error.
             // Treat as a disconnected stream so the caller can retry.
             turn_latency_guard
-                .mark_failed(Some("stream_closed_before_completed".to_string()));
+                .mark_failed(Some("stream_closed_before_completed".to_owned()));
             return Err(CodexErr::Stream(
                 "stream closed before response.completed".into(),
                 None,
@@ -126,7 +126,7 @@ pub(super) async fn try_run_turn(
             ResponseEvent::WebSearchCallBegin { call_id } => {
                 // Stamp OrderMeta so the TUI can place the search block within
                 // the correct request window instead of using an internal epilogue.
-                let ctx = ToolCallCtx::new(sub_id.to_string(), call_id.clone(), None, None);
+                let ctx = ToolCallCtx::new(sub_id.to_owned(), call_id.clone(), None, None);
                 let order = ctx.order_meta(attempt_req);
                 let ev = sess.make_event_with_order(
                     sub_id,
@@ -137,7 +137,7 @@ pub(super) async fn try_run_turn(
                 sess.send_event(ev).await;
             }
             ResponseEvent::WebSearchCallCompleted { call_id, query } => {
-                let ctx = ToolCallCtx::new(sub_id.to_string(), call_id.clone(), None, None);
+                let ctx = ToolCallCtx::new(sub_id.to_owned(), call_id.clone(), None, None);
                 let order = ctx.order_meta(attempt_req);
                 let ev = sess.make_event_with_order(
                     sub_id,
@@ -233,7 +233,7 @@ pub(super) async fn try_run_turn(
                 // Use the item_id if present and non-empty, otherwise fall back to sub_id.
                 let event_id = item_id
                     .filter(|id| !id.is_empty())
-                    .unwrap_or_else(|| sub_id.to_string());
+                    .unwrap_or_else(|| sub_id.to_owned());
                 let order = crate::protocol::OrderMeta {
                     request_ordinal: attempt_req,
                     output_index,
@@ -251,7 +251,7 @@ pub(super) async fn try_run_turn(
                 // Use the item_id if present and non-empty, otherwise fall back to sub_id.
                 let mut event_id = item_id
                     .filter(|id| !id.is_empty())
-                    .unwrap_or_else(|| sub_id.to_string());
+                    .unwrap_or_else(|| sub_id.to_owned());
                 if let Some(si) = summary_index { event_id = format!("{event_id}#s{si}"); }
                 let order = crate::protocol::OrderMeta { request_ordinal: attempt_req, output_index, sequence_number };
                 let stamped = sess.make_event_with_order(&event_id, EventMsg::AgentReasoningDelta(AgentReasoningDeltaEvent { delta: delta.clone() }), order, sequence_number);
@@ -269,7 +269,7 @@ pub(super) async fn try_run_turn(
                     // Use the item_id if present and non-empty, otherwise fall back to sub_id.
                     let mut event_id = item_id
                         .filter(|id| !id.is_empty())
-                        .unwrap_or_else(|| sub_id.to_string());
+                        .unwrap_or_else(|| sub_id.to_owned());
                     if let Some(ci) = content_index { event_id = format!("{event_id}#c{ci}"); }
                     let order = crate::protocol::OrderMeta { request_ordinal: attempt_req, output_index, sequence_number };
                     let stamped = sess.make_event_with_order(&event_id, EventMsg::AgentReasoningRawContentDelta(AgentReasoningRawContentDeltaEvent { delta }), order, sequence_number);

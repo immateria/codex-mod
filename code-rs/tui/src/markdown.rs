@@ -90,7 +90,7 @@ pub(crate) fn append_markdown_with_opener_and_cwd_and_bold(
                 // When fenced and language is known, emit a hidden sentinel line so the
                 // downstream renderer can surface a border + title without losing lang info.
                 if fenced {
-                    let label = _lang.clone().unwrap_or_else(|| "text".to_string());
+                    let label = _lang.clone().unwrap_or_else(|| "text".to_owned());
                     let sentinel = format!("⟦LANG:{label}⟧");
                     lines.push(Line::from(Span::styled(sentinel, Style::default().fg(code_bg).bg(code_bg))));
                 }
@@ -260,7 +260,7 @@ fn split_text_and_fences(src: &str) -> Vec<Segment> {
                 code_lang = if lang.is_empty() {
                     None
                 } else {
-                    Some(lang.to_string())
+                    Some(lang.to_owned())
                 };
                 code_mode = CodeMode::Fenced;
                 code_content.clear();

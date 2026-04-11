@@ -92,7 +92,7 @@ pub struct GitSha(pub String);
 
 impl GitSha {
     pub fn new(sha: &str) -> Self {
-        Self(sha.to_string())
+        Self(sha.to_owned())
     }
 }
 

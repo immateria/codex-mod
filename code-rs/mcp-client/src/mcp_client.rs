@@ -185,7 +185,7 @@ impl McpClient {
                             info!("<- unhandled message: {:?}", other);
                         }
                         Err(e) => {
-                            error!("failed to deserialize JSONRPCMessage: {e}; line = {}", line)
+                            error!("failed to deserialize JSONRPCMessage: {e}; line = {}", line);
                         }
                     }
                 }
@@ -236,8 +236,8 @@ impl McpClient {
 
         let jsonrpc_request = JSONRPCRequest {
             id: request_id.clone(),
-            jsonrpc: JSONRPC_VERSION.to_string(),
-            method: R::METHOD.to_string(),
+            jsonrpc: JSONRPC_VERSION.to_owned(),
+            method: R::METHOD.to_owned(),
             params: params_field,
         };
 
@@ -315,9 +315,9 @@ impl McpClient {
             Some(params_json)
         };
 
-        let method = N::METHOD.to_string();
+        let method = N::METHOD.to_owned();
         let jsonrpc_notification = JSONRPCNotification {
-            jsonrpc: JSONRPC_VERSION.to_string(),
+            jsonrpc: JSONRPC_VERSION.to_owned(),
             method: method.clone(),
             params: params_field,
         };

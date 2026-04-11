@@ -83,11 +83,11 @@ impl FsApi {
         resolve_binary: fn() -> Option<std::path::PathBuf>,
     ) -> Result<ExecServerFsBackend, String> {
         match &self.mode {
-            ExecServerMode::Disabled => Err("exec-server is disabled".to_string()),
+            ExecServerMode::Disabled => Err("exec-server is disabled".to_owned()),
             ExecServerMode::Remote { url } => {
                 let env = code_exec_server::Environment::create_with_client_name(
                     Some(url.clone()),
-                    "code-app-server".to_string(),
+                    "code-app-server".to_owned(),
                 )
                 .await
                 .map_err(|err| err.to_string())?;
@@ -98,15 +98,15 @@ impl FsApi {
             }
             ExecServerMode::Spawn => {
                 let binary = resolve_binary().ok_or_else(|| {
-                    "unable to resolve `codex-exec-server` binary path for experimental_spawn_exec_server".to_string()
+                    "unable to resolve `codex-exec-server` binary path for experimental_spawn_exec_server".to_owned()
                 })?;
                 let spawned = spawn_exec_server(&binary)
                     .await
                     .map_err(|err| format!("failed to spawn `codex-exec-server`: {err}"))?;
 
                 let env = code_exec_server::Environment::create_with_client_name(
-                    Some(spawned.listen_url().to_string()),
-                    "code-app-server".to_string(),
+                    Some(spawned.listen_url().to_owned()),
+                    "code-app-server".to_owned(),
                 )
                 .await
                 .map_err(|err| format!("failed to connect to spawned exec-server: {err}"))?;

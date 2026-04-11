@@ -28,8 +28,8 @@ impl PackagePlatform {
             ("windows", "aarch64") | ("windows", "arm64") => Ok(Self::WindowsArm64),
             ("windows", "x86_64") => Ok(Self::WindowsX64),
             (os, arch) => Err(PackageManagerError::UnsupportedPlatform {
-                os: os.to_string(),
-                arch: arch.to_string(),
+                os: os.to_owned(),
+                arch: arch.to_owned(),
             }),
         }
     }

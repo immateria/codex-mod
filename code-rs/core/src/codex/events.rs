@@ -61,20 +61,20 @@ impl Session {
             // (see `begin_http_attempt`).
             let e = state
                 .event_seq_by_sub_id
-                .entry(sub_id.to_string())
+                .entry(sub_id.to_owned())
                 .or_insert(0);
             *e = 0;
             0
         } else {
             let e = state
                 .event_seq_by_sub_id
-                .entry(sub_id.to_string())
+                .entry(sub_id.to_owned())
                 .or_insert(0);
             *e = e.saturating_add(1);
             *e
         };
         Event {
-            id: sub_id.to_string(),
+            id: sub_id.to_owned(),
             event_seq: seq,
             msg,
             order: None,

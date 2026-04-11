@@ -145,11 +145,11 @@ fn format_upgrade_message(
         if pos > 0 {
             spans.push(Span::styled(remaining[..pos].to_string(), base_style));
         }
-        spans.push(Span::styled(TOKEN.to_string(), highlight_style));
+        spans.push(Span::styled(TOKEN.to_owned(), highlight_style));
         remaining = &remaining[pos + TOKEN.len()..];
     }
     if !remaining.is_empty() {
-        spans.push(Span::styled(remaining.to_string(), base_style));
+        spans.push(Span::styled(remaining.to_owned(), base_style));
     }
     spans
 }
@@ -170,9 +170,9 @@ pub(crate) fn new_upgrade_prelude(latest_version: Option<&str>) -> Option<Upgrad
 
     let state = UpgradeNoticeState {
         id: HistoryId::ZERO,
-        current_version: current.trim().to_string(),
-        latest_version: latest.trim().to_string(),
-        message: "Use /upgrade to upgrade now or enable auto-update.".to_string(),
+        current_version: current.trim().to_owned(),
+        latest_version: latest.trim().to_owned(),
+        message: "Use /upgrade to upgrade now or enable auto-update.".to_owned(),
     };
 
     Some(UpgradeNoticeCell::new(state))

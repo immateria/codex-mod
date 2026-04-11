@@ -121,7 +121,7 @@ impl LocalProcess {
     pub(crate) fn initialize(&self) -> Result<InitializeResponse, JSONRPCErrorError> {
         if self.inner.initialize_requested.swap(true, Ordering::SeqCst) {
             return Err(invalid_request(
-                "initialize may only be sent once per connection".to_string(),
+                "initialize may only be sent once per connection".to_owned(),
             ));
         }
         Ok(InitializeResponse {})
@@ -159,7 +159,7 @@ impl LocalProcess {
         let (program, args) = params
             .argv
             .split_first()
-            .ok_or_else(|| invalid_params("argv must not be empty".to_string()))?;
+            .ok_or_else(|| invalid_params("argv must not be empty".to_owned()))?;
 
         {
             let mut process_map = self.inner.processes.lock().await;
@@ -348,7 +348,7 @@ impl LocalProcess {
         writer_tx
             .send(params.chunk.into_inner())
             .await
-            .map_err(|_| internal_error("failed to write to process stdin".to_string()))?;
+            .map_err(|_| internal_error("failed to write to process stdin".to_owned()))?;
 
         Ok(WriteResponse { accepted: true })
     }
@@ -392,7 +392,7 @@ impl ExecProcess for LocalProcess {
         chunk: Vec<u8>,
     ) -> Result<WriteResponse, ExecServerError> {
         self.exec_write(WriteParams {
-            process_id: process_id.to_string(),
+            process_id: process_id.to_owned(),
             chunk: chunk.into(),
         })
         .await
@@ -401,7 +401,7 @@ impl ExecProcess for LocalProcess {
 
     async fn terminate(&self, process_id: &str) -> Result<TerminateResponse, ExecServerError> {
         self.terminate_process(TerminateParams {
-            process_id: process_id.to_string(),
+            process_id: process_id.to_owned(),
         })
         .await
         .map_err(map_handler_error)

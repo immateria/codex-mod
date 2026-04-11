@@ -81,7 +81,7 @@ fn status_field_prefix(label: &str) -> String {
 }
 
 fn status_content_prefix() -> String {
-    STATUS_CONTENT_PREFIX.to_string()
+    STATUS_CONTENT_PREFIX.to_owned()
 }
 
 fn describe_cloud_error(err: &CloudTaskError) -> String {
@@ -525,7 +525,7 @@ fn resolve_auto_review_worktree_path(git_root: &Path, branch: &str) -> Option<Pa
 async fn remove_worktree_path(git_root: &Path, path: &Path) -> Result<(), String> {
     let path_str = path
         .to_str()
-        .ok_or_else(|| "invalid worktree path".to_string())?;
+        .ok_or_else(|| "invalid worktree path".to_owned())?;
     let remove = tokio::process::Command::new("git")
         .current_dir(git_root)
         .args(["worktree", "remove", "-f", path_str])
@@ -627,7 +627,7 @@ async fn allocate_fallback_auto_review_worktree(
         }
     }
 
-    Err("Auto review fallback pool is busy; try again soon.".to_string())
+    Err("Auto review fallback pool is busy; try again soon.".to_owned())
 }
 
 #[derive(Clone, Debug)]
@@ -1149,7 +1149,7 @@ impl GhostSnapshot {
             if trimmed.is_empty() {
                 None
             } else {
-                Some(trimmed.to_string())
+                Some(trimmed.to_owned())
             }
         });
         Self {
@@ -1389,7 +1389,7 @@ fn short_batch_label(batch_id: &str) -> String {
     let source = if compact.is_empty() { batch_id } else { compact.as_str() };
     let short = &source[..source.len().min(8)];
     if short.is_empty() {
-        "Batch".to_string()
+        "Batch".to_owned()
     } else {
         format!("Batch {short}")
     }
@@ -1591,12 +1591,12 @@ impl AgentsTerminalState {
                         .as_ref()
                         .and_then(|value| {
                             let trimmed = value.trim();
-                            (!trimmed.is_empty()).then(|| trimmed.to_string())
+                            (!trimmed.is_empty()).then(|| trimmed.to_owned())
                         })
                         .or_else(|| {
                             key.as_ref().map(|batch| short_batch_label(batch))
                         })
-                        .unwrap_or_else(|| "Ad-hoc Agents".to_string());
+                        .unwrap_or_else(|| "Ad-hoc Agents".to_owned());
                     let idx = groups.len();
                     group_lookup.insert(key.clone(), idx);
                     groups.push(AgentsSidebarGroup {

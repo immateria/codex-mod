@@ -25,7 +25,7 @@ impl ChatWidget<'_> {
     pub(super) fn format_model_name(&self, model_name: &str) -> String {
         fn format_segment(segment: &str) -> String {
             if segment.eq_ignore_ascii_case("codex") {
-                return "Codex".to_string();
+                return "Codex".to_owned();
             }
 
             let mut chars = segment.chars();
@@ -54,7 +54,7 @@ impl ChatWidget<'_> {
                 .join("-");
             format!("GPT-{formatted_rest}")
         } else {
-            model_name.to_string()
+            model_name.to_owned()
         }
     }
 

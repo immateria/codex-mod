@@ -133,7 +133,7 @@ fn parse_bind_addr() -> Result<SocketAddr, Box<dyn std::error::Error>> {
     let default_addr = "127.0.0.1:3920";
     let bind_addr = std::env::var("MCP_STREAMABLE_HTTP_BIND_ADDR")
         .or_else(|_| std::env::var("BIND_ADDR"))
-        .unwrap_or_else(|_| default_addr.to_string());
+        .unwrap_or_else(|_| default_addr.to_owned());
     Ok(bind_addr.parse()?)
 }
 

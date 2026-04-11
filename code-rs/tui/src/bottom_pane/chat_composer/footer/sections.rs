@@ -44,10 +44,10 @@ impl ChatComposer {
             let key = first.trim();
             let remainder = rest.trim_start();
             if Self::is_auto_drive_key(key) {
-                return (Some(key.to_string()), remainder.to_string());
+                return (Some(key.to_owned()), remainder.to_owned());
             }
         }
-        (None, part.to_string())
+        (None, part.to_owned())
     }
 
     fn is_auto_drive_key(token: &str) -> bool {
@@ -156,7 +156,7 @@ impl ChatComposer {
                     let plural = if count == 1 { "Issue" } else { "Issues" };
                     format!("{count} {plural} Fixed")
                 } else {
-                    "Issues Fixed".to_string()
+                    "Issues Fixed".to_owned()
                 };
                 vec![
                     Span::styled("Auto Review: ", label_style),

@@ -23,7 +23,7 @@ impl UpdateSettingsView {
             let guided_command_label = self.guided_command_label();
             format!("Guided command: {guided_command_label}")
         } else {
-            "Run Upgrade will post manual instructions in the transcript.".to_string()
+            "Run Upgrade will post manual instructions in the transcript.".to_owned()
         };
 
         vec![
@@ -41,7 +41,7 @@ impl UpdateSettingsView {
     fn guided_command_label(&self) -> String {
         self.command_display.clone().unwrap_or_else(|| {
             self.command
-                .as_ref().map_or_else(|| "manual instructions".to_string(), |command| command.join(" "))
+                .as_ref().map_or_else(|| "manual instructions".to_owned(), |command| command.join(" "))
         })
     }
 

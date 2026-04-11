@@ -56,7 +56,7 @@ impl TextArea {
     }
 
     pub fn set_text(&mut self, text: &str) {
-        self.text = text.to_string();
+        self.text = text.to_owned();
         self.cursor_pos = self.cursor_pos.clamp(0, self.text.len());
         self.wrap_cache.replace(None);
         self.preferred_col = None;

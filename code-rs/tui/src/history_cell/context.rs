@@ -178,15 +178,15 @@ fn build_delta_line(delta: &ContextDeltaRecord, primary: Style, dim: Style) -> L
 
     let mut spans = Vec::new();
     spans.push(Span::styled("• ", dim));
-    spans.push(Span::styled(field.to_string(), primary));
+    spans.push(Span::styled(field.to_owned(), primary));
     spans.push(Span::styled(": ", dim));
 
     let previous: Cow<'static, str> = match delta.previous.as_deref() {
-        Some(s) => s.to_string().into(),
+        Some(s) => s.to_owned().into(),
         None => "—".into(),
     };
     let current: Cow<'static, str> = match delta.current.as_deref() {
-        Some(s) => s.to_string().into(),
+        Some(s) => s.to_owned().into(),
         None => "—".into(),
     };
 

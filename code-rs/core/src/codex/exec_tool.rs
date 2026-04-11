@@ -26,7 +26,7 @@ pub(crate) async fn handle_wait(
         && let Some(serde_json::Value::String(cid)) = map.get("call_id")
         && let Some(display) = sess.background_exec_cmd_display(cid)
     {
-        map.insert("for".to_string(), serde_json::Value::String(display));
+        map.insert("for".to_owned(), serde_json::Value::String(display));
     }
     let arguments_clone = arguments.clone();
     let ctx_clone = ToolCallCtx::new(ctx.sub_id.clone(), ctx.call_id.clone(), ctx.seq_hint, ctx.output_index);
@@ -34,7 +34,7 @@ pub(crate) async fn handle_wait(
     execute_custom_tool(
         sess,
         &ctx_clone,
-        "wait".to_string(),
+        "wait".to_owned(),
         params_for_event,
         move || async move {
             let ctx_inner = ctx_for_closure.clone();
@@ -50,7 +50,7 @@ pub(crate) async fn handle_wait(
                         return ResponseInputItem::FunctionCallOutput {
                             call_id: ctx_inner.call_id.clone(),
                             output: FunctionCallOutputPayload {
-                                body: FunctionCallOutputBody::Text("wait requires a call_id".to_string()),
+                                body: FunctionCallOutputBody::Text("wait requires a call_id".to_owned()),
                                 success: Some(false),
                             },
                         };
@@ -287,7 +287,7 @@ pub(crate) async fn handle_wait(
                     ResponseInputItem::FunctionCallOutput {
                         call_id: ctx_inner.call_id.clone(),
                         output: FunctionCallOutputPayload {
-                            body: FunctionCallOutputBody::Text("No completed background job found".to_string()),
+                            body: FunctionCallOutputBody::Text("No completed background job found".to_owned()),
                             success: Some(false),
                         },
                     }
@@ -316,7 +316,7 @@ pub(crate) async fn handle_kill(
     execute_custom_tool(
         sess,
         &ctx_clone,
-        "kill".to_string(),
+        "kill".to_owned(),
         params_for_event.take(),
         move || async move {
             let ctx_inner = ctx_for_closure.clone();
@@ -393,7 +393,7 @@ pub(crate) async fn handle_kill(
                 let _ = handle.await;
             }
 
-            let cancel_message = "Cancelled by user.".to_string();
+            let cancel_message = "Cancelled by user.".to_owned();
             let output = ExecToolCallOutput {
                 exit_code: 130,
                 stdout: StreamOutput::new(String::new()),
@@ -542,7 +542,7 @@ pub(crate) fn parse_container_exec_arguments(
         Err(e) => {
             // allow model to re-sample
             let output = ResponseInputItem::FunctionCallOutput {
-                call_id: call_id.to_string(),
+                call_id: call_id.to_owned(),
                 output: FunctionCallOutputPayload {
                     body: FunctionCallOutputBody::Text(format!("failed to parse function arguments: {e}")),
                     success: None,
@@ -783,7 +783,7 @@ pub(crate) async fn handle_container_exec_with_params(
             call_id,
             output: FunctionCallOutputPayload {
                 body: FunctionCallOutputBody::Text(
-                    "sandbox_permissions=require_escalated requires a justification".to_string(),
+                    "sandbox_permissions=require_escalated requires a justification".to_owned(),
                 ),
                 success: None,
             },
@@ -944,8 +944,7 @@ pub(crate) async fn handle_container_exec_with_params(
             call_id,
             output: FunctionCallOutputPayload {
                 body: FunctionCallOutputBody::Text(
-                    "sandbox_permissions=with_additional_permissions requires additional_permissions"
-                        .to_string(),
+                    "sandbox_permissions=with_additional_permissions requires additional_permissions".to_owned(),
                 ),
                 success: None,
             },
@@ -1132,7 +1131,7 @@ pub(crate) async fn handle_container_exec_with_params(
             return false;
         }
 
-        let first = argv[0].trim().to_string();
+        let first = argv[0].trim().to_owned();
         for prefix in ["confirm:", "CONFIRM:"] {
             if first == prefix {
                 argv.remove(0);
@@ -1143,7 +1142,7 @@ pub(crate) async fn handle_container_exec_with_params(
                 if trimmed.is_empty() {
                     argv.remove(0);
                 } else {
-                    argv[0] = trimmed.to_string();
+                    argv[0] = trimmed.to_owned();
                 }
                 return true;
             }
@@ -1176,10 +1175,10 @@ pub(crate) async fn handle_container_exec_with_params(
         resend_exact_argv: Vec<String>,
     ) -> String {
         let suggested_confirm = serde_json::to_string(&resend_exact_argv)
-            .unwrap_or_else(|_| "<failed to serialize suggested argv>".to_string());
+            .unwrap_or_else(|_| "<failed to serialize suggested argv>".to_owned());
         let suggested_dry_run = analysis
             .suggested_dry_run()
-            .unwrap_or_else(|| "<no canonical dry-run variant; remove mutating flags or use confirm:>".to_string());
+            .unwrap_or_else(|| "<no canonical dry-run variant; remove mutating flags or use confirm:>".to_owned());
         format!(
             "Blocked {} without a prior dry run. Run the dry-run variant first or resend with 'confirm:' if explicitly requested.\n\n{}: {}\nresend_exact_argv: {}\nsuggested_dry_run: {}",
             analysis.display_name(),
@@ -1212,7 +1211,7 @@ pub(crate) async fn handle_container_exec_with_params(
                 let mut argv_confirm = params.command.clone();
                 argv_confirm[script_index] = format!("confirm: {}", script.trim_start());
                 let suggested = serde_json::to_string(&argv_confirm)
-                    .unwrap_or_else(|_| "<failed to serialize suggested argv>".to_string());
+                    .unwrap_or_else(|_| "<failed to serialize suggested argv>".to_owned());
                 let guidance = pattern.guidance("original_script", &script, &suggested);
 
                 let order = sess.next_background_order(&sub_id, attempt_req, output_index);
@@ -1235,7 +1234,7 @@ pub(crate) async fn handle_container_exec_with_params(
                 let mut argv_confirm = params.command.clone();
                 argv_confirm[script_index] = format!("confirm: {}", script.trim_start());
                 let suggested = serde_json::to_string(&argv_confirm)
-                    .unwrap_or_else(|_| "<failed to serialize suggested argv>".to_string());
+                    .unwrap_or_else(|_| "<failed to serialize suggested argv>".to_owned());
 
                 let guidance = guidance_for_sensitive_git(kind, "original_script", &script, &suggested);
 
@@ -1261,9 +1260,9 @@ pub(crate) async fn handle_container_exec_with_params(
                 .iter()
                 .find_map(|p| {
                     let t = trimmed.strip_prefix(p)?;
-                    Some(t.trim_start().to_string())
+                    Some(t.trim_start().to_owned())
                 })
-                .unwrap_or_else(|| trimmed.to_string());
+                .unwrap_or_else(|| trimmed.to_owned());
             params.command[script_index] = without_prefix;
         }
 
@@ -1370,11 +1369,11 @@ pub(crate) async fn handle_container_exec_with_params(
         if !sess.confirm_guard.is_empty()
             && let Some(pattern) = sess.confirm_guard.matched_pattern(&joined) {
                 let suggested = serde_json::to_string(&vec![
-                    "bash".to_string(),
-                    "-lc".to_string(),
+                    "bash".to_owned(),
+                    "-lc".to_owned(),
                     format!("confirm: {joined}"),
                 ])
-                .unwrap_or_else(|_| "<failed to serialize suggested argv>".to_string());
+                .unwrap_or_else(|_| "<failed to serialize suggested argv>".to_owned());
                 let guidance = pattern.guidance(
                     "original_argv",
                     &format!("{:?}", params.command),
@@ -1404,8 +1403,8 @@ pub(crate) async fn handle_container_exec_with_params(
                 };
                 if needs_dry_run {
                     let resend = vec![
-                        "bash".to_string(),
-                        "-lc".to_string(),
+                        "bash".to_owned(),
+                        "-lc".to_owned(),
                         format!("confirm: {joined}"),
                     ];
                     let guidance = guidance_for_dry_run_guard(
@@ -1489,10 +1488,10 @@ pub(crate) async fn handle_container_exec_with_params(
                     };
                     if let Some(kind) = kind {
                         let suggested = serde_json::to_string(&vec![
-                            "bash".to_string(),
-                            "-lc".to_string(),
+                            "bash".to_owned(),
+                            "-lc".to_owned(),
                             format!("confirm: {}", params.command.join(" ")),
-                        ]).unwrap_or_else(|_| "<failed to serialize suggested argv>".to_string());
+                        ]).unwrap_or_else(|_| "<failed to serialize suggested argv>".to_owned());
 
                         let guidance = guidance_for_sensitive_git(kind, "original_argv", &format!("{:?}", params.command), &suggested);
 
@@ -1643,7 +1642,7 @@ pub(crate) async fn handle_container_exec_with_params(
                     return ResponseInputItem::FunctionCallOutput {
                         call_id,
                         output: FunctionCallOutputPayload {
-                            body: FunctionCallOutputBody::Text("exec command rejected by user".to_string()),
+                            body: FunctionCallOutputBody::Text("exec command rejected by user".to_owned()),
                             success: None,
                         },
                     };
@@ -1686,7 +1685,7 @@ pub(crate) async fn handle_container_exec_with_params(
         transcript_path: sess.hook_transcript_path(),
         model: sess.client.config().model.clone(),
         permission_mode: crate::codex::hook_runtime::hook_permission_mode(sess.approval_policy),
-        tool_name: "Bash".to_string(),
+        tool_name: "Bash".to_owned(),
         tool_use_id: call_id.clone(),
         command: display_label.clone(),
     };
@@ -1698,7 +1697,7 @@ pub(crate) async fn handle_container_exec_with_params(
     .await
     {
         let output = if reason.trim().is_empty() {
-            "exec command blocked by hooks.json lifecycle hook".to_string()
+            "exec command blocked by hooks.json lifecycle hook".to_owned()
         } else {
             format!("exec command blocked by hooks.json lifecycle hook: {reason}")
         };
@@ -2053,7 +2052,7 @@ pub(crate) async fn handle_container_exec_with_params(
             };
         }
         // Fallback (should not happen): indicate completion without detail
-        let msg = "Command completed.".to_string();
+        let msg = "Command completed.".to_owned();
         return ResponseInputItem::FunctionCallOutput { call_id: call_id.clone(), output: FunctionCallOutputPayload { body: FunctionCallOutputBody::Text(msg), success: Some(true) } };
     }
 
@@ -2157,17 +2156,17 @@ fn shell_zsh_fork_unusable_reasons_with(
 ) -> Vec<String> {
     let mut reasons = Vec::<String>::new();
     if !cfg!(unix) {
-        reasons.push("zsh-fork escalation is Unix-only".to_string());
+        reasons.push("zsh-fork escalation is Unix-only".to_owned());
     }
     if !shell_program_is_zsh(user_shell) {
         let name = user_shell
             .name()
-            .unwrap_or_else(|| "(unknown)".to_string());
+            .unwrap_or_else(|| "(unknown)".to_owned());
         reasons.push(format!("Shell is not zsh: {name}"));
     }
 
     match zsh_path {
-        None => reasons.push("zsh_path is not set".to_string()),
+        None => reasons.push("zsh_path is not set".to_owned()),
         Some(path) => {
             if !path.is_absolute() {
                 reasons.push(format!("zsh_path must be absolute: {}", path.display()));
@@ -2188,7 +2187,7 @@ fn shell_zsh_fork_unusable_reasons_with(
     }
 
     if resolve_execve_wrapper_exe_with(None, current_exe, path_env).is_none() {
-        reasons.push("codex-execve-wrapper not found (sibling or PATH)".to_string());
+        reasons.push("codex-execve-wrapper not found (sibling or PATH)".to_owned());
     }
 
     reasons
@@ -2528,8 +2527,8 @@ impl code_shell_escalation::ShellCommandExecutor for CoreShellCommandExecutor {
             env.remove(crate::spawn::CODEX_SANDBOX_NETWORK_DISABLED_ENV_VAR);
         } else {
             env.insert(
-                crate::spawn::CODEX_SANDBOX_NETWORK_DISABLED_ENV_VAR.to_string(),
-                "1".to_string(),
+                crate::spawn::CODEX_SANDBOX_NETWORK_DISABLED_ENV_VAR.to_owned(),
+                "1".to_owned(),
             );
         }
 
@@ -2545,8 +2544,8 @@ impl code_shell_escalation::ShellCommandExecutor for CoreShellCommandExecutor {
         let wrapped_command = match self.sandbox_type {
             SandboxType::MacosSeatbelt => {
                 env.insert(
-                    crate::spawn::CODEX_SANDBOX_ENV_VAR.to_string(),
-                    "seatbelt".to_string(),
+                    crate::spawn::CODEX_SANDBOX_ENV_VAR.to_owned(),
+                    "seatbelt".to_owned(),
                 );
                 let args = crate::seatbelt::build_seatbelt_args(
                     command,
@@ -2555,7 +2554,7 @@ impl code_shell_escalation::ShellCommandExecutor for CoreShellCommandExecutor {
                     self.enforce_managed_network,
                     &env,
                 );
-                std::iter::once(crate::seatbelt::seatbelt_exec_path().to_string())
+                std::iter::once(crate::seatbelt::seatbelt_exec_path().to_owned())
                     .chain(args)
                     .collect()
             }
@@ -2566,17 +2565,16 @@ impl code_shell_escalation::ShellCommandExecutor for CoreShellCommandExecutor {
                 let sandbox_policy_cwd = self
                     .sandbox_cwd
                     .to_str()
-                    .ok_or_else(|| anyhow::anyhow!("sandbox cwd must be valid UTF-8"))?
-                    .to_string();
+                    .ok_or_else(|| anyhow::anyhow!("sandbox cwd must be valid UTF-8"))?.to_owned();
                 let sandbox_policy_json = serde_json::to_string(&effective_policy)
                     .context("failed to serialize SandboxPolicy to JSON")?;
 
-                wrapper_arg0 = Some("codex-linux-sandbox".to_string());
+                wrapper_arg0 = Some("codex-linux-sandbox".to_owned());
                 std::iter::once(sandbox_exe.to_string_lossy().into_owned())
                     .chain([
                         sandbox_policy_cwd,
                         sandbox_policy_json,
-                        "--".to_string(),
+                        "--".to_owned(),
                     ])
                     .chain(command)
                     .collect()
@@ -2634,13 +2632,12 @@ impl code_shell_escalation::EscalationPolicy for CoreShellEscalationPolicy {
         match self.approval_policy {
             AskForApproval::Never => {
                 return Ok(code_shell_escalation::EscalationDecision::deny(Some(
-                    "approval required for shell escalation, but AskForApproval=Never".to_string(),
+                    "approval required for shell escalation, but AskForApproval=Never".to_owned(),
                 )));
             }
             AskForApproval::Reject(reject) if reject.rejects_sandbox_approval() => {
                 return Ok(code_shell_escalation::EscalationDecision::deny(Some(
-                    "approval required for shell escalation, but sandbox approvals are rejected by policy"
-                        .to_string(),
+                    "approval required for shell escalation, but sandbox approvals are rejected by policy".to_owned(),
                 )));
             }
             _ => {}
@@ -2667,7 +2664,7 @@ impl code_shell_escalation::EscalationPolicy for CoreShellEscalationPolicy {
             decision = rx_approve => decision.unwrap_or_default(),
             _ = self.cancel_rx.cancelled() => {
                 return Ok(code_shell_escalation::EscalationDecision::deny(Some(
-                    "shell escalation cancelled".to_string(),
+                    "shell escalation cancelled".to_owned(),
                 )));
             }
         };
@@ -2689,7 +2686,7 @@ impl code_shell_escalation::EscalationPolicy for CoreShellEscalationPolicy {
                 ))
             }
             ReviewDecision::Denied | ReviewDecision::Abort => Ok(code_shell_escalation::EscalationDecision::deny(Some(
-                "rejected by user".to_string(),
+                "rejected by user".to_owned(),
             ))),
         }
     }
@@ -2771,24 +2768,24 @@ fn escalation_reason_for_execution(
 ) -> String {
     match (execution, trigger) {
         (code_shell_escalation::EscalationExecution::Unsandboxed, EscalationTrigger::NetworkDisabled) => {
-            "Allow this subcommand to run outside the sandbox (network disabled)".to_string()
+            "Allow this subcommand to run outside the sandbox (network disabled)".to_owned()
         }
         (code_shell_escalation::EscalationExecution::Unsandboxed, EscalationTrigger::GitWritesBlocked) => {
-            "Allow this subcommand to run outside the sandbox (git writes blocked)".to_string()
+            "Allow this subcommand to run outside the sandbox (git writes blocked)".to_owned()
         }
         (code_shell_escalation::EscalationExecution::TurnDefault, _) => {
-            "Allow this subcommand to run with the turn default sandbox policy".to_string()
+            "Allow this subcommand to run with the turn default sandbox policy".to_owned()
         }
         (
             code_shell_escalation::EscalationExecution::Permissions(code_protocol::approvals::EscalationPermissions::PermissionProfile(_)),
             EscalationTrigger::NetworkDisabled,
-        ) => "Allow this subcommand to run with network enabled (still sandboxed)".to_string(),
+        ) => "Allow this subcommand to run with network enabled (still sandboxed)".to_owned(),
         (
             code_shell_escalation::EscalationExecution::Permissions(_),
             EscalationTrigger::GitWritesBlocked,
-        ) => "Allow this subcommand to run with git writes enabled (still sandboxed)".to_string(),
+        ) => "Allow this subcommand to run with git writes enabled (still sandboxed)".to_owned(),
         (code_shell_escalation::EscalationExecution::Permissions(_), EscalationTrigger::NetworkDisabled) => {
-            "Allow this subcommand to run with additional permissions (still sandboxed)".to_string()
+            "Allow this subcommand to run with additional permissions (still sandboxed)".to_owned()
         }
     }
 }
@@ -3114,7 +3111,7 @@ fn detect_redundant_cd_in_shell(
 
     Some(RedundantCdSuggestion {
         label: "original_script",
-        original_value: script.to_string(),
+        original_value: script.to_owned(),
         suggested,
         target_arg: target,
         cwd: normalized_cwd.to_path_buf(),
@@ -3214,7 +3211,7 @@ fn is_connector(token: &str) -> bool {
 
 fn guidance_for_redundant_cd(suggestion: &RedundantCdSuggestion) -> String {
     let suggested = serde_json::to_string(&suggestion.suggested)
-        .unwrap_or_else(|_| "<failed to serialize suggested argv>".to_string());
+        .unwrap_or_else(|_| "<failed to serialize suggested argv>".to_owned());
     let target_display = shlex_try_join(std::iter::once(suggestion.target_arg.as_str()))
         .unwrap_or_else(|_| suggestion.target_arg.clone());
     format!(

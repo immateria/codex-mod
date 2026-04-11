@@ -6,7 +6,7 @@ use std::path::PathBuf;
 
 pub(crate) fn build_fix_prompt(review: &ReviewOutputEvent) -> String {
     let summary = format_review_findings(review);
-    let raw_json = serde_json::to_string_pretty(review).unwrap_or_else(|_| "{}".to_string());
+    let raw_json = serde_json::to_string_pretty(review).unwrap_or_else(|_| "{}".to_owned());
     let mut preface = String::from(
         "You are continuing an automated /review resolution loop. Review the listed findings and determine whether they represent real issues introduced by our changes. If they are, apply the necessary fixes and resolve any similar issues you can identify before responding."
     );
@@ -50,7 +50,7 @@ pub(crate) fn review_summary_line(output: &ReviewOutputEvent) -> Option<String> 
     let mut parts: Vec<String> = Vec::new();
     let explanation = output.overall_explanation.trim();
     if !explanation.is_empty() {
-        parts.push(explanation.to_string());
+        parts.push(explanation.to_owned());
     }
 
     if !output.findings.is_empty() {
@@ -59,7 +59,7 @@ pub(crate) fn review_summary_line(output: &ReviewOutputEvent) -> Option<String> 
             .iter()
             .filter_map(|f| {
                 let title = f.title.trim();
-                (!title.is_empty()).then_some(title.to_string())
+                (!title.is_empty()).then_some(title.to_owned())
             })
             .collect();
         if !titles.is_empty() {
@@ -77,7 +77,7 @@ pub(crate) fn review_summary_line(output: &ReviewOutputEvent) -> Option<String> 
 pub(crate) fn make_user_message(text: String) -> ResponseItem {
     ResponseItem::Message {
         id: None,
-        role: "user".to_string(),
+        role: "user".to_owned(),
         content: vec![ContentItem::InputText { text }],
         end_turn: None,
         phase: None,
@@ -87,7 +87,7 @@ pub(crate) fn make_user_message(text: String) -> ResponseItem {
 pub(crate) fn make_assistant_message(text: String) -> ResponseItem {
     ResponseItem::Message {
         id: None,
-        role: "assistant".to_string(),
+        role: "assistant".to_owned(),
         content: vec![ContentItem::OutputText { text }],
         end_turn: None,
         phase: None,

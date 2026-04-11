@@ -12,8 +12,8 @@ pub struct BrowserToolSchema {
 pub fn get_browser_tools_schema() -> Vec<BrowserToolSchema> {
     vec![
         BrowserToolSchema {
-            name: "browser.goto".to_string(),
-            description: "Navigate to a URL and wait for the page to load".to_string(),
+            name: "browser.goto".to_owned(),
+            description: "Navigate to a URL and wait for the page to load".to_owned(),
             parameters: json!({
                 "type": "object",
                 "properties": {
@@ -46,8 +46,8 @@ pub fn get_browser_tools_schema() -> Vec<BrowserToolSchema> {
             }),
         },
         BrowserToolSchema {
-            name: "browser.screenshot".to_string(),
-            description: "Take a screenshot of the current page".to_string(),
+            name: "browser.screenshot".to_owned(),
+            description: "Take a screenshot of the current page".to_owned(),
             parameters: json!({
                 "type": "object",
                 "properties": {
@@ -84,8 +84,8 @@ pub fn get_browser_tools_schema() -> Vec<BrowserToolSchema> {
             }),
         },
         BrowserToolSchema {
-            name: "browser.setViewport".to_string(),
-            description: "Set the browser viewport size".to_string(),
+            name: "browser.setViewport".to_owned(),
+            description: "Set the browser viewport size".to_owned(),
             parameters: json!({
                 "type": "object",
                 "properties": {
@@ -110,8 +110,8 @@ pub fn get_browser_tools_schema() -> Vec<BrowserToolSchema> {
             }),
         },
         BrowserToolSchema {
-            name: "browser.close".to_string(),
-            description: "Close the page or browser".to_string(),
+            name: "browser.close".to_owned(),
+            description: "Close the page or browser".to_owned(),
             parameters: json!({
                 "type": "object",
                 "properties": {

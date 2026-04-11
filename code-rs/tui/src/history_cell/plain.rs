@@ -343,7 +343,7 @@ impl HistoryCell for PlainHistoryCell {
             && let Some(first_span) = first_line.spans.first_mut()
             && let Some(stripped) = first_span.content.as_ref().strip_prefix("WARN: ")
         {
-            first_span.content = stripped.to_string().into();
+            first_span.content = stripped.to_owned().into();
         }
         lines.extend(body_lines);
         lines
@@ -802,7 +802,7 @@ pub(crate) fn new_status_output(
     let requested_display = requested_model.unwrap_or(config.model.as_str());
     lines.push(Line::from(vec![
         "  • Requested model: ".into(),
-        requested_display.to_string().into(),
+        requested_display.to_owned().into(),
     ]));
     if let Some(response_model) = latest_response_model {
         let same_model = response_model_matches_request(requested_display, response_model);
@@ -821,7 +821,7 @@ pub(crate) fn new_status_output(
         };
         lines.push(Line::from(vec![
             "  • Latest response model: ".into(),
-            response_model.to_string().into(),
+            response_model.to_owned().into(),
         ]));
         lines.push(Line::from(vec![
             "  • Match: ".into(),
@@ -867,13 +867,13 @@ pub(crate) fn new_status_output(
                             &config.cwd,
                         );
                         outcome.resolved.map(|resolved| resolved.value)
-                    }).map_or_else(|| "????".to_string(), |k| key_suffix(&k));
+                    }).map_or_else(|| "????".to_owned(), |k| key_suffix(&k));
                     lines.push(Line::from(format!("  • Method: API key (…{suffix})")));
                 }
                 AuthMode::ChatGPT | AuthMode::ChatgptAuthTokens => {
                     let account_id = auth
                         .get_account_id()
-                        .unwrap_or_else(|| "unknown".to_string());
+                        .unwrap_or_else(|| "unknown".to_owned());
                     lines.push(Line::from(format!(
                         "  • Method: ChatGPT account (account_id: {account_id})"
                     )));
@@ -1005,7 +1005,7 @@ pub(crate) fn new_warning_event(message: String) -> PlainMessageState {
     let mut message_lines = message.lines();
     if let Some(first) = message_lines.next() {
         lines.push(Line::from(vec![Span::styled(format!("WARN: {first}"), warn_style)]));
-        lines.extend(message_lines.map(|line| Line::from(vec![Span::styled(line.to_string(), warn_style)])));
+        lines.extend(message_lines.map(|line| Line::from(vec![Span::styled(line.to_owned(), warn_style)])));
     }
 
     plain_message_state_from_lines(lines, HistoryCellType::Notice)

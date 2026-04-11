@@ -265,9 +265,9 @@ fn filter_experimental_type_fields_ts(
     let mut fields_by_type_name: HashMap<String, HashSet<String>> = HashMap::new();
     for field in experimental_fields {
         fields_by_type_name
-            .entry(field.type_name.to_string())
+            .entry(field.type_name.to_owned())
             .or_default()
-            .insert(field.field_name.to_string());
+            .insert(field.field_name.to_owned());
     }
     if fields_by_type_name.is_empty() {
         return Ok(());
@@ -331,7 +331,7 @@ fn filter_experimental_fields_in_root(
     let Some(title) = schema.get("title").and_then(Value::as_str) else {
         return;
     };
-    let title = title.to_string();
+    let title = title.to_owned();
 
     for field in experimental_fields {
         if title != field.type_name {
@@ -486,7 +486,7 @@ fn collect_experimental_type_names(entries: &[&str], out: &mut HashSet<String>) 
         }
         let name = trimmed.rsplit("::").next().unwrap_or(trimmed);
         if !name.is_empty() {
-            out.insert(name.to_string());
+            out.insert(name.to_owned());
         }
     }
 }
@@ -680,7 +680,7 @@ fn split_top_level_multi(input: &str, delimiters: &[char]) -> Vec<String> {
         if !state.in_string() && state.depth.is_top_level() && delimiters.contains(&ch) {
             let part = input[start..index].trim();
             if !part.is_empty() {
-                parts.push(part.to_string());
+                parts.push(part.to_owned());
             }
             start = index + ch.len_utf8();
         }
@@ -688,7 +688,7 @@ fn split_top_level_multi(input: &str, delimiters: &[char]) -> Vec<String> {
     }
     let tail = input[start..].trim();
     if !tail.is_empty() {
-        parts.push(tail.to_string());
+        parts.push(tail.to_owned());
     }
     parts
 }
@@ -760,7 +760,7 @@ fn parse_property_name(input: &str) -> Option<String> {
         rest
     };
     if rest.starts_with(':') {
-        return Some(name.to_string());
+        return Some(name.to_owned());
     }
     None
 }
@@ -932,15 +932,15 @@ fn build_schema_bundle(schemas: Vec<GeneratedSchema>) -> Result<Value> {
 
     let mut root = Map::new();
     root.insert(
-        "$schema".to_string(),
+        "$schema".to_owned(),
         Value::String("http://json-schema.org/draft-07/schema#".into()),
     );
     root.insert(
-        "title".to_string(),
+        "title".to_owned(),
         Value::String("CodexAppServerProtocol".into()),
     );
-    root.insert("type".to_string(), Value::String("object".into()));
-    root.insert("definitions".to_string(), Value::Object(definitions));
+    root.insert("type".to_owned(), Value::String("object".into()));
+    root.insert("definitions".to_owned(), Value::Object(definitions));
 
     Ok(Value::Object(root))
 }
@@ -973,7 +973,7 @@ fn build_flat_v2_schema(bundle: &Value) -> Result<Value> {
         };
         let shared_schema = shared_schema.clone();
         non_v2_refs.extend(collect_non_v2_refs(&shared_schema));
-        shared_definitions.insert((*shared).to_string(), shared_schema);
+        shared_definitions.insert((*shared).to_owned(), shared_schema);
     }
 
     for name in collect_definition_dependencies(definitions, non_v2_refs) {
@@ -986,8 +986,8 @@ fn build_flat_v2_schema(bundle: &Value) -> Result<Value> {
     }
 
     flat_definitions.extend(shared_definitions);
-    flat_root.insert("title".to_string(), Value::String(format!("{title}V2")));
-    flat_root.insert("definitions".to_string(), Value::Object(flat_definitions));
+    flat_root.insert("title".to_owned(), Value::String(format!("{title}V2")));
+    flat_root.insert("definitions".to_owned(), Value::Object(flat_definitions));
     let mut flat_bundle = Value::Object(flat_root);
     rewrite_ref_prefix(&mut flat_bundle, "#/definitions/v2/", "#/definitions/");
     ensure_no_ref_prefix(&flat_bundle, "#/definitions/v2/", "flat v2")?;
@@ -1008,7 +1008,7 @@ fn collect_non_v2_refs_inner(value: &Value, refs: &mut HashSet<String>) {
                 && let Some(name) = reference.strip_prefix("#/definitions/")
                 && !reference.starts_with("#/definitions/v2/")
             {
-                refs.insert(name.to_string());
+                refs.insert(name.to_owned());
             }
             for child in obj.values() {
                 collect_non_v2_refs_inner(child, refs);
@@ -1121,7 +1121,7 @@ fn collect_missing_definitions(
             {
                 let name = name.split('/').next().unwrap_or(name);
                 if !definitions.contains_key(name) {
-                    missing.insert(name.to_string());
+                    missing.insert(name.to_owned());
                 }
             }
             for child in obj.values() {
@@ -1144,7 +1144,7 @@ fn insert_into_namespace(
     schema: Value,
 ) -> Result<()> {
     let entry = definitions
-        .entry(namespace.to_string())
+        .entry(namespace.to_owned())
         .or_insert_with(|| Value::Object(Map::new()));
     match entry {
         Value::Object(map) => {
@@ -1182,12 +1182,12 @@ where
 
     let namespace = match raw_namespace {
         Some("v1") | None => None,
-        Some(ns) => Some(ns.to_string()),
+        Some(ns) => Some(ns.to_owned()),
     };
     Ok(GeneratedSchema {
         in_v1_dir: raw_namespace == Some("v1"),
         namespace,
-        logical_name: logical_name.to_string(),
+        logical_name: logical_name.to_owned(),
         value: schema_value,
     })
 }
@@ -1243,16 +1243,16 @@ fn collect_namespaced_types(schemas: &[GeneratedSchema]) -> HashMap<String, Stri
     for schema in schemas {
         if let Some(ns) = schema.namespace() {
             types
-                .entry(schema.logical_name().to_string())
-                .or_insert_with(|| ns.to_string());
+                .entry(schema.logical_name().to_owned())
+                .or_insert_with(|| ns.to_owned());
             if let Some(Value::Object(defs)) = schema.value().get("definitions") {
                 for key in defs.keys() {
-                    types.entry(key.clone()).or_insert_with(|| ns.to_string());
+                    types.entry(key.clone()).or_insert_with(|| ns.to_owned());
                 }
             }
             if let Some(Value::Object(defs)) = schema.value().get("$defs") {
                 for key in defs.keys() {
-                    types.entry(key.clone()).or_insert_with(|| ns.to_string());
+                    types.entry(key.clone()).or_insert_with(|| ns.to_owned());
                 }
             }
         }
@@ -1591,7 +1591,7 @@ fn generate_index_ts(out_dir: &Path) -> Result<PathBuf> {
     let v2_dir = out_dir.join("v2");
     let has_v2_ts = ts_files_in(&v2_dir).is_ok_and(|v| !v.is_empty());
     if has_v2_ts {
-        entries.push("export * as v2 from \"./v2\";\n".to_string());
+        entries.push("export * as v2 from \"./v2\";\n".to_owned());
     }
 
     let mut content =

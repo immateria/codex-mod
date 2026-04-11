@@ -74,14 +74,14 @@ impl JsReplSettingsView {
         let runtime_path = self
             .settings
             .runtime_path
-            .as_ref().map_or_else(|| "auto (PATH)".to_string(), |path| path.to_string_lossy().into_owned());
+            .as_ref().map_or_else(|| "auto (PATH)".to_owned(), |path| path.to_string_lossy().into_owned());
         let runtime_args = if self.settings.runtime_args.is_empty() {
-            "(none)".to_string()
+            "(none)".to_owned()
         } else {
             format!("{} entries", self.settings.runtime_args.len())
         };
         let module_dirs = if self.settings.node_module_dirs.is_empty() {
-            "(none)".to_string()
+            "(none)".to_owned()
         } else {
             format!("{} entries", self.settings.node_module_dirs.len())
         };

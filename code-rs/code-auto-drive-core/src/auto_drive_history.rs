@@ -279,7 +279,7 @@ impl AutoDriveHistory {
         // Build the compact summary item
         let compact_item = ResponseItem::Message {
             id: None,
-            role: "user".to_string(),
+            role: "user".to_owned(),
             content: vec![ContentItem::InputText {
                 text: format!(
                     "<compact_summary>\n{summary_text}\n</compact_summary>"

@@ -3,9 +3,9 @@ use super::session::{HookGuard, RunningExecMeta};
 
 fn synthetic_exec_end_payload(cancelled: bool) -> (i32, String) {
     if cancelled {
-        (130, "Command cancelled by user.".to_string())
+        (130, "Command cancelled by user.".to_owned())
     } else {
-        (130, "Command interrupted before completion.".to_string())
+        (130, "Command interrupted before completion.".to_owned())
     }
 }
 
@@ -366,7 +366,7 @@ impl Session {
 
         let msg = if is_apply_patch {
             EventMsg::PatchApplyEnd(PatchApplyEndEvent {
-                call_id: call_id.to_string(),
+                call_id: call_id.to_owned(),
                 parent_call_id: None,
                 stdout,
                 stderr,
@@ -374,7 +374,7 @@ impl Session {
             })
         } else {
             EventMsg::ExecCommandEnd(ExecCommandEndEvent {
-                call_id: call_id.to_string(),
+                call_id: call_id.to_owned(),
                 stdout,
                 stderr,
                 exit_code: *exit_code,
@@ -439,9 +439,9 @@ impl Session {
     ) {
         let mut state = crate::codex::lock_or_panic!(self.state);
         state.running_execs.insert(
-            call_id.to_string(),
+            call_id.to_owned(),
             RunningExecMeta {
-                sub_id: sub_id.to_string(),
+                sub_id: sub_id.to_owned(),
                 order_meta,
                 cancel_flag,
                 end_emitted,
@@ -788,27 +788,27 @@ impl Session {
             attempt_req,
             index,
         } = hook_ctx;
-        let sub_id = base_ctx.map_or_else(|| INITIAL_SUBMIT_ID.to_string(), |ctx| ctx.sub_id.clone());
-        let base_slug = base_ctx.map_or_else(|| event.slug().to_string(), |ctx| sanitize_identifier(&ctx.call_id));
+        let sub_id = base_ctx.map_or_else(|| INITIAL_SUBMIT_ID.to_owned(), |ctx| ctx.sub_id.clone());
+        let base_slug = base_ctx.map_or_else(|| event.slug().to_owned(), |ctx| sanitize_identifier(&ctx.call_id));
         let call_id = format!("{base_slug}_hook_{}_{}", event.slug(), index + 1);
 
         let mut env = hook.env.clone();
-        env.entry("CODE_HOOK_EVENT".to_string())
+        env.entry("CODE_HOOK_EVENT".to_owned())
             .or_insert_with(|| event.as_str().to_owned());
-        env.entry("CODE_HOOK_TRIGGER".to_string())
-            .or_insert_with(|| event.slug().to_string());
-        env.insert("CODE_HOOK_CALL_ID".to_string(), call_id.clone());
-        env.insert("CODE_HOOK_SUB_ID".to_string(), sub_id.clone());
-        env.insert("CODE_HOOK_INDEX".to_string(), (index + 1).to_string());
-        env.insert("CODE_HOOK_PAYLOAD".to_string(), payload.to_string());
-        env.entry("CODE_SESSION_CWD".to_string())
+        env.entry("CODE_HOOK_TRIGGER".to_owned())
+            .or_insert_with(|| event.slug().to_owned());
+        env.insert("CODE_HOOK_CALL_ID".to_owned(), call_id.clone());
+        env.insert("CODE_HOOK_SUB_ID".to_owned(), sub_id.clone());
+        env.insert("CODE_HOOK_INDEX".to_owned(), (index + 1).to_string());
+        env.insert("CODE_HOOK_PAYLOAD".to_owned(), payload.to_string());
+        env.entry("CODE_SESSION_CWD".to_owned())
             .or_insert_with(|| self.cwd.to_string_lossy().into_owned());
         if let Some(name) = &hook.name {
-            env.entry("CODE_HOOK_NAME".to_string())
+            env.entry("CODE_HOOK_NAME".to_owned())
                 .or_insert_with(|| name.clone());
         }
         if let Some(ctx) = base_ctx {
-            env.entry("CODE_HOOK_SOURCE_CALL_ID".to_string())
+            env.entry("CODE_HOOK_SOURCE_CALL_ID".to_owned())
                 .or_insert_with(|| ctx.call_id.clone());
         }
 
@@ -896,13 +896,13 @@ impl Session {
         };
 
         let mut env = command.env.clone();
-        env.entry("CODE_PROJECT_COMMAND_NAME".to_string())
+        env.entry("CODE_PROJECT_COMMAND_NAME".to_owned())
             .or_insert_with(|| command.name.clone());
         if let Some(desc) = &command.description {
-            env.entry("CODE_PROJECT_COMMAND_DESCRIPTION".to_string())
+            env.entry("CODE_PROJECT_COMMAND_DESCRIPTION".to_owned())
                 .or_insert_with(|| desc.clone());
         }
-        env.entry("CODE_SESSION_CWD".to_string())
+        env.entry("CODE_SESSION_CWD".to_owned())
             .or_insert_with(|| self.cwd.to_string_lossy().into_owned());
 
         let exec_params = ExecParams {
@@ -917,7 +917,7 @@ impl Session {
 
         let call_id = format!("project_cmd_{}", sanitize_identifier(&command.name));
         let exec_ctx = ExecCommandContext {
-            sub_id: sub_id.to_string(),
+            sub_id: sub_id.to_owned(),
             call_id: call_id.clone(),
             command_for_display: exec_params.command.clone(),
             cwd: exec_params.cwd.clone(),

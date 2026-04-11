@@ -28,12 +28,12 @@ fn assume_init<T>(buf: &[MaybeUninit<T>]) -> &[T] {
 }
 
 fn assume_init_slice<T, const N: usize>(buf: &[MaybeUninit<T>; N]) -> &[T; N] {
-    unsafe { &*(buf as *const [MaybeUninit<T>; N] as *const [T; N]) }
+    unsafe { &*(buf as *const [MaybeUninit<T>; N]).cast::<[T; N]>() }
 }
 
 fn assume_init_vec<T>(mut buf: Vec<MaybeUninit<T>>) -> Vec<T> {
     unsafe {
-        let ptr = buf.as_mut_ptr() as *mut T;
+        let ptr = buf.as_mut_ptr().cast::<T>();
         let len = buf.len();
         let cap = buf.capacity();
         std::mem::forget(buf);

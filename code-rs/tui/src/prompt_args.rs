@@ -74,7 +74,7 @@ pub(crate) fn prompt_argument_names(content: &str) -> Vec<String> {
         if name == "ARGUMENTS" {
             continue;
         }
-        let name = name.to_string();
+        let name = name.to_owned();
         if seen.insert(name.clone()) {
             names.push(name);
         }
@@ -100,7 +100,7 @@ pub(crate) fn parse_prompt_inputs(rest: &str) -> Result<HashMap<String, String>,
         if key.is_empty() {
             return Err(PromptArgsError::MissingKey { token });
         }
-        map.insert(key.to_string(), value.to_string());
+        map.insert(key.to_owned(), value.to_owned());
     }
     Ok(map)
 }
@@ -127,7 +127,7 @@ pub(crate) fn expand_custom_prompt(
         // Allow bare `/name` form when it does not shadow a built-in command.
         let builtins: HashSet<String> = built_in_slash_commands()
             .into_iter()
-            .map(|(n, _)| n.to_string())
+            .map(|(n, _)| n.to_owned())
             .collect();
         if !builtins.contains(name) {
             prompt_name = Some(name);
@@ -165,14 +165,14 @@ pub(crate) fn expand_custom_prompt(
                 && matched.start() > 0
                 && content.as_bytes()[matched.start() - 1] == b'$'
             {
-                return matched.as_str().to_string();
+                return matched.as_str().to_owned();
             }
             let whole = &caps[0];
             let key = &whole[1..];
             inputs
                 .get(key)
                 .cloned()
-                .unwrap_or_else(|| whole.to_string())
+                .unwrap_or_else(|| whole.to_owned())
         });
         return Ok(Some(replaced.into_owned()));
     }

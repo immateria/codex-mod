@@ -177,9 +177,9 @@ impl McpSettingsView {
             let new_enabled = !row.enabled;
             row.enabled = new_enabled;
             row.status = if new_enabled {
-                "Tools: pending".to_string()
+                "Tools: pending".to_owned()
             } else {
-                "Tools: disabled".to_string()
+                "Tools: disabled".to_owned()
             };
             if !new_enabled {
                 row.failure = None;
@@ -198,7 +198,7 @@ impl McpSettingsView {
             McpSelectionKey::Refresh => self.request_refresh(),
             McpSelectionKey::Add => {
                 self.app_event_tx
-                    .send(AppEvent::PrefillComposer("/mcp add ".to_string()));
+                    .send(AppEvent::PrefillComposer("/mcp add ".to_owned()));
                 self.is_complete = true;
             }
             McpSelectionKey::Close => {
@@ -214,7 +214,7 @@ impl McpSettingsView {
 
     pub(super) fn queue_status_report(&self) {
         self.app_event_tx
-            .send(AppEvent::PrefillComposer("/mcp status".to_string()));
+            .send(AppEvent::PrefillComposer("/mcp status".to_owned()));
     }
 
     pub(super) fn toggle_summary_wrap_mode(&mut self) {

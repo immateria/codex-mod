@@ -150,7 +150,7 @@ pub async fn run_main(cli: Cli, code_linux_sandbox_exe: Option<PathBuf>) -> anyh
     };
 
     let model_provider = if oss {
-        Some(BUILT_IN_OSS_MODEL_PROVIDER_ID.to_string())
+        Some(BUILT_IN_OSS_MODEL_PROVIDER_ID.to_owned())
     } else {
         None // No specific model provider override.
     };

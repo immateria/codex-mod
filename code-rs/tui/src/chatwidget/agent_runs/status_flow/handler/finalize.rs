@@ -46,7 +46,7 @@ pub(super) fn apply_and_store(
                 if trimmed.is_empty() || looks_like_uuid(trimmed) {
                     preview.id.clone()
                 } else {
-                    trimmed.to_string()
+                    trimmed.to_owned()
                 }
             });
 

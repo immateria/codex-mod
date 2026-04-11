@@ -30,22 +30,22 @@ pub(crate) fn wrap_command(raw: &str) -> Vec<String> {
     }
     if cfg!(target_os = "windows") {
         vec![
-            "powershell.exe".to_string(),
-            "-NoProfile".to_string(),
-            "-ExecutionPolicy".to_string(),
-            "Bypass".to_string(),
-            "-Command".to_string(),
-            simplified.to_string(),
+            "powershell.exe".to_owned(),
+            "-NoProfile".to_owned(),
+            "-ExecutionPolicy".to_owned(),
+            "Bypass".to_owned(),
+            "-Command".to_owned(),
+            simplified.to_owned(),
         ]
     } else {
-        vec!["/bin/bash".to_string(), "-lc".to_string(), simplified.to_string()]
+        vec!["/bin/bash".to_owned(), "-lc".to_owned(), simplified.to_owned()]
     }
 }
 
 fn tail_chars(text: &str, max_chars: usize) -> String {
     let total = text.chars().count();
     if total <= max_chars {
-        return text.to_string();
+        return text.to_owned();
     }
     let mut idx = text.len();
     let mut count = 0usize;
@@ -68,7 +68,7 @@ fn make_message(role: &str, text: String) -> ResponseItem {
 
     ResponseItem::Message {
         id: None,
-        role: role.to_string(),
+        role: role.to_owned(),
         content: vec![content],
         end_turn: None,
         phase: None,

@@ -96,7 +96,7 @@ pub(crate) fn spawn_existing_conversation_runtime(
         let app_event_tx_clone = app_event_tx;
         let mut code_op_rx = code_op_rx;
         let event = Event {
-            id: "fork".to_string(),
+            id: "fork".to_owned(),
             event_seq: 0,
             msg: EventMsg::SessionConfigured(session_configured),
             order: None,

@@ -3,14 +3,14 @@ use super::super::*;
 impl ThemeSelectionView {
     pub(in crate::bottom_pane::settings_pages::theme) fn custom_theme_display_name() -> String {
         let Some(label0) = crate::theme::custom_theme_label() else {
-            return "Custom".to_string();
+            return "Custom".to_owned();
         };
 
         // Sanitize any leading Light/Dark prefix the model may have included.
-        let mut label = label0.trim().to_string();
+        let mut label = label0.trim().to_owned();
         for pref in ["Light - ", "Dark - ", "Light ", "Dark "] {
             if label.starts_with(pref) {
-                label = label[pref.len()..].trim().to_string();
+                label = label[pref.len()..].trim().to_owned();
                 break;
             }
         }
@@ -145,11 +145,11 @@ impl ThemeSelectionView {
 
     pub(in crate::bottom_pane::settings_pages::theme) fn theme_display_name(theme_name: ThemeName) -> String {
         if matches!(theme_name, ThemeName::Custom) {
-            return crate::theme::custom_theme_label().unwrap_or_else(|| "Custom".to_string());
+            return crate::theme::custom_theme_label().unwrap_or_else(|| "Custom".to_owned());
         }
         Self::builtin_theme_options()
             .iter()
-            .find(|(candidate, _, _)| *candidate == theme_name).map_or_else(|| "Theme".to_string(), |(_, name, _)| (*name).to_string())
+            .find(|(candidate, _, _)| *candidate == theme_name).map_or_else(|| "Theme".to_owned(), |(_, name, _)| (*name).to_owned())
     }
 
     pub(in crate::bottom_pane::settings_pages::theme) fn render_theme_option_lines_for_palette(

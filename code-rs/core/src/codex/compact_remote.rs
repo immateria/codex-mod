@@ -101,7 +101,7 @@ async fn run_remote_compact_task_inner(
             input: turn_items.clone(),
             base_instructions_override: turn_context.base_instructions.clone(),
             include_additional_instructions: false,
-            log_tag: Some("codex/remote-compact".to_string()),
+            log_tag: Some("codex/remote-compact".to_owned()),
             ..Prompt::default()
         };
 
@@ -216,7 +216,7 @@ async fn run_remote_compact_task_inner(
     send_compaction_checkpoint_warning(sess, sub_id).await;
 
     let rollout_item = RolloutItem::Compacted(CompactedItem {
-        message: "Conversation history compacted.".to_string(),
+        message: "Conversation history compacted.".to_owned(),
         replacement_history: None,
     });
     sess.persist_rollout_items(&[rollout_item]).await;
@@ -224,7 +224,7 @@ async fn run_remote_compact_task_inner(
     let event = sess.make_event(
         sub_id,
         EventMsg::AgentMessage(AgentMessageEvent {
-            message: "Compact task completed".to_string(),
+            message: "Compact task completed".to_owned(),
         }),
     );
     sess.send_event(event).await;

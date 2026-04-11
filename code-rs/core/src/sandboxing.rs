@@ -172,7 +172,7 @@ pub fn build_exec_request(params: BuildExecRequestParams) -> Result<ExecRequest>
     let (command, arg0) = match sandbox {
         SandboxType::None => (command, None),
         SandboxType::MacosSeatbelt => (
-            vec![crate::seatbelt::seatbelt_exec_path().to_string()]
+            vec![crate::seatbelt::seatbelt_exec_path().to_owned()]
                 .into_iter()
                 .chain(crate::seatbelt::build_seatbelt_args(
                     command,
@@ -201,10 +201,10 @@ pub fn build_exec_request(params: BuildExecRequestParams) -> Result<ExecRequest>
                 code_linux_sandbox_exe.display().to_string(),
                 sandbox_cwd,
                 sandbox_policy_json,
-                "--".to_string(),
+                "--".to_owned(),
             ];
             wrapped.extend(command);
-            (wrapped, Some("codex-linux-sandbox".to_string()))
+            (wrapped, Some("codex-linux-sandbox".to_owned()))
         }
         SandboxType::WindowsRestrictedToken => (command, None),
     };
@@ -247,8 +247,7 @@ pub async fn execute_env(
 
     if sandbox != SandboxType::WindowsRestrictedToken {
         return Err(CodexErr::UnsupportedOperation(
-            "sandboxing::execute_env only supports windows restricted-token exec in this path"
-                .to_string(),
+            "sandboxing::execute_env only supports windows restricted-token exec in this path".to_owned(),
         ));
     }
 

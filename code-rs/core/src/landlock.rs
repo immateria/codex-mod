@@ -46,7 +46,7 @@ fn create_linux_sandbox_command_args(
     sandbox_policy_cwd: &Path,
 ) -> Vec<String> {
     let sandbox_policy_cwd = match sandbox_policy_cwd.to_str() {
-        Some(path) => path.to_string(),
+        Some(path) => path.to_owned(),
         None => panic!("cwd must be valid UTF-8"),
     };
 
@@ -60,7 +60,7 @@ fn create_linux_sandbox_command_args(
         sandbox_policy_json,
         // Separator so that command arguments starting with `-` are not parsed as
         // options of the helper itself.
-        "--".to_string(),
+        "--".to_owned(),
     ];
 
     // Append the original tool command.

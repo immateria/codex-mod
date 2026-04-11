@@ -94,7 +94,7 @@ impl ChatWidget<'_> {
         let image_view_seen = self
             .tools_state
             .image_viewed_calls
-            .remove(&ToolCallId(call_id.to_string()));
+            .remove(&ToolCallId(call_id.to_owned()));
         if image_view_seen {
             return None;
         }
@@ -105,7 +105,7 @@ impl ChatWidget<'_> {
         let running_entry = self
             .tools_state
             .running_custom_tools
-            .remove(&ToolCallId(call_id.to_string()));
+            .remove(&ToolCallId(call_id.to_owned()));
         running_entry
             .as_ref()
             .and_then(|entry| running_tools::resolve_entry_index(self, entry, call_id))
@@ -217,7 +217,7 @@ impl ChatWidget<'_> {
         } else {
             let trimmed = ctx.content.trim();
             if !trimmed.is_empty() {
-                self.push_background_tail(trimmed.to_string());
+                self.push_background_tail(trimmed.to_owned());
             }
             self.bottom_pane.update_status_text("kill failed");
         }
@@ -367,7 +367,7 @@ impl ChatWidget<'_> {
         let Some(exec_call_id) = self
             .tools_state
             .running_wait_tools
-            .remove(&ToolCallId(call_id.to_string()))
+            .remove(&ToolCallId(call_id.to_owned()))
         else {
             return false;
         };
@@ -384,7 +384,7 @@ impl ChatWidget<'_> {
     }
 
     fn init_wait_end_state(content: &str, success: bool) -> WaitEndState {
-        let trimmed = content.trim().to_string();
+        let trimmed = content.trim().to_owned();
         let wait_missing_job = wait_result_missing_background_job(&trimmed);
         let wait_interrupted = wait_result_interrupted(&trimmed);
         let wait_still_pending = !success && trimmed != WAIT_CANCELLED_BY_USER && !wait_missing_job;
@@ -423,7 +423,7 @@ impl ChatWidget<'_> {
                 continue;
             }
             let is_error_note = note_text == WAIT_CANCELLED_BY_USER;
-            note_lines.push((note_text.to_string(), is_error_note));
+            note_lines.push((note_text.to_owned(), is_error_note));
         }
         note_lines
     }

@@ -83,7 +83,7 @@ impl ThemeSelectionView {
                             .borrow()
                             .as_ref()
                             .cloned()
-                            .unwrap_or_else(|| "Custom".to_string());
+                            .unwrap_or_else(|| "Custom".to_owned());
                         if let Ok(home) = code_core::config::find_code_home() {
                             let _ = code_core::config::set_custom_spinner(
                                 &home,
@@ -94,17 +94,17 @@ impl ThemeSelectionView {
                             );
                         }
                         crate::spinner::add_custom_spinner(
-                            "custom".to_string(),
+                            "custom".to_owned(),
                             display_name,
                             interval,
                             frames,
                         );
                         crate::spinner::switch_spinner("custom");
-                        self.revert_spinner_on_back = "custom".to_string();
-                        self.current_spinner = "custom".to_string();
+                        self.revert_spinner_on_back = "custom".to_owned();
+                        self.current_spinner = "custom".to_owned();
                         self.app_event_tx
-                            .send(AppEvent::UpdateSpinner("custom".to_string()));
-                        self.send_tail("Custom spinner saved".to_string());
+                            .send(AppEvent::UpdateSpinner("custom".to_owned()));
+                        self.send_tail("Custom spinner saved".to_owned());
                         go_overview = true;
                     }
                 } else {

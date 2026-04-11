@@ -64,7 +64,7 @@ impl ChatWidget<'_> {
         use code_protocol::models::{ContentItem, ResponseItem};
         Some(ResponseItem::Message {
             id: None,
-            role: "user".to_string(),
+            role: "user".to_owned(),
             content: vec![ContentItem::InputText { text }],
             end_turn: None,
             phase: None,
@@ -106,8 +106,7 @@ impl ChatWidget<'_> {
                     "tif" | "tiff" => "image/tiff",
                     _ => "application/octet-stream",
                 }
-            })
-            .to_string();
+            }).to_owned();
         let encoded = BASE64_STANDARD.encode(bytes);
 
         let timestamp_ms = record.timestamp.as_millis();
@@ -115,9 +114,9 @@ impl ChatWidget<'_> {
         let sanitized = raw_url.replace(['\n', '\r'], " ");
         let trimmed = sanitized.trim();
         let mut url_meta = if trimmed.is_empty() {
-            "browser".to_string()
+            "browser".to_owned()
         } else {
-            trimmed.to_string()
+            trimmed.to_owned()
         };
         if url_meta.len() > 240 {
             let mut truncated: String = url_meta.chars().take(240).collect();
@@ -147,7 +146,7 @@ impl ChatWidget<'_> {
         use code_protocol::models::{ContentItem, ResponseItem};
         Some(ResponseItem::Message {
             id: None,
-            role: "assistant".to_string(),
+            role: "assistant".to_owned(),
             content: vec![ContentItem::OutputText { text }],
             end_turn: None,
             phase: None,
@@ -167,7 +166,7 @@ impl ChatWidget<'_> {
             .strip_prefix("a/")
             .or_else(|| trimmed.strip_prefix("b/"))
             .unwrap_or(trimmed);
-        Some(normalized.to_string())
+        Some(normalized.to_owned())
     }
 
     pub(super) fn auto_drive_diff_summary(record: &DiffRecord) -> Option<String> {
@@ -223,7 +222,7 @@ impl ChatWidget<'_> {
         }
 
         let mut lines = Vec::with_capacity(stats.len() + 1);
-        lines.push("Files changed".to_string());
+        lines.push("Files changed".to_owned());
         for (path, (added, removed)) in stats {
             lines.push(format!("- {path} (+{added} / -{removed})"));
         }
@@ -281,7 +280,7 @@ impl ChatWidget<'_> {
                         let state = plan.state();
                         let mut lines: Vec<String> = Vec::new();
                         if state.name.trim().is_empty() {
-                            lines.push("Plan update".to_string());
+                            lines.push("Plan update".to_owned());
                         } else {
                             lines.push(format!("Plan update: {}", state.name.trim()));
                         }
@@ -292,7 +291,7 @@ impl ChatWidget<'_> {
                             ));
                         }
                         if state.steps.is_empty() {
-                            lines.push("(no steps recorded)".to_string());
+                            lines.push("(no steps recorded)".to_owned());
                         } else {
                             for step in &state.steps {
                                 let status_label = match step.status {
@@ -339,8 +338,8 @@ impl ChatWidget<'_> {
 
             let mut item = if is_reasoning {
                 code_protocol::models::ResponseItem::Message {
-                    id: Some("auto-drive-reasoning".to_string()),
-                    role: "user".to_string(),
+                    id: Some("auto-drive-reasoning".to_owned()),
+                    role: "user".to_owned(),
                     content: vec![code_protocol::models::ContentItem::InputText { text }],
                     end_turn: None,
                     phase: None,
@@ -470,7 +469,7 @@ impl ChatWidget<'_> {
                     let content = ContentItem::InputText { text: prefixed };
                     items.push(ResponseItem::Message {
                         id: None,
-                        role: "user".to_string(),
+                        role: "user".to_owned(),
                         content: vec![content],
                         end_turn: None,
                         phase: None,
@@ -492,7 +491,7 @@ impl ChatWidget<'_> {
                     let content = ContentItem::OutputText { text: prefixed };
                     items.push(ResponseItem::Message {
                         id: None,
-                        role: "assistant".to_string(),
+                        role: "assistant".to_owned(),
                         content: vec![content],
                         end_turn: None,
                         phase: None,
@@ -506,7 +505,7 @@ impl ChatWidget<'_> {
                         let state = plan.state();
                         let mut lines: Vec<String> = Vec::new();
                         if state.name.trim().is_empty() {
-                            lines.push("Plan update".to_string());
+                            lines.push("Plan update".to_owned());
                         } else {
                             lines.push(format!("Plan update: {}", state.name.trim()));
                         }
@@ -519,7 +518,7 @@ impl ChatWidget<'_> {
                         }
 
                         if state.steps.is_empty() {
-                            lines.push("(no steps recorded)".to_string());
+                            lines.push("(no steps recorded)".to_owned());
                         } else {
                             for step in &state.steps {
                                 let status_label = match step.status {
@@ -535,7 +534,7 @@ impl ChatWidget<'_> {
                         let content = ContentItem::OutputText { text };
                         items.push(ResponseItem::Message {
                             id: None,
-                            role: "assistant".to_string(),
+                            role: "assistant".to_owned(),
                             content: vec![content],
                             end_turn: None,
                             phase: None,

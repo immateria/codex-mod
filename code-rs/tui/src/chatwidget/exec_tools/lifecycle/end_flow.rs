@@ -180,22 +180,22 @@ pub(in super::super::super) fn handle_exec_end_now(
         }
         let status_text = match status {
             history_cell::ExploreEntryStatus::Success => match action {
-                ExecAction::Read => "files read".to_string(),
-                _ => "exploration updated".to_string(),
+                ExecAction::Read => "files read".to_owned(),
+                _ => "exploration updated".to_owned(),
             },
             history_cell::ExploreEntryStatus::NotFound => match action {
-                ExecAction::List => "path not found".to_string(),
-                _ => "no matches found".to_string(),
+                ExecAction::List => "path not found".to_owned(),
+                _ => "no matches found".to_owned(),
             },
             history_cell::ExploreEntryStatus::Error { .. } => match action {
                 ExecAction::Read => format!("read failed (exit {exit_code})"),
                 ExecAction::Search => {
-                    if exit_code == 2 { "invalid pattern".to_string() } else { format!("search failed (exit {exit_code})") }
+                    if exit_code == 2 { "invalid pattern".to_owned() } else { format!("search failed (exit {exit_code})") }
                 }
                 ExecAction::List => format!("list failed (exit {exit_code})"),
                 ExecAction::Run => format!("exploration failed (exit {exit_code})"),
             },
-            history_cell::ExploreEntryStatus::Running => "exploring…".to_string(),
+            history_cell::ExploreEntryStatus::Running => "exploring…".to_owned(),
         };
         chat.bottom_pane.update_status_text(&status_text);
         chat.maybe_hide_spinner();

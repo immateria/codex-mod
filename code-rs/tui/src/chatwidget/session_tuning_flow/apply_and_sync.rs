@@ -62,7 +62,7 @@ impl ChatWidget<'_> {
 
         let mut updated = false;
         if !self.config.model.eq_ignore_ascii_case(trimmed) {
-            self.config.model = trimmed.to_string();
+            self.config.model = trimmed.to_owned();
             let family = find_family_for_model(&self.config.model)
                 .unwrap_or_else(|| derive_default_model_family(&self.config.model));
             self.config.model_family = family;
@@ -101,7 +101,7 @@ impl ChatWidget<'_> {
             self.push_system_cell(
                 Box::new(cell),
                 placement,
-                Some("ui:model".to_string()),
+                Some("ui:model".to_owned()),
                 None,
                 "system",
                 Some(HistoryDomainRecord::Plain(state)),
@@ -165,7 +165,7 @@ impl ChatWidget<'_> {
 
         let mut updated = false;
         if !self.config.review_model.eq_ignore_ascii_case(trimmed) {
-            self.config.review_model = trimmed.to_string();
+            self.config.review_model = trimmed.to_owned();
             updated = true;
         }
 
@@ -234,7 +234,7 @@ impl ChatWidget<'_> {
             .review_resolve_model
             .eq_ignore_ascii_case(trimmed)
         {
-            self.config.review_resolve_model = trimmed.to_string();
+            self.config.review_resolve_model = trimmed.to_owned();
             updated = true;
         }
 
@@ -304,7 +304,7 @@ impl ChatWidget<'_> {
             }
 
         let notice = if use_chat {
-            "Review model now follows Chat model".to_string()
+            "Review model now follows Chat model".to_owned()
         } else {
             format!(
                 "Review model set to {} ({} reasoning)",
@@ -339,7 +339,7 @@ impl ChatWidget<'_> {
             }
 
         let notice = if use_chat {
-            "Resolve model now follows Chat model".to_string()
+            "Resolve model now follows Chat model".to_owned()
         } else {
             format!(
                 "Resolve model set to {} ({} reasoning)",
@@ -372,7 +372,7 @@ impl ChatWidget<'_> {
             .auto_review_model
             .eq_ignore_ascii_case(trimmed)
         {
-            self.config.auto_review_model = trimmed.to_string();
+            self.config.auto_review_model = trimmed.to_owned();
             updated = true;
         }
 
@@ -442,7 +442,7 @@ impl ChatWidget<'_> {
             }
 
         let notice = if use_chat {
-            "Auto Review model now follows Chat model".to_string()
+            "Auto Review model now follows Chat model".to_owned()
         } else {
             format!(
                 "Auto Review model set to {} ({} reasoning)",
@@ -475,7 +475,7 @@ impl ChatWidget<'_> {
             .auto_review_resolve_model
             .eq_ignore_ascii_case(trimmed)
         {
-            self.config.auto_review_resolve_model = trimmed.to_string();
+            self.config.auto_review_resolve_model = trimmed.to_owned();
             updated = true;
         }
 
@@ -546,7 +546,7 @@ impl ChatWidget<'_> {
             }
 
         let notice = if use_chat {
-            "Auto Review resolve model now follows Chat model".to_string()
+            "Auto Review resolve model now follows Chat model".to_owned()
         } else {
             format!(
                 "Auto Review resolve model set to {} ({} reasoning)",
@@ -582,7 +582,7 @@ impl ChatWidget<'_> {
             }
 
         let notice = if use_chat {
-            "Auto Drive model now follows Chat model".to_string()
+            "Auto Drive model now follows Chat model".to_owned()
         } else {
             format!(
                 "Auto Drive model set to {} ({} reasoning)",

@@ -13,7 +13,7 @@ pub(crate) fn extract_script_wrapper(command: &[String]) -> Option<ScriptWrapper
             Some(ScriptWrapper {
                 family: ScriptWrapperFamily::PosixLike,
                 mode_flag: flag.clone(),
-                script: strip_rc_source_wrapper(script).unwrap_or_else(|| script.trim().to_string()),
+                script: strip_rc_source_wrapper(script).unwrap_or_else(|| script.trim().to_owned()),
             })
         }
 
@@ -26,7 +26,7 @@ pub(crate) fn extract_script_wrapper(command: &[String]) -> Option<ScriptWrapper
             Some(ScriptWrapper {
                 family: ScriptWrapperFamily::PosixLike,
                 mode_flag: flag.clone(),
-                script: strip_rc_source_wrapper(script).unwrap_or_else(|| script.trim().to_string()),
+                script: strip_rc_source_wrapper(script).unwrap_or_else(|| script.trim().to_owned()),
             })
         }
 
@@ -34,14 +34,14 @@ pub(crate) fn extract_script_wrapper(command: &[String]) -> Option<ScriptWrapper
             Some(ScriptWrapper {
                 family: ScriptWrapperFamily::Nushell,
                 mode_flag: flag.clone(),
-                script: script.trim().to_string(),
+                script: script.trim().to_owned(),
             })
         }
 
         [elvish, flag, script] if is_elvish_executable(elvish) && flag == "-c" => Some(ScriptWrapper {
             family: ScriptWrapperFamily::Elvish,
             mode_flag: flag.clone(),
-            script: script.trim().to_string(),
+            script: script.trim().to_owned(),
         }),
 
         _ => None,
@@ -61,7 +61,7 @@ fn strip_rc_source_wrapper(script: &str) -> Option<String> {
         return None;
     }
 
-    Some(trimmed[inner_start..end].trim().to_string())
+    Some(trimmed[inner_start..end].trim().to_owned())
 }
 
 pub(crate) fn extract_cmd_wrapper(command: &[String]) -> Option<(String, String)> {
@@ -88,7 +88,7 @@ pub(crate) fn extract_cmd_wrapper(command: &[String]) -> Option<(String, String)
                 } else {
                     body.join(" ")
                 };
-                return Some((lower, script.trim().to_string()));
+                return Some((lower, script.trim().to_owned()));
             }
             _ if lower.starts_with('/') => {
                 idx += 1;
@@ -118,11 +118,11 @@ pub(crate) fn extract_powershell_script(command: &[String]) -> Option<String> {
         let lower = arg.to_ascii_lowercase();
         match lower.as_str() {
             "-command" | "/command" | "-c" => {
-                return rest.get(idx + 1).cloned().map(|s| s.trim().to_string());
+                return rest.get(idx + 1).cloned().map(|s| s.trim().to_owned());
             }
             _ if lower.starts_with("-command:") || lower.starts_with("/command:") => {
                 let script = arg.split_once(':')?.1;
-                return Some(script.trim().to_string());
+                return Some(script.trim().to_owned());
             }
             // Benign, no-arg flags we tolerate.
             "-nologo" | "-noprofile" | "-noninteractive" | "-mta" | "-sta" => {
@@ -194,5 +194,5 @@ fn is_elvish_executable(exe: &str) -> bool {
 }
 
 fn join_arguments_as_script(args: &[String]) -> String {
-    args.join(" ").trim().to_string()
+    args.join(" ").trim().to_owned()
 }

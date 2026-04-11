@@ -105,13 +105,13 @@ impl BrowserTools {
                 Some("browser") => {
                     self.manager.stop().await?;
                     Ok(BrowserToolResult::Close(CloseResult {
-                        closed: "browser".to_string(),
+                        closed: "browser".to_owned(),
                     }))
                 }
                 Some("page") | None => {
                     self.manager.close_page().await?;
                     Ok(BrowserToolResult::Close(CloseResult {
-                        closed: "page".to_string(),
+                        closed: "page".to_owned(),
                     }))
                 }
                 Some(other) => Err(crate::BrowserError::ConfigError(format!(

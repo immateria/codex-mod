@@ -336,7 +336,7 @@ impl ChatWidget<'_> {
                         let lines = vec![
                             ratatui::text::Line::from("Are you sure you want to undo this diff?"),
                             ratatui::text::Line::from(
-                                "Press Enter to confirm • Esc to cancel".to_string().dim(),
+                                "Press Enter to confirm • Esc to cancel".to_owned().dim(),
                             ),
                         ];
                         let para = Paragraph::new(RtText::from(lines))

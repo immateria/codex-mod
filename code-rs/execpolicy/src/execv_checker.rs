@@ -111,7 +111,7 @@ fn ensure_absolute_path(path: &str, cwd: &Option<OsString>) -> Result<PathBuf> {
     result
         .map(Cow::into_owned)
         .map_err(|error| CannotCanonicalizePath {
-            file: path.to_string(),
+            file: path.to_owned(),
             error: error.kind(),
         })
 }

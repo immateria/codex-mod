@@ -184,7 +184,7 @@ impl CodexMessageProcessor {
             ClientRequest::Initialize { request_id, .. } => {
                 let error = JSONRPCErrorError {
                     code: INVALID_REQUEST_ERROR_CODE,
-                    message: "already initialized".to_string(),
+                    message: "already initialized".to_owned(),
                     data: None,
                 };
                 self.outgoing.send_error(request_id, error).await;
@@ -316,7 +316,7 @@ impl CodexMessageProcessor {
                     None => {
                         return Err(JSONRPCErrorError {
                             code: INVALID_REQUEST_ERROR_CODE,
-                            message: "email is required for chatgpt authentication".to_string(),
+                            message: "email is required for chatgpt authentication".to_owned(),
                             data: None,
                         });
                     }
@@ -358,7 +358,7 @@ impl CodexMessageProcessor {
                 if api_key.is_empty() {
                     return Err(JSONRPCErrorError {
                         code: INVALID_REQUEST_ERROR_CODE,
-                        message: "apiKey is required".to_string(),
+                        message: "apiKey is required".to_owned(),
                         data: None,
                     });
                 }
@@ -401,7 +401,7 @@ impl CodexMessageProcessor {
     async fn start_chatgpt_login_v2(&self) -> Result<LoginAccountResponse, JSONRPCErrorError> {
         let mut options = ServerOptions::new(
             self.config.code_home.clone(),
-            CLIENT_ID.to_string(),
+            CLIENT_ID.to_owned(),
             self.config.responses_originator_header.clone(),
             code_core::auth::AuthCredentialsStoreMode::File,
         );
@@ -504,7 +504,7 @@ impl CodexMessageProcessor {
         let Some(auth) = self.auth_manager.auth() else {
             return Err(JSONRPCErrorError {
                 code: INVALID_REQUEST_ERROR_CODE,
-                message: "account authentication required to read rate limits".to_string(),
+                message: "account authentication required to read rate limits".to_owned(),
                 data: None,
             });
         };
@@ -512,7 +512,7 @@ impl CodexMessageProcessor {
         if !auth.mode.is_chatgpt() {
             return Err(JSONRPCErrorError {
                 code: INVALID_REQUEST_ERROR_CODE,
-                message: "chatgpt authentication required to read rate limits".to_string(),
+                message: "chatgpt authentication required to read rate limits".to_owned(),
                 data: None,
             });
         }
@@ -526,14 +526,14 @@ impl CodexMessageProcessor {
         let selected = select_rate_limit_snapshot(auth.get_account_id(), snapshots).ok_or_else(|| {
             JSONRPCErrorError {
                 code: INVALID_REQUEST_ERROR_CODE,
-                message: "no rate limit snapshot available".to_string(),
+                message: "no rate limit snapshot available".to_owned(),
                 data: None,
             }
         })?;
 
         let snapshot = selected.snapshot.clone().ok_or_else(|| JSONRPCErrorError {
             code: INVALID_REQUEST_ERROR_CODE,
-            message: "no rate limit snapshot available".to_string(),
+            message: "no rate limit snapshot available".to_owned(),
             data: None,
         })?;
 
@@ -771,7 +771,7 @@ impl CodexMessageProcessor {
                                 continue;
                             }
                         };
-                        params.insert("conversationId".to_string(), conversation_id.to_string().into());
+                        params.insert("conversationId".to_owned(), conversation_id.to_string().into());
 
                         outgoing_for_task
                             .send_notification_to_connection(
@@ -841,7 +841,7 @@ impl CodexMessageProcessor {
             Some(cursor) => if let Ok(cursor) = serde_json::from_value::<Cursor>(serde_json::Value::String(cursor)) { Some(cursor) } else {
                 let error = JSONRPCErrorError {
                     code: INVALID_REQUEST_ERROR_CODE,
-                    message: "invalid cursor".to_string(),
+                    message: "invalid cursor".to_owned(),
                     data: None,
                 };
                 self.outgoing.send_error(request_id, error).await;
@@ -970,7 +970,7 @@ impl CodexMessageProcessor {
         {
             let error = JSONRPCErrorError {
                 code: INVALID_REQUEST_ERROR_CODE,
-                message: "cannot archive an active conversation".to_string(),
+                message: "cannot archive an active conversation".to_owned(),
                 data: None,
             };
             self.outgoing.send_error(request_id, error).await;
@@ -990,7 +990,7 @@ impl CodexMessageProcessor {
             Ok(false) => {
                 let error = JSONRPCErrorError {
                     code: INVALID_REQUEST_ERROR_CODE,
-                    message: "conversation not found".to_string(),
+                    message: "conversation not found".to_owned(),
                     data: None,
                 };
                 self.outgoing.send_error(request_id, error).await;
@@ -1029,7 +1029,7 @@ impl CodexMessageProcessor {
             Ok(_) => {
                 let error = JSONRPCErrorError {
                     code: INTERNAL_ERROR_CODE,
-                    message: "unexpected login response type".to_string(),
+                    message: "unexpected login response type".to_owned(),
                     data: None,
                 };
                 self.outgoing.send_error(request_id, error).await;
@@ -1081,7 +1081,7 @@ impl CodexMessageProcessor {
         if api_key.is_empty() {
             let error = JSONRPCErrorError {
                 code: INVALID_REQUEST_ERROR_CODE,
-                message: "api_key is required".to_string(),
+                message: "api_key is required".to_owned(),
                 data: None,
             };
             self.outgoing.send_error(request_id, error).await;
@@ -1216,7 +1216,7 @@ impl CodexMessageProcessor {
 
     async fn set_default_model(&self, request_id: RequestId, params: SetDefaultModelParams) {
         let effort_value = params.reasoning_effort.map(|effort| match effort {
-            code_protocol::config_types::ReasoningEffort::None => "minimal".to_string(),
+            code_protocol::config_types::ReasoningEffort::None => "minimal".to_owned(),
             _ => effort.to_string(),
         });
         let model_value = params.model;
@@ -1280,7 +1280,7 @@ impl CodexMessageProcessor {
         if params.command.is_empty() {
             let error = JSONRPCErrorError {
                 code: INVALID_REQUEST_ERROR_CODE,
-                message: "command is required".to_string(),
+                message: "command is required".to_owned(),
                 data: None,
             };
             self.outgoing.send_error(request_id, error).await;
@@ -1290,7 +1290,7 @@ impl CodexMessageProcessor {
         if params.sandbox_policy.is_some() {
             let error = JSONRPCErrorError {
                 code: INVALID_REQUEST_ERROR_CODE,
-                message: "sandbox_policy override is not supported".to_string(),
+                message: "sandbox_policy override is not supported".to_owned(),
                 data: None,
             };
             self.outgoing.send_error(request_id, error).await;
@@ -1722,7 +1722,7 @@ async fn on_dynamic_tool_call_response(
             error!("request failed: {err:?}");
             let fallback = CoreDynamicToolResponse {
                 content_items: vec![code_protocol::dynamic_tools::DynamicToolCallOutputContentItem::InputText {
-                    text: "dynamic tool request failed".to_string(),
+                    text: "dynamic tool request failed".to_owned(),
                 }],
                 success: false,
             };
@@ -1742,7 +1742,7 @@ async fn on_dynamic_tool_call_response(
     let response = serde_json::from_value::<DynamicToolCallResponse>(value).unwrap_or_else(|err| {
         error!("failed to deserialize DynamicToolCallResponse: {err}");
         DynamicToolCallResponse {
-            output: "dynamic tool response was invalid".to_string(),
+            output: "dynamic tool response was invalid".to_owned(),
             success: false,
         }
     });

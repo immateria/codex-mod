@@ -73,7 +73,7 @@ impl ToolHandler for ListDirToolHandler {
         execute_custom_tool(
             sess,
             &ctx,
-            crate::openai_tools::LIST_DIR_TOOL_NAME.to_string(),
+            crate::openai_tools::LIST_DIR_TOOL_NAME.to_owned(),
             params_for_event,
             move || async move {
                 let args: ListDirArgs = match serde_json::from_str(&arguments) {
@@ -161,7 +161,7 @@ async fn list_dir_slice(
 
     let start_index = offset - 1;
     if start_index >= entries.len() {
-        return Err("offset exceeds directory entry count".to_string());
+        return Err("offset exceeds directory entry count".to_owned());
     }
 
     let remaining_entries = entries.len() - start_index;

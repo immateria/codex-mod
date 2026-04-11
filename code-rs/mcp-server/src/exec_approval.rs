@@ -82,11 +82,11 @@ pub(crate) async fn handle_exec_approval_request(
     let params = ExecApprovalElicitRequestParams {
         message,
         requested_schema: ElicitRequestParamsRequestedSchema {
-            r#type: "object".to_string(),
+            r#type: "object".to_owned(),
             properties: json!({}),
             required: None,
         },
-        code_elicitation: "exec-approval".to_string(),
+        code_elicitation: "exec-approval".to_owned(),
         code_mcp_tool_call_id: tool_call_id.clone(),
         code_event_id: event_id.clone(),
         code_call_id: call_id.clone(),

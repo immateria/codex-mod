@@ -73,7 +73,7 @@ impl StatusLineSetupView {
             Span::styled("Top preview: ", s_text_bright),
             Span::styled(
                 if top_preview.is_empty() {
-                    "(none)".to_string()
+                    "(none)".to_owned()
                 } else {
                     top_preview
                 },
@@ -88,7 +88,7 @@ impl StatusLineSetupView {
             ),
             Span::styled(
                 if bottom_preview.is_empty() {
-                    "(none)".to_string()
+                    "(none)".to_owned()
                 } else {
                     bottom_preview
                 },

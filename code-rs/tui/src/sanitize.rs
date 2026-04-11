@@ -25,7 +25,7 @@ impl Default for Options {
 pub(crate) fn sanitize_for_tui(input: &str, mode: Mode, opts: Options) -> String {
     // Optionally expand tabs first so that later stripping does not interact
     // with spaces we insert.
-    let mut text = if opts.expand_tabs { expand_tabs_to_spaces(input, opts.tabstop) } else { input.to_string() };
+    let mut text = if opts.expand_tabs { expand_tabs_to_spaces(input, opts.tabstop) } else { input.to_owned() };
     text = strip_specials(text, mode, opts.debug_markers);
     if ascii_only_enabled() {
         text = force_ascii(text);

@@ -153,7 +153,7 @@ impl FuzzyFileSearchSession {
         if let Ok(params) = serde_json::to_value(params) {
             self.outgoing
                 .send_notification(OutgoingNotification {
-                    method: "fuzzyFileSearch/sessionUpdated".to_string(),
+                    method: "fuzzyFileSearch/sessionUpdated".to_owned(),
                     params: Some(params),
                 })
                 .await;
@@ -178,7 +178,7 @@ impl FuzzyFileSearchSession {
         if let Ok(params) = serde_json::to_value(params) {
             self.outgoing
                 .send_notification(OutgoingNotification {
-                    method: "fuzzyFileSearch/sessionCompleted".to_string(),
+                    method: "fuzzyFileSearch/sessionCompleted".to_owned(),
                     params: Some(params),
                 })
                 .await;

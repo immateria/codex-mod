@@ -62,7 +62,7 @@ impl BrowserInjector {
         let current_url = page
             .get_current_url()
             .await
-            .unwrap_or_else(|_| "about:blank".to_string());
+            .unwrap_or_else(|_| "about:blank".to_owned());
 
         let system_hint = format!(
             "A fresh screenshot of the active page ({current_url}) is attached; use browser_* tools to navigate or capture more."

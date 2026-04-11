@@ -46,7 +46,7 @@ impl Drop for TurnLatencyGuard<'_> {
         if self.active {
             self.sess.turn_latency_request_failed(
                 self.attempt_req,
-                Some("dropped_without_outcome".to_string()),
+                Some("dropped_without_outcome".to_owned()),
             );
         }
     }

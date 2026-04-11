@@ -117,7 +117,7 @@ impl ReviewSettingsView {
         selection_idx = selection_idx.saturating_add(1);
 
         let review_model_value = if self.review_use_chat_model {
-            "Follow Chat Mode".to_string()
+            "Follow Chat Mode".to_owned()
         } else {
             format!(
                 "{} ({})",
@@ -138,7 +138,7 @@ impl ReviewSettingsView {
         selection_idx = selection_idx.saturating_add(1);
 
         let review_resolve_value = if self.review_resolve_use_chat_model {
-            "Follow Chat Mode".to_string()
+            "Follow Chat Mode".to_owned()
         } else {
             format!(
                 "{} ({})",
@@ -159,9 +159,9 @@ impl ReviewSettingsView {
         selection_idx = selection_idx.saturating_add(1);
 
         let review_attempts_value = if self.review_followups == 0 {
-            "0 (no re-reviews)".to_string()
+            "0 (no re-reviews)".to_owned()
         } else if self.review_followups == 1 {
-            "1 re-review".to_string()
+            "1 re-review".to_owned()
         } else {
             format!("{} re-reviews", self.review_followups)
         };
@@ -210,7 +210,7 @@ impl ReviewSettingsView {
         selection_idx = selection_idx.saturating_add(1);
 
         let auto_review_model_value = if self.auto_review_use_chat_model {
-            "Follow Chat Mode".to_string()
+            "Follow Chat Mode".to_owned()
         } else {
             format!(
                 "{} ({})",
@@ -231,7 +231,7 @@ impl ReviewSettingsView {
         selection_idx = selection_idx.saturating_add(1);
 
         let auto_review_resolve_value = if self.auto_review_resolve_use_chat_model {
-            "Follow Chat Mode".to_string()
+            "Follow Chat Mode".to_owned()
         } else {
             format!(
                 "{} ({})",
@@ -252,9 +252,9 @@ impl ReviewSettingsView {
         selection_idx = selection_idx.saturating_add(1);
 
         let auto_review_attempts_value = if self.auto_review_followups == 0 {
-            "0 (no follow-ups)".to_string()
+            "0 (no follow-ups)".to_owned()
         } else if self.auto_review_followups == 1 {
-            "1 follow-up".to_string()
+            "1 follow-up".to_owned()
         } else {
             format!("{} follow-ups", self.auto_review_followups)
         };

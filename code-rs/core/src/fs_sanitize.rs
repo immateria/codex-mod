@@ -5,14 +5,14 @@ const MAX_SLUG_LEN: usize = MAX_COMPONENT_LEN - HASH_SEPARATOR_LEN - HASH_HEX_LE
 
 pub(crate) fn safe_path_component(value: &str, fallback: &str) -> String {
     if is_safe_single_component(value) {
-        return value.to_string();
+        return value.to_owned();
     }
 
     let mut slug = build_slug(value, MAX_SLUG_LEN);
     if slug.is_empty() || slug == "." || slug == ".." {
         slug = build_slug(fallback, MAX_SLUG_LEN);
         if slug.is_empty() || slug == "." || slug == ".." {
-            slug = "id".to_string();
+            slug = "id".to_owned();
         }
     }
 
@@ -35,8 +35,7 @@ fn build_slug(value: &str, max_len: usize) -> String {
         }
     }
 
-    slug.trim_matches(|ch| matches!(ch, '_' | '-' | '.'))
-        .to_string()
+    slug.trim_matches(|ch| matches!(ch, '_' | '-' | '.')).to_owned()
 }
 
 fn is_safe_single_component(value: &str) -> bool {

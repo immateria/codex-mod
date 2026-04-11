@@ -90,7 +90,7 @@ impl<'de> Deserialize<'de> for ThreadId {
 
 impl JsonSchema for ThreadId {
     fn schema_name() -> String {
-        "ThreadId".to_string()
+        "ThreadId".to_owned()
     }
 
     fn json_schema(generator: &mut SchemaGenerator) -> Schema {

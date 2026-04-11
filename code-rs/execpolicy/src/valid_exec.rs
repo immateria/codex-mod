@@ -20,11 +20,11 @@ pub struct ValidExec {
 impl ValidExec {
     pub fn new(program: &str, args: Vec<MatchedArg>, system_path: &[&str]) -> Self {
         Self {
-            program: program.to_string(),
+            program: program.to_owned(),
             flags: vec![],
             opts: vec![],
             args,
-            system_path: system_path.iter().map(|&s| s.to_string()).collect(),
+            system_path: system_path.iter().map(|&s| s.to_owned()).collect(),
         }
     }
 
@@ -49,7 +49,7 @@ impl MatchedArg {
         Ok(Self {
             index,
             r#type,
-            value: value.to_string(),
+            value: value.to_owned(),
         })
     }
 }
@@ -69,8 +69,8 @@ impl MatchedOpt {
     pub fn new(name: &str, value: &str, r#type: ArgType) -> Result<Self> {
         r#type.validate(value)?;
         Ok(Self {
-            name: name.to_string(),
-            value: value.to_string(),
+            name: name.to_owned(),
+            value: value.to_owned(),
             r#type,
         })
     }
@@ -89,7 +89,7 @@ pub struct MatchedFlag {
 impl MatchedFlag {
     pub fn new(name: &str) -> Self {
         Self {
-            name: name.to_string(),
+            name: name.to_owned(),
         }
     }
 }

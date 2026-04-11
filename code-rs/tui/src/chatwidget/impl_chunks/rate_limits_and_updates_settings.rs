@@ -423,7 +423,7 @@ impl ChatWidget<'_> {
             crate::updates::UpgradeResolution::Command { command, display } => {
                 if command.is_empty() {
                     self.history_push_plain_state(history_cell::new_error_event(
-                        "`/update` — no upgrade command available for this install.".to_string(),
+                        "`/update` — no upgrade command available for this install.".to_owned(),
                     ));
                     self.request_redraw();
                     return;
@@ -431,7 +431,7 @@ impl ChatWidget<'_> {
 
                 let latest = self.latest_upgrade_version.clone();
                 self.push_background_tail(
-                    "Opening a guided upgrade terminal to finish installing updates.".to_string(),
+                    "Opening a guided upgrade terminal to finish installing updates.".to_owned(),
                 );
                 if let Some(launch) = self.launch_update_command(command, display, latest) {
                     self.app_event_tx.send(AppEvent::OpenTerminal(launch));
@@ -456,14 +456,14 @@ impl ChatWidget<'_> {
             "status" => {
                 match &self.config.tui.notifications {
                     Notifications::Enabled(true) => {
-                        self.push_background_tail("TUI notifications are enabled.".to_string());
+                        self.push_background_tail("TUI notifications are enabled.".to_owned());
                     }
                     Notifications::Enabled(false) => {
-                        self.push_background_tail("TUI notifications are disabled.".to_string());
+                        self.push_background_tail("TUI notifications are disabled.".to_owned());
                     }
                     Notifications::Custom(entries) => {
                         let filters = if entries.is_empty() {
-                            "<none>".to_string()
+                            "<none>".to_owned()
                         } else {
                             entries.join(", ")
                         };
@@ -489,7 +489,7 @@ impl ChatWidget<'_> {
                     }
                     Notifications::Custom(entries) => {
                         let filters = if entries.is_empty() {
-                            "<none>".to_string()
+                            "<none>".to_owned()
                         } else {
                             entries.join(", ")
                         };
@@ -501,7 +501,7 @@ impl ChatWidget<'_> {
             }
             _ => {
                 self.push_background_tail(
-                    "Usage: /notifications [status|on|off]".to_string(),
+                    "Usage: /notifications [status|on|off]".to_owned(),
                 );
             }
         }
@@ -510,7 +510,7 @@ impl ChatWidget<'_> {
     pub(crate) fn handle_prompts_command(&mut self, args: &str) {
         if !args.trim().is_empty() {
             self.history_push_plain_state(history_cell::new_error_event(
-                "Usage: /prompts".to_string(),
+                "Usage: /prompts".to_owned(),
             ));
             return;
         }
@@ -522,7 +522,7 @@ impl ChatWidget<'_> {
     pub(crate) fn handle_skills_command(&mut self, args: &str) {
         if !args.trim().is_empty() {
             self.history_push_plain_state(history_cell::new_error_event(
-                "Usage: /skills".to_string(),
+                "Usage: /skills".to_owned(),
             ));
             return;
         }
@@ -534,7 +534,7 @@ impl ChatWidget<'_> {
     pub(crate) fn handle_agents_command(&mut self, args: String) {
         if !args.trim().is_empty() {
             self.history_push_plain_state(history_cell::new_error_event(
-                "Usage: /agents".to_string(),
+                "Usage: /agents".to_owned(),
             ));
         }
         self.show_settings_overlay(Some(SettingsSection::Agents));
@@ -543,7 +543,7 @@ impl ChatWidget<'_> {
     pub(crate) fn handle_limits_command(&mut self, args: String) {
         if !args.trim().is_empty() {
             self.history_push_plain_state(history_cell::new_error_event(
-                "Usage: /limits".to_string(),
+                "Usage: /limits".to_owned(),
             ));
         }
         self.show_settings_overlay(Some(SettingsSection::Limits));
@@ -575,7 +575,7 @@ impl ChatWidget<'_> {
             }
             _ => {
                 self.history_push_plain_state(history_cell::new_error_event(
-                    "Usage: /memories [status|refresh|clear|settings]".to_string(),
+                    "Usage: /memories [status|refresh|clear|settings]".to_owned(),
                 ));
             }
         }

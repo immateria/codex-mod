@@ -423,7 +423,7 @@ pub struct BaseInstructions {
 impl Default for BaseInstructions {
     fn default() -> Self {
         Self {
-            text: BASE_INSTRUCTIONS_DEFAULT.to_string(),
+            text: BASE_INSTRUCTIONS_DEFAULT.to_owned(),
         }
     }
 }
@@ -475,13 +475,13 @@ impl DeveloperInstructions {
                         "{on_request_rule}\n## Approved command prefixes\nThe following prefix rules have already been approved: {prefixes}"
                     )
                 }
-                None => on_request_rule.to_string(),
+                None => on_request_rule.to_owned(),
             }
         };
         let text = match approval_policy {
-            AskForApproval::Never => APPROVAL_POLICY_NEVER.to_string(),
-            AskForApproval::UnlessTrusted => APPROVAL_POLICY_UNLESS_TRUSTED.to_string(),
-            AskForApproval::OnFailure => APPROVAL_POLICY_ON_FAILURE.to_string(),
+            AskForApproval::Never => APPROVAL_POLICY_NEVER.to_owned(),
+            AskForApproval::UnlessTrusted => APPROVAL_POLICY_UNLESS_TRUSTED.to_owned(),
+            AskForApproval::OnFailure => APPROVAL_POLICY_ON_FAILURE.to_owned(),
             AskForApproval::OnRequest => on_request_instructions(),
             AskForApproval::Reject(reject_config) => {
                 let on_request_instructions = on_request_instructions();
@@ -696,7 +696,7 @@ impl From<DeveloperInstructions> for ResponseItem {
     fn from(di: DeveloperInstructions) -> Self {
         ResponseItem::Message {
             id: None,
-            role: "developer".to_string(),
+            role: "developer".to_owned(),
             content: vec![ContentItem::InputText {
                 text: di.into_text(),
             }],
@@ -748,11 +748,11 @@ const LOCAL_IMAGE_OPEN_TAG_SUFFIX: &str = ">";
 const LOCAL_IMAGE_CLOSE_TAG: &str = IMAGE_CLOSE_TAG;
 
 pub fn image_open_tag_text() -> String {
-    IMAGE_OPEN_TAG.to_string()
+    IMAGE_OPEN_TAG.to_owned()
 }
 
 pub fn image_close_tag_text() -> String {
-    IMAGE_CLOSE_TAG.to_string()
+    IMAGE_CLOSE_TAG.to_owned()
 }
 
 pub fn local_image_label_text(label_number: usize) -> String {
@@ -821,7 +821,7 @@ pub fn local_image_content_items_with_label_number(
             });
             if label_number.is_some() {
                 items.push(ContentItem::InputText {
-                    text: LOCAL_IMAGE_CLOSE_TAG.to_string(),
+                    text: LOCAL_IMAGE_CLOSE_TAG.to_owned(),
                 });
             }
             items
@@ -961,7 +961,7 @@ impl From<Vec<UserInput>> for ResponseInputItem {
     fn from(items: Vec<UserInput>) -> Self {
         let mut image_index = 0;
         Self::Message {
-            role: "user".to_string(),
+            role: "user".to_owned(),
             content: items
                 .into_iter()
                 .flat_map(|c| match c {
@@ -1304,7 +1304,7 @@ fn convert_mcp_content_to_items(
                 }
             }
             Ok(McpContent::Unknown) | Err(_) => FunctionCallOutputContentItem::InputText {
-                text: serde_json::to_string(content).unwrap_or_else(|_| "<content>".to_string()),
+                text: serde_json::to_string(content).unwrap_or_else(|_| "<content>".to_owned()),
             },
         };
         items.push(item);

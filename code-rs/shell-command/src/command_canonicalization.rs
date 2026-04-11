@@ -63,14 +63,14 @@ pub fn canonicalize_command_for_approval(command: &[String]) -> Vec<String> {
                     ScriptWrapperFamily::Nushell => CANONICAL_NUSHELL_SCRIPT_PREFIX,
                     ScriptWrapperFamily::Elvish => CANONICAL_ELVISH_SCRIPT_PREFIX,
                 };
-                vec![prefix.to_string(), mode_flag.clone(), script.clone()]
+                vec![prefix.to_owned(), mode_flag.clone(), script.clone()]
             }
         }
         Invocation::PowerShellScript { script } => {
-            vec![CANONICAL_POWERSHELL_SCRIPT_PREFIX.to_string(), script.clone()]
+            vec![CANONICAL_POWERSHELL_SCRIPT_PREFIX.to_owned(), script.clone()]
         }
         Invocation::CmdScript { mode, script } => vec![
-            CANONICAL_CMD_SCRIPT_PREFIX.to_string(),
+            CANONICAL_CMD_SCRIPT_PREFIX.to_owned(),
             mode.clone(),
             script.clone(),
         ],
@@ -83,10 +83,10 @@ pub fn canonicalize_command_for_approval(command: &[String]) -> Vec<String> {
     // Note: we only preserve the presence of the wrapper, not its full flags
     // or environment assignments.
     if classified.prefix.env {
-        canonical.insert(0, "env".to_string());
+        canonical.insert(0, "env".to_owned());
     }
     if classified.prefix.sudo {
-        canonical.insert(0, "sudo".to_string());
+        canonical.insert(0, "sudo".to_owned());
     }
 
     canonical
@@ -117,13 +117,13 @@ pub fn normalize_command_for_persistence(command: &[String]) -> Vec<String> {
                     .peeled_argv
                     .get(1)
                     .and_then(|applet| file_name_only(applet))
-                    .unwrap_or_else(|| "sh".to_string())
+                    .unwrap_or_else(|| "sh".to_owned())
             } else {
                 classified
                     .peeled_argv
                     .first()
                     .and_then(|shell| file_name_only(shell))
-                    .unwrap_or_else(|| "bash".to_string())
+                    .unwrap_or_else(|| "bash".to_owned())
             };
             prefix_tokens
                 .into_iter()
@@ -136,10 +136,10 @@ pub fn normalize_command_for_persistence(command: &[String]) -> Vec<String> {
                 .peeled_argv
                 .first()
                 .and_then(|shell| file_name_only(shell))
-                .unwrap_or_else(|| "pwsh".to_string());
+                .unwrap_or_else(|| "pwsh".to_owned());
             prefix_tokens
                 .into_iter()
-                .chain([shell, "-Command".to_string(), script])
+                .chain([shell, "-Command".to_owned(), script])
                 .collect()
         }
     }

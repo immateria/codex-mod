@@ -181,11 +181,11 @@ fn invalid_block_message(event_name: &str) -> String {
 
 fn unsupported_pre_tool_use_universal(universal: &UniversalOutput) -> Option<String> {
     if !universal.continue_processing {
-        Some("PreToolUse hook returned unsupported continue:false".to_string())
+        Some("PreToolUse hook returned unsupported continue:false".to_owned())
     } else if universal.stop_reason.is_some() {
-        Some("PreToolUse hook returned unsupported stopReason".to_string())
+        Some("PreToolUse hook returned unsupported stopReason".to_owned())
     } else if universal.suppress_output {
-        Some("PreToolUse hook returned unsupported suppressOutput".to_string())
+        Some("PreToolUse hook returned unsupported suppressOutput".to_owned())
     } else {
         None
     }
@@ -195,21 +195,21 @@ fn unsupported_pre_tool_use_hook_specific_output(
     output: &crate::schema::PreToolUseHookSpecificOutputWire,
 ) -> Option<String> {
     if output.updated_input.is_some() {
-        Some("PreToolUse hook returned unsupported updatedInput".to_string())
+        Some("PreToolUse hook returned unsupported updatedInput".to_owned())
     } else if output
         .additional_context
         .as_deref()
         .and_then(trimmed_reason)
         .is_some()
     {
-        Some("PreToolUse hook returned unsupported additionalContext".to_string())
+        Some("PreToolUse hook returned unsupported additionalContext".to_owned())
     } else {
         match output.permission_decision {
             Some(PreToolUsePermissionDecisionWire::Allow) => {
-                Some("PreToolUse hook returned unsupported permissionDecision:allow".to_string())
+                Some("PreToolUse hook returned unsupported permissionDecision:allow".to_owned())
             }
             Some(PreToolUsePermissionDecisionWire::Ask) => {
-                Some("PreToolUse hook returned unsupported permissionDecision:ask".to_string())
+                Some("PreToolUse hook returned unsupported permissionDecision:ask".to_owned())
             }
             Some(PreToolUsePermissionDecisionWire::Deny) => {
                 if output
@@ -225,7 +225,7 @@ fn unsupported_pre_tool_use_hook_specific_output(
             }
             None => {
                 if output.permission_decision_reason.is_some() {
-                    Some("PreToolUse hook returned permissionDecisionReason without permissionDecision".to_string())
+                    Some("PreToolUse hook returned permissionDecisionReason without permissionDecision".to_owned())
                 } else {
                     None
                 }
@@ -240,7 +240,7 @@ fn unsupported_pre_tool_use_legacy_decision(
 ) -> Option<String> {
     match decision {
         Some(PreToolUseDecisionWire::Approve) => {
-            Some("PreToolUse hook returned unsupported decision:approve".to_string())
+            Some("PreToolUse hook returned unsupported decision:approve".to_owned())
         }
         Some(PreToolUseDecisionWire::Block) => {
             if reason.and_then(trimmed_reason).is_none() {
@@ -251,7 +251,7 @@ fn unsupported_pre_tool_use_legacy_decision(
         }
         None => {
             if reason.is_some() {
-                Some("PreToolUse hook returned reason without decision".to_string())
+                Some("PreToolUse hook returned reason without decision".to_owned())
             } else {
                 None
             }
@@ -260,8 +260,7 @@ fn unsupported_pre_tool_use_legacy_decision(
 }
 
 fn invalid_pre_tool_use_reason_message() -> String {
-    "PreToolUse hook returned permissionDecision:deny without a non-empty permissionDecisionReason"
-        .to_string()
+    "PreToolUse hook returned permissionDecision:deny without a non-empty permissionDecisionReason".to_owned()
 }
 
 fn trimmed_reason(reason: &str) -> Option<String> {
@@ -269,6 +268,6 @@ fn trimmed_reason(reason: &str) -> Option<String> {
     if trimmed.is_empty() {
         None
     } else {
-        Some(trimmed.to_string())
+        Some(trimmed.to_owned())
     }
 }

@@ -73,9 +73,9 @@ pub(crate) async fn handle_browser_tool(
 
     let payload_value = Value::Object(object.clone());
     let payload_string = if object.is_empty() {
-        "{}".to_string()
+        "{}".to_owned()
     } else {
-        serde_json::to_string(&payload_value).unwrap_or_else(|_| "{}".to_string())
+        serde_json::to_string(&payload_value).unwrap_or_else(|_| "{}".to_owned())
     };
 
     let action_lower = action.to_lowercase();

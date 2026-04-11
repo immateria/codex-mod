@@ -15,7 +15,7 @@ pub(super) async fn run_background_review_inner(
     {
         let mgr = code_core::AGENT_MANAGER.read().await;
         let busy = mgr
-            .list_agents(None, Some("auto-review".to_string()), false)
+            .list_agents(None, Some("auto-review".to_owned()), false)
             .into_iter()
             .any(|agent| {
                 let status = format!("{:?}", agent.status).to_ascii_lowercase();
@@ -27,7 +27,7 @@ pub(super) async fn run_background_review_inner(
                 branch: String::new(),
                 has_findings: false,
                 findings: 0,
-                summary: Some("Auto review skipped: another auto review is already running.".to_string()),
+                summary: Some("Auto review skipped: another auto review is already running.".to_owned()),
                 error: None,
                 agent_id: None,
                 snapshot: None,
@@ -60,7 +60,7 @@ pub(super) async fn run_background_review_inner(
         .map_err(|e| format!("failed to spawn snapshot task: {e}"))
         .and_then(|res| res.map_err(|e| format!("failed to capture snapshot: {e}")))?;
 
-        let snapshot_id = snapshot.id().to_string();
+        let snapshot_id = snapshot.id().to_owned();
         bump_snapshot_epoch_for(&config.cwd);
 
         // Attempt to hold the shared review lock; if busy or a previous review
@@ -81,7 +81,7 @@ pub(super) async fn run_background_review_inner(
                     )
                     .await
                     .map_err(|e| format!("failed to prepare worktree: {e}"))?;
-                    (path, AUTO_REVIEW_SHARED_WORKTREE.to_string(), g)
+                    (path, AUTO_REVIEW_SHARED_WORKTREE.to_owned(), g)
                 }
                 Ok(None) => {
                     let (path, name, guard) =
@@ -98,7 +98,7 @@ pub(super) async fn run_background_review_inner(
         fn ensure_code_prefix(model: &str) -> String {
             let lower = model.to_ascii_lowercase();
             if lower.starts_with("code-") {
-                model.to_string()
+                model.to_owned()
             } else {
                 format!("code-{model}")
             }
@@ -108,7 +108,7 @@ pub(super) async fn run_background_review_inner(
 
         // Allow the spawned agent to reuse the parent's review lock without blocking.
         let mut env: std::collections::HashMap<String, String> = std::collections::HashMap::new();
-        env.insert("CODE_REVIEW_LOCK_LEASE".to_string(), "1".to_string());
+        env.insert("CODE_REVIEW_LOCK_LEASE".to_owned(), "1".to_owned());
         let agent_config = code_core::config_types::AgentConfig {
             name: review_model.clone(),
             command: String::new(),
@@ -136,7 +136,7 @@ pub(super) async fn run_background_review_inner(
         let agent_id = manager
             .create_agent_with_options(code_core::AgentCreateRequest {
                 model: review_model,
-                name: Some("Auto Review".to_string()),
+                name: Some("Auto Review".to_owned()),
                 prompt: review_prompt,
                 context: None,
                 output_goal: None,
@@ -182,7 +182,7 @@ pub(super) fn insert_background_lock_inner(
     guard: code_core::review_coord::ReviewGuard,
 ) {
     if let Ok(mut map) = BACKGROUND_REVIEW_LOCKS.lock() {
-        map.insert(agent_id.to_string(), guard);
+        map.insert(agent_id.to_owned(), guard);
     }
 }
 

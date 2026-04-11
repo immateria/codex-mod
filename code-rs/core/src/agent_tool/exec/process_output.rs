@@ -7,7 +7,7 @@ pub(super) async fn stream_child_output(
     agent_id: &str,
     mut child: tokio::process::Child,
 ) -> Result<(std::process::ExitStatus, String, String), String> {
-    let agent_id_owned = agent_id.to_string();
+    let agent_id_owned = agent_id.to_owned();
     let stop_flag = Arc::new(AtomicBool::new(false));
     let stop_clone = stop_flag.clone();
     let heartbeat = tokio::spawn(async move {
@@ -22,12 +22,12 @@ pub(super) async fn stream_child_output(
     });
 
     let stdout_task = child.stdout.take().map(|stdout| {
-        let agent = agent_id.to_string();
+        let agent = agent_id.to_owned();
         tokio::spawn(async move { stream_reader_to_progress(agent, "stdout", stdout).await })
     });
 
     let stderr_task = child.stderr.take().map(|stderr| {
-        let agent = agent_id.to_string();
+        let agent = agent_id.to_owned();
         tokio::spawn(async move { stream_reader_to_progress(agent, "stderr", stderr).await })
     });
 

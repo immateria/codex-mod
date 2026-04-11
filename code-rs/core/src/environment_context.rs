@@ -214,7 +214,7 @@ impl EnvironmentContext {
     /// </environment_context>
     /// ```
     pub fn serialize_to_xml(self) -> String {
-        let mut lines = vec![ENVIRONMENT_CONTEXT_OPEN_TAG.to_string()];
+        let mut lines = vec![ENVIRONMENT_CONTEXT_OPEN_TAG.to_owned()];
         if let Some(cwd) = self.cwd {
             lines.push(format!("  <cwd>{}</cwd>", cwd.to_string_lossy()));
         }
@@ -232,17 +232,17 @@ impl EnvironmentContext {
             ));
         }
         if let Some(writable_roots) = self.writable_roots {
-            lines.push("  <writable_roots>".to_string());
+            lines.push("  <writable_roots>".to_owned());
             for writable_root in writable_roots {
                 lines.push(format!(
                     "    <root>{}</root>",
                     writable_root.to_string_lossy()
                 ));
             }
-            lines.push("  </writable_roots>".to_string());
+            lines.push("  </writable_roots>".to_owned());
         }
         if let Some(operating_system) = self.operating_system {
-            lines.push("  <operating_system>".to_string());
+            lines.push("  <operating_system>".to_owned());
             if let Some(family) = operating_system.family {
                 lines.push(format!("    <family>{family}</family>"));
             }
@@ -252,15 +252,15 @@ impl EnvironmentContext {
             if let Some(architecture) = operating_system.architecture {
                 lines.push(format!("    <architecture>{architecture}</architecture>"));
             }
-            lines.push("  </operating_system>".to_string());
+            lines.push("  </operating_system>".to_owned());
         }
         if let Some(common_tools) = self.common_tools
             && !common_tools.is_empty() {
-                lines.push("  <common_tools>".to_string());
+                lines.push("  <common_tools>".to_owned());
                 for tool in common_tools {
                     lines.push(format!("    <tool>{tool}</tool>"));
                 }
-                lines.push("  </common_tools>".to_string());
+                lines.push("  </common_tools>".to_owned());
             }
         if let Some(current_date) = self.current_date {
             lines.push(format!("  <current_date>{current_date}</current_date>"));
@@ -270,7 +270,7 @@ impl EnvironmentContext {
         {
             lines.push(format!("  <shell>{shell_name}</shell>"));
         }
-        lines.push(ENVIRONMENT_CONTEXT_CLOSE_TAG.to_string());
+        lines.push(ENVIRONMENT_CONTEXT_CLOSE_TAG.to_owned());
         lines.join("\n")
     }
 }
@@ -279,7 +279,7 @@ impl From<EnvironmentContext> for ResponseItem {
     fn from(ec: EnvironmentContext) -> Self {
         ResponseItem::Message {
             id: None,
-            role: "user".to_string(),
+            role: "user".to_owned(),
             content: vec![ContentItem::InputText {
                 text: ec.serialize_to_xml(),
             }], end_turn: None, phase: None}
@@ -374,65 +374,65 @@ impl EnvironmentContextSnapshot {
         let mut changes = BTreeMap::new();
 
         if self.cwd != previous.cwd {
-            changes.insert("cwd".to_string(), option_string_to_json(&self.cwd));
+            changes.insert("cwd".to_owned(), option_string_to_json(&self.cwd));
         }
         if self.git_project_root != previous.git_project_root {
             changes.insert(
-                "git_project_root".to_string(),
+                "git_project_root".to_owned(),
                 option_string_to_json(&self.git_project_root),
             );
         }
         if self.approval_policy != previous.approval_policy {
             changes.insert(
-                "approval_policy".to_string(),
+                "approval_policy".to_owned(),
                 to_json_or_null(&self.approval_policy),
             );
         }
         if self.sandbox_mode != previous.sandbox_mode {
             changes.insert(
-                "sandbox_mode".to_string(),
+                "sandbox_mode".to_owned(),
                 to_json_or_null(&self.sandbox_mode),
             );
         }
         if self.network_access != previous.network_access {
             changes.insert(
-                "network_access".to_string(),
+                "network_access".to_owned(),
                 to_json_or_null(&self.network_access),
             );
         }
         if self.writable_roots != previous.writable_roots {
             changes.insert(
-                "writable_roots".to_string(),
+                "writable_roots".to_owned(),
                 JsonValue::Array(self.writable_roots.iter().map(|s| JsonValue::String(s.clone())).collect()),
             );
         }
         if self.operating_system != previous.operating_system {
             changes.insert(
-                "operating_system".to_string(),
+                "operating_system".to_owned(),
                 to_json_or_null(&self.operating_system),
             );
         }
         if self.common_tools != previous.common_tools {
             changes.insert(
-                "common_tools".to_string(),
+                "common_tools".to_owned(),
                 JsonValue::Array(self.common_tools.iter().map(|s| JsonValue::String(s.clone())).collect()),
             );
         }
         if self.shell != previous.shell {
             changes.insert(
-                "shell".to_string(),
+                "shell".to_owned(),
                 to_json_or_null(&self.shell),
             );
         }
         if self.git_branch != previous.git_branch {
             changes.insert(
-                "git_branch".to_string(),
+                "git_branch".to_owned(),
                 option_string_to_json(&self.git_branch),
             );
         }
         if self.reasoning_effort != previous.reasoning_effort {
             changes.insert(
-                "reasoning_effort".to_string(),
+                "reasoning_effort".to_owned(),
                 option_string_to_json(&self.reasoning_effort),
             );
         }
@@ -702,12 +702,12 @@ pub(crate) fn parse_legacy_system_status_snapshot(
                     if let Some(rest) = trimmed.strip_prefix("cwd:") {
                         let value = rest.trim();
                         if !value.is_empty() {
-                            cwd = Some(value.to_string());
+                            cwd = Some(value.to_owned());
                         }
                     } else if let Some(rest) = trimmed.strip_prefix("branch:") {
                         let value = rest.trim();
                         if !value.is_empty() && value != "unknown" {
-                            branch = Some(value.to_string());
+                            branch = Some(value.to_owned());
                         }
                     }
                 }
@@ -934,7 +934,7 @@ fn snapshot_to_response_item(
     let json = serde_json::to_string_pretty(snapshot)?;
     Ok(ResponseItem::Message {
         id: stream_id.map(ToString::to_string),
-        role: "user".to_string(),
+        role: "user".to_owned(),
         content: vec![ContentItem::InputText {
             text: format!(
                 "{ENVIRONMENT_CONTEXT_OPEN_TAG}\n{json}\n{ENVIRONMENT_CONTEXT_CLOSE_TAG}"
@@ -949,7 +949,7 @@ fn delta_to_response_item(
     let json = serde_json::to_string_pretty(delta)?;
     Ok(ResponseItem::Message {
         id: stream_id.map(ToString::to_string),
-        role: "user".to_string(),
+        role: "user".to_owned(),
         content: vec![ContentItem::InputText {
             text: format!(
                 "{ENVIRONMENT_CONTEXT_DELTA_OPEN_TAG}\n{json}\n{ENVIRONMENT_CONTEXT_DELTA_CLOSE_TAG}"
@@ -964,7 +964,7 @@ fn browser_snapshot_to_response_item(
     let json = serde_json::to_string_pretty(snapshot)?;
     Ok(ResponseItem::Message {
         id: stream_id.map(ToString::to_string),
-        role: "user".to_string(),
+        role: "user".to_owned(),
         content: vec![ContentItem::InputText {
             text: format!(
                 "{BROWSER_SNAPSHOT_OPEN_TAG}\n{json}\n{BROWSER_SNAPSHOT_CLOSE_TAG}"
@@ -994,7 +994,7 @@ fn detect_operating_system_info() -> Option<OperatingSystemInfo> {
         if arch.is_empty() {
             None
         } else {
-            Some(arch.to_string())
+            Some(arch.to_owned())
         }
     };
 
@@ -1022,7 +1022,7 @@ fn detect_common_tools() -> Option<Vec<String>> {
             .iter()
             .any(|name| which(name).is_ok())
         {
-            available.push(candidate.label.to_string());
+            available.push(candidate.label.to_owned());
         }
     }
 

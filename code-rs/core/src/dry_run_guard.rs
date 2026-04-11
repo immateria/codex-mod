@@ -121,11 +121,11 @@ impl DryRunAnalysis {
         let mut out = self.tokens.clone();
         if let Some(pos) = out.iter().position(|t| t == "--") {
             if !out.iter().skip(pos + 1).any(|t| equal_ignore_case(t, "--check")) {
-                out.insert(pos + 1, "--check".to_string());
+                out.insert(pos + 1, "--check".to_owned());
             }
         } else {
-            out.push("--".to_string());
-            out.push("--check".to_string());
+            out.push("--".to_owned());
+            out.push("--check".to_owned());
         }
         Some(out.join(" "))
     }
@@ -134,7 +134,7 @@ impl DryRunAnalysis {
         let mut out = self.tokens.clone();
         if !out.iter().any(|t| equal_ignore_case(t, "--dry-run")) {
             let insert_pos = out.iter().position(|t| t == "--").unwrap_or(out.len());
-            out.insert(insert_pos, "--dry-run".to_string());
+            out.insert(insert_pos, "--dry-run".to_owned());
         }
         Some(out.join(" "))
     }
@@ -159,7 +159,7 @@ impl DryRunAnalysis {
     fn suggest_rustfmt_dry_run(&self) -> Option<String> {
         let mut out = self.tokens.clone();
         if !out.iter().any(|t| equal_ignore_case(t, "--check")) {
-            out.push("--check".to_string());
+            out.push("--check".to_owned());
         }
         Some(out.join(" "))
     }
@@ -175,8 +175,8 @@ impl DryRunAnalysis {
             equal_ignore_case(t, preferred_flag)
                 || fallback_flag.is_some_and(|flag| equal_ignore_case(t, flag))
         }) {
-            out.push("--".to_string());
-            out.push(preferred_flag.to_string());
+            out.push("--".to_owned());
+            out.push(preferred_flag.to_owned());
         }
         Some(out.join(" "))
     }
@@ -191,7 +191,7 @@ impl DryRunAnalysis {
         }
         let mut out = self.tokens.clone();
         let insert_pos = out.iter().position(|t| t == "--").unwrap_or(out.len());
-        out.insert(insert_pos, "--fix-dry-run".to_string());
+        out.insert(insert_pos, "--fix-dry-run".to_owned());
         Some(out.join(" "))
     }
 
@@ -207,11 +207,11 @@ impl DryRunAnalysis {
         let mut out = self.tokens.clone();
         for token in &mut out {
             if equal_ignore_case(token.as_str(), "--write") || token.as_str() == "-w" {
-                *token = "--check".to_string();
+                *token = "--check".to_owned();
                 return Some(out.join(" "));
             }
         }
-        out.push("--check".to_string());
+        out.push("--check".to_owned());
         Some(out.join(" "))
     }
 
@@ -220,7 +220,7 @@ impl DryRunAnalysis {
             return Some(self.tokens.join(" "));
         }
         let mut out = self.tokens.clone();
-        out.push(flag.to_string());
+        out.push(flag.to_owned());
         Some(out.join(" "))
     }
 
@@ -229,14 +229,14 @@ impl DryRunAnalysis {
         let mut replaced = false;
         for token in &self.tokens {
             if !replaced && (token == "-w" || token.starts_with("-w=")) {
-                out.push("-d".to_string());
+                out.push("-d".to_owned());
                 replaced = true;
                 continue;
             }
             out.push(token.clone());
         }
         if !replaced {
-            out.push("-d".to_string());
+            out.push("-d".to_owned());
         }
         Some(out.join(" "))
     }
@@ -250,7 +250,7 @@ impl DryRunAnalysis {
             return Some(self.tokens.join(" "));
         }
         let mut out = self.tokens.clone();
-        out.push("--lint".to_string());
+        out.push("--lint".to_owned());
         Some(out.join(" "))
     }
 }
@@ -370,7 +370,7 @@ fn analyze_cargo(tokens: &[String]) -> Option<InternalAnalysis> {
             Some(InternalAnalysis {
                 key: DryRunGuardKey::CargoFmt,
                 disposition: if is_dry { DryRunDisposition::DryRun } else { DryRunDisposition::Mutating },
-                display_name: "cargo fmt".to_string(),
+                display_name: "cargo fmt".to_owned(),
                 suggested_dry_run: None,
             })
         }
@@ -379,7 +379,7 @@ fn analyze_cargo(tokens: &[String]) -> Option<InternalAnalysis> {
             Some(InternalAnalysis {
                 key: DryRunGuardKey::CargoFix,
                 disposition: if is_dry { DryRunDisposition::DryRun } else { DryRunDisposition::Mutating },
-                display_name: "cargo fix".to_string(),
+                display_name: "cargo fix".to_owned(),
                 suggested_dry_run: None,
             })
         }
@@ -392,7 +392,7 @@ fn analyze_cargo(tokens: &[String]) -> Option<InternalAnalysis> {
             Some(InternalAnalysis {
                 key: DryRunGuardKey::CargoClippyFix,
                 disposition: if is_dry { DryRunDisposition::DryRun } else { DryRunDisposition::Mutating },
-                display_name: "cargo clippy --fix".to_string(),
+                display_name: "cargo clippy --fix".to_owned(),
                 suggested_dry_run: None,
             })
         }
@@ -410,7 +410,7 @@ fn analyze_rustfmt(tokens: &[String]) -> Option<InternalAnalysis> {
     Some(InternalAnalysis {
         key: DryRunGuardKey::Rustfmt,
         disposition: if is_dry { DryRunDisposition::DryRun } else { DryRunDisposition::Mutating },
-        display_name: "rustfmt".to_string(),
+        display_name: "rustfmt".to_owned(),
         suggested_dry_run: None,
     })
 }
@@ -514,7 +514,7 @@ fn analyze_direct_formatter(tokens: &[String]) -> Option<InternalAnalysis> {
             Some(InternalAnalysis {
                 key: DryRunGuardKey::EslintFix,
                 disposition: if is_dry { DryRunDisposition::DryRun } else { DryRunDisposition::Mutating },
-                display_name: "eslint --fix".to_string(),
+                display_name: "eslint --fix".to_owned(),
                 suggested_dry_run: None,
             })
         }
@@ -531,7 +531,7 @@ fn analyze_direct_formatter(tokens: &[String]) -> Option<InternalAnalysis> {
             Some(InternalAnalysis {
                 key: DryRunGuardKey::PrettierWrite,
                 disposition: if is_dry { DryRunDisposition::DryRun } else { DryRunDisposition::Mutating },
-                display_name: "prettier --write".to_string(),
+                display_name: "prettier --write".to_owned(),
                 suggested_dry_run: None,
             })
         }
@@ -540,7 +540,7 @@ fn analyze_direct_formatter(tokens: &[String]) -> Option<InternalAnalysis> {
             Some(InternalAnalysis {
                 key: DryRunGuardKey::Black,
                 disposition: if is_dry { DryRunDisposition::DryRun } else { DryRunDisposition::Mutating },
-                display_name: "black".to_string(),
+                display_name: "black".to_owned(),
                 suggested_dry_run: None,
             })
         }
@@ -552,7 +552,7 @@ fn analyze_direct_formatter(tokens: &[String]) -> Option<InternalAnalysis> {
             Some(InternalAnalysis {
                 key: DryRunGuardKey::RuffFormat,
                 disposition: if is_dry { DryRunDisposition::DryRun } else { DryRunDisposition::Mutating },
-                display_name: "ruff format".to_string(),
+                display_name: "ruff format".to_owned(),
                 suggested_dry_run: None,
             })
         }
@@ -561,7 +561,7 @@ fn analyze_direct_formatter(tokens: &[String]) -> Option<InternalAnalysis> {
             Some(InternalAnalysis {
                 key: DryRunGuardKey::Isort,
                 disposition: if is_dry { DryRunDisposition::DryRun } else { DryRunDisposition::Mutating },
-                display_name: "isort".to_string(),
+                display_name: "isort".to_owned(),
                 suggested_dry_run: None,
             })
         }
@@ -574,7 +574,7 @@ fn analyze_direct_formatter(tokens: &[String]) -> Option<InternalAnalysis> {
             Some(InternalAnalysis {
                 key: DryRunGuardKey::Gofmt,
                 disposition: if is_dry { DryRunDisposition::DryRun } else { DryRunDisposition::Mutating },
-                display_name: "gofmt -w".to_string(),
+                display_name: "gofmt -w".to_owned(),
                 suggested_dry_run: None,
             })
         }
@@ -583,7 +583,7 @@ fn analyze_direct_formatter(tokens: &[String]) -> Option<InternalAnalysis> {
             Some(InternalAnalysis {
                 key: DryRunGuardKey::Rustywind,
                 disposition: if is_dry { DryRunDisposition::DryRun } else { DryRunDisposition::Mutating },
-                display_name: "rustywind".to_string(),
+                display_name: "rustywind".to_owned(),
                 suggested_dry_run: None,
             })
         }
@@ -595,7 +595,7 @@ fn analyze_direct_formatter(tokens: &[String]) -> Option<InternalAnalysis> {
             Some(InternalAnalysis {
                 key: DryRunGuardKey::DartFormat,
                 disposition: if is_dry { DryRunDisposition::DryRun } else { DryRunDisposition::Mutating },
-                display_name: "dart format".to_string(),
+                display_name: "dart format".to_owned(),
                 suggested_dry_run: None,
             })
         }
@@ -604,7 +604,7 @@ fn analyze_direct_formatter(tokens: &[String]) -> Option<InternalAnalysis> {
             Some(InternalAnalysis {
                 key: DryRunGuardKey::SwiftFormat,
                 disposition: if is_dry { DryRunDisposition::DryRun } else { DryRunDisposition::Mutating },
-                display_name: "swiftformat".to_string(),
+                display_name: "swiftformat".to_owned(),
                 suggested_dry_run: None,
             })
         }

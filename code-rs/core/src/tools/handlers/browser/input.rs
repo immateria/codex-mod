@@ -18,7 +18,7 @@ pub(super) async fn handle_browser_click(
     execute_custom_tool(
         sess,
         ctx,
-        "browser_click".to_string(),
+        "browser_click".to_owned(),
         params.clone(),
         || async move {
             let browser_manager = get_browser_manager_for_session(sess_clone).await;
@@ -72,11 +72,11 @@ pub(super) async fn handle_browser_click(
             // Perform the action at current (possibly moved) position.
             let action_result = match click_type.as_str() {
                 "mousedown" => browser_manager.mouse_down_at_current().await
-                    .map(|(x, y)| (x, y, "Mouse down".to_string())),
+                    .map(|(x, y)| (x, y, "Mouse down".to_owned())),
                 "mouseup" => browser_manager.mouse_up_at_current().await
-                    .map(|(x, y)| (x, y, "Mouse up".to_string())),
+                    .map(|(x, y)| (x, y, "Mouse up".to_owned())),
                 _ => browser_manager.click_at_current().await
-                    .map(|(x, y)| (x, y, "Clicked".to_string())),
+                    .map(|(x, y)| (x, y, "Clicked".to_owned())),
             };
 
             match action_result {
@@ -103,7 +103,7 @@ pub(super) async fn handle_browser_move(
     execute_custom_tool(
         sess,
         ctx,
-        "browser_move".to_string(),
+        "browser_move".to_owned(),
         params,
         || async move {
             let browser_manager = get_browser_manager_for_session(sess_clone).await;
@@ -182,7 +182,7 @@ pub(super) async fn handle_browser_type(
     execute_custom_tool(
         sess,
         ctx,
-        "browser_type".to_string(),
+        "browser_type".to_owned(),
         params,
         || async move {
             let browser_manager = get_browser_manager_for_session(sess_clone).await;
@@ -227,7 +227,7 @@ pub(super) async fn handle_browser_key(
     execute_custom_tool(
         sess,
         ctx,
-        "browser_key".to_string(),
+        "browser_key".to_owned(),
         params,
         || async move {
             let browser_manager = get_browser_manager_for_session(sess_clone).await;
@@ -281,7 +281,7 @@ pub(super) async fn handle_browser_scroll(
     execute_custom_tool(
         sess,
         ctx,
-        "browser_scroll".to_string(),
+        "browser_scroll".to_owned(),
         params,
         || async move {
             let browser_manager = get_browser_manager_for_session(sess_clone).await;
@@ -335,7 +335,7 @@ pub(super) async fn handle_browser_history(
     execute_custom_tool(
         sess,
         ctx,
-        "browser_history".to_string(),
+        "browser_history".to_owned(),
         params,
         || async move {
             let browser_manager = get_browser_manager_for_session(sess_clone).await;

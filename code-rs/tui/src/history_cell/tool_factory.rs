@@ -66,7 +66,7 @@ fn argument_value_from_json(value: &serde_json::Value) -> ArgumentValue {
         serde_json::Value::String(s) => ArgumentValue::Text(s.clone()),
         serde_json::Value::Number(n) => ArgumentValue::Text(n.to_string()),
         serde_json::Value::Bool(b) => ArgumentValue::Text(b.to_string()),
-        serde_json::Value::Null => ArgumentValue::Text("null".to_string()),
+        serde_json::Value::Null => ArgumentValue::Text("null".to_owned()),
         serde_json::Value::Array(_) | serde_json::Value::Object(_) => {
             ArgumentValue::Json(value.clone())
         }
@@ -91,11 +91,11 @@ pub(crate) fn arguments_from_json_excluding(
             })
             .collect(),
         serde_json::Value::Array(items) => vec![ToolArgument {
-            name: "items".to_string(),
+            name: "items".to_owned(),
             value: ArgumentValue::Json(serde_json::Value::Array(items.clone())),
         }],
         other => vec![ToolArgument {
-            name: "args".to_string(),
+            name: "args".to_owned(),
             value: argument_value_from_json(other),
         }],
     }
@@ -130,7 +130,7 @@ pub(crate) fn new_running_browser_tool_call(
                 let summary = lines_to_plain_text(&lines);
                 if !summary.is_empty() {
                     arguments.push(ToolArgument {
-                        name: "summary".to_string(),
+                        name: "summary".to_owned(),
                         value: ArgumentValue::Text(summary),
                     });
                 }
@@ -141,7 +141,7 @@ pub(crate) fn new_running_browser_tool_call(
     let state = RunningToolState {
         id: HistoryId::ZERO,
         call_id: None,
-        title: browser_running_title(&tool_name).to_string(),
+        title: browser_running_title(&tool_name).to_owned(),
         started_at: SystemTime::now(),
         arguments,
         wait_has_target: false,
@@ -153,13 +153,13 @@ pub(crate) fn new_running_browser_tool_call(
 
 fn custom_tool_running_title(tool_name: &str) -> String {
     if tool_name == "wait" {
-        return "Waiting".to_string();
+        return "Waiting".to_owned();
     }
     if tool_name.starts_with("agent_") || tool_name == "agent" {
         // Reuse agent title and append ellipsis
         format!("{}...", agent_tool_title(tool_name, None))
     } else if tool_name.starts_with("browser_") {
-        browser_running_title(tool_name).to_string()
+        browser_running_title(tool_name).to_owned()
     } else {
         // TitleCase from snake_case and append ellipsis
         let pretty = tool_name
@@ -195,15 +195,15 @@ pub(crate) fn new_running_custom_tool_call(
                     if let Some(for_what) = json.get("for").and_then(|v| v.as_str()) {
                         let cleaned = clean_wait_command(for_what);
                         arguments.push(ToolArgument {
-                            name: "for".to_string(),
+                            name: "for".to_owned(),
                             value: ArgumentValue::Text(cleaned),
                         });
                         wait_has_target = true;
                     }
                     if let Some(cid) = json.get("call_id").and_then(|v| v.as_str()) {
                         arguments.push(ToolArgument {
-                            name: "call_id".to_string(),
-                            value: ArgumentValue::Text(cid.to_string()),
+                            name: "call_id".to_owned(),
+                            value: ArgumentValue::Text(cid.to_owned()),
                         });
                         wait_has_call_id = true;
                     }
@@ -222,7 +222,7 @@ pub(crate) fn new_running_custom_tool_call(
             }
             Err(_) => {
                 arguments.push(ToolArgument {
-                    name: "args".to_string(),
+                    name: "args".to_owned(),
                     value: ArgumentValue::Text(args_str.clone()),
                 });
             }
@@ -248,10 +248,10 @@ pub(crate) fn new_running_mcp_tool_call(invocation: McpInvocation) -> RunningToo
     let state = RunningToolState {
         id: HistoryId::ZERO,
         call_id: None,
-        title: "Working...".to_string(),
+        title: "Working...".to_owned(),
         started_at: SystemTime::now(),
         arguments: vec![ToolArgument {
-            name: "invocation".to_string(),
+            name: "invocation".to_owned(),
             value: ArgumentValue::Text(invocation_text),
         }],
         wait_has_target: false,
@@ -292,9 +292,9 @@ pub(crate) fn new_completed_custom_tool_call(
             parsed
                 .as_ref()
                 .and_then(sanitize_gh_run_wait_invocation_args)
-                .unwrap_or_else(|| args_str.to_string())
+                .unwrap_or_else(|| args_str.to_owned())
         } else {
-            args_str.to_string()
+            args_str.to_owned()
         };
         parsed_json = parsed;
         if invocation_args.is_empty() {
@@ -307,7 +307,7 @@ pub(crate) fn new_completed_custom_tool_call(
     };
 
     let mut arguments = vec![ToolArgument {
-        name: "invocation".to_string(),
+        name: "invocation".to_owned(),
         value: ArgumentValue::Text(invocation_str),
     }];
 
@@ -321,7 +321,7 @@ pub(crate) fn new_completed_custom_tool_call(
             arguments.append(&mut parsed);
         } else if !args_str.is_empty() {
             arguments.push(ToolArgument {
-                name: "args".to_string(),
+                name: "args".to_owned(),
                 value: ArgumentValue::Text(args_str),
             });
         }
@@ -345,7 +345,7 @@ pub(crate) fn new_completed_custom_tool_call(
         id: HistoryId::ZERO,
         call_id: None,
         status,
-        title: status_title.to_string(),
+        title: status_title.to_owned(),
         duration: Some(duration),
         arguments,
         result_preview,
@@ -416,12 +416,12 @@ fn gh_run_wait_title(result: &str, success: bool) -> String {
         .map(str::trim)
         .find(|line| !line.is_empty())
         && line.to_ascii_lowercase().starts_with("github actions run") {
-            return line.to_string();
+            return line.to_owned();
         }
     if success {
-        "GitHub Actions run success".to_string()
+        "GitHub Actions run success".to_owned()
     } else {
-        "GitHub Actions run error".to_string()
+        "GitHub Actions run error".to_owned()
     }
 }
 
@@ -980,7 +980,7 @@ fn new_completed_browser_tool_call(
                 let summary = lines_to_plain_text(&lines);
                 if !summary.is_empty() {
                     arguments.push(ToolArgument {
-                        name: "summary".to_string(),
+                        name: "summary".to_owned(),
                         value: ArgumentValue::Text(summary),
                     });
                 }
@@ -989,7 +989,7 @@ fn new_completed_browser_tool_call(
             arguments.append(&mut kv);
         } else if !args_str.is_empty() {
             arguments.push(ToolArgument {
-                name: "args".to_string(),
+                name: "args".to_owned(),
                 value: ArgumentValue::Text(args_str),
             });
         }
@@ -1013,7 +1013,7 @@ fn new_completed_browser_tool_call(
         id: HistoryId::ZERO,
         call_id: None,
         status,
-        title: browser_tool_title(&tool_name).to_string(),
+        title: browser_tool_title(&tool_name).to_owned(),
         duration: Some(duration),
         arguments,
         result_preview,
@@ -1036,12 +1036,12 @@ fn agent_tool_title(tool_name: &str, action: Option<&str>) -> String {
     });
 
     match key {
-        "create" | "agent" => "Agent Run".to_string(),
-        "wait" | "agent_wait" => "Agent Wait".to_string(),
-        "result" | "agent_result" => "Agent Result".to_string(),
-        "cancel" | "agent_cancel" => "Agent Cancel".to_string(),
-        "status" | "agent_check" | "agent_status" => "Agent Status".to_string(),
-        "list" | "agent_list" => "Agent List".to_string(),
+        "create" | "agent" => "Agent Run".to_owned(),
+        "wait" | "agent_wait" => "Agent Wait".to_owned(),
+        "result" | "agent_result" => "Agent Result".to_owned(),
+        "cancel" | "agent_cancel" => "Agent Cancel".to_owned(),
+        "status" | "agent_check" | "agent_status" => "Agent Status".to_owned(),
+        "list" | "agent_list" => "Agent List".to_owned(),
         other => {
             if let Some(rest) = other.strip_prefix("agent_") {
                 let title = rest
@@ -1058,7 +1058,7 @@ fn agent_tool_title(tool_name: &str, action: Option<&str>) -> String {
                     .join(" ");
                 format!("Agent {title}")
             } else {
-                "Agent Tool".to_string()
+                "Agent Tool".to_owned()
             }
         }
     }
@@ -1081,13 +1081,13 @@ fn new_completed_agent_tool_call(
     if let Some(args_str) = args {
         if let Ok(json) = serde_json::from_str::<serde_json::Value>(&args_str) {
             if let Some(act) = json.get("action").and_then(|v| v.as_str()) {
-                action = Some(act.to_string());
+                action = Some(act.to_owned());
             }
             let mut kv = arguments_from_json(&json);
             arguments.append(&mut kv);
         } else if !args_str.is_empty() {
             arguments.push(ToolArgument {
-                name: "args".to_string(),
+                name: "args".to_owned(),
                 value: ArgumentValue::Text(args_str),
             });
         }
@@ -1197,7 +1197,7 @@ pub(crate) fn new_completed_mcp_tool_call(
     let invocation_line = format_mcp_invocation(invocation);
     let invocation_text = line_to_plain_text(&invocation_line);
     let arguments = vec![ToolArgument {
-        name: "invocation".to_string(),
+        name: "invocation".to_owned(),
         value: ArgumentValue::Text(invocation_text),
     }];
 
@@ -1216,10 +1216,10 @@ pub(crate) fn new_completed_mcp_tool_call(
                         preview_lines.push(String::new());
                     }
                     mcp_types::ContentBlock::ImageContent(_) => {
-                        preview_lines.push("<image content>".to_string());
+                        preview_lines.push("<image content>".to_owned());
                     }
                     mcp_types::ContentBlock::AudioContent(_) => {
-                        preview_lines.push("<audio content>".to_string());
+                        preview_lines.push("<audio content>".to_owned());
                     }
                     mcp_types::ContentBlock::EmbeddedResource(resource) => {
                         let uri = match resource.resource {
@@ -1255,7 +1255,7 @@ pub(crate) fn new_completed_mcp_tool_call(
         id: HistoryId::ZERO,
         call_id: None,
         status,
-        title: if success { "Complete" } else { "Error" }.to_string(),
+        title: if success { "Complete" } else { "Error" }.to_owned(),
         duration: Some(duration),
         arguments,
         result_preview,

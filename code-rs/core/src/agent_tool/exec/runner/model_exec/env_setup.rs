@@ -21,15 +21,15 @@ pub(super) fn build_agent_env(
 
     let child_spawn_depth = crate::agent_tool::current_agent_spawn_depth().saturating_add(1);
     env.insert(
-        crate::agent_tool::CODE_AGENT_SPAWN_DEPTH_ENV.to_string(),
+        crate::agent_tool::CODE_AGENT_SPAWN_DEPTH_ENV.to_owned(),
         child_spawn_depth.to_string(),
     );
 
     if debug_subagent {
-        env.entry("CODE_SUBAGENT_DEBUG".to_string())
-            .or_insert_with(|| "1".to_string());
+        env.entry("CODE_SUBAGENT_DEBUG".to_owned())
+            .or_insert_with(|| "1".to_owned());
         if let Some(tag) = child_log_tag {
-            env.insert("CODE_DEBUG_LOG_TAG".to_string(), tag.to_string());
+            env.insert("CODE_DEBUG_LOG_TAG".to_owned(), tag.to_owned());
         }
     }
 
@@ -40,53 +40,53 @@ pub(super) fn build_agent_env(
             Some(AgentSourceKind::AutoReview) => "review",
             _ => "agent",
         };
-        env.entry("CODE_OPENAI_SUBAGENT".to_string())
-            .or_insert_with(|| subagent.to_string());
+        env.entry("CODE_OPENAI_SUBAGENT".to_owned())
+            .or_insert_with(|| subagent.to_owned());
     }
 
     // Convenience: map common key names so external CLIs "just work".
     if let Some(google_key) = env.get("GOOGLE_API_KEY").cloned() {
-        env.entry("GEMINI_API_KEY".to_string()).or_insert(google_key);
+        env.entry("GEMINI_API_KEY".to_owned()).or_insert(google_key);
     }
     if let Some(claude_key) = env.get("CLAUDE_API_KEY").cloned() {
-        env.entry("ANTHROPIC_API_KEY".to_string())
+        env.entry("ANTHROPIC_API_KEY".to_owned())
             .or_insert(claude_key);
     }
     if let Some(anthropic_key) = env.get("ANTHROPIC_API_KEY").cloned() {
-        env.entry("CLAUDE_API_KEY".to_string())
+        env.entry("CLAUDE_API_KEY".to_owned())
             .or_insert(anthropic_key);
     }
     if let Some(anthropic_base) = env.get("ANTHROPIC_BASE_URL").cloned() {
-        env.entry("CLAUDE_BASE_URL".to_string())
+        env.entry("CLAUDE_BASE_URL".to_owned())
             .or_insert(anthropic_base);
     }
     // Qwen/DashScope convenience: mirror API keys and base URLs both ways so
     // either variable name works across tools.
     if let Some(qwen_key) = env.get("QWEN_API_KEY").cloned() {
-        env.entry("DASHSCOPE_API_KEY".to_string()).or_insert(qwen_key);
+        env.entry("DASHSCOPE_API_KEY".to_owned()).or_insert(qwen_key);
     }
     if let Some(dashscope_key) = env.get("DASHSCOPE_API_KEY").cloned() {
-        env.entry("QWEN_API_KEY".to_string())
+        env.entry("QWEN_API_KEY".to_owned())
             .or_insert(dashscope_key);
     }
     if let Some(qwen_base) = env.get("QWEN_BASE_URL").cloned() {
-        env.entry("DASHSCOPE_BASE_URL".to_string())
+        env.entry("DASHSCOPE_BASE_URL".to_owned())
             .or_insert(qwen_base);
     }
     if let Some(ds_base) = env.get("DASHSCOPE_BASE_URL").cloned() {
-        env.entry("QWEN_BASE_URL".to_string()).or_insert(ds_base);
+        env.entry("QWEN_BASE_URL".to_owned()).or_insert(ds_base);
     }
     if family == "qwen" {
-        env.insert("OPENAI_API_KEY".to_string(), String::new());
+        env.insert("OPENAI_API_KEY".to_owned(), String::new());
     }
 
     // Reduce startup overhead for Claude CLI: disable auto-updater/telemetry.
-    env.entry("DISABLE_AUTOUPDATER".to_string())
-        .or_insert("1".to_string());
-    env.entry("CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC".to_string())
-        .or_insert("1".to_string());
-    env.entry("DISABLE_ERROR_REPORTING".to_string())
-        .or_insert("1".to_string());
+    env.entry("DISABLE_AUTOUPDATER".to_owned())
+        .or_insert("1".to_owned());
+    env.entry("CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC".to_owned())
+        .or_insert("1".to_owned());
+    env.entry("DISABLE_ERROR_REPORTING".to_owned())
+        .or_insert("1".to_owned());
 
     // If GEMINI_API_KEY not provided, try pointing to host config for read-only
     // discovery (Gemini CLI supports GEMINI_CONFIG_DIR). We keep HOME as-is so

@@ -14,14 +14,14 @@ impl NetworkSettingsView {
 
         let allowed_count = self.settings.allowed_domains.len();
         let allowed_summary = if allowed_count == 0 {
-            "(none)".to_string()
+            "(none)".to_owned()
         } else {
             format!("{allowed_count} entries")
         };
 
         let denied_count = self.settings.denied_domains.len();
         let denied_summary = if denied_count == 0 {
-            "(none)".to_string()
+            "(none)".to_owned()
         } else {
             format!("{denied_count} entries")
         };
@@ -30,7 +30,7 @@ impl NetworkSettingsView {
 
         let unix_count = self.settings.allow_unix_sockets.len();
         let unix_summary = if unix_count == 0 {
-            "(none)".to_string()
+            "(none)".to_owned()
         } else {
             format!("{unix_count} entries")
         };

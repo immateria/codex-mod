@@ -287,7 +287,7 @@ impl RequestUserInputView {
                 let other_idx = (question.is_other && !options.is_empty()).then_some(options.len());
                 if other_idx.is_some_and(|idx| selected_idx == Some(idx)) {
                     let value = answer_state.freeform.trim_end();
-                    answer_list.push(value.to_string());
+                    answer_list.push(value.to_owned());
                 } else if let Some(label) = selected_idx
                     .and_then(|i| options.get(i))
                     .map(|opt| opt.label.clone())
@@ -298,7 +298,7 @@ impl RequestUserInputView {
                 let value = answer_state.freeform.trim_end();
                 // Preserve the legacy behavior of `request_user_input` composer replies:
                 // always provide an answer slot, even when empty.
-                answer_list.push(value.to_string());
+                answer_list.push(value.to_owned());
             }
 
             answers.insert(

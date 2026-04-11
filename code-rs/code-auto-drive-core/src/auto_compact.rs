@@ -46,9 +46,9 @@ pub(crate) fn compact_with_endpoint(
                 prompt.input = sanitized_input;
                 prompt.include_additional_instructions = false;
                 if !prompt_instructions.is_empty() {
-                    prompt.base_instructions_override = Some(prompt_instructions.to_string());
+                    prompt.base_instructions_override = Some(prompt_instructions.to_owned());
                 }
-                prompt.model_override = Some(model_slug.to_string());
+                prompt.model_override = Some(model_slug.to_owned());
                 let family = find_family_for_model(model_slug)
                     .unwrap_or_else(|| derive_default_model_family(model_slug));
                 prompt.model_family_override = Some(family);
@@ -104,7 +104,7 @@ fn message_text(item: &ResponseItem) -> Option<String> {
     if trimmed.is_empty() {
         None
     } else {
-        Some(trimmed.to_string())
+        Some(trimmed.to_owned())
     }
 }
 
@@ -234,12 +234,12 @@ fn summarize_with_model(
                 let mut prompt = Prompt::default();
                 prompt.store = false;
                 prompt.text_format = Some(TextFormat {
-                    r#type: "text".to_string(),
+                    r#type: "text".to_owned(),
                     name: None,
                     strict: None,
                     schema: None,
                 });
-                prompt.model_override = Some(model_slug.to_string());
+                prompt.model_override = Some(model_slug.to_owned());
                 let family = find_family_for_model(model_slug)
                     .unwrap_or_else(|| derive_default_model_family(model_slug));
                 prompt.model_family_override = Some(family);
@@ -335,7 +335,7 @@ fn deterministic_summary(items: &[ResponseItem], prev_summary: Option<&str>) -> 
                 actions.push(format!("{role}: {text}"));
                 if role == "assistant"
                     && let Some(cmd) = text.lines().find(|line| line.trim_start().starts_with('$')) {
-                        commands.push(cmd.trim().to_string());
+                        commands.push(cmd.trim().to_owned());
                     }
             }
             ResponseItem::FunctionCall { name, .. } => {
@@ -524,7 +524,7 @@ pub(crate) fn estimate_item_tokens(item: &ResponseItem) -> usize {
 fn plain_message(role: &str, text: String) -> ResponseItem {
     ResponseItem::Message {
         id: None,
-        role: role.to_string(),
+        role: role.to_owned(),
         content: vec![ContentItem::InputText { text }],
         end_turn: None,
         phase: None,
@@ -534,7 +534,7 @@ fn plain_message(role: &str, text: String) -> ResponseItem {
 fn push_compaction_prompt(prompt: &mut Prompt, compact_prompt: &str) {
     prompt
         .input
-        .push(plain_message("developer", compact_prompt.to_string()));
+        .push(plain_message("developer", compact_prompt.to_owned()));
 }
 
 #[cfg(test)]

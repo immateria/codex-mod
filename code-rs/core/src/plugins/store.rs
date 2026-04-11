@@ -44,7 +44,7 @@ impl PluginId {
             )));
         }
 
-        Self::new(plugin_name.to_string(), marketplace_name.to_string()).map_err(|err| match err {
+        Self::new(plugin_name.to_owned(), marketplace_name.to_owned()).map_err(|err| match err {
             PluginIdError::Invalid(message) => {
                 PluginIdError::Invalid(format!("{message} in `{plugin_key}`"))
             }
@@ -131,7 +131,7 @@ impl PluginStore {
         source_path: AbsolutePathBuf,
         plugin_id: PluginId,
     ) -> Result<PluginInstallResult, PluginStoreError> {
-        self.install_with_version(source_path, plugin_id, DEFAULT_PLUGIN_VERSION.to_string())
+        self.install_with_version(source_path, plugin_id, DEFAULT_PLUGIN_VERSION.to_owned())
     }
 
     pub fn install_with_version(

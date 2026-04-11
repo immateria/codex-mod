@@ -54,10 +54,10 @@ pub(super) async fn run_turn(
         .collect();
     let trimmed_mode_instructions = collaboration_mode_instructions.trim();
     if !trimmed_mode_instructions.is_empty() {
-        base_prepend_developer_messages.push(trimmed_mode_instructions.to_string());
+        base_prepend_developer_messages.push(trimmed_mode_instructions.to_owned());
     }
     if let Some(shell_style) = sess.user_shell.script_style() {
-        base_prepend_developer_messages.push(shell_style.developer_instruction().to_string());
+        base_prepend_developer_messages.push(shell_style.developer_instruction().to_owned());
     }
     base_prepend_developer_messages.extend(
         sess
@@ -65,7 +65,7 @@ pub(super) async fn run_turn(
             .iter()
             .filter_map(|message| {
                 let trimmed = message.trim();
-                (!trimmed.is_empty()).then(|| trimmed.to_string())
+                (!trimmed.is_empty()).then(|| trimmed.to_owned())
             }),
     );
     if sess.memories_config.use_memories {
@@ -127,7 +127,7 @@ pub(super) async fn run_turn(
         // HTML sanitizer guardrails depend only on the request payload, not on
         // resolved tool definitions, so this stays before prompt.tools exists.
         if should_inject_html_sanitizer_guardrails(&attempt_input) {
-            prepend_developer_messages.push(HTML_SANITIZER_GUARDRAILS_MESSAGE.to_string());
+            prepend_developer_messages.push(HTML_SANITIZER_GUARDRAILS_MESSAGE.to_owned());
         }
 
         let mut prompt = Prompt {
@@ -149,7 +149,7 @@ pub(super) async fn run_turn(
             model_override: None,
             model_family_override: None,
             output_schema: tc.final_output_json_schema.clone(),
-            log_tag: Some("codex/turn".to_string()),
+            log_tag: Some("codex/turn".to_owned()),
             session_id_override: None,
             model_descriptions: sess.model_descriptions.clone(),
         };
@@ -208,7 +208,7 @@ pub(super) async fn run_turn(
             {
                 prompt
                     .prepend_developer_messages
-                    .push(search_tool_instructions.to_string());
+                    .push(search_tool_instructions.to_owned());
             }
         }
 
@@ -374,8 +374,7 @@ pub(super) async fn run_turn(
                             sess
                                 .notify_stream_error(
                                     &sub_id,
-                                    "Model hit context-window limit; running /compact and retrying…"
-                                        .to_string(),
+                                    "Model hit context-window limit; running /compact and retrying…".to_owned(),
                                 )
                                 .await;
 

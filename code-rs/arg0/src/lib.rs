@@ -253,12 +253,12 @@ fn default_path_env_var() -> String {
     // /bin:/usr/bin). As soon as we set PATH, that fallback stops applying.
     // Ensure we always include standard system locations.
     if cfg!(target_os = "macos") {
-        "/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin".to_string()
+        "/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin".to_owned()
     } else if cfg!(target_os = "android") {
         // On Android/Termux, use Termux-specific paths
-        "/data/data/com.termux/files/usr/bin:/data/data/com.termux/files/usr/sbin:/system/bin:/system/xbin".to_string()
+        "/data/data/com.termux/files/usr/bin:/data/data/com.termux/files/usr/sbin:/system/bin:/system/xbin".to_owned()
     } else {
-        "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin".to_string()
+        "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin".to_owned()
     }
 }
 
@@ -272,8 +272,8 @@ fn default_path_env_var() -> String {
 fn join_path_env(prefix: &str, suffix: &str, sep: &str) -> String {
     match (prefix.is_empty(), suffix.is_empty()) {
         (true, true) => String::new(),
-        (false, true) => prefix.to_string(),
-        (true, false) => suffix.to_string(),
+        (false, true) => prefix.to_owned(),
+        (true, false) => suffix.to_owned(),
         (false, false) => format!("{prefix}{sep}{suffix}"),
     }
 }

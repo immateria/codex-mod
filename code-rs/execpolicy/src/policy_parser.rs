@@ -29,8 +29,8 @@ pub struct PolicyParser {
 impl PolicyParser {
     pub fn new(policy_source: &str, unparsed_policy: &str) -> Self {
         Self {
-            policy_source: policy_source.to_string(),
-            unparsed_policy: unparsed_policy.to_string(),
+            policy_source: policy_source.to_owned(),
+            unparsed_policy: unparsed_policy.to_owned(),
         }
     }
 
@@ -150,9 +150,9 @@ fn policy_builtins(builder: &mut GlobalsBuilder) {
 
         let mut allowed_options = HashMap::<String, Opt>::new();
         for opt in options {
-            let name = opt.name().to_string();
+            let name = opt.name().to_owned();
             if allowed_options
-                .insert(opt.name().to_string(), opt)
+                .insert(opt.name().to_owned(), opt)
                 .is_some()
             {
                 return Err(anyhow::format_err!("duplicate flag: {name}"));

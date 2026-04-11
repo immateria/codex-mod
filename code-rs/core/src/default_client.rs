@@ -33,7 +33,7 @@ fn get_originator_value(provided: Option<String>) -> Originator {
     let value = std::env::var(CODEX_INTERNAL_ORIGINATOR_OVERRIDE_ENV_VAR)
         .ok()
         .or(provided)
-        .unwrap_or(DEFAULT_ORIGINATOR.to_string());
+        .unwrap_or(DEFAULT_ORIGINATOR.to_owned());
 
     match HeaderValue::from_str(&value) {
         Ok(header_value) => Originator {
@@ -43,7 +43,7 @@ fn get_originator_value(provided: Option<String>) -> Originator {
         Err(e) => {
             tracing::error!("Unable to turn originator override {value} into header value: {e}");
             Originator {
-                value: DEFAULT_ORIGINATOR.to_string(),
+                value: DEFAULT_ORIGINATOR.to_owned(),
                 header_value: HeaderValue::from_static(DEFAULT_ORIGINATOR),
             }
         }
@@ -136,10 +136,10 @@ fn sanitize_user_agent(candidate: String, fallback: &str) -> String {
         sanitized
     } else if HeaderValue::from_str(fallback).is_ok() {
         tracing::warn!("Falling back to base Codex user agent because provided suffix could not be sanitized");
-        fallback.to_string()
+        fallback.to_owned()
     } else {
         tracing::warn!("Falling back to default Codex originator because base user agent string is invalid");
-        DEFAULT_ORIGINATOR.to_string()
+        DEFAULT_ORIGINATOR.to_owned()
     }
 }
 
@@ -149,7 +149,7 @@ pub fn create_client(originator: &str) -> reqwest::Client {
     use reqwest::header::HeaderValue;
 
     let mut headers = HeaderMap::new();
-    let originator = get_originator_value(Some(originator.to_string()));
+    let originator = get_originator_value(Some(originator.to_owned()));
     let originator_value = HeaderValue::from_str(&originator.value)
         .unwrap_or_else(|_| HeaderValue::from_static(DEFAULT_ORIGINATOR));
     headers.insert("originator", originator_value);

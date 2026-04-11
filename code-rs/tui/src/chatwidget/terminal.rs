@@ -256,7 +256,7 @@ impl TerminalOverlay {
         block.push(blank_line());
 
         self.info_lines = block;
-        self.last_info_message = Some(trimmed.to_string());
+        self.last_info_message = Some(trimmed.to_owned());
         self.rebuild_lines();
 
         if was_following {
@@ -324,7 +324,7 @@ impl TerminalOverlay {
                 SanitizeMode::Plain,
                 SanitizeOptions::default(),
             );
-            let plain_trimmed = plain.trim_end_matches(' ').to_string();
+            let plain_trimmed = plain.trim_end_matches(' ').to_owned();
 
             let mut line = if sanitized.trim().is_empty() {
                 blank_line()
@@ -474,7 +474,7 @@ impl PendingCommand {
     }
 
     pub(crate) fn action_after_enter(mut self) -> Option<PendingCommandAction> {
-        let command = self.input.trim().to_string();
+        let command = self.input.trim().to_owned();
         if command.is_empty() {
             return None;
         }

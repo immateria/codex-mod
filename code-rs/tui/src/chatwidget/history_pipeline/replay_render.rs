@@ -65,12 +65,12 @@ impl ChatWidget<'_> {
                     }
                 let mut lines: Vec<ratatui::text::Line<'static>> = Vec::new();
                 crate::markdown::append_markdown(text, &mut lines, &self.config);
-                self.insert_final_answer_with_id(message_id, lines, text.to_string());
+                self.insert_final_answer_with_id(message_id, lines, text.to_owned());
                 return;
             }
                 if role == "user" {
                     let key = self.next_internal_key();
-                    let state = history_cell::new_user_prompt(text.to_string());
+                    let state = history_cell::new_user_prompt(text.to_owned());
                     let _ = self.history_insert_plain_state_with_key(state, key, "epilogue");
 
                     if let Some(front) = self.queued_user_messages.front()
@@ -134,7 +134,7 @@ impl ChatWidget<'_> {
                 let mut metadata_summary = String::new();
                 if let Ok(v) = serde_json::from_str::<JsonValue>(&content) {
                     if let Some(s) = v.get("output").and_then(|x| x.as_str()) {
-                        content = s.to_string();
+                        content = s.to_owned();
                     }
                     if let Some(meta) = v.get("metadata").and_then(|m| m.as_object()) {
                         let mut parts = Vec::new();

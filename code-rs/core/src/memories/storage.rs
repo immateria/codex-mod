@@ -377,7 +377,7 @@ fn finalize_epoch(
         .last_user_snippet
         .clone()
         .or_else(|| claim.last_user_snippet.clone())
-        .unwrap_or_else(|| "(no user snippet)".to_string());
+        .unwrap_or_else(|| "(no user snippet)".to_owned());
     let rollout_slug = redact_secrets(format!(
         "{}-e{epoch_index}",
         rollout_summary_file_stem(

@@ -61,7 +61,7 @@ pub fn parse_user_turn_reply(raw: &str) -> anyhow::Result<(Option<String>, Optio
         if trimmed.chars().count() > 400 {
             return Err(anyhow::anyhow!("coordinator field '{name}' exceeded 400 characters"));
         }
-        Ok(Some(trimmed.to_string()))
+        Ok(Some(trimmed.to_owned()))
     };
 
     Ok((extract("user_response")?, extract("cli_command")?))

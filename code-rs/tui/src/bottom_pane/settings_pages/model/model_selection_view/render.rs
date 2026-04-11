@@ -290,7 +290,7 @@ impl ModelSelectionView {
                 && flat_preset.model.eq_ignore_ascii_case(&self.data.current.current_model)
                 && flat_preset.effort == self.data.current.current_effort;
 
-            let mut row_text = reasoning_effort_label(flat_preset.effort).to_string();
+            let mut row_text = reasoning_effort_label(flat_preset.effort).to_owned();
             if is_current {
                 row_text.push_str(" (current)");
             }
@@ -347,7 +347,7 @@ impl ModelSelectionView {
                 ),
                 Span::styled(
                     if self.data.target.supports_follow_chat() && self.data.current.use_chat_model {
-                        "Follow Chat Mode".to_string()
+                        "Follow Chat Mode".to_owned()
                     } else {
                         self.data.current_model_display_name()
                     },
@@ -361,9 +361,9 @@ impl ModelSelectionView {
                 ),
                 Span::styled(
                     if self.data.target.supports_follow_chat() && self.data.current.use_chat_model {
-                        "From chat".to_string()
+                        "From chat".to_owned()
                     } else {
-                        reasoning_effort_label(self.data.current.current_effort).to_string()
+                        reasoning_effort_label(self.data.current.current_effort).to_owned()
                     },
                     Style::new().fg(colors::warning()).bold(),
                 ),
@@ -404,7 +404,7 @@ impl ModelSelectionView {
         };
         let post_field_lines = match error {
             Some(message) => vec![Line::from(Span::styled(
-                message.to_string(),
+                message.to_owned(),
                 Style::new().fg(colors::error()),
             ))],
             None => vec![Line::from(Span::styled(

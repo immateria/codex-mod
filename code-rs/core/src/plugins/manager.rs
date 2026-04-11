@@ -390,7 +390,7 @@ impl PluginsManager {
         );
 
         Some(PluginCapabilitySummary {
-            config_name: config_name.to_string(),
+            config_name: config_name.to_owned(),
             display_name,
             description,
             has_skills: !skills.is_empty(),
@@ -833,7 +833,7 @@ impl PluginsManager {
         let curated_plugin_version = read_curated_plugins_sha(self.code_home.as_path()).ok_or_else(
             || {
                 PluginStoreError::Invalid(
-                    "local curated marketplace sha is not available".to_string(),
+                    "local curated marketplace sha is not available".to_owned(),
                 )
             },
         )?;
@@ -1449,7 +1449,7 @@ fn normalize_plugin_mcp_server_value(
         && !Path::new(cwd).is_absolute()
     {
         object.insert(
-            "cwd".to_string(),
+            "cwd".to_owned(),
             JsonValue::String(plugin_root.join(cwd).display().to_string()),
         );
     }

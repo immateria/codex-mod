@@ -118,13 +118,13 @@ pub(crate) fn unsupported_tool_call_output(
 ) -> ResponseInputItem {
     if outputs_custom {
         return ResponseInputItem::CustomToolCallOutput {
-            call_id: call_id.to_string(),
+            call_id: call_id.to_owned(),
             output: FunctionCallOutputPayload::from_text(message),
         };
     }
 
     ResponseInputItem::FunctionCallOutput {
-        call_id: call_id.to_string(),
+        call_id: call_id.to_owned(),
         output: FunctionCallOutputPayload {
             body: FunctionCallOutputBody::Text(message),
             success: Some(false),

@@ -39,7 +39,7 @@ pub(crate) fn apply_commit_scope_to_review_request(
     let short_commit = &commit[..commit.len().min(7)];
     let short_parent = &parent[..parent.len().min(7)];
 
-    let mut prompt = request.prompt.trim_end().to_string();
+    let mut prompt = request.prompt.trim_end().to_owned();
     let _ = write!(prompt, "\n\nReview scope: changes captured in commit {commit} (parent {parent}).");
 
     if let Some(paths) = paths
@@ -75,9 +75,9 @@ pub(crate) fn capture_snapshot_against_base(
 }
 
 pub(crate) fn strip_scope_from_prompt(prompt: &str) -> String {
-    let mut base = prompt.trim_end().to_string();
+    let mut base = prompt.trim_end().to_owned();
     if let Some(idx) = base.find(AUTO_RESOLVE_REVIEW_FOLLOWUP) {
-        base = base[..idx].trim_end().to_string();
+        base = base[..idx].trim_end().to_owned();
     }
     let filtered: Vec<&str> = base
         .lines()

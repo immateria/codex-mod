@@ -66,7 +66,7 @@ impl ShellSelectionView {
                 format!("auto (inferred: {style})"),
                 Style::new().fg(colors::text_dim()),
             ),
-            (None, None) => ("auto".to_string(), Style::new().fg(colors::text_dim())),
+            (None, None) => ("auto".to_owned(), Style::new().fg(colors::text_dim())),
         };
         Paragraph::new(Line::from(Span::styled(style_text, style_style)))
             .render(style_inner, buf);

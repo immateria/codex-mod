@@ -46,12 +46,12 @@ pub(super) fn prepare_model_execution(
         if !cmd.is_empty() {
             cfg.command.clone()
         } else if let Some(spec) = spec_opt {
-            spec.cli.to_string()
+            spec.cli.to_owned()
         } else {
             cfg.name.clone()
         }
     } else if let Some(spec) = spec_opt {
-        spec.cli.to_string()
+        spec.cli.to_owned()
     } else {
         model.to_lowercase()
     };
@@ -104,7 +104,7 @@ pub(super) fn prepare_model_execution(
     command::strip_model_flags(&mut final_args);
 
     let spec_model_args: Vec<String> = if let Some(spec) = spec_opt {
-        spec.model_args.iter().map(|arg| (*arg).to_string()).collect()
+        spec.model_args.iter().map(|arg| (*arg).to_owned()).collect()
     } else {
         Vec::new()
     };
@@ -142,7 +142,7 @@ pub(super) fn prepare_model_execution(
             final_args.extend(defaults);
             final_args.extend(spec_model_args.iter().cloned());
             final_args.push("-p".into());
-            final_args.push(prompt.to_string());
+            final_args.push(prompt.to_owned());
         }
         "codex" | "code" => {
             let have_mode_args = config
@@ -163,7 +163,7 @@ pub(super) fn prepare_model_execution(
             final_args.push(effort_override);
             final_args.push("-c".into());
             final_args.push(auto_effort_override);
-            final_args.push(prompt.to_string());
+            final_args.push(prompt.to_owned());
         }
         "cloud" => {
             if built_in_cloud {
@@ -187,11 +187,11 @@ pub(super) fn prepare_model_execution(
             final_args.push(effort_override);
             final_args.push("-c".into());
             final_args.push(auto_effort_override);
-            final_args.push(prompt.to_string());
+            final_args.push(prompt.to_owned());
         }
         _ => {
             final_args.extend(spec_model_args.iter().cloned());
-            final_args.push(prompt.to_string());
+            final_args.push(prompt.to_owned());
         }
     }
 
@@ -207,11 +207,11 @@ pub(super) fn prepare_model_execution(
     };
 
     if debug_subagent && use_current_exe && !command::has_debug_flag(&final_args) {
-        final_args.insert(0, "--debug".to_string());
+        final_args.insert(0, "--debug".to_owned());
     }
 
     if let Some(path) = review_output_json_path {
-        final_args.push("--review-output-json".to_string());
+        final_args.push("--review-output-json".to_owned());
         final_args.push(path.display().to_string());
     }
 
@@ -219,7 +219,7 @@ pub(super) fn prepare_model_execution(
         && (final_args.iter().any(|arg| arg == "exec") || review_output_json_path.is_some())
     {
         let mut reordered: Vec<String> = Vec::with_capacity(final_args.len() + 1);
-        reordered.push("exec".to_string());
+        reordered.push("exec".to_owned());
         for arg in final_args {
             if arg != "exec" {
                 reordered.push(arg);
@@ -231,7 +231,7 @@ pub(super) fn prepare_model_execution(
     PreparedModelExecution {
         command,
         command_for_spawn,
-        family: family.to_string(),
+        family: family.to_owned(),
         use_current_exe,
         final_args,
         debug_subagent,

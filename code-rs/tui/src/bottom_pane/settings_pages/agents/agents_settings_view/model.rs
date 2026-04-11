@@ -124,11 +124,11 @@ impl SubagentEditorView {
                 .collect()
         };
         let cfg = code_core::config_types::SubagentCommandConfig {
-            name: self.name_field.text().to_string(),
+            name: self.name_field.text().to_owned(),
             read_only: self.read_only,
             agents,
             orchestrator_instructions: {
-                let t = self.orch_field.text().trim().to_string();
+                let t = self.orch_field.text().trim().to_owned();
                 if t.is_empty() { None } else { Some(t) }
             },
             agent_instructions: None,
@@ -244,7 +244,7 @@ impl SubagentEditorView {
     }
 
     pub(super) fn delete_current(&mut self) {
-        let id = self.name_field.text().to_string();
+        let id = self.name_field.text().to_owned();
         if id.trim().is_empty() {
             self.exit_confirm_delete();
             return;

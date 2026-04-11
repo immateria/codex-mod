@@ -680,7 +680,7 @@ impl<'de> Deserialize<'de> for McpServerConfig {
                     "duplicated tool_scheduling entry for '{normalized}'",
                 )));
             }
-            tool_scheduling.insert(normalized.to_string(), override_cfg);
+            tool_scheduling.insert(normalized.to_owned(), override_cfg);
         }
 
         Ok(Self {
@@ -988,72 +988,72 @@ pub struct ConfirmGuardPattern {
 fn default_confirm_guard_patterns() -> Vec<ConfirmGuardPattern> {
     vec![
         ConfirmGuardPattern {
-            regex: r"(?i)^\s*git\s+reset\b".to_string(),
-            message: Some("Blocked git reset. Reset rewrites the working tree/index and may delete local work. Resend with 'confirm:' if you're certain.".to_string()),
+            regex: r"(?i)^\s*git\s+reset\b".to_owned(),
+            message: Some("Blocked git reset. Reset rewrites the working tree/index and may delete local work. Resend with 'confirm:' if you're certain.".to_owned()),
         },
         ConfirmGuardPattern {
-            regex: r"(?i)^\s*git\s+checkout\s+--\b".to_string(),
-            message: Some("Blocked git checkout -- <paths>. This overwrites local modifications; resend with 'confirm:' to proceed.".to_string()),
+            regex: r"(?i)^\s*git\s+checkout\s+--\b".to_owned(),
+            message: Some("Blocked git checkout -- <paths>. This overwrites local modifications; resend with 'confirm:' to proceed.".to_owned()),
         },
         ConfirmGuardPattern {
-            regex: r"(?i)^\s*git\s+checkout\s+(?:-b|-B|--orphan|--detach)\b".to_string(),
-            message: Some("Blocked git checkout with branch-changing flag. Switching branches can discard or hide in-progress changes.".to_string()),
+            regex: r"(?i)^\s*git\s+checkout\s+(?:-b|-B|--orphan|--detach)\b".to_owned(),
+            message: Some("Blocked git checkout with branch-changing flag. Switching branches can discard or hide in-progress changes.".to_owned()),
         },
         ConfirmGuardPattern {
-            regex: r"(?i)^\s*git\s+checkout\s+-\b".to_string(),
-            message: Some("Blocked git checkout -. Confirm before switching back to the previous branch.".to_string()),
+            regex: r"(?i)^\s*git\s+checkout\s+-\b".to_owned(),
+            message: Some("Blocked git checkout -. Confirm before switching back to the previous branch.".to_owned()),
         },
         ConfirmGuardPattern {
-            regex: r"(?i)^\s*git\s+switch\b.*(?:-c|--detach)".to_string(),
-            message: Some("Blocked git switch creating or detaching a branch. Resend with 'confirm:' if requested.".to_string()),
+            regex: r"(?i)^\s*git\s+switch\b.*(?:-c|--detach)".to_owned(),
+            message: Some("Blocked git switch creating or detaching a branch. Resend with 'confirm:' if requested.".to_owned()),
         },
         ConfirmGuardPattern {
-            regex: r"(?i)^\s*git\s+switch\s+[^\s-][^\s]*".to_string(),
-            message: Some("Blocked git switch <branch>. Branch changes can discard or hide work; confirm before continuing.".to_string()),
+            regex: r"(?i)^\s*git\s+switch\s+[^\s-][^\s]*".to_owned(),
+            message: Some("Blocked git switch <branch>. Branch changes can discard or hide work; confirm before continuing.".to_owned()),
         },
         ConfirmGuardPattern {
-            regex: r"(?i)^\s*git\s+clean\b.*(?:-f|--force|-x|-X|-d)".to_string(),
-            message: Some("Blocked git clean with destructive flags. This deletes untracked files or build artifacts.".to_string()),
+            regex: r"(?i)^\s*git\s+clean\b.*(?:-f|--force|-x|-X|-d)".to_owned(),
+            message: Some("Blocked git clean with destructive flags. This deletes untracked files or build artifacts.".to_owned()),
         },
         ConfirmGuardPattern {
-            regex: r"(?i)^\s*git\s+push\b.*(?:--force|-f)".to_string(),
-            message: Some("Blocked git push --force. Force pushes rewrite remote history; only continue if explicitly requested.".to_string()),
+            regex: r"(?i)^\s*git\s+push\b.*(?:--force|-f)".to_owned(),
+            message: Some("Blocked git push --force. Force pushes rewrite remote history; only continue if explicitly requested.".to_owned()),
         },
         ConfirmGuardPattern {
-            regex: r"(?i)^\s*(?:sudo\s+)?rm\s+-[a-z-]*rf[a-z-]*\s+(?:--\s+)?(?:\.|\.\.|\./|/|\*)(?:\s|$)".to_string(),
-            message: Some("Blocked rm -rf targeting a broad path (., .., /, or *). Confirm before destructive delete.".to_string()),
+            regex: r"(?i)^\s*(?:sudo\s+)?rm\s+-[a-z-]*rf[a-z-]*\s+(?:--\s+)?(?:\.|\.\.|\./|/|\*)(?:\s|$)".to_owned(),
+            message: Some("Blocked rm -rf targeting a broad path (., .., /, or *). Confirm before destructive delete.".to_owned()),
         },
         ConfirmGuardPattern {
-            regex: r"(?i)^\s*(?:sudo\s+)?rm\s+-[a-z-]*r[a-z-]*\s+-[a-z-]*f[a-z-]*\s+(?:--\s+)?(?:\.|\.\.|\./|/|\*)(?:\s|$)".to_string(),
-            message: Some("Blocked rm -r/-f combination targeting broad paths. Resend with 'confirm:' if you intend to wipe this tree.".to_string()),
+            regex: r"(?i)^\s*(?:sudo\s+)?rm\s+-[a-z-]*r[a-z-]*\s+-[a-z-]*f[a-z-]*\s+(?:--\s+)?(?:\.|\.\.|\./|/|\*)(?:\s|$)".to_owned(),
+            message: Some("Blocked rm -r/-f combination targeting broad paths. Resend with 'confirm:' if you intend to wipe this tree.".to_owned()),
         },
         ConfirmGuardPattern {
-            regex: r"(?i)^\s*(?:sudo\s+)?rm\s+-[a-z-]*f[a-z-]*\s+-[a-z-]*r[a-z-]*\s+(?:--\s+)?(?:\.|\.\.|\./|/|\*)(?:\s|$)".to_string(),
-            message: Some("Blocked rm -f/-r combination targeting broad paths. Confirm before running.".to_string()),
+            regex: r"(?i)^\s*(?:sudo\s+)?rm\s+-[a-z-]*f[a-z-]*\s+-[a-z-]*r[a-z-]*\s+(?:--\s+)?(?:\.|\.\.|\./|/|\*)(?:\s|$)".to_owned(),
+            message: Some("Blocked rm -f/-r combination targeting broad paths. Confirm before running.".to_owned()),
         },
         ConfirmGuardPattern {
-            regex: r"(?i)^\s*(?:sudo\s+)?rm\b[^\n]*\s+-[a-z-]*rf[a-z-]*\b".to_string(),
-            message: Some("Blocked rm -rf. Force-recursive delete requires explicit confirmation.".to_string()),
+            regex: r"(?i)^\s*(?:sudo\s+)?rm\b[^\n]*\s+-[a-z-]*rf[a-z-]*\b".to_owned(),
+            message: Some("Blocked rm -rf. Force-recursive delete requires explicit confirmation.".to_owned()),
         },
         ConfirmGuardPattern {
-            regex: r"(?i)^\s*(?:sudo\s+)?rm\b[^\n]*\s+-[-0-9a-qs-z]*f[-0-9a-qs-z]*\b".to_string(),
-            message: Some("Blocked rm -f. Force delete requires explicit confirmation.".to_string()),
+            regex: r"(?i)^\s*(?:sudo\s+)?rm\b[^\n]*\s+-[-0-9a-qs-z]*f[-0-9a-qs-z]*\b".to_owned(),
+            message: Some("Blocked rm -f. Force delete requires explicit confirmation.".to_owned()),
         },
         ConfirmGuardPattern {
-            regex: r"(?i)^\s*(?:sudo\s+)?find\s+\.(?:\s|$).*\s-delete\b".to_string(),
-            message: Some("Blocked find . ... -delete. Recursive deletes require confirmation.".to_string()),
+            regex: r"(?i)^\s*(?:sudo\s+)?find\s+\.(?:\s|$).*\s-delete\b".to_owned(),
+            message: Some("Blocked find . ... -delete. Recursive deletes require confirmation.".to_owned()),
         },
         ConfirmGuardPattern {
-            regex: r"(?i)^\s*(?:sudo\s+)?find\s+\.(?:\s|$).*\s-exec\s+rm\b".to_string(),
-            message: Some("Blocked find . ... -exec rm. Confirm before running recursive rm.".to_string()),
+            regex: r"(?i)^\s*(?:sudo\s+)?find\s+\.(?:\s|$).*\s-exec\s+rm\b".to_owned(),
+            message: Some("Blocked find . ... -exec rm. Confirm before running recursive rm.".to_owned()),
         },
         ConfirmGuardPattern {
-            regex: r"(?i)^\s*(?:sudo\s+)?trash\s+-[a-z-]*r[a-z-]*f[a-z-]*\b".to_string(),
-            message: Some("Blocked trash -rf. Bulk trash operations can delete large portions of the workspace.".to_string()),
+            regex: r"(?i)^\s*(?:sudo\s+)?trash\s+-[a-z-]*r[a-z-]*f[a-z-]*\b".to_owned(),
+            message: Some("Blocked trash -rf. Bulk trash operations can delete large portions of the workspace.".to_owned()),
         },
         ConfirmGuardPattern {
-            regex: r"(?i)^\s*(?:sudo\s+)?fd\b.*(?:--exec|-x)\s+rm\b".to_string(),
-            message: Some("Blocked fd … --exec rm. Confirm before piping search results into rm.".to_string()),
+            regex: r"(?i)^\s*(?:sudo\s+)?fd\b.*(?:--exec|-x)\s+rm\b".to_owned(),
+            message: Some("Blocked fd … --exec rm. Confirm before piping search results into rm.".to_owned()),
         },
     ]
 }
@@ -1496,14 +1496,14 @@ pub struct TuiHotkeyChord {
 impl TuiHotkeyChord {
     fn normalize_key(key: char) -> Result<char, String> {
         if !key.is_ascii_alphabetic() {
-            return Err("hotkey chords currently support ASCII letters only".to_string());
+            return Err("hotkey chords currently support ASCII letters only".to_owned());
         }
         Ok(key.to_ascii_lowercase())
     }
 
     fn try_new(ctrl: bool, alt: bool, key: char) -> Result<Self, String> {
         if !ctrl && !alt {
-            return Err("hotkey chords must include ctrl or alt (e.g. ctrl+h)".to_string());
+            return Err("hotkey chords must include ctrl or alt (e.g. ctrl+h)".to_owned());
         }
         Ok(Self {
             ctrl,
@@ -1619,7 +1619,7 @@ impl TuiHotkey {
 fn parse_tui_hotkey(raw: &str) -> Result<TuiHotkey, String> {
     let raw = raw.trim();
     if raw.is_empty() {
-        return Err("hotkey cannot be empty".to_string());
+        return Err("hotkey cannot be empty".to_owned());
     }
 
     let lowered = raw.to_ascii_lowercase().replace(' ', "");
@@ -1636,9 +1636,9 @@ fn parse_tui_hotkey(raw: &str) -> Result<TuiHotkey, String> {
     if let Some(rest) = lowered.strip_prefix('f') {
         let n: u8 = rest
             .parse()
-            .map_err(|_| "function hotkeys must be f1-f24 (e.g. f2)".to_string())?;
+            .map_err(|_| "function hotkeys must be f1-f24 (e.g. f2)".to_owned())?;
         let hk = FunctionKeyHotkey::from_u8(n)
-            .ok_or_else(|| "function hotkeys must be f1-f24 (e.g. f2)".to_string())?;
+            .ok_or_else(|| "function hotkeys must be f1-f24 (e.g. f2)".to_owned())?;
         return Ok(TuiHotkey::Function(hk));
     }
 
@@ -1663,7 +1663,7 @@ fn parse_tui_hotkey(raw: &str) -> Result<TuiHotkey, String> {
     }
 
     let Some(key) = key else {
-        return Err("hotkey chords must specify a key (e.g. ctrl+h)".to_string());
+        return Err("hotkey chords must specify a key (e.g. ctrl+h)".to_owned());
     };
     Ok(TuiHotkey::Chord(TuiHotkeyChord::try_new(ctrl, alt, key)?))
 }
@@ -1689,7 +1689,7 @@ impl<'de> Deserialize<'de> for TuiHotkey {
 
 impl JsonSchema for TuiHotkey {
     fn schema_name() -> String {
-        "TuiHotkey".to_string()
+        "TuiHotkey".to_owned()
     }
 
     fn json_schema(_gen: &mut schemars::r#gen::SchemaGenerator) -> schemars::schema::Schema {
@@ -1699,8 +1699,7 @@ impl JsonSchema for TuiHotkey {
             instance_type: Some(SingleOrVec::Single(Box::new(InstanceType::String))),
             metadata: Some(Box::new(Metadata {
                 description: Some(
-                    "Hotkey binding. Examples: \"f2\", \"ctrl+h\", \"alt+h\", \"ctrl+alt+h\", \"disabled\". Some actions also accept \"legacy\". Note: F1 is reserved for the Help overlay."
-                        .to_string(),
+                    "Hotkey binding. Examples: \"f2\", \"ctrl+h\", \"alt+h\", \"ctrl+alt+h\", \"disabled\". Some actions also accept \"legacy\". Note: F1 is reserved for the Help overlay.".to_owned(),
                 ),
                 examples: vec![
                     "f2".into(),
@@ -2693,16 +2692,16 @@ fn default_auto_drive_model_routing_reasoning_levels() -> Vec<ReasoningEffort> {
 pub fn default_auto_drive_model_routing_entries() -> Vec<AutoDriveModelRoutingEntry> {
     vec![
         AutoDriveModelRoutingEntry {
-            model: "gpt-5.3-codex".to_string(),
+            model: "gpt-5.3-codex".to_owned(),
             enabled: true,
             reasoning_levels: vec![ReasoningEffort::High, ReasoningEffort::XHigh],
-            description: "Hard planning and complex problem solving".to_string(),
+            description: "Hard planning and complex problem solving".to_owned(),
         },
         AutoDriveModelRoutingEntry {
-            model: "gpt-5.3-codex-spark".to_string(),
+            model: "gpt-5.3-codex-spark".to_owned(),
             enabled: true,
             reasoning_levels: vec![ReasoningEffort::High],
-            description: "Fast implementation loops and failing-test iteration".to_string(),
+            description: "Fast implementation loops and failing-test iteration".to_owned(),
         },
     ]
 }
@@ -2910,7 +2909,7 @@ pub struct SpinnerSelection {
     pub custom: std::collections::HashMap<String, CustomSpinner>,
 }
 
-fn default_spinner_name() -> String { "diamond".to_string() }
+fn default_spinner_name() -> String { "diamond".to_owned() }
 
 impl Default for SpinnerSelection {
     fn default() -> Self {

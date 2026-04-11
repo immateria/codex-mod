@@ -155,7 +155,7 @@
 
                         let opts = ServerOptions::new(
                             self.config.code_home.clone(),
-                            code_login::CLIENT_ID.to_string(),
+                            code_login::CLIENT_ID.to_owned(),
                             self.config.responses_originator_header.clone(),
                             self.config.cli_auth_credentials_store_mode,
                         );
@@ -201,7 +201,7 @@
 
                         let opts = ServerOptions::new(
                             self.config.code_home.clone(),
-                            code_login::CLIENT_ID.to_string(),
+                            code_login::CLIENT_ID.to_owned(),
                             self.config.responses_originator_header.clone(),
                             self.config.cli_auth_credentials_store_mode,
                         );
@@ -210,7 +210,7 @@
                             match code_login::DeviceCodeSession::start(opts).await {
                                 Ok(session) => {
                                     let authorize_url = session.authorize_url();
-                                    let user_code = session.user_code().to_string();
+                                    let user_code = session.user_code().to_owned();
                                     tx.send(AppEvent::LoginDeviceCodeReady { authorize_url, user_code });
                                     let result = session.wait_for_tokens().await.map_err(|e| e.to_string());
                                     tx.send(AppEvent::LoginDeviceCodeComplete { result });

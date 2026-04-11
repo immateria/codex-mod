@@ -579,7 +579,7 @@ fn push_wrapped_diff_line_with_width(
                 " ".repeat(gap_after_ln),
                 " ".repeat(continuation_indent)
             );
-            let chunk_str = chunk.to_string();
+            let chunk_str = chunk.to_owned();
             let content_span = match line_style {
                 Some(style) => RtSpan::styled(chunk_str, style),
                 None => RtSpan::raw(chunk_str),

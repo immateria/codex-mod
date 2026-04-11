@@ -3,7 +3,7 @@ impl ChatWidget<'_> {
         if self.ghost_snapshots_disabled {
             let reason = self
                 .ghost_snapshots_disabled_reason
-                .as_ref().map_or_else(|| "Snapshots are currently disabled.".to_string(), |reason| reason.message.clone());
+                .as_ref().map_or_else(|| "Snapshots are currently disabled.".to_owned(), |reason| reason.message.clone());
             self.push_background_tail(format!("/undo unavailable: {reason}"));
             self.show_undo_snapshots_disabled();
             return;
@@ -11,7 +11,7 @@ impl ChatWidget<'_> {
 
         if self.ghost_snapshots.is_empty() {
             self.push_background_tail(
-                "/undo unavailable: no snapshots captured yet. Run a file-modifying command to create one.".to_string(),
+                "/undo unavailable: no snapshots captured yet. Run a file-modifying command to create one.".to_owned(),
             );
             self.show_undo_empty_state();
             return;
@@ -29,16 +29,16 @@ impl ChatWidget<'_> {
             }
         } else {
             lines.push(
-                "Snapshots are currently disabled. Resolve the Git issue and restart Code to re-enable them.".to_string(),
+                "Snapshots are currently disabled. Resolve the Git issue and restart Code to re-enable them.".to_owned(),
             );
         }
 
         self.show_undo_status_popup(
             "Snapshots unavailable",
             Some(
-                "Restores workspace files only. Conversation history remains unchanged.".to_string(),
+                "Restores workspace files only. Conversation history remains unchanged.".to_owned(),
             ),
-            Some("Automatic snapshotting failed, so /undo cannot restore the workspace.".to_string()),
+            Some("Automatic snapshotting failed, so /undo cannot restore the workspace.".to_owned()),
             lines,
         );
     }
@@ -47,12 +47,12 @@ impl ChatWidget<'_> {
         self.show_undo_status_popup(
             "No snapshots yet",
             Some(
-                "Restores workspace files only. Conversation history remains unchanged.".to_string(),
+                "Restores workspace files only. Conversation history remains unchanged.".to_owned(),
             ),
-            Some("Snapshots appear once Code captures a Git checkpoint.".to_string()),
+            Some("Snapshots appear once Code captures a Git checkpoint.".to_owned()),
             vec![
-                "No snapshot is available to restore.".to_string(),
-                "Run a command that modifies files to create the first snapshot.".to_string(),
+                "No snapshot is available to restore.".to_owned(),
+                "Run a command that modifies files to create the first snapshot.".to_owned(),
             ],
         );
     }
@@ -65,7 +65,7 @@ impl ChatWidget<'_> {
         mut lines: Vec<String>,
     ) {
         if lines.is_empty() {
-            lines.push("No snapshot information available.".to_string());
+            lines.push("No snapshot information available.".to_owned());
         }
 
         let headline = lines.remove(0);
@@ -98,7 +98,7 @@ impl ChatWidget<'_> {
         let view = ListSelectionView::new(
             format!(" {title} "),
             subtitle_for_view,
-            Some("Esc close".to_string()),
+            Some("Esc close".to_owned()),
             items,
             self.app_event_tx.clone(),
             1,
@@ -111,7 +111,7 @@ impl ChatWidget<'_> {
         let entries = self.build_undo_timeline_entries();
         if entries.len() <= 1 {
             self.push_background_tail(
-                "/undo unavailable: no snapshots captured yet. Run a file-modifying command to create one.".to_string(),
+                "/undo unavailable: no snapshots captured yet. Run a file-modifying command to create one.".to_owned(),
             );
             self.show_undo_empty_state();
             return;
@@ -141,7 +141,7 @@ impl ChatWidget<'_> {
             .map(|age| format!("captured {} ago", format_duration(age)));
         let (user_delta, assistant_delta) = self.conversation_delta_since(&snapshot.conversation);
         let stats_line = if user_delta == 0 && assistant_delta == 0 {
-            Some("conversation already matches current state".to_string())
+            Some("conversation already matches current state".to_owned())
         } else if assistant_delta == 0 {
             Some(format!(
                 "rewind {} user turn{}",
@@ -173,7 +173,7 @@ impl ChatWidget<'_> {
             conversation_available: user_delta > 0,
             files_available: true,
             kind: UndoTimelineEntryKind::Snapshot {
-                commit: snapshot.commit().id().to_string(),
+                commit: snapshot.commit().id().to_owned(),
             },
         }
     }
@@ -183,11 +183,11 @@ impl ChatWidget<'_> {
         let conversation_lines = Self::conversation_preview_lines_from_snapshot(&history_snapshot);
         let file_lines = self.timeline_file_lines_for_current();
         UndoTimelineEntry {
-            label: "Current workspace".to_string(),
+            label: "Current workspace".to_owned(),
             summary: None,
             timestamp_line: Some(Local::now().format("%Y-%m-%d %H:%M:%S").to_string()),
-            relative_time: Some("current point".to_string()),
-            stats_line: Some("Already at this point in time".to_string()),
+            relative_time: Some("current point".to_owned()),
+            stats_line: Some("Already at this point in time".to_owned()),
             commit_line: None,
             conversation_lines,
             file_lines,
@@ -252,7 +252,7 @@ impl ChatWidget<'_> {
             format!("{label}: "),
             Style::default().fg(color).add_modifier(Modifier::BOLD),
         );
-        let content_span = Span::styled(text.to_string(), crate::colors::style_text());
+        let content_span = Span::styled(text.to_owned(), crate::colors::style_text());
         Line::from(vec![label_span, content_span])
     }
 
@@ -269,7 +269,7 @@ impl ChatWidget<'_> {
                     }
                     let trimmed = text.trim();
                     if !trimmed.is_empty() {
-                        segments.push(trimmed.to_string());
+                        segments.push(trimmed.to_owned());
                     }
                 }
             }
@@ -289,9 +289,9 @@ impl ChatWidget<'_> {
                 continue;
             }
             if trimmed.starts_with('#') {
-                segments.push(trimmed.trim_start_matches('#').trim().to_string());
+                segments.push(trimmed.trim_start_matches('#').trim().to_owned());
             } else {
-                segments.push(trimmed.to_string());
+                segments.push(trimmed.to_owned());
             }
             if segments.len() >= Self::MAX_UNDO_CONVERSATION_MESSAGES {
                 break;
@@ -360,7 +360,7 @@ impl ChatWidget<'_> {
                     out.push((
                         Self::parse_numstat_count(added),
                         Self::parse_numstat_count(removed),
-                        path.to_string(),
+                        path.to_owned(),
                     ));
                 }
             }
@@ -374,7 +374,7 @@ impl ChatWidget<'_> {
         S: AsRef<str>,
         F: FnOnce(String) -> Result<T, String>,
     {
-        let args_vec: Vec<String> = args.into_iter().map(|s| s.as_ref().to_string()).collect();
+        let args_vec: Vec<String> = args.into_iter().map(|s| s.as_ref().to_owned()).collect();
         let output = Command::new("git")
             .current_dir(&self.config.cwd)
             .args(&args_vec)
@@ -398,7 +398,7 @@ impl ChatWidget<'_> {
                     output.status
                 ))
             } else {
-                Err(msg.to_string())
+                Err(msg.to_owned())
             }
         }
     }
@@ -430,8 +430,8 @@ impl ChatWidget<'_> {
                 crate::colors::style_text(),
             )));
 
-            let added_text = added.map_or("-".to_string(), |v| v.to_string());
-            let removed_text = removed.map_or("-".to_string(), |v| v.to_string());
+            let added_text = added.map_or("-".to_owned(), |v| v.to_string());
+            let removed_text = removed.map_or("-".to_owned(), |v| v.to_string());
             lines.push(Line::from(vec![
                 Span::raw("    "),
                 Span::styled(

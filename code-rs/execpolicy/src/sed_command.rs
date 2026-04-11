@@ -12,6 +12,6 @@ pub fn parse_sed_command(sed_command: &str) -> Result<()> {
     }
 
     Err(Error::SedCommandNotProvablySafe {
-        command: sed_command.to_string(),
+        command: sed_command.to_owned(),
     })
 }

@@ -65,7 +65,7 @@ impl ToolHandler for GrepFilesToolHandler {
         execute_custom_tool(
             sess,
             &ctx,
-            crate::openai_tools::GREP_FILES_TOOL_NAME.to_string(),
+            crate::openai_tools::GREP_FILES_TOOL_NAME.to_owned(),
             params_for_event,
             move || async move {
                 let args: GrepFilesArgs = match serde_json::from_str(&arguments) {
@@ -98,7 +98,7 @@ impl ToolHandler for GrepFilesToolHandler {
                     .include
                     .as_deref()
                     .map(str::trim)
-                    .and_then(|val| (!val.is_empty()).then(|| val.to_string()));
+                    .and_then(|val| (!val.is_empty()).then(|| val.to_owned()));
 
                 let search_results =
                     match run_rg_search(pattern, include.as_deref(), &search_path, limit, &cwd)
@@ -166,7 +166,7 @@ async fn run_rg_search(
 
     let output = timeout(COMMAND_TIMEOUT, command.output())
         .await
-        .map_err(|_| "rg timed out after 30 seconds".to_string())?
+        .map_err(|_| "rg timed out after 30 seconds".to_owned())?
         .map_err(|err| {
             format!(
                 "failed to launch rg: {err}. Ensure ripgrep is installed and on PATH."
@@ -193,7 +193,7 @@ fn parse_results(stdout: &[u8], limit: usize) -> Vec<String> {
             if text.is_empty() {
                 continue;
             }
-            results.push(text.to_string());
+            results.push(text.to_owned());
             if results.len() == limit {
                 break;
             }

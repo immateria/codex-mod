@@ -348,7 +348,7 @@ impl ChatComposer {
         self.footer_hint_override = items.map(|values| {
             values
                 .into_iter()
-                .map(|(key, label)| (key.trim().to_string(), label.trim().to_string()))
+                .map(|(key, label)| (key.trim().to_owned(), label.trim().to_owned()))
                 .collect()
         });
     }

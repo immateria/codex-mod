@@ -49,7 +49,7 @@ pub(super) fn short_batch_id(batch_id: &str) -> String {
     let trimmed: String = batch_id.chars().filter(|c| *c != '-').collect();
     if trimmed.len() <= 8 {
         if trimmed.is_empty() {
-            batch_id.to_string()
+            batch_id.to_owned()
         } else {
             trimmed
         }
@@ -75,7 +75,7 @@ pub(super) fn clean_label(value: &str) -> Option<String> {
     if trimmed.is_empty() {
         None
     } else {
-        Some(trimmed.to_string())
+        Some(trimmed.to_owned())
     }
 }
 
@@ -149,7 +149,7 @@ fn drop_agent_run(chat: &mut ChatWidget<'_>, key: &str) {
 fn trim_to_tail(text: &str, max_bytes: usize) -> (String, bool) {
     let bytes = text.as_bytes();
     if bytes.len() <= max_bytes {
-        return (text.to_string(), false);
+        return (text.to_owned(), false);
     }
 
     // Keep the tail: most recent content is usually last.

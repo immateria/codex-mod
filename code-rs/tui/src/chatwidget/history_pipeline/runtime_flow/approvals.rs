@@ -189,7 +189,7 @@ impl ChatWidget<'_> {
         let message = sanitized_stderr
             .lines()
             .map(str::trim)
-            .find(|line| !line.is_empty()).map_or_else(|| "Patch application failed".to_string(), ToString::to_string);
+            .find(|line| !line.is_empty()).map_or_else(|| "Patch application failed".to_owned(), ToString::to_string);
 
         PatchFailureMetadata {
             message,

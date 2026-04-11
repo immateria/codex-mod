@@ -83,19 +83,18 @@ impl NetworkSettingsView {
         };
 
         let enforcement = if !enabled {
-            "Enforcement: n/a (mediation off)".to_string()
+            "Enforcement: n/a (mediation off)".to_owned()
         } else if cfg!(target_os = "macos") {
-            "Enforcement: fail-closed for sandboxed tools (seatbelt); best-effort otherwise"
-                .to_string()
+            "Enforcement: fail-closed for sandboxed tools (seatbelt); best-effort otherwise".to_owned()
         } else if cfg!(windows) {
-            "Enforcement: best-effort (no OS-level egress restriction yet)".to_string()
+            "Enforcement: best-effort (no OS-level egress restriction yet)".to_owned()
         } else {
-            "Enforcement: best-effort (processes may ignore proxy env)".to_string()
+            "Enforcement: best-effort (processes may ignore proxy env)".to_owned()
         };
 
         vec![
             Line::from(vec![
-                Span::styled(status_tag.to_string(), status_style),
+                Span::styled(status_tag.to_owned(), status_style),
                 Span::styled(status_tail, crate::colors::style_text_dim()),
             ]),
             Line::from(Span::styled(
@@ -132,7 +131,7 @@ impl NetworkSettingsView {
         if summary.contains("(network access enabled)") {
             format!("{base} +net")
         } else {
-            base.to_string()
+            base.to_owned()
         }
     }
 

@@ -42,7 +42,7 @@
                     if let AppState::Chat { widget } = &mut self.app_state {
                         if restricted && requires_immediate_command {
                             widget.history_push_plain_state(history_cell::new_error_event(
-                                "Terminal requires Full Access to auto-run install commands.".to_string(),
+                                "Terminal requires Full Access to auto-run install commands.".to_owned(),
                             ));
                             widget.show_agents_overview_ui();
                         } else {

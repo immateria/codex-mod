@@ -106,7 +106,7 @@ pub(in crate::codex::streaming) fn missing_tool_outputs_to_insert(
                         idx,
                         ResponseItem::FunctionCallOutput {
                             call_id: call_id.clone(),
-                            output: FunctionCallOutputPayload::from_text("aborted".to_string()),
+                            output: FunctionCallOutputPayload::from_text("aborted".to_owned()),
                         },
                     ));
                 }
@@ -117,7 +117,7 @@ pub(in crate::codex::streaming) fn missing_tool_outputs_to_insert(
                         idx,
                         ResponseItem::CustomToolCallOutput {
                             call_id: call_id.clone(),
-                            output: FunctionCallOutputPayload::from_text("aborted".to_string()),
+                            output: FunctionCallOutputPayload::from_text("aborted".to_owned()),
                         },
                     ));
                 }
@@ -132,7 +132,7 @@ pub(in crate::codex::streaming) fn missing_tool_outputs_to_insert(
                         idx,
                         ResponseItem::FunctionCallOutput {
                             call_id: effective_call_id.clone(),
-                            output: FunctionCallOutputPayload::from_text("aborted".to_string()),
+                            output: FunctionCallOutputPayload::from_text("aborted".to_owned()),
                         },
                     ));
                 }

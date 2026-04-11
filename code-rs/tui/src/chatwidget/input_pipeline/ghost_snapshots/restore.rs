@@ -163,7 +163,7 @@ impl ChatWidget<'_> {
         restore_conversation: bool,
     ) {
         let Some(commit_id) = commit else {
-            self.push_background_tail("No snapshot selected.".to_string());
+            self.push_background_tail("No snapshot selected.".to_owned());
             return;
         };
 
@@ -175,13 +175,13 @@ impl ChatWidget<'_> {
             .map(|(idx, snap)| (idx, snap.clone()))
         else {
             self.push_background_tail(
-                "Selected snapshot is no longer available.".to_string(),
+                "Selected snapshot is no longer available.".to_owned(),
             );
             return;
         };
 
         if !restore_files && !restore_conversation {
-            self.push_background_tail("No restore options selected.".to_string());
+            self.push_background_tail("No restore options selected.".to_owned());
             return;
         }
 
@@ -192,7 +192,7 @@ impl ChatWidget<'_> {
 
         if restore_files {
             let previous_len = self.ghost_snapshots.len();
-            let pre_summary = Some("Pre-undo checkpoint".to_string());
+            let pre_summary = Some("Pre-undo checkpoint".to_owned());
             let captured_snapshot = self.capture_ghost_snapshot_blocking(pre_summary);
             let added_snapshot = self.ghost_snapshots.len() > previous_len;
             if let Some(snapshot) = captured_snapshot {
@@ -224,7 +224,7 @@ impl ChatWidget<'_> {
                 self.conversation_delta_since(&snapshot.conversation);
             if user_delta == 0 {
                 self.push_background_tail(
-                    "Conversation already matches selected snapshot; nothing to rewind.".to_string(),
+                    "Conversation already matches selected snapshot; nothing to rewind.".to_owned(),
                 );
             } else {
                 self.app_event_tx.send(AppEvent::JumpBack {
@@ -274,7 +274,7 @@ impl ChatWidget<'_> {
             // If we leave it active, subsequent user messages may be routed to a stale coordinator
             // handle and appear to "not go through".
             if self.auto_state.is_active() || self.auto_handle.is_some() {
-                self.auto_stop(Some("Auto Drive reset after /undo restore.".to_string()));
+                self.auto_stop(Some("Auto Drive reset after /undo restore.".to_owned()));
                 self.auto_handle = None;
                 self.auto_history.clear();
             }
@@ -333,7 +333,7 @@ impl ChatWidget<'_> {
             if trimmed.is_empty() {
                 None
             } else {
-                Some(trimmed.to_string())
+                Some(trimmed.to_owned())
             }
         };
 
@@ -405,7 +405,7 @@ impl ChatWidget<'_> {
                 } else {
                     let tx = self.app_event_tx.clone();
                     if std::thread::Builder::new()
-                        .name("queue-watchdog-fallback".to_string())
+                        .name("queue-watchdog-fallback".to_owned())
                         .spawn(move || {
                             std::thread::sleep(crate::timing::QUEUE_WATCHDOG_TIMEOUT);
                             tx.send(crate::app_event::AppEvent::CommitTick);

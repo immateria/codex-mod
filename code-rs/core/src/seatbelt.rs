@@ -66,7 +66,7 @@ pub async fn spawn_command_under_seatbelt(
         &env,
     );
     let arg0 = None;
-    env.insert(CODEX_SANDBOX_ENV_VAR.to_string(), "seatbelt".to_string());
+    env.insert(CODEX_SANDBOX_ENV_VAR.to_owned(), "seatbelt".to_owned());
     spawn_child_async(
         PathBuf::from(MACOS_PATH_TO_SEATBELT_EXECUTABLE),
         args,
@@ -103,7 +103,7 @@ fn proxy_loopback_ports_from_env(env: &HashMap<String, String>) -> Vec<u16> {
         }
 
         let candidate = if trimmed.contains("://") {
-            trimmed.to_string()
+            trimmed.to_owned()
         } else {
             format!("http://{trimmed}")
         };
@@ -200,7 +200,7 @@ fn macos_dir_params() -> Vec<(String, PathBuf)> {
     #[cfg(target_os = "macos")]
     {
         if let Some(p) = confstr_path(libc::_CS_DARWIN_USER_CACHE_DIR) {
-            return vec![("DARWIN_USER_CACHE_DIR".to_string(), p)];
+            return vec![("DARWIN_USER_CACHE_DIR".to_owned(), p)];
         }
     }
 
@@ -218,7 +218,7 @@ fn create_seatbelt_command_args(
         if sandbox_policy.has_full_disk_write_access() {
             // Allegedly, this is more permissive than `(allow file-write*)`.
             (
-                r#"(allow file-write* (regex #"^/"))"#.to_string(),
+                r#"(allow file-write* (regex #"^/"))"#.to_owned(),
                 Vec::<String>::new(),
             )
         } else {
@@ -286,14 +286,14 @@ fn create_seatbelt_command_args(
         tracing::debug!("--- Codex Seatbelt Policy ---\n{full_policy}\n------------------------------");
     }
 
-    let mut seatbelt_args: Vec<String> = vec!["-p".to_string(), full_policy];
+    let mut seatbelt_args: Vec<String> = vec!["-p".to_owned(), full_policy];
     seatbelt_args.extend(extra_cli_args);
     if !network_policy.is_empty() {
         seatbelt_args.extend(macos_dir_params().into_iter().map(|(key, value)| {
             format!("-D{key}={value}", value = value.to_string_lossy())
         }));
     }
-    seatbelt_args.push("--".to_string());
+    seatbelt_args.push("--".to_owned());
     seatbelt_args.extend(command);
     seatbelt_args
 }

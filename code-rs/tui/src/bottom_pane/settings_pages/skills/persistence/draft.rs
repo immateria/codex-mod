@@ -3,8 +3,8 @@ use std::fmt::Write as _;
 use super::*;
 
 pub(super) fn generate_draft_inner(view: &mut SkillsSettingsView) {
-    let name = view.editor.name_field.text().trim().to_string();
-    let description = view.editor.description_field.text().trim().to_string();
+    let name = view.editor.name_field.text().trim().to_owned();
+    let description = view.editor.description_field.text().trim().to_owned();
     if let Err(msg) = view.validate_name(&name) {
         view.status = Some((msg, Style::default().fg(colors::error())));
         return;
@@ -41,7 +41,7 @@ pub(super) fn generate_draft_inner(view: &mut SkillsSettingsView) {
 
     view.editor.body_field.set_text(&body);
     view.status = Some((
-        "Draft generated from guided fields. Review and Save.".to_string(),
+        "Draft generated from guided fields. Review and Save.".to_owned(),
         Style::default().fg(colors::success()),
     ));
 }

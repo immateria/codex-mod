@@ -193,7 +193,7 @@ pub(crate) fn exec_render_parts_parsed_with_meta(
                                 ));
                             } else {
                                 spans.push(Span::styled(
-                                    left.to_string(),
+                                    left.to_owned(),
                                     s_text,
                                 ));
                                 spans.push(Span::styled(
@@ -201,7 +201,7 @@ pub(crate) fn exec_render_parts_parsed_with_meta(
                                     s_text_dim,
                                 ));
                                 spans.push(Span::styled(
-                                    right.to_string(),
+                                    right.to_owned(),
                                     s_text,
                                 ));
                             }
@@ -214,7 +214,7 @@ pub(crate) fn exec_render_parts_parsed_with_meta(
                     }
                     if let Some(p) = path_part {
                         spans.push(Span::styled(
-                            p.to_string(),
+                            p.to_owned(),
                             s_text_dim,
                         ));
                     }
@@ -223,23 +223,23 @@ pub(crate) fn exec_render_parts_parsed_with_meta(
                     if let Some(idx) = line_text.find(" (") {
                         let (fname, rest) = line_text.split_at(idx);
                         spans.push(Span::styled(
-                            fname.to_string(),
+                            fname.to_owned(),
                             s_text,
                         ));
                         spans.push(Span::styled(
-                            rest.to_string(),
+                            rest.to_owned(),
                             s_text_dim,
                         ));
                     } else {
                         spans.push(Span::styled(
-                            line_text.to_string(),
+                            line_text.to_owned(),
                             s_text,
                         ));
                     }
                 }
                 "List" => {
                     spans.push(Span::styled(
-                        line_text.to_string(),
+                        line_text.to_owned(),
                         s_text,
                     ));
                 }
@@ -277,7 +277,7 @@ pub(crate) fn exec_render_parts_parsed_with_meta(
                     format!("{p}/")
                 }
             }
-            _ => "./".to_string(),
+            _ => "./".to_owned(),
         };
         pre.push(Line::from(vec![
             Span::styled("└ ", Style::default().add_modifier(Modifier::DIM)),
@@ -369,7 +369,7 @@ fn new_parsed_command(
                 } else {
                     let mut message = match &ctx_path {
                         Some(p) => format!("Running... in {p}"),
-                        None => "Running...".to_string(),
+                        None => "Running...".to_owned(),
                     };
                     if let Some(start) = start_time {
                         let elapsed = start.elapsed();
@@ -387,7 +387,7 @@ fn new_parsed_command(
                 } else {
                     let done = match ctx_path {
                         Some(p) => format!("Ran in {p}"),
-                        None => "Ran".to_string(),
+                        None => "Ran".to_owned(),
                     };
                     lines.push(Line::styled(
                         done,
@@ -499,7 +499,7 @@ fn new_parsed_command(
                                 ));
                             } else {
                                 spans.push(Span::styled(
-                                    left.to_string(),
+                                    left.to_owned(),
                                     s_text,
                                 ));
                                 spans.push(Span::styled(
@@ -507,7 +507,7 @@ fn new_parsed_command(
                                     s_text_dim,
                                 ));
                                 spans.push(Span::styled(
-                                    right.to_string(),
+                                    right.to_owned(),
                                     s_text,
                                 ));
                             }
@@ -521,7 +521,7 @@ fn new_parsed_command(
                     if let Some(p) = path_part {
                         // Dim the entire path portion including the " in " or " (in " prefix
                         spans.push(Span::styled(
-                            p.to_string(),
+                            p.to_owned(),
                             s_text_dim,
                         ));
                     }
@@ -531,16 +531,16 @@ fn new_parsed_command(
                     if let Some(idx) = line_text.find(" (") {
                         let (fname, rest) = line_text.split_at(idx);
                         spans.push(Span::styled(
-                            fname.to_string(),
+                            fname.to_owned(),
                             s_text,
                         ));
                         spans.push(Span::styled(
-                            rest.to_string(),
+                            rest.to_owned(),
                             s_text_dim,
                         ));
                     } else {
                         spans.push(Span::styled(
-                            line_text.to_string(),
+                            line_text.to_owned(),
                             s_text,
                         ));
                     }
@@ -548,7 +548,7 @@ fn new_parsed_command(
                 // List: highlight directory names
                 "List" => {
                     spans.push(Span::styled(
-                        line_text.to_string(),
+                        line_text.to_owned(),
                         s_text,
                     ));
                 }
@@ -582,12 +582,12 @@ fn new_parsed_command(
         let display_p = match ctx_path {
             Some(p) if !p.is_empty() => {
                 if p.ends_with('/') {
-                    p.to_string()
+                    p.to_owned()
                 } else {
                     format!("{p}/")
                 }
             }
-            _ => "./".to_string(),
+            _ => "./".to_owned(),
         };
         lines.push(Line::from(vec![
             Span::styled("└ ", Style::default().add_modifier(Modifier::DIM)),
@@ -704,7 +704,7 @@ fn command_label_content(
             match (query.as_deref(), path.as_deref()) {
                 (Some(q), Some(p)) => {
                     let display_p = if p.ends_with('/') {
-                        p.to_string()
+                        p.to_owned()
                     } else {
                         format!("{p}/")
                     };
@@ -716,7 +716,7 @@ fn command_label_content(
                 (Some(q), None) => (Cow::Borrowed("Search"), Cow::Owned(format_search_query(q))),
                 (None, Some(p)) => {
                     let display_p = if p.ends_with('/') {
-                        p.to_string()
+                        p.to_owned()
                     } else {
                         format!("{p}/")
                     };
@@ -767,7 +767,7 @@ fn new_exec_command_generic(
     let display_output = output.or(stream_preview);
     let mut running_status = None;
     if render_running_header {
-        let mut message = "Running...".to_string();
+        let mut message = "Running...".to_owned();
         if let Some(start) = start_time {
             let elapsed = start.elapsed();
             message = format!("{message} ({})", format_duration(elapsed));

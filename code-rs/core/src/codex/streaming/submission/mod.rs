@@ -27,7 +27,7 @@ pub(in crate::codex) async fn submission_loop(
         let event = Event {
             id: sub_id,
             event_seq: 0,
-            msg: EventMsg::Error(ErrorEvent { message: "No session initialized, expected 'ConfigureSession' as first Op".to_string() }),
+            msg: EventMsg::Error(ErrorEvent { message: "No session initialized, expected 'ConfigureSession' as first Op".to_owned() }),
             order: None,
         };
         tx_event.send(event).await.ok();
@@ -67,7 +67,7 @@ pub(in crate::codex) async fn submission_loop(
                     if trimmed.is_empty() {
                         continue;
                     }
-                    if !seen_batches.insert(trimmed.to_string()) {
+                    if !seen_batches.insert(trimmed.to_owned()) {
                         continue;
                     }
                     cancelled += manager.cancel_batch(trimmed).await;
@@ -78,7 +78,7 @@ pub(in crate::codex) async fn submission_loop(
                     if trimmed.is_empty() {
                         continue;
                     }
-                    if !seen_agents.insert(trimmed.to_string()) {
+                    if !seen_agents.insert(trimmed.to_owned()) {
                         continue;
                     }
                     if manager.cancel_agent(trimmed).await {
@@ -91,7 +91,7 @@ pub(in crate::codex) async fn submission_loop(
                 send_agent_status_update(&sess_arc).await;
 
                 let message = if cancelled == 0 {
-                    "No running agents to cancel.".to_string()
+                    "No running agents to cancel.".to_owned()
                 } else {
                     let suffix = if cancelled == 1 { "" } else { "s" };
                     format!("Cancelled {cancelled} running agent{suffix}.")
@@ -105,14 +105,14 @@ pub(in crate::codex) async fn submission_loop(
             }
             Op::AddPendingInputDeveloper { text } => {
                 let Some(sess) = sess.as_ref().cloned() else { send_no_session_event(sub.id).await; continue; };
-                let dev_msg = ResponseInputItem::Message { role: "developer".to_string(), content: vec![ContentItem::InputText { text }] };
+                let dev_msg = ResponseInputItem::Message { role: "developer".to_owned(), content: vec![ContentItem::InputText { text }] };
                 let should_start_turn = sess.enqueue_out_of_turn_item(dev_msg);
                 if should_start_turn {
                     sess.cleanup_old_status_items().await;
                     let turn_context = sess.make_turn_context();
                     let sub_id = sess.next_internal_sub_id();
                     let sentinel_input = vec![InputItem::Text {
-                        text: PENDING_ONLY_SENTINEL.to_string(),
+                        text: PENDING_ONLY_SENTINEL.to_owned(),
                     }];
                     let agent = AgentTask::spawn(Arc::clone(&sess), turn_context, sub_id, sentinel_input);
                     sess.set_task(agent);
@@ -679,9 +679,9 @@ pub(in crate::codex) async fn submission_loop(
                 } else {
                     let was_empty = sess.enqueue_manual_compact(sub.id.clone());
                     let message = if was_empty {
-                        "Manual compact queued; it will run after the current response finishes.".to_string()
+                        "Manual compact queued; it will run after the current response finishes.".to_owned()
                     } else {
-                        "Manual compact already queued; waiting for the current response to finish.".to_string()
+                        "Manual compact already queued; waiting for the current response to finish.".to_owned()
                     };
                     let event = sess.make_event(
                         &sub.id,
@@ -728,7 +728,7 @@ pub(in crate::codex) async fn submission_loop(
                             let event = sess_arc.make_event(
                                 &sub.id,
                                 EventMsg::Error(ErrorEvent {
-                                    message: "Failed to shutdown rollout recorder".to_string(),
+                                    message: "Failed to shutdown rollout recorder".to_owned(),
                                 }),
                             );
                             if let Err(e) = tx_event.send(event).await {

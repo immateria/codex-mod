@@ -117,7 +117,7 @@ impl PromptsSettingsView {
         self.body_field.set_text("");
         self.focus = Focus::Name;
         self.status = Some((
-            "New prompt".to_string(),
+            "New prompt".to_owned(),
             Style::default().fg(colors::info()),
         ));
         self.mode = Mode::Edit;
@@ -165,13 +165,13 @@ impl PromptsSettingsView {
     fn validate(&self, name: &str) -> Result<(), String> {
         let slug = name.trim();
         if slug.is_empty() {
-            return Err("Name is required".to_string());
+            return Err("Name is required".to_owned());
         }
         if !slug
             .chars()
             .all(|c| c.is_ascii_alphanumeric() || matches!(c, '-' | '_' | '.'))
         {
-            return Err("Name must use letters, numbers, '-', '_' or '.'".to_string());
+            return Err("Name must use letters, numbers, '-', '_' or '.'".to_owned());
         }
 
         let slug_lower = slug.to_ascii_lowercase();
@@ -180,7 +180,7 @@ impl PromptsSettingsView {
             .map(|(name, _)| name)
             .any(|name| name.eq_ignore_ascii_case(&slug_lower))
         {
-            return Err("Name conflicts with a built-in slash command".to_string());
+            return Err("Name conflicts with a built-in slash command".to_owned());
         }
 
         let dup = self
@@ -189,14 +189,14 @@ impl PromptsSettingsView {
             .enumerate()
             .any(|(idx, p)| Some(idx) != self.selected_prompt_index() && p.name.eq_ignore_ascii_case(slug));
         if dup {
-            return Err("A prompt with this name already exists".to_string());
+            return Err("A prompt with this name already exists".to_owned());
         }
         Ok(())
     }
 
     pub(super) fn save_current(&mut self) {
-        let name = self.name_field.text().trim().to_string();
-        let body = self.body_field.text().to_string();
+        let name = self.name_field.text().trim().to_owned();
+        let body = self.body_field.text().to_owned();
         match self.validate(&name) {
             Ok(()) => {}
             Err(msg) => {
@@ -254,7 +254,7 @@ impl PromptsSettingsView {
         }
         self.clamp_list_state();
         self.status = Some((
-            "Saved.".to_string(),
+            "Saved.".to_owned(),
             Style::default().fg(colors::success()),
         ));
 
@@ -266,7 +266,7 @@ impl PromptsSettingsView {
     pub(super) fn delete_current(&mut self) {
         let Some(selected) = self.selected_prompt_index() else {
             self.status = Some((
-                "Nothing to delete".to_string(),
+                "Nothing to delete".to_owned(),
                 Style::default().fg(colors::warning()),
             ));
             self.mode = Mode::List;
@@ -294,7 +294,7 @@ impl PromptsSettingsView {
         self.mode = Mode::List;
         self.focus = Focus::List;
         self.status = Some((
-            "Deleted.".to_string(),
+            "Deleted.".to_owned(),
             Style::default().fg(colors::success()),
         ));
         self.app_event_tx

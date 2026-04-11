@@ -249,7 +249,7 @@ impl PatchSummaryCell {
                         lines.push(Line::default());
                         lines.push(Line::from("stdout excerpt:").fg(crate::colors::info()));
                         for line in stdout.lines() {
-                            lines.push(Line::from(line.to_string()).fg(crate::colors::text()));
+                            lines.push(Line::from(line.to_owned()).fg(crate::colors::text()));
                         }
                     }
                 if let Some(stderr) = &metadata.stderr_excerpt
@@ -257,7 +257,7 @@ impl PatchSummaryCell {
                         lines.push(Line::default());
                         lines.push(Line::from("stderr excerpt:").fg(c_error));
                         for line in stderr.lines() {
-                            lines.push(Line::from(line.to_string()).fg(c_error));
+                            lines.push(Line::from(line.to_owned()).fg(c_error));
                         }
                     }
             }

@@ -82,7 +82,7 @@ pub(crate) async fn run(
         turn_id: request.turn_id.clone(),
         transcript_path: NullableString::from_path(request.transcript_path.clone()),
         cwd: request.cwd.display().to_string(),
-        hook_event_name: "Stop".to_string(),
+        hook_event_name: "Stop".to_owned(),
         model: request.model.clone(),
         permission_mode: request.permission_mode.clone(),
         stop_hook_active: request.stop_hook_active,
@@ -138,7 +138,7 @@ fn parse_completed(
             status = HookRunStatus::Failed;
             entries.push(HookOutputEntry {
                 kind: HookOutputEntryKind::Error,
-                text: error.to_string(),
+                text: error.to_owned(),
             });
         }
         None => match run_result.exit_code {
@@ -186,8 +186,7 @@ fn parse_completed(
                             entries.push(HookOutputEntry {
                                 kind: HookOutputEntryKind::Error,
                                 text:
-                                    "Stop hook returned decision:block without a non-empty reason"
-                                        .to_string(),
+                                    "Stop hook returned decision:block without a non-empty reason".to_owned(),
                             });
                         }
                     }
@@ -195,7 +194,7 @@ fn parse_completed(
                     status = HookRunStatus::Failed;
                     entries.push(HookOutputEntry {
                         kind: HookOutputEntryKind::Error,
-                        text: "hook returned invalid stop hook JSON output".to_string(),
+                        text: "hook returned invalid stop hook JSON output".to_owned(),
                     });
                 }
             }
@@ -214,8 +213,7 @@ fn parse_completed(
                     entries.push(HookOutputEntry {
                         kind: HookOutputEntryKind::Error,
                         text:
-                            "Stop hook exited with code 2 but did not write a continuation prompt to stderr"
-                                .to_string(),
+                            "Stop hook exited with code 2 but did not write a continuation prompt to stderr".to_owned(),
                     });
                 }
             }
@@ -230,7 +228,7 @@ fn parse_completed(
                 status = HookRunStatus::Failed;
                 entries.push(HookOutputEntry {
                     kind: HookOutputEntryKind::Error,
-                    text: "hook exited without a status code".to_string(),
+                    text: "hook exited without a status code".to_owned(),
                 });
             }
         },

@@ -127,13 +127,13 @@ pub(crate) fn create_tool_for_code_tool_call_param() -> Tool {
         });
 
     Tool {
-        name: "codex".to_string(),
-        title: Some("Codex".to_string()),
+        name: "codex".to_owned(),
+        title: Some("Codex".to_owned()),
         input_schema: tool_input_schema,
         // TODO(mbolin): This should be defined.
         output_schema: None,
         description: Some(
-            "Run a Codex session. Accepts configuration parameters matching the Codex Config struct.".to_string(),
+            "Run a Codex session. Accepts configuration parameters matching the Codex Config struct.".to_owned(),
         ),
         annotations: None,
     }
@@ -142,8 +142,8 @@ pub(crate) fn create_tool_for_code_tool_call_param() -> Tool {
 /// Builds a `Tool` definition for the `acp/new_session` tool-call.
 pub(crate) fn create_tool_for_acp_new_session() -> Tool {
     let input_schema = ToolInputSchema {
-        r#type: "object".to_string(),
-        required: Some(vec!["cwd".to_string()]),
+        r#type: "object".to_owned(),
+        required: Some(vec!["cwd".to_owned()]),
         properties: Some(json!({
             "cwd": {"type": "string"},
             "mcpServers": {"type": "array"},
@@ -151,17 +151,17 @@ pub(crate) fn create_tool_for_acp_new_session() -> Tool {
         })),
     };
     let output_schema = ToolOutputSchema {
-        r#type: "object".to_string(),
+        r#type: "object".to_owned(),
         properties: None,
         required: None,
     };
 
     Tool {
-        name: acp::AGENT_METHOD_NAMES.session_new.to_string(),
-        title: Some(acp::AGENT_METHOD_NAMES.session_new.to_string()),
+        name: acp::AGENT_METHOD_NAMES.session_new.to_owned(),
+        title: Some(acp::AGENT_METHOD_NAMES.session_new.to_owned()),
         input_schema,
         output_schema: Some(output_schema),
-        description: Some("Start a Codex session over ACP.".to_string()),
+        description: Some("Start a Codex session over ACP.".to_owned()),
         annotations: None,
     }
 }
@@ -169,8 +169,8 @@ pub(crate) fn create_tool_for_acp_new_session() -> Tool {
 /// Builds a `Tool` definition for the `acp/prompt` tool-call.
 pub(crate) fn create_tool_for_acp_prompt() -> Tool {
     let input_schema = ToolInputSchema {
-        r#type: "object".to_string(),
-        required: Some(vec!["sessionId".to_string(), "prompt".to_string()]),
+        r#type: "object".to_owned(),
+        required: Some(vec!["sessionId".to_owned(), "prompt".to_owned()]),
         properties: Some(json!({
             "sessionId": {"type": "string"},
             "prompt": {"type": "array"},
@@ -179,11 +179,11 @@ pub(crate) fn create_tool_for_acp_prompt() -> Tool {
     };
 
     Tool {
-        name: acp::AGENT_METHOD_NAMES.session_prompt.to_string(),
-        title: Some(acp::AGENT_METHOD_NAMES.session_prompt.to_string()),
+        name: acp::AGENT_METHOD_NAMES.session_prompt.to_owned(),
+        title: Some(acp::AGENT_METHOD_NAMES.session_prompt.to_owned()),
         input_schema,
         output_schema: None,
-        description: Some("Send a prompt to an existing ACP Codex session.".to_string()),
+        description: Some("Send a prompt to an existing ACP Codex session.".to_owned()),
         annotations: None,
     }
 }
@@ -191,8 +191,8 @@ pub(crate) fn create_tool_for_acp_prompt() -> Tool {
 /// Builds a `Tool` definition for the `acp/set_model` tool-call.
 pub(crate) fn create_tool_for_acp_set_model() -> Tool {
     let input_schema = ToolInputSchema {
-        r#type: "object".to_string(),
-        required: Some(vec!["sessionId".to_string(), "modelId".to_string()]),
+        r#type: "object".to_owned(),
+        required: Some(vec!["sessionId".to_owned(), "modelId".to_owned()]),
         properties: Some(json!({
             "sessionId": {"type": "string"},
             "modelId": {"type": "string"}
@@ -200,11 +200,11 @@ pub(crate) fn create_tool_for_acp_set_model() -> Tool {
     };
 
     Tool {
-        name: acp::AGENT_METHOD_NAMES.session_set_model.to_string(),
-        title: Some(acp::AGENT_METHOD_NAMES.session_set_model.to_string()),
+        name: acp::AGENT_METHOD_NAMES.session_set_model.to_owned(),
+        title: Some(acp::AGENT_METHOD_NAMES.session_set_model.to_owned()),
         input_schema,
         output_schema: None,
-        description: Some("Select a model for an existing ACP Codex session.".to_string()),
+        description: Some("Select a model for an existing ACP Codex session.".to_owned()),
         annotations: None,
     }
 }
@@ -325,12 +325,12 @@ pub(crate) fn create_tool_for_code_tool_call_reply_param() -> Tool {
         });
 
     Tool {
-        name: "codex-reply".to_string(),
-        title: Some("Codex Reply".to_string()),
+        name: "codex-reply".to_owned(),
+        title: Some("Codex Reply".to_owned()),
         input_schema: tool_input_schema,
         output_schema: None,
         description: Some(
-            "Continue a Codex session by providing the session id and prompt.".to_string(),
+            "Continue a Codex session by providing the session id and prompt.".to_owned(),
         ),
         annotations: None,
     }

@@ -577,17 +577,17 @@ impl Session {
         allow_servers: HashSet<String>,
     ) {
         let mut state = self.mcp_access_write();
-        state.turn_id = Some(turn_id.to_string());
+        state.turn_id = Some(turn_id.to_owned());
         state.turn_allow_servers = allow_servers;
     }
 
     pub(super) fn allow_mcp_server_for_turn(&self, turn_id: &str, server_lower: &str) {
         let mut state = self.mcp_access_write();
         if state.turn_id.as_deref() != Some(turn_id) {
-            state.turn_id = Some(turn_id.to_string());
+            state.turn_id = Some(turn_id.to_owned());
             state.turn_allow_servers.clear();
         }
-        state.turn_allow_servers.insert(server_lower.to_string());
+        state.turn_allow_servers.insert(server_lower.to_owned());
     }
 
     pub(super) fn clear_mcp_turn_allow_servers(&self, turn_id: &str) {
@@ -601,13 +601,13 @@ impl Session {
     pub(crate) fn allow_mcp_server_for_session(&self, server_lower: &str) {
         let mut state = self.mcp_access_write();
         state.session_deny_servers.remove(server_lower);
-        state.session_allow_servers.insert(server_lower.to_string());
+        state.session_allow_servers.insert(server_lower.to_owned());
     }
 
     pub(crate) fn deny_mcp_server_for_session(&self, server_lower: &str) {
         let mut state = self.mcp_access_write();
         state.session_allow_servers.remove(server_lower);
-        state.session_deny_servers.insert(server_lower.to_string());
+        state.session_deny_servers.insert(server_lower.to_owned());
     }
 
     pub(crate) fn session_mcp_overrides_snapshot(&self) -> (HashSet<String>, HashSet<String>) {
@@ -626,7 +626,7 @@ impl Session {
         }
         let entry = state
             .background_seq_by_sub_id
-            .entry(sub_id.to_string())
+            .entry(sub_id.to_owned())
             .or_insert(0);
         let current = *entry;
         *entry = entry.saturating_add(1);
@@ -800,7 +800,7 @@ impl Session {
     pub(crate) async fn record_bridge_event(&self, text: String) {
         let message = ResponseItem::Message {
             id: None,
-            role: "developer".to_string(),
+            role: "developer".to_owned(),
             content: vec![ContentItem::InputText { text }], end_turn: None, phase: None};
         self.record_conversation_items(&[message]).await;
     }
@@ -1218,7 +1218,7 @@ impl Session {
         let turn_context = self.make_turn_context();
         let sub_id = self.next_internal_sub_id();
         let sentinel_input = vec![InputItem::Text {
-            text: PENDING_ONLY_SENTINEL.to_string(),
+            text: PENDING_ONLY_SENTINEL.to_owned(),
         }];
         let agent = AgentTask::spawn(Arc::clone(self), turn_context, sub_id, sentinel_input);
         self.set_task(agent);
@@ -1349,7 +1349,7 @@ impl Session {
                 }
             } else {
                 new_content.push(ContentItem::InputText {
-                    text: TRUNCATION_MARKER.to_string(),
+                    text: TRUNCATION_MARKER.to_owned(),
                 });
                 last_text_idx = Some(new_content.len() - 1);
             }
@@ -1993,7 +1993,7 @@ impl Session {
         if let Some(user_instructions) = turn_context.user_instructions.as_deref() {
             items.push(
                 UserInstructions {
-                    text: user_instructions.to_string(),
+                    text: user_instructions.to_owned(),
                     directory: turn_context.cwd.to_string_lossy().into_owned(),
                 }
                 .into(),
@@ -2276,7 +2276,7 @@ impl Session {
                     if let code_protocol::protocol::EventMsg::UserMessage(user_msg_event) = &recorded_event.msg {
                         let response_item = ResponseItem::Message {
                             id: Some(recorded_event.id.clone()),
-                            role: "user".to_string(),
+                            role: "user".to_owned(),
                             content: vec![ContentItem::InputText {
                                 text: user_msg_event.message.clone(),
                             }], end_turn: None, phase: None};

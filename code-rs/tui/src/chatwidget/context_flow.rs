@@ -221,7 +221,7 @@ impl ChatWidget<'_> {
             && delta.current.is_none()
             && delta.previous.is_some()
         {
-            delta.current = Some("inactive".to_string());
+            delta.current = Some("inactive".to_owned());
         }
 
         deltas.push(delta);
@@ -246,13 +246,13 @@ impl ChatWidget<'_> {
         let mut summary = ContextSummary::default();
         if let Some(obj) = payload.snapshot.as_object() {
             if let Some(cwd) = obj.get("cwd").and_then(|v| v.as_str()) {
-                summary.cwd = Some(cwd.to_string());
+                summary.cwd = Some(cwd.to_owned());
             }
             if let Some(branch) = obj.get("git_branch").and_then(|v| v.as_str()) {
-                summary.git_branch = Some(branch.to_string());
+                summary.git_branch = Some(branch.to_owned());
             }
             if let Some(reason) = obj.get("reasoning_effort").and_then(|v| v.as_str()) {
-                summary.reasoning_effort = Some(reason.to_string());
+                summary.reasoning_effort = Some(reason.to_owned());
             }
         }
 
@@ -323,13 +323,13 @@ impl ChatWidget<'_> {
 
         if let Some(obj) = payload.snapshot.as_object() {
             if let Some(version_url) = obj.get("url").and_then(|v| v.as_str()) {
-                record.url = Some(version_url.to_string());
+                record.url = Some(version_url.to_owned());
             }
             if let Some(title) = obj.get("title").and_then(|v| v.as_str()) {
-                record.title = Some(title.to_string());
+                record.title = Some(title.to_owned());
             }
             if let Some(captured) = obj.get("captured_at").and_then(|v| v.as_str()) {
-                record.captured_at = Some(captured.to_string());
+                record.captured_at = Some(captured.to_owned());
             }
             if let Some(viewport) = obj.get("viewport").and_then(|v| v.as_object()) {
                 record.width = viewport
@@ -345,7 +345,7 @@ impl ChatWidget<'_> {
                 let mut map = BTreeMap::new();
                 for (key, value) in meta {
                     if let Some(v) = value.as_str() {
-                        map.insert(key.clone(), v.to_string());
+                        map.insert(key.clone(), v.to_owned());
                     } else {
                         map.insert(key.clone(), value.to_string());
                     }

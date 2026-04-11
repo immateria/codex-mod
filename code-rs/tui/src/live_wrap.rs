@@ -147,7 +147,7 @@ impl RowBuilder {
                         let mut rest = String::new();
                         rest.push_str(&prefix[ws_idx + ws_ch.len_utf8()..]);
                         rest.push_str(suffix);
-                        self.rows.push(make_row(before.to_string(), false));
+                        self.rows.push(make_row(before.to_owned(), false));
                         self.current_line = rest;
                         continue;
                     }
@@ -180,7 +180,7 @@ impl RowBuilder {
 
                 // Fall back to a hard wrap (no whitespace in the visible prefix).
                 self.rows.push(make_row(prefix, false));
-                self.current_line = suffix.to_string();
+                self.current_line = suffix.to_owned();
         }
     }
 }

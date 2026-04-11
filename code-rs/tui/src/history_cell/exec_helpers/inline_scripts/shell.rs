@@ -75,7 +75,7 @@ fn build_shell_script_block(script: &str) -> Option<String> {
     let segments = split_shell_statements(&normalized);
     let meaningful: Vec<String> = segments
         .into_iter()
-        .map(|line| line.trim().to_string())
+        .map(|line| line.trim().to_owned())
         .filter(|line| !line.is_empty())
         .collect();
     if meaningful.len() <= 1 {
@@ -130,7 +130,7 @@ fn split_shell_statements(script: &str) -> Vec<String> {
             }
             ';' if !(in_single || in_double) => {
                 current.push(ch);
-                segments.push(current.trim().to_string());
+                segments.push(current.trim().to_owned());
                 current.clear();
                 idx += 1;
                 continue;
@@ -139,7 +139,7 @@ fn split_shell_statements(script: &str) -> Vec<String> {
                 let current_op = ch;
                 if idx + 1 < chars.len() && chars[idx + 1] == current_op {
                     if !current.trim().is_empty() {
-                        segments.push(current.trim().to_string());
+                        segments.push(current.trim().to_owned());
                     }
                     segments.push(format!("{current_op}{current_op}"));
                     current.clear();
@@ -148,7 +148,7 @@ fn split_shell_statements(script: &str) -> Vec<String> {
                 }
             }
             '\n' if !(in_single || in_double) => {
-                segments.push(current.trim().to_string());
+                segments.push(current.trim().to_owned());
                 current.clear();
                 idx += 1;
                 continue;
@@ -160,7 +160,7 @@ fn split_shell_statements(script: &str) -> Vec<String> {
     }
 
     if !current.trim().is_empty() {
-        segments.push(current.trim().to_string());
+        segments.push(current.trim().to_owned());
     }
 
     segments

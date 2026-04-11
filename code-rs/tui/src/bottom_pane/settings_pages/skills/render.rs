@@ -188,11 +188,11 @@ impl SkillsSettingsView {
                     .add_modifier(Modifier::BOLD)
             };
             let hint_style = Style::default().fg(colors::text_dim());
-            let mode_text = self.editor.style_profile_mode.label().to_string();
+            let mode_text = self.editor.style_profile_mode.label().to_owned();
             let hint_text = if self.editor.style_field.text().trim().is_empty() {
-                "Set shell style first".to_string()
+                "Set shell style first".to_owned()
             } else {
-                self.editor.style_profile_mode.hint().to_string()
+                self.editor.style_profile_mode.hint().to_owned()
             };
             Paragraph::new(Line::from(vec![
                 Span::styled(mode_text, mode_style),
@@ -482,44 +482,44 @@ fn advance_section(top: &mut usize, height: usize) -> (usize, usize) {
 
 fn style_references_block(dirty: bool, focused: bool) -> BorderedField<'static> {
     let title = if dirty {
-        "Style references [edited] (one path per line)".to_string()
+        "Style references [edited] (one path per line)".to_owned()
     } else {
-        "Style references (one path per line)".to_string()
+        "Style references (one path per line)".to_owned()
     };
     BorderedField::new(title, focused)
 }
 
 fn style_skill_roots_block(dirty: bool, focused: bool) -> BorderedField<'static> {
     let title = if dirty {
-        "Style skill roots [edited] (one path per line)".to_string()
+        "Style skill roots [edited] (one path per line)".to_owned()
     } else {
-        "Style skill roots (one path per line)".to_string()
+        "Style skill roots (one path per line)".to_owned()
     };
     BorderedField::new(title, focused)
 }
 
 fn style_mcp_include_block(dirty: bool, focused: bool) -> BorderedField<'static> {
     let title = if dirty {
-        "Style MCP include [edited] (one server per line)".to_string()
+        "Style MCP include [edited] (one server per line)".to_owned()
     } else {
-        "Style MCP include (one server per line)".to_string()
+        "Style MCP include (one server per line)".to_owned()
     };
     BorderedField::new(title, focused)
 }
 
 fn style_mcp_exclude_block(dirty: bool, focused: bool) -> BorderedField<'static> {
     let title = if dirty {
-        "Style MCP exclude [edited] (one server per line)".to_string()
+        "Style MCP exclude [edited] (one server per line)".to_owned()
     } else {
-        "Style MCP exclude (one server per line)".to_string()
+        "Style MCP exclude (one server per line)".to_owned()
     };
     BorderedField::new(title, focused)
 }
 
 fn examples_block(focused: bool) -> BorderedField<'static> {
-    BorderedField::new("Trigger Examples / User Requests".to_string(), focused)
+    BorderedField::new("Trigger Examples / User Requests".to_owned(), focused)
 }
 
 fn body_block(focused: bool) -> BorderedField<'static> {
-    BorderedField::new("SKILL.md Body".to_string(), focused)
+    BorderedField::new("SKILL.md Body".to_owned(), focused)
 }

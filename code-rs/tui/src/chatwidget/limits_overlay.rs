@@ -250,7 +250,7 @@ fn loading_lines() -> Vec<RtLine<'static>> {
 fn error_lines(message: &str) -> Vec<RtLine<'static>> {
     vec![
         RtLine::from(Span::styled(
-            message.to_string(),
+            message.to_owned(),
             Style::default().fg(colors::error()),
         )),
     ]

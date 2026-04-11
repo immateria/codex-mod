@@ -221,7 +221,7 @@ impl MemoriesSettingsView {
 
     fn current_scope_value_label(&self, explicit: Option<bool>, effective: bool) -> String {
         match self.scope {
-            MemoriesScopeChoice::Global => Self::bool_label(effective).to_string(),
+            MemoriesScopeChoice::Global => Self::bool_label(effective).to_owned(),
             MemoriesScopeChoice::Profile | MemoriesScopeChoice::Project => match explicit {
                 Some(value) => format!(
                     "override {}",
@@ -251,10 +251,10 @@ impl MemoriesSettingsView {
 
     fn scope_value_label(&self) -> String {
         match self.scope {
-            MemoriesScopeChoice::Global => "Global".to_string(),
+            MemoriesScopeChoice::Global => "Global".to_owned(),
             MemoriesScopeChoice::Profile => match self.active_profile.as_deref() {
                 Some(name) => format!("Active profile ({name})"),
-                None => "Active profile (unavailable)".to_string(),
+                None => "Active profile (unavailable)".to_owned(),
             },
             MemoriesScopeChoice::Project => {
                 format!("Current project ({})", self.current_project.display())
@@ -299,14 +299,14 @@ impl MemoriesSettingsView {
                 scoped.and_then(|settings| settings.min_rollout_idle_hours),
                 effective.min_rollout_idle_hours,
             ),
-            RowKind::RefreshArtifacts => "Bypass throttle".to_string(),
-            RowKind::ClearArtifacts => "Generated files only".to_string(),
+            RowKind::RefreshArtifacts => "Bypass throttle".to_owned(),
+            RowKind::ClearArtifacts => "Generated files only".to_owned(),
             RowKind::OpenDirectory => self.code_home.join("memories").display().to_string(),
             RowKind::Apply => {
                 if self.current_scope_dirty() {
-                    "Pending".to_string()
+                    "Pending".to_owned()
                 } else {
-                    "Saved".to_string()
+                    "Saved".to_owned()
                 }
             }
             RowKind::Close => String::new(),

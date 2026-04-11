@@ -69,7 +69,7 @@ impl ShellSelectionView {
         self.native_picker_notice = None;
         if !crate::platform_caps::supports_native_picker() {
             self.native_picker_notice =
-                Some("Not supported on Android; type the path.".to_string());
+                Some("Not supported on Android; type the path.".to_owned());
             return true;
         }
         match pick_path(NativePickerKind::File, "Select shell binary") {
@@ -89,19 +89,19 @@ impl ShellSelectionView {
         self.native_picker_notice = None;
         if !crate::platform_caps::supports_reveal_in_file_manager() {
             self.native_picker_notice =
-                Some("Not supported on Android; copy the path manually.".to_string());
+                Some("Not supported on Android; copy the path manually.".to_owned());
             return true;
         }
         let (path, _args) = split_command_and_args(self.custom_field.text());
         let trimmed = path.trim();
         if trimmed.is_empty() {
-            self.native_picker_notice = Some("No shell path to show".to_string());
+            self.native_picker_notice = Some("No shell path to show".to_owned());
             return true;
         }
 
         let resolved = if trimmed.contains('/') || trimmed.contains('\\') {
             if std::path::Path::new(trimmed).exists() {
-                Some(trimmed.to_string())
+                Some(trimmed.to_owned())
             } else {
                 None
             }
@@ -116,7 +116,7 @@ impl ShellSelectionView {
 
         match crate::native_file_manager::reveal_path(std::path::Path::new(&resolved)) {
             Ok(()) => {
-                self.native_picker_notice = Some("Opened in file manager".to_string());
+                self.native_picker_notice = Some("Opened in file manager".to_owned());
                 true
             }
             Err(err) => {
@@ -138,7 +138,7 @@ impl ShellSelectionView {
             .trim_matches('"')
             .trim_matches('\'')
             .to_ascii_lowercase();
-        raw.strip_suffix(".exe").unwrap_or(raw.as_str()).to_string()
+        raw.strip_suffix(".exe").unwrap_or(raw.as_str()).to_owned()
     }
 
     pub(super) fn display_shell(shell: &ShellConfig) -> String {
@@ -247,7 +247,7 @@ impl ShellSelectionView {
         if index == 0 {
             self.app_event_tx.send(AppEvent::UpdateShellSelection {
                 // Keep parity with `/shell -` which clears the override.
-                path: "-".to_string(),
+                path: "-".to_owned(),
                 args: Vec::new(),
                 script_style: None,
             });
@@ -283,7 +283,7 @@ impl ShellSelectionView {
 
     pub(super) fn submit_custom_path(&mut self) {
         let (path, args) = split_command_and_args(self.custom_field.text());
-        let path = path.trim().to_string();
+        let path = path.trim().to_owned();
         if path.is_empty() {
             return;
         }
@@ -299,7 +299,7 @@ impl ShellSelectionView {
     fn set_custom_path_from_picker(&mut self, selected_path: &std::path::Path) {
         let selected = selected_path.to_string_lossy().into_owned();
         let selected = if let Ok(quoted) = shlex::try_quote(&selected) { quoted.into_owned() } else {
-            self.native_picker_notice = Some("Picker returned an invalid path".to_string());
+            self.native_picker_notice = Some("Picker returned an invalid path".to_owned());
             return;
         };
         let (_current_path, current_args) = split_command_and_args(self.custom_field.text());
@@ -307,7 +307,7 @@ impl ShellSelectionView {
         for arg in current_args {
             if let Ok(quoted) = shlex::try_quote(&arg) { args.push(quoted.into_owned()) } else {
                 self.native_picker_notice =
-                    Some("Shell args contain invalid characters".to_string());
+                    Some("Shell args contain invalid characters".to_owned());
                 return;
             }
         }
@@ -366,7 +366,7 @@ impl ShellSelectionView {
         let resolved = if trimmed.contains('/') || trimmed.contains('\\') {
             // Already a path; only normalize if it exists.
             if std::path::Path::new(trimmed).exists() {
-                trimmed.to_string()
+                trimmed.to_owned()
             } else {
                 return false;
             }

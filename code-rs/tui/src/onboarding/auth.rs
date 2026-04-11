@@ -166,7 +166,7 @@ impl AuthModeWidget {
                     format!("{} {}. ", caret, idx + 1)
                         .fg(crate::colors::info())
                         .dim(),
-                    text.to_string().fg(crate::colors::info()),
+                    text.to_owned().fg(crate::colors::info()),
                 ])
             } else {
                 Line::from(format!("  {}. {text}", idx + 1))
@@ -353,8 +353,8 @@ impl AuthModeWidget {
             .unwrap_or(AuthCredentialsStoreMode::File);
         let opts = ServerOptions::new(
             self.code_home.clone(),
-            CLIENT_ID.to_string(),
-            code_core::default_client::DEFAULT_ORIGINATOR.to_string(),
+            CLIENT_ID.to_owned(),
+            code_core::default_client::DEFAULT_ORIGINATOR.to_owned(),
             cli_auth_credentials_store_mode,
         );
         let server = run_login_server(opts);
@@ -406,7 +406,7 @@ impl AuthModeWidget {
                 .model
                 .eq_ignore_ascii_case("gpt-5.1")
             {
-                let new_model = GPT_5_CODEX_MEDIUM_MODEL.to_string();
+                let new_model = GPT_5_CODEX_MEDIUM_MODEL.to_owned();
                 args.config.model = new_model.clone();
 
                 let family = find_family_for_model(&new_model)
@@ -426,7 +426,7 @@ async fn spawn_completion_poller(
             event_tx.send(AppEvent::OnboardingAuthComplete(Ok(())));
         } else {
             event_tx.send(AppEvent::OnboardingAuthComplete(Err(
-                "login failed".to_string()
+                "login failed".to_owned()
             )));
         }
     })

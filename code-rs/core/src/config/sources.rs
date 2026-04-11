@@ -300,7 +300,7 @@ pub async fn persist_model_selection(
                 return Err(anyhow::anyhow!("profile entry should be a table"));
             };
 
-            profile_table["model"] = toml_edit::value(model.to_string());
+            profile_table["model"] = toml_edit::value(model.to_owned());
 
             if let Some(effort) = effort {
                 profile_table["model_reasoning_effort"] =
@@ -316,7 +316,7 @@ pub async fn persist_model_selection(
                 profile_table.remove("preferred_model_reasoning_effort");
             }
         } else {
-            root["model"] = toml_edit::value(model.to_string());
+            root["model"] = toml_edit::value(model.to_owned());
             match effort {
                 Some(effort) => {
                     root["model_reasoning_effort"] =
@@ -1013,7 +1013,7 @@ fn find_shell_style_profile_key(
                     "multiple shell_style_profiles entries map to `{style}` (`{existing}` and `{key}`); keep only one"
                 ));
             }
-            match_key = Some(key.to_string());
+            match_key = Some(key.to_owned());
         }
     }
     Ok(match_key)
@@ -1033,7 +1033,7 @@ fn read_string_array(table: &TomlTable, key: &str) -> anyhow::Result<Vec<String>
             .ok_or_else(|| anyhow::anyhow!("`{key}` entries must be TOML strings"))?;
         let trimmed = as_str.trim();
         if !trimmed.is_empty() {
-            out.push(trimmed.to_string());
+            out.push(trimmed.to_owned());
         }
     }
     Ok(out)
@@ -1053,7 +1053,7 @@ fn push_unique_skill_name(values: &mut Vec<String>, skill_name: &str) -> bool {
     {
         return false;
     }
-    values.push(skill_name.trim().to_string());
+    values.push(skill_name.trim().to_owned());
     true
 }
 
@@ -1071,7 +1071,7 @@ fn write_string_array(table: &mut TomlTable, key: &str, values: &[String]) -> an
         }
         let normalized = normalize_skill_name(trimmed);
         if seen.insert(normalized) {
-            deduped.push(trimmed.to_string());
+            deduped.push(trimmed.to_owned());
         }
     }
 
@@ -1108,8 +1108,8 @@ fn write_exact_string_array(
         if trimmed.is_empty() {
             continue;
         }
-        if seen.insert(trimmed.to_string()) {
-            deduped.push(trimmed.to_string());
+        if seen.insert(trimmed.to_owned()) {
+            deduped.push(trimmed.to_owned());
         }
     }
 
@@ -1158,7 +1158,7 @@ fn write_path_array(table: &mut TomlTable, key: &str, values: &[PathBuf]) -> any
     let mut deduped: Vec<String> = Vec::new();
     let mut seen: HashSet<String> = HashSet::new();
     for value in values {
-        let rendered = value.to_string_lossy().trim().to_string();
+        let rendered = value.to_string_lossy().trim().to_owned();
         if rendered.is_empty() {
             continue;
         }
@@ -2781,20 +2781,20 @@ pub fn list_mcp_servers(code_home: &Path) -> anyhow::Result<McpServerListPair> {
                                 Some(
                                     tbl.iter()
                                         .filter_map(|(k, v)| {
-                                            v.as_str().map(|s| (k.to_string(), s.to_string()))
+                                            v.as_str().map(|s| (k.to_owned(), s.to_owned()))
                                         })
                                         .collect::<HashMap<_, _>>(),
                                 )
                             } else { v.as_table().map(|table| table
                                         .iter()
                                         .filter_map(|(k, v)| {
-                                            v.as_str().map(|s| (k.to_string(), s.to_string()))
+                                            v.as_str().map(|s| (k.to_owned(), s.to_owned()))
                                         })
                                         .collect::<HashMap<_, _>>()) }
                         });
 
                     McpServerTransportConfig::Stdio {
-                        command: command.to_string(),
+                        command: command.to_owned(),
                         args,
                         env,
                     }
@@ -2818,7 +2818,7 @@ pub fn list_mcp_servers(code_home: &Path) -> anyhow::Result<McpServerListPair> {
                             .map(|tbl| {
                                 tbl.iter()
                                     .filter_map(|(k, v)| {
-                                        v.as_str().map(|s| (k.to_string(), s.to_string()))
+                                        v.as_str().map(|s| (k.to_owned(), s.to_owned()))
                                     })
                                     .collect::<HashMap<_, _>>()
                             })
@@ -2827,7 +2827,7 @@ pub fn list_mcp_servers(code_home: &Path) -> anyhow::Result<McpServerListPair> {
                                     table
                                         .iter()
                                         .filter_map(|(k, v)| {
-                                            v.as_str().map(|s| (k.to_string(), s.to_string()))
+                                            v.as_str().map(|s| (k.to_owned(), s.to_owned()))
                                         })
                                         .collect::<HashMap<_, _>>()
                                 })
@@ -2838,7 +2838,7 @@ pub fn list_mcp_servers(code_home: &Path) -> anyhow::Result<McpServerListPair> {
                     let env_http_headers = t.get("env_http_headers").and_then(table_string_map);
 
                     McpServerTransportConfig::StreamableHttp {
-                        url: url.to_string(),
+                        url: url.to_owned(),
                         bearer_token,
                         oauth_resource,
                         bearer_token_env_var,
@@ -2928,7 +2928,7 @@ pub fn list_mcp_servers(code_home: &Path) -> anyhow::Result<McpServerListPair> {
                             continue;
                         }
 
-                        tool_scheduling.insert(tool_name.to_string(), override_cfg);
+                        tool_scheduling.insert(tool_name.to_owned(), override_cfg);
                     }
                 }
 
@@ -2947,7 +2947,7 @@ pub fn list_mcp_servers(code_home: &Path) -> anyhow::Result<McpServerListPair> {
                 disabled_tools.dedup();
 
                 out.push((
-                    name.to_string(),
+                    name.to_owned(),
                     McpServerConfig {
                         transport,
                         startup_timeout_sec,
@@ -3321,7 +3321,7 @@ pub fn set_mcp_server_tool_enabled(
         .iter()
         .any(|name| name == normalized_tool)
     {
-        disabled_tools.push(normalized_tool.to_string());
+        disabled_tools.push(normalized_tool.to_owned());
         changed = true;
     }
 
@@ -3707,7 +3707,7 @@ pub(crate) fn load_instructions(code_dir: Option<&Path>) -> Option<String> {
     if trimmed.is_empty() {
         None
     } else {
-        Some(trimmed.to_string())
+        Some(trimmed.to_owned())
     }
 }
 
@@ -3736,7 +3736,7 @@ pub(crate) fn read_override_file(
         )
     })?;
 
-    let s = contents.trim().to_string();
+    let s = contents.trim().to_owned();
     if s.is_empty() {
         Err(std::io::Error::new(
             std::io::ErrorKind::InvalidData,
@@ -3808,8 +3808,8 @@ pub fn set_network_proxy_settings(
             if trimmed.is_empty() {
                 continue;
             }
-            if seen.insert(trimmed.to_string()) {
-                deduped.push(trimmed.to_string());
+            if seen.insert(trimmed.to_owned()) {
+                deduped.push(trimmed.to_owned());
             }
         }
 
@@ -4145,7 +4145,7 @@ pub fn set_js_repl_settings(
     match settings.runtime_path.as_ref() {
         Some(path) => {
             tools_table["js_repl_runtime_path"] =
-                toml_edit::value(path.to_string_lossy().trim().to_string());
+                toml_edit::value(path.to_string_lossy().trim().to_owned());
         }
         None => {
             tools_table.remove("js_repl_runtime_path");

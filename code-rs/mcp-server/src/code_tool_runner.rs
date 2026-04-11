@@ -67,7 +67,7 @@ pub async fn run_code_tool_session(
         Err(e) => {
             let result = CallToolResult {
                 content: vec![ContentBlock::TextContent(TextContent {
-                    r#type: "text".to_string(),
+                    r#type: "text".to_owned(),
                     text: format!("Failed to start Codex session: {e}"),
                     annotations: None,
                 })],
@@ -248,7 +248,7 @@ async fn run_code_tool_session_inner(
                         let question_count = ev.questions.len();
                         let result = CallToolResult {
                             content: vec![ContentBlock::TextContent(TextContent {
-                                r#type: "text".to_string(),
+                                r#type: "text".to_owned(),
                                 text: format!(
                                     "Codex requested user input ({question_count} question(s)) but interactive prompts are not supported in this MCP tool session."
                                 ),
@@ -268,7 +268,7 @@ async fn run_code_tool_session_inner(
                         let call_id = ev.call_id;
                         let result = CallToolResult {
                             content: vec![ContentBlock::TextContent(TextContent {
-                                r#type: "text".to_string(),
+                                r#type: "text".to_owned(),
                                 text: format!(
                                     "Codex requested additional permissions (call_id: {call_id}) but interactive prompts are not supported in this MCP tool session."
                                 ),
@@ -298,8 +298,7 @@ async fn run_code_tool_session_inner(
                         let response = DynamicToolResponse {
                             content_items: vec![
                                 code_protocol::dynamic_tools::DynamicToolCallOutputContentItem::InputText {
-                                    text: "dynamic tools are not supported in MCP tool sessions"
-                                        .to_string(),
+                                    text: "dynamic tools are not supported in MCP tool sessions".to_owned(),
                                 },
                             ],
                             success: false,
@@ -318,7 +317,7 @@ async fn run_code_tool_session_inner(
                         let text = last_agent_message.unwrap_or_default();
                         let result = CallToolResult {
                             content: vec![ContentBlock::TextContent(TextContent {
-                                r#type: "text".to_string(),
+                                r#type: "text".to_owned(),
                                 text,
                                 annotations: None,
                             })],
@@ -401,7 +400,7 @@ async fn run_code_tool_session_inner(
             Err(e) => {
                 let result = CallToolResult {
                     content: vec![ContentBlock::TextContent(TextContent {
-                        r#type: "text".to_string(),
+                        r#type: "text".to_owned(),
                         text: format!("Codex runtime error: {e}"),
                         annotations: None,
                     })],

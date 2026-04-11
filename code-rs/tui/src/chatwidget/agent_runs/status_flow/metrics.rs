@@ -10,7 +10,7 @@ pub(super) fn compute_agent_elapsed(
 ) -> Option<Duration> {
     if let Some(ms) = elapsed_ms {
         let duration = Duration::from_millis(ms);
-        tracker.agent_elapsed.insert(agent_id.to_string(), duration);
+        tracker.agent_elapsed.insert(agent_id.to_owned(), duration);
         if matches!(
             phase,
             AgentPhase::Completed | AgentPhase::Failed | AgentPhase::Cancelled
@@ -22,13 +22,13 @@ pub(super) fn compute_agent_elapsed(
 
     let start_entry = tracker
         .agent_started_at
-        .entry(agent_id.to_string())
+        .entry(agent_id.to_owned())
         .or_insert_with(Instant::now);
     let duration = start_entry.elapsed();
 
     let entry = tracker
         .agent_elapsed
-        .entry(agent_id.to_string())
+        .entry(agent_id.to_owned())
         .or_insert(duration);
     if duration > *entry {
         *entry = duration;

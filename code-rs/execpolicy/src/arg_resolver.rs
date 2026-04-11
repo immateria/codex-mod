@@ -49,7 +49,7 @@ pub fn resolve_observed_args_with_patterns(
             .cardinality()
             .is_exact()
             .ok_or(Error::InternalInvariantViolation {
-                message: "expected exact cardinality".to_string(),
+                message: "expected exact cardinality".to_owned(),
             })?;
         for positional_arg in &prefix[prefix_arg_index..prefix_arg_index + n] {
             let matched_arg = MatchedArg::new(
@@ -64,7 +64,7 @@ pub fn resolve_observed_args_with_patterns(
 
     if num_suffix_args > args.len() {
         return Err(Error::NotEnoughArgs {
-            program: program.to_string(),
+            program: program.to_owned(),
             args,
             arg_patterns: arg_patterns.to_vec(),
         });
@@ -80,13 +80,13 @@ pub fn resolve_observed_args_with_patterns(
         match pattern.cardinality() {
             ArgMatcherCardinality::One => {
                 return Err(Error::InternalInvariantViolation {
-                    message: "vararg pattern should not have cardinality of one".to_string(),
+                    message: "vararg pattern should not have cardinality of one".to_owned(),
                 });
             }
             ArgMatcherCardinality::AtLeastOne => {
                 if vararg.is_empty() {
                     return Err(Error::VarargMatcherDidNotMatchAnything {
-                        program: program.to_string(),
+                        program: program.to_owned(),
                         matcher: pattern,
                     });
                 }
@@ -119,7 +119,7 @@ pub fn resolve_observed_args_with_patterns(
             .cardinality()
             .is_exact()
             .ok_or(Error::InternalInvariantViolation {
-                message: "expected exact cardinality".to_string(),
+                message: "expected exact cardinality".to_owned(),
             })?;
         for positional_arg in &suffix[suffix_arg_index..suffix_arg_index + n] {
             let matched_arg = MatchedArg::new(
@@ -135,7 +135,7 @@ pub fn resolve_observed_args_with_patterns(
     if matched_args.len() < args.len() {
         let extra_args = get_range_checked(&args, matched_args.len()..args.len())?;
         Err(Error::UnexpectedArguments {
-            program: program.to_string(),
+            program: program.to_owned(),
             args: extra_args.to_vec(),
         })
     } else {
@@ -174,7 +174,7 @@ fn partition_args(program: &str, arg_patterns: &[ArgMatcher]) -> Result<Parition
                 }
                 Some(existing_pattern) => {
                     return Err(Error::MultipleVarargPatterns {
-                        program: program.to_string(),
+                        program: program.to_owned(),
                         first: existing_pattern,
                         second: pattern.clone(),
                     });

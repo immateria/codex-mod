@@ -10,11 +10,10 @@ pub fn create_agent_tool(allowed_models: &[String]) -> OpenAiTool {
     let mut properties = BTreeMap::new();
 
     properties.insert(
-        "action".to_string(),
+        "action".to_owned(),
         JsonSchema::String {
             description: Some(
-                "Required: choose one of ['create','status','wait','result','cancel','list']"
-                    .to_string(),
+                "Required: choose one of ['create','status','wait','result','cancel','list']".to_owned(),
             ),
             allowed_values: Some(
                 ["create", "status", "wait", "result", "cancel", "list"]
@@ -27,30 +26,30 @@ pub fn create_agent_tool(allowed_models: &[String]) -> OpenAiTool {
 
     let mut create_properties = BTreeMap::new();
     create_properties.insert(
-        "name".to_string(),
+        "name".to_owned(),
         JsonSchema::String {
             description: Some(
-                "Display name shown in the UI (e.g., \"Plan TUI Refactor\")".to_string(),
+                "Display name shown in the UI (e.g., \"Plan TUI Refactor\")".to_owned(),
             ),
             allowed_values: None,
         },
     );
     create_properties.insert(
-        "task".to_string(),
+        "task".to_owned(),
         JsonSchema::String {
-            description: Some("Task prompt to execute".to_string()),
+            description: Some("Task prompt to execute".to_owned()),
             allowed_values: None,
         },
     );
     create_properties.insert(
-        "context".to_string(),
+        "context".to_owned(),
         JsonSchema::String {
-            description: Some("Optional background context".to_string()),
+            description: Some("Optional background context".to_owned()),
             allowed_values: None,
         },
     );
     create_properties.insert(
-        "models".to_string(),
+        "models".to_owned(),
         JsonSchema::Array {
             items: Box::new(JsonSchema::String {
                 description: None,
@@ -61,103 +60,103 @@ pub fn create_agent_tool(allowed_models: &[String]) -> OpenAiTool {
                 },
             }),
             description: Some(
-                "Optional array of model names (e.g., ['code-gpt-5.2','claude-sonnet-4.5','code-gpt-5.2-codex','gemini-3-flash'])".to_string(),
+                "Optional array of model names (e.g., ['code-gpt-5.2','claude-sonnet-4.5','code-gpt-5.2-codex','gemini-3-flash'])".to_owned(),
             ),
         },
     );
     create_properties.insert(
-        "files".to_string(),
+        "files".to_owned(),
         JsonSchema::Array {
             items: Box::new(JsonSchema::String {
                 description: None,
                 allowed_values: None,
             }),
-            description: Some("Optional array of file paths to include in context".to_string()),
+            description: Some("Optional array of file paths to include in context".to_owned()),
         },
     );
     create_properties.insert(
-        "output".to_string(),
+        "output".to_owned(),
         JsonSchema::String {
-            description: Some("Optional desired output description".to_string()),
+            description: Some("Optional desired output description".to_owned()),
             allowed_values: None,
         },
     );
     create_properties.insert(
-        "write".to_string(),
+        "write".to_owned(),
         JsonSchema::Boolean {
             description: Some(
-                "Enable isolated write worktrees for each agent (default: true). Set false to keep the agent read-only.".to_string(),
+                "Enable isolated write worktrees for each agent (default: true). Set false to keep the agent read-only.".to_owned(),
             ),
         },
     );
     create_properties.insert(
-        "read_only".to_string(),
+        "read_only".to_owned(),
         JsonSchema::Boolean {
             description: Some(
-                "Deprecated: inverse of `write`. Prefer setting `write` instead.".to_string(),
+                "Deprecated: inverse of `write`. Prefer setting `write` instead.".to_owned(),
             ),
         },
     );
     properties.insert(
-        "create".to_string(),
+        "create".to_owned(),
         JsonSchema::Object {
             properties: create_properties,
-            required: Some(vec!["task".to_string()]),
+            required: Some(vec!["task".to_owned()]),
             additional_properties: Some(false.into()),
         },
     );
 
     let mut status_properties = BTreeMap::new();
     status_properties.insert(
-        "agent_id".to_string(),
+        "agent_id".to_owned(),
         JsonSchema::String {
-            description: Some("Agent identifier to inspect".to_string()),
+            description: Some("Agent identifier to inspect".to_owned()),
             allowed_values: None,
         },
     );
     properties.insert(
-        "status".to_string(),
+        "status".to_owned(),
         JsonSchema::Object {
             properties: status_properties,
-            required: Some(vec!["agent_id".to_string()]),
+            required: Some(vec!["agent_id".to_owned()]),
             additional_properties: Some(false.into()),
         },
     );
 
     let mut result_properties = BTreeMap::new();
     result_properties.insert(
-        "agent_id".to_string(),
+        "agent_id".to_owned(),
         JsonSchema::String {
-            description: Some("Agent identifier whose result should be fetched".to_string()),
+            description: Some("Agent identifier whose result should be fetched".to_owned()),
             allowed_values: None,
         },
     );
     properties.insert(
-        "result".to_string(),
+        "result".to_owned(),
         JsonSchema::Object {
             properties: result_properties,
-            required: Some(vec!["agent_id".to_string()]),
+            required: Some(vec!["agent_id".to_owned()]),
             additional_properties: Some(false.into()),
         },
     );
 
     let mut cancel_properties = BTreeMap::new();
     cancel_properties.insert(
-        "agent_id".to_string(),
+        "agent_id".to_owned(),
         JsonSchema::String {
-            description: Some("Cancel a specific agent".to_string()),
+            description: Some("Cancel a specific agent".to_owned()),
             allowed_values: None,
         },
     );
     cancel_properties.insert(
-        "batch_id".to_string(),
+        "batch_id".to_owned(),
         JsonSchema::String {
-            description: Some("Cancel all agents in the batch".to_string()),
+            description: Some("Cancel all agents in the batch".to_owned()),
             allowed_values: None,
         },
     );
     properties.insert(
-        "cancel".to_string(),
+        "cancel".to_owned(),
         JsonSchema::Object {
             properties: cancel_properties,
             required: Some(Vec::new()),
@@ -167,36 +166,35 @@ pub fn create_agent_tool(allowed_models: &[String]) -> OpenAiTool {
 
     let mut wait_properties = BTreeMap::new();
     wait_properties.insert(
-        "agent_id".to_string(),
+        "agent_id".to_owned(),
         JsonSchema::String {
-            description: Some("Wait for a specific agent".to_string()),
+            description: Some("Wait for a specific agent".to_owned()),
             allowed_values: None,
         },
     );
     wait_properties.insert(
-        "batch_id".to_string(),
+        "batch_id".to_owned(),
         JsonSchema::String {
-            description: Some("Wait for any agent in the batch".to_string()),
+            description: Some("Wait for any agent in the batch".to_owned()),
             allowed_values: None,
         },
     );
     wait_properties.insert(
-        "timeout_seconds".to_string(),
+        "timeout_seconds".to_owned(),
         JsonSchema::Number {
-            description: Some("Optional timeout before giving up (default 300, max 600)".to_string()),
+            description: Some("Optional timeout before giving up (default 300, max 600)".to_owned()),
         },
     );
     wait_properties.insert(
-        "return_all".to_string(),
+        "return_all".to_owned(),
         JsonSchema::Boolean {
             description: Some(
-                "When waiting on a batch, return all completed agents instead of the first"
-                    .to_string(),
+                "When waiting on a batch, return all completed agents instead of the first".to_owned(),
             ),
         },
     );
     properties.insert(
-        "wait".to_string(),
+        "wait".to_owned(),
         JsonSchema::Object {
             properties: wait_properties,
             required: Some(Vec::new()),
@@ -206,29 +204,29 @@ pub fn create_agent_tool(allowed_models: &[String]) -> OpenAiTool {
 
     let mut list_properties = BTreeMap::new();
     list_properties.insert(
-        "status_filter".to_string(),
+        "status_filter".to_owned(),
         JsonSchema::String {
             description: Some(
-                "Optional status filter (pending, running, completed, failed, cancelled)".to_string(),
+                "Optional status filter (pending, running, completed, failed, cancelled)".to_owned(),
             ),
             allowed_values: None,
         },
     );
     list_properties.insert(
-        "batch_id".to_string(),
+        "batch_id".to_owned(),
         JsonSchema::String {
-            description: Some("Limit results to a batch".to_string()),
+            description: Some("Limit results to a batch".to_owned()),
             allowed_values: None,
         },
     );
     list_properties.insert(
-        "recent_only".to_string(),
+        "recent_only".to_owned(),
         JsonSchema::Boolean {
-            description: Some("When true, only include agents from the last two hours".to_string()),
+            description: Some("When true, only include agents from the last two hours".to_owned()),
         },
     );
     properties.insert(
-        "list".to_string(),
+        "list".to_owned(),
         JsonSchema::Object {
             properties: list_properties,
             required: Some(Vec::new()),
@@ -236,12 +234,12 @@ pub fn create_agent_tool(allowed_models: &[String]) -> OpenAiTool {
         },
     );
 
-    let required = Some(vec!["action".to_string()]);
+    let required = Some(vec!["action".to_owned()]);
 
     OpenAiTool::Function(ResponsesApiTool {
-        name: "agent".to_string(),
+        name: "agent".to_owned(),
         description:
-            "Unified agent manager for launching, monitoring, and collecting results from asynchronous agents.".to_string(),
+            "Unified agent manager for launching, monitoring, and collecting results from asynchronous agents.".to_owned(),
         strict: false,
         parameters: JsonSchema::Object {
             properties,

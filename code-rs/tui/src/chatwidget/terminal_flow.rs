@@ -14,7 +14,7 @@ impl ChatWidget<'_> {
         self.pending_upgrade_notice = None;
         if command.is_empty() {
             self.history_push_plain_state(history_cell::new_error_event(
-                "`/update` — no upgrade command available for this install.".to_string(),
+                "`/update` — no upgrade command available for this install.".to_owned(),
             ));
             self.request_redraw();
             return None;
@@ -28,7 +28,7 @@ impl ChatWidget<'_> {
 
         if command_text.trim().is_empty() {
             self.history_push_plain_state(history_cell::new_error_event(
-                "`/update` — unable to resolve upgrade command text.".to_string(),
+                "`/update` — unable to resolve upgrade command text.".to_owned(),
             ));
             self.request_redraw();
             return None;
@@ -45,7 +45,7 @@ impl ChatWidget<'_> {
 
         let launch = TerminalLaunch {
             id,
-            title: "Upgrade Code".to_string(),
+            title: "Upgrade Code".to_owned(),
             command: Vec::new(),
             command_display: display_label,
             controller: Some(controller.clone()),
@@ -242,7 +242,7 @@ impl ChatWidget<'_> {
             start_prompt_terminal_session(
                 self.app_event_tx.clone(),
                 id,
-                prompt_text.to_string(),
+                prompt_text.to_owned(),
                 Some(cwd),
                 controller,
                 controller_rx,
@@ -271,12 +271,12 @@ impl ChatWidget<'_> {
             run_direct = true;
         }
 
-        let command_string = command_body.to_string();
+        let command_string = command_body.to_owned();
         let wrapped_command = wrap_command(&command_string);
         if wrapped_command.is_empty() {
             self.app_event_tx.send(AppEvent::TerminalSetAssistantMessage {
                 id,
-                message: "Command could not be constructed.".to_string(),
+                message: "Command could not be constructed.".to_owned(),
             });
             if let Some(overlay) = self.terminal.overlay_mut() {
                 overlay.ensure_pending_command();

@@ -22,7 +22,7 @@ pub(super) fn parse_chrome_command_args(command_text: &str) -> ChromeCommandArgs
     if let Some(first) = parts.first()
         && (first.starts_with("ws://") || first.starts_with("wss://"))
     {
-        return ChromeCommandArgs::WsUrl((*first).to_string());
+        return ChromeCommandArgs::WsUrl((*first).to_owned());
     }
 
     let mut host: Option<String> = None;
@@ -32,7 +32,7 @@ pub(super) fn parse_chrome_command_args(command_text: &str) -> ChromeCommandArgs
         && let Some((h, p)) = first.rsplit_once(':')
         && let Ok(pn) = p.parse::<u16>()
     {
-        host = Some(h.to_string());
+        host = Some(h.to_owned());
         port = Some(pn);
     }
 
@@ -45,7 +45,7 @@ pub(super) fn parse_chrome_command_args(command_text: &str) -> ChromeCommandArgs
             && let Some(second) = parts.get(1)
             && let Ok(pn) = second.parse::<u16>()
         {
-            host = parts.first().map(|v| (*v).to_string());
+            host = parts.first().map(|v| (*v).to_owned());
             port = Some(pn);
         }
     }

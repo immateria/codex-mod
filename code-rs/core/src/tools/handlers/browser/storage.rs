@@ -20,7 +20,7 @@ pub(super) async fn handle_browser_cookies_get(
     execute_custom_tool(
         sess,
         ctx,
-        "browser_cookies_get".to_string(),
+        "browser_cookies_get".to_owned(),
         params,
         || async move {
             use serde_json::json;
@@ -57,7 +57,7 @@ pub(super) async fn handle_browser_cookies_get(
             match resp {
                 Ok(value) => {
                     let pretty =
-                        serde_json::to_string_pretty(&value).unwrap_or_else(|_| "{}".to_string());
+                        serde_json::to_string_pretty(&value).unwrap_or_else(|_| "{}".to_owned());
                     tool_output(call_id_clone, pretty)
                 }
                 Err(e) => tool_error(call_id_clone, format!(
@@ -82,7 +82,7 @@ pub(super) async fn handle_browser_cookies_set(
     execute_custom_tool(
         sess,
         ctx,
-        "browser_cookies_set".to_string(),
+        "browser_cookies_set".to_owned(),
         params,
         || async move {
             use serde_json::json;
@@ -111,7 +111,7 @@ pub(super) async fn handle_browser_cookies_set(
                         "result": value,
                     });
                     let pretty = serde_json::to_string_pretty(&payload)
-                        .unwrap_or_else(|_| "{}".to_string());
+                        .unwrap_or_else(|_| "{}".to_owned());
                     tool_output(call_id_clone, pretty)
                 }
                 Err(e) => tool_error(call_id_clone, format!(
@@ -136,7 +136,7 @@ pub(super) async fn handle_browser_storage_get(
     execute_custom_tool(
         sess,
         ctx,
-        "browser_storage_get".to_string(),
+        "browser_storage_get".to_owned(),
         params,
         || async move {
             let browser_manager = get_browser_manager_for_session(sess_clone).await;
@@ -162,7 +162,7 @@ pub(super) async fn handle_browser_storage_get(
 
             let keys_json = json.get("keys").cloned().unwrap_or(serde_json::Value::Null);
             let keys_literal =
-                serde_json::to_string(&keys_json).unwrap_or_else(|_| "null".to_string());
+                serde_json::to_string(&keys_json).unwrap_or_else(|_| "null".to_owned());
 
             let script = format!(
                 r#"(function() {{
@@ -192,7 +192,7 @@ pub(super) async fn handle_browser_storage_get(
                 Ok(raw) => match unwrap_execute_javascript_value(raw) {
                     Ok(value) => {
                         let pretty = serde_json::to_string_pretty(&value)
-                            .unwrap_or_else(|_| "{}".to_string());
+                            .unwrap_or_else(|_| "{}".to_owned());
                         tool_output(call_id_clone, pretty)
                     }
                     Err(err) => tool_error(call_id_clone, format!(
@@ -221,7 +221,7 @@ pub(super) async fn handle_browser_storage_set(
     execute_custom_tool(
         sess,
         ctx,
-        "browser_storage_set".to_string(),
+        "browser_storage_set".to_owned(),
         params,
         || async move {
             let browser_manager = get_browser_manager_for_session(sess_clone).await;
@@ -251,7 +251,7 @@ pub(super) async fn handle_browser_storage_set(
                 .unwrap_or(false);
             let items = json.get("items").cloned().unwrap_or(serde_json::Value::Null);
             let items_literal =
-                serde_json::to_string(&items).unwrap_or_else(|_| "null".to_string());
+                serde_json::to_string(&items).unwrap_or_else(|_| "null".to_owned());
 
             let script = format!(
                 r#"(function() {{
@@ -288,7 +288,7 @@ pub(super) async fn handle_browser_storage_set(
                 Ok(raw) => match unwrap_execute_javascript_value(raw) {
                     Ok(value) => {
                         let pretty = serde_json::to_string_pretty(&value)
-                            .unwrap_or_else(|_| "{}".to_string());
+                            .unwrap_or_else(|_| "{}".to_owned());
                         tool_output(call_id_clone, pretty)
                     }
                     Err(err) => tool_error(call_id_clone, format!(

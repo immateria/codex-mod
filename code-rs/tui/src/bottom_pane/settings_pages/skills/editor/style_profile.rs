@@ -83,7 +83,7 @@ pub(super) fn parse_shell_style_inner(
         return Ok(None);
     }
     ShellScriptStyle::parse(trimmed)
-        .ok_or_else(|| "Invalid shell style. Use: posix-sh, bash-zsh-compatible, or zsh.".to_string())
+        .ok_or_else(|| "Invalid shell style. Use: posix-sh, bash-zsh-compatible, or zsh.".to_owned())
         .map(Some)
 }
 

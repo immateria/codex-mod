@@ -93,7 +93,7 @@ pub(super) fn render_create_spinner_mode_inner(
             .unwrap_or_default()
             .as_millis() as u64;
         let frames = ["◇", "◆", "◇", "◆"];
-        let frame = frames[((now_ms / 120) as usize) % frames.len()].to_string();
+        let frame = frames[((now_ms / 120) as usize) % frames.len()].to_owned();
 
         form_lines.push(Line::from(vec![
             Span::styled(frame, crate::colors::style_info()),
@@ -228,7 +228,7 @@ pub(super) fn render_create_spinner_mode_inner(
             )));
             for line in raw.split('\n') {
                 form_lines.push(Line::from(Span::styled(
-                    line.to_string(),
+                    line.to_owned(),
                     Style::default().fg(theme.text),
                 )));
             }

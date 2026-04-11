@@ -110,7 +110,7 @@ impl ToolHandler for ExecCommandToolHandler {
                     // Intercept apply_patch-style commands invoked via exec_command.
                     let mode_flag = if params.login { "-lc" } else { "-c" };
                     let wrapper =
-                        vec![params.shell.clone(), mode_flag.to_string(), params.cmd.clone()];
+                        vec![params.shell.clone(), mode_flag.to_owned(), params.cmd.clone()];
                     match code_apply_patch::maybe_parse_apply_patch_verified(&wrapper, &effective_workdir)
                     {
                         code_apply_patch::MaybeApplyPatchVerified::Body(_)
@@ -118,8 +118,7 @@ impl ToolHandler for ExecCommandToolHandler {
                             return unsupported_tool_call_output(
                                 &call_id,
                                 false,
-                                "apply_patch was requested via exec_command. Use the apply_patch tool instead."
-                                    .to_string(),
+                                "apply_patch was requested via exec_command. Use the apply_patch tool instead.".to_owned(),
                             );
                         }
                         code_apply_patch::MaybeApplyPatchVerified::ShellParseError(_)
@@ -136,8 +135,7 @@ impl ToolHandler for ExecCommandToolHandler {
                         return unsupported_tool_call_output(
                             &call_id,
                             false,
-                            "sandbox_permissions=require_escalated requires a justification"
-                                .to_string(),
+                            "sandbox_permissions=require_escalated requires a justification".to_owned(),
                         );
                     }
 
@@ -153,8 +151,7 @@ impl ToolHandler for ExecCommandToolHandler {
                         return unsupported_tool_call_output(
                             &call_id,
                             false,
-                            "sandbox_permissions=with_additional_permissions requires additional_permissions"
-                                .to_string(),
+                            "sandbox_permissions=with_additional_permissions requires additional_permissions".to_owned(),
                         );
                     }
 
@@ -170,8 +167,7 @@ impl ToolHandler for ExecCommandToolHandler {
                                 return unsupported_tool_call_output(
                                     &call_id,
                                     false,
-                                    "exec_command rejected: sandbox override requires approval but approval policy is set to never"
-                                        .to_string(),
+                                    "exec_command rejected: sandbox override requires approval but approval policy is set to never".to_owned(),
                                 );
                             }
                             AskForApproval::Reject(config)
@@ -181,17 +177,16 @@ impl ToolHandler for ExecCommandToolHandler {
                                 return unsupported_tool_call_output(
                                     &call_id,
                                     false,
-                                    "exec_command rejected: approval policy auto-rejected sandbox override"
-                                        .to_string(),
+                                    "exec_command rejected: approval policy auto-rejected sandbox override".to_owned(),
                                 );
                             }
                             _ => {}
                         }
 
                         let reason = if sandbox_permissions.requires_escalated_permissions() {
-                            "Command requested to run without sandbox restrictions".to_string()
+                            "Command requested to run without sandbox restrictions".to_owned()
                         } else {
-                            "Command requested additional sandbox permissions".to_string()
+                            "Command requested additional sandbox permissions".to_owned()
                         };
 
                         let rx_approve = sess
@@ -220,7 +215,7 @@ impl ToolHandler for ExecCommandToolHandler {
                                 return unsupported_tool_call_output(
                                     &call_id,
                                     false,
-                                    "exec_command rejected by user".to_string(),
+                                    "exec_command rejected by user".to_owned(),
                                 );
                             }
                         }
@@ -248,8 +243,7 @@ impl ToolHandler for ExecCommandToolHandler {
                             return unsupported_tool_call_output(
                                 &call_id,
                                 false,
-                                "exec_command rejected: approval policy is set to never, but command is considered dangerous"
-                                    .to_string(),
+                                "exec_command rejected: approval policy is set to never, but command is considered dangerous".to_owned(),
                             );
                         }
 
@@ -261,8 +255,7 @@ impl ToolHandler for ExecCommandToolHandler {
                                 command: wrapper.clone(),
                                 cwd: effective_workdir.clone(),
                                 reason: Some(
-                                    "Command flagged as dangerous (possible fork bomb / destructive operation)"
-                                        .to_string(),
+                                    "Command flagged as dangerous (possible fork bomb / destructive operation)".to_owned(),
                                 ),
                                 network_approval_context: None,
                                 additional_permissions,
@@ -282,7 +275,7 @@ impl ToolHandler for ExecCommandToolHandler {
                                 return unsupported_tool_call_output(
                                     &call_id,
                                     false,
-                                    "exec_command rejected by user".to_string(),
+                                    "exec_command rejected by user".to_owned(),
                                 );
                             }
                         }

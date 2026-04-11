@@ -4,7 +4,7 @@ impl SettingsOverlayView {
             return String::new();
         }
         if UnicodeWidthStr::width(text) <= max_width {
-            return text.to_string();
+            return text.to_owned();
         }
         if max_width <= 3 {
             return "...".chars().take(max_width).collect();
@@ -39,12 +39,12 @@ impl SettingsOverlayView {
                     line.spans.push(Span::styled(" ", dim_style));
                     let value_style = self.summary_value_style(value_trim);
                     line.spans
-                        .push(Span::styled(value_trim.to_string(), value_style));
+                        .push(Span::styled(value_trim.to_owned(), value_style));
                 }
             } else {
                 let value_style = self.summary_value_style(segment);
                 line.spans
-                    .push(Span::styled(segment.to_string(), value_style));
+                    .push(Span::styled(segment.to_owned(), value_style));
             }
         }
     }
@@ -156,11 +156,11 @@ impl SettingsOverlayView {
         };
 
         let groups: Vec<SpanGroup> = vec![
-            hint_group(crate::icons::tab().to_string(), " content", Some(ShortcutAction::FocusContent)),
-            hint_group(crate::icons::reverse_tab().to_string(), " sidebar", Some(ShortcutAction::FocusSidebar)),
+            hint_group(crate::icons::tab().to_owned(), " content", Some(ShortcutAction::FocusContent)),
+            hint_group(crate::icons::reverse_tab().to_owned(), " sidebar", Some(ShortcutAction::FocusSidebar)),
             hint_group(crate::icons::ctrl_combo("B"), sidebar_action, Some(ShortcutAction::ToggleSidebar)),
-            hint_group(crate::icons::escape().to_string(), " overview", Some(ShortcutAction::Back)),
-            hint_group("?".to_string(), " help", Some(ShortcutAction::Help)),
+            hint_group(crate::icons::escape().to_owned(), " overview", Some(ShortcutAction::Back)),
+            hint_group("?".to_owned(), " help", Some(ShortcutAction::Help)),
             (
                 vec![
                     Span::styled("focus", hint),
@@ -178,7 +178,7 @@ impl SettingsOverlayView {
         if full_width > area.width as usize {
             let narrow_groups: Vec<SpanGroup> = vec![
                 hint_group(crate::icons::ctrl_combo("B"), sidebar_action, Some(ShortcutAction::ToggleSidebar)),
-                hint_group(crate::icons::escape().to_string(), " back", Some(ShortcutAction::Back)),
+                hint_group(crate::icons::escape().to_owned(), " back", Some(ShortcutAction::Back)),
                 (
                     vec![
                         Span::styled("focus", hint),

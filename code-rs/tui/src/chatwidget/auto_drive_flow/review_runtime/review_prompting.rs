@@ -45,17 +45,17 @@ impl ChatWidget<'_> {
         }
 
         let Some(original_prompt) = self.auto_state.current_cli_prompt.clone() else {
-            self.auto_stop(Some("Coordinator prompt missing when attempting to submit.".to_string()));
+            self.auto_stop(Some("Coordinator prompt missing when attempting to submit.".to_owned()));
             return;
         };
 
         if original_prompt.trim().is_empty() {
-            self.auto_stop(Some("Coordinator produced an empty prompt.".to_string()));
+            self.auto_stop(Some("Coordinator produced an empty prompt.".to_owned()));
             return;
         }
 
         let Some(full_prompt) = self.build_auto_turn_message(&original_prompt) else {
-            self.auto_stop(Some("Coordinator produced an empty prompt.".to_string()));
+            self.auto_stop(Some("Coordinator produced an empty prompt.".to_owned()));
             return;
         };
 
@@ -76,7 +76,7 @@ impl ChatWidget<'_> {
 
         self.auto_state.mark_intro_pending();
         self.auto_launch_with_goal(AutoLaunchRequest {
-            goal: AUTO_BOOTSTRAP_GOAL_PLACEHOLDER.to_string(),
+            goal: AUTO_BOOTSTRAP_GOAL_PLACEHOLDER.to_owned(),
             derive_goal_from_history: true,
             review_enabled: defaults.review_enabled,
             subagents_enabled: defaults.agents_enabled,
@@ -125,7 +125,7 @@ impl ChatWidget<'_> {
             self.auto_state.last_decision_display_is_summary && post_submit_display.is_some();
         self.auto_state.current_summary_index = None;
         self.auto_state.placeholder_phrase = post_submit_display.is_none().then(|| {
-            auto_drive_strings::next_auto_drive_phrase().to_string()
+            auto_drive_strings::next_auto_drive_phrase().to_owned()
         });
         self.auto_state.current_reasoning_title = None;
         self.auto_state.thinking_prefix_stripped = false;
@@ -204,11 +204,11 @@ impl ChatWidget<'_> {
             .map(str::trim)
             .filter(|value| !value.is_empty())
         {
-            sections.push(ctx.to_string());
+            sections.push(ctx.to_owned());
         }
 
         if !prompt_cli.trim().is_empty() {
-            sections.push(prompt_cli.trim().to_string());
+            sections.push(prompt_cli.trim().to_owned());
         }
 
         let agent_actions = &self.auto_state.pending_agent_actions;
@@ -263,11 +263,11 @@ impl ChatWidget<'_> {
             agent_lines.push(String::new());
             let timing_line = match agent_timing {
                 Some(AutoTurnAgentsTiming::Parallel) =>
-                    "Timing (parallel): Launch these agents in the background while you continue the CLI prompt. Call agent.wait with the batch_id when you are ready to merge their results.".to_string(),
+                    "Timing (parallel): Launch these agents in the background while you continue the CLI prompt. Call agent.wait with the batch_id when you are ready to merge their results.".to_owned(),
                 Some(AutoTurnAgentsTiming::Blocking) =>
-                    "Timing (blocking): Launch these agents first, then wait with agent.wait (use the batch_id from agent.create) and only continue the CLI prompt once their results are ready.".to_string(),
+                    "Timing (blocking): Launch these agents first, then wait with agent.wait (use the batch_id from agent.create) and only continue the CLI prompt once their results are ready.".to_owned(),
                 None =>
-                    "Timing (default blocking): After launching the agents, wait with agent.wait (use the batch_id returned by agent.create) and fold their output into your plan.".to_string(),
+                    "Timing (default blocking): After launching the agents, wait with agent.wait (use the batch_id returned by agent.create) and fold their output into your plan.".to_owned(),
             };
             agent_lines.push(format!("{LINE_PREFIX}{timing_line}"));
             agent_lines.push(String::new());

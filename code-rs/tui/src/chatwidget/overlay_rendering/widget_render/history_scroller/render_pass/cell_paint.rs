@@ -443,7 +443,7 @@ impl ChatWidget<'_> {
                                         1,
                                     ),
                                     action: crate::chatwidget::ClickableAction::JumpToCallId(
-                                        parent_call_id.to_string(),
+                                        parent_call_id.to_owned(),
                                     ),
                                 },
                             );

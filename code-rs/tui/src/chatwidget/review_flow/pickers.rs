@@ -4,15 +4,15 @@ use code_protocol::protocol::ReviewTarget;
 impl ChatWidget<'_> {
     pub(crate) fn show_review_commit_loading(&mut self) {
         let loading_item = SelectionItem {
-            name: "Loading recent commits…".to_string(),
+            name: "Loading recent commits…".to_owned(),
             description: None,
             is_current: true,
             actions: Vec::new(),
         };
         let view = ListSelectionView::new(
-            " Select a commit ".to_string(),
-            Some("Fetching recent commits from git".to_string()),
-            Some("Esc cancel".to_string()),
+            " Select a commit ".to_owned(),
+            Some("Fetching recent commits from git".to_owned()),
+            Some("Esc cancel".to_owned()),
             vec![loading_item],
             self.app_event_tx.clone(),
             6,
@@ -31,14 +31,14 @@ impl ChatWidget<'_> {
         let auto_resolve = self.config.tui.review_auto_resolve;
         let mut items: Vec<SelectionItem> = Vec::with_capacity(commits.len());
         for entry in commits {
-            let subject = entry.subject.trim().to_string();
-            let sha = entry.sha.trim().to_string();
+            let subject = entry.subject.trim().to_owned();
+            let sha = entry.sha.trim().to_owned();
             if sha.is_empty() {
                 continue;
             }
             let short_sha = &sha[..sha.len().min(7)];
             let title = if subject.is_empty() {
-                short_sha.to_string()
+                short_sha.to_owned()
             } else {
                 format!("{short_sha} — {subject}")
             };
@@ -85,9 +85,9 @@ impl ChatWidget<'_> {
         }
 
         let view = ListSelectionView::new(
-            " Select a commit ".to_string(),
-            Some("Choose a commit to review".to_string()),
-            Some("Enter select · Esc cancel".to_string()),
+            " Select a commit ".to_owned(),
+            Some("Choose a commit to review".to_owned()),
+            Some("Enter select · Esc cancel".to_owned()),
             items,
             self.app_event_tx.clone(),
             10,
@@ -98,15 +98,15 @@ impl ChatWidget<'_> {
 
     pub(crate) fn show_review_branch_loading(&mut self) {
         let loading_item = SelectionItem {
-            name: "Loading local branches…".to_string(),
+            name: "Loading local branches…".to_owned(),
             description: None,
             is_current: true,
             actions: Vec::new(),
         };
         let view = ListSelectionView::new(
-            " Select a base branch ".to_string(),
-            Some("Fetching local branches".to_string()),
-            Some("Esc cancel".to_string()),
+            " Select a base branch ".to_owned(),
+            Some("Fetching local branches".to_owned()),
+            Some("Esc cancel".to_owned()),
             vec![loading_item],
             self.app_event_tx.clone(),
             6,
@@ -119,7 +119,7 @@ impl ChatWidget<'_> {
         current_branch: Option<String>,
         branches: Vec<String>,
     ) {
-        let current_trimmed = current_branch.as_ref().map(|s| s.trim().to_string());
+        let current_trimmed = current_branch.as_ref().map(|s| s.trim().to_owned());
         let mut items: Vec<SelectionItem> = Vec::new();
         let auto_resolve = self.config.tui.review_auto_resolve;
         for branch in branches {
@@ -155,7 +155,7 @@ impl ChatWidget<'_> {
             let hint_closure = hint.clone();
             let prep_closure = preparation.clone();
             let target_closure =
-                ReviewTarget::BaseBranch { branch: branch_trimmed.to_string() };
+                ReviewTarget::BaseBranch { branch: branch_trimmed.to_owned() };
             let auto_flag = auto_resolve;
             items.push(SelectionItem {
                 name: title,
@@ -185,9 +185,9 @@ impl ChatWidget<'_> {
             .map(|current| format!("Current branch: {current}"));
 
         let view = ListSelectionView::new(
-            " Select a base branch ".to_string(),
+            " Select a base branch ".to_owned(),
             subtitle,
-            Some("Enter select · Esc cancel".to_string()),
+            Some("Enter select · Esc cancel".to_owned()),
             items,
             self.app_event_tx.clone(),
             10,

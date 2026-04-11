@@ -61,7 +61,7 @@ pub(super) fn take_or_create_tracker(
         .last_inserted_order()
         .unwrap_or(tracker.slot.order_key);
     tracker.slot.set_order_key(order_key);
-    tracker.batch_id.get_or_insert(batch_id.to_string());
+    tracker.batch_id.get_or_insert(batch_id.to_owned());
 
     (tracker, resolved_key)
 }

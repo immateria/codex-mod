@@ -73,8 +73,7 @@ pub(super) fn hook_permission_mode(approval_policy: AskForApproval) -> String {
         | AskForApproval::OnFailure
         | AskForApproval::OnRequest
         | AskForApproval::Reject(_) => "default",
-    }
-    .to_string()
+    }.to_owned()
 }
 
 pub(super) fn thread_id_from_session_uuid(sess: &Session) -> ThreadId {
@@ -227,7 +226,7 @@ pub(super) async fn emit_hook_blocked_warning(sess: &Session, sub_id: &str) {
     let event = sess.make_event(
         sub_id,
         EventMsg::Warning(WarningEvent {
-            message: "input blocked by hooks.json lifecycle hook".to_string(),
+            message: "input blocked by hooks.json lifecycle hook".to_owned(),
         }),
     );
     let _ = sess.tx_event.send(event).await;

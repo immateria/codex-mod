@@ -168,15 +168,15 @@ fn icon_symbol(icon: &PlanIcon) -> &'static str {
 
 fn plan_progress_icon(total: usize, completed: usize) -> PlanIcon {
     if total == 0 || completed == 0 {
-        PlanIcon::Custom("progress-empty".to_string())
+        PlanIcon::Custom("progress-empty".to_owned())
     } else if completed >= total {
-        PlanIcon::Custom("progress-complete".to_string())
+        PlanIcon::Custom("progress-complete".to_owned())
     } else if completed.saturating_mul(3) <= total {
-        PlanIcon::Custom("progress-start".to_string())
+        PlanIcon::Custom("progress-start".to_owned())
     } else if completed.saturating_mul(3) < total.saturating_mul(2) {
-        PlanIcon::Custom("progress-mid".to_string())
+        PlanIcon::Custom("progress-mid".to_owned())
     } else {
-        PlanIcon::Custom("progress-late".to_string())
+        PlanIcon::Custom("progress-late".to_owned())
     }
 }
 
@@ -195,8 +195,7 @@ pub(crate) fn new_plan_update(update: UpdatePlanArgs) -> PlanUpdateCell {
         .as_ref()
         .map(|s| s.trim())
         .filter(|s| !s.is_empty())
-        .unwrap_or("Plan")
-        .to_string();
+        .unwrap_or("Plan").to_owned();
 
     let steps: Vec<PlanStep> = plan
         .into_iter()

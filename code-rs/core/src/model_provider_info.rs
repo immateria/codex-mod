@@ -360,12 +360,12 @@ impl ModelProviderInfo {
     ) -> crate::error::Result<reqwest::RequestBuilder> {
         if !matches!(self.wire_api, WireApi::Responses | WireApi::ResponsesWebsocket) {
             return Err(CodexErr::UnsupportedOperation(
-                "Compaction endpoint requires Responses API providers".to_string(),
+                "Compaction endpoint requires Responses API providers".to_owned(),
             ));
         }
         let url = self.get_compact_url(auth).ok_or_else(|| {
             CodexErr::UnsupportedOperation(
-                "Compaction endpoint requires Responses API providers".to_string(),
+                "Compaction endpoint requires Responses API providers".to_owned(),
             )
         })?;
 
@@ -441,7 +441,7 @@ impl ModelProviderInfo {
         let base_url = self
             .base_url
             .clone()
-            .unwrap_or(default_base_url.to_string());
+            .unwrap_or(default_base_url.to_owned());
 
         match self.wire_api {
             WireApi::Responses | WireApi::ResponsesWebsocket => {
@@ -582,7 +582,7 @@ impl ModelProviderInfo {
     pub fn base_url_for_probe(&self) -> String {
         self.base_url
             .clone()
-            .unwrap_or_else(|| OPENAI_API_PROBE_URL.to_string())
+            .unwrap_or_else(|| OPENAI_API_PROBE_URL.to_owned())
     }
 }
 
@@ -638,7 +638,7 @@ async fn run_provider_auth_command(config: &ModelProviderAuthInfo) -> io::Result
 
     if !output.status.success() {
         let status = output.status;
-        let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
+        let stderr = String::from_utf8_lossy(&output.stderr).trim().to_owned();
         let stderr_suffix = if stderr.is_empty() {
             String::new()
         } else {
@@ -656,7 +656,7 @@ async fn run_provider_auth_command(config: &ModelProviderAuthInfo) -> io::Result
             config.command
         ))
     })?;
-    let access_token = stdout.trim().to_string();
+    let access_token = stdout.trim().to_owned();
     if access_token.is_empty() {
         return Err(io::Error::other(format!(
             "provider auth command `{}` produced an empty token",
@@ -728,8 +728,8 @@ pub fn built_in_model_providers(
                 http_headers: Some(
                     [
                         (
-                            "version".to_string(),
-                            code_version::wire_compatible_version().to_string(),
+                            "version".to_owned(),
+                            code_version::wire_compatible_version().to_owned(),
                         ),
                     ]
                     .into_iter()
@@ -738,10 +738,10 @@ pub fn built_in_model_providers(
                 env_http_headers: Some(
                     [
                         (
-                            "OpenAI-Organization".to_string(),
-                            "OPENAI_ORGANIZATION".to_string(),
+                            "OpenAI-Organization".to_owned(),
+                            "OPENAI_ORGANIZATION".to_owned(),
                         ),
-                        ("OpenAI-Project".to_string(), "OPENAI_PROJECT".to_string()),
+                        ("OpenAI-Project".to_owned(), "OPENAI_PROJECT".to_owned()),
                     ]
                     .into_iter()
                     .collect(),
@@ -758,7 +758,7 @@ pub fn built_in_model_providers(
         (BUILT_IN_OSS_MODEL_PROVIDER_ID, create_oss_provider()),
     ]
     .into_iter()
-    .map(|(k, v)| (k.to_string(), v))
+    .map(|(k, v)| (k.to_owned(), v))
     .collect()
 }
 

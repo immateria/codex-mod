@@ -25,7 +25,7 @@ impl UpdateSettingsView {
         if state.checking {
             self.app_event_tx.send_background_event_with_ticket(
                 &self.ticket,
-                "Still checking for updates...".to_string(),
+                "Still checking for updates...".to_owned(),
             );
             return;
         }
@@ -39,7 +39,7 @@ impl UpdateSettingsView {
         let Some(latest) = state.latest_version else {
             self.app_event_tx.send_background_event_with_ticket(
                 &self.ticket,
-                "Code is already up to date.".to_string(),
+                "Code is already up to date.".to_owned(),
             );
             return;
         };

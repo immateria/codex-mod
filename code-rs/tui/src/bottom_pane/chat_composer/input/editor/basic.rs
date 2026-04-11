@@ -66,7 +66,7 @@ pub(super) fn handle_input_basic(view: &mut ChatComposer, input: KeyEvent) -> (I
         return (InputResult::None, true);
     }
 
-    let text_before = view.textarea.text().to_string();
+    let text_before = view.textarea.text().to_owned();
 
     // Normal input handling
     view.textarea.input(input);

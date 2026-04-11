@@ -349,7 +349,7 @@ impl McpSettingsView {
                     let tool_key = editor.tool.trim();
                     if !tool_key.is_empty() {
                         if let Some(cfg) = cfg_opt.as_ref() {
-                            row.tool_scheduling.insert(tool_key.to_string(), cfg.clone());
+                            row.tool_scheduling.insert(tool_key.to_owned(), cfg.clone());
                         } else {
                             row.tool_scheduling.remove(tool_key);
                         }

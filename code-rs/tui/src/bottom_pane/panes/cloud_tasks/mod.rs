@@ -45,7 +45,7 @@ impl CloudTasksView {
             tasks,
             rows,
             state,
-            env_label: env_label.unwrap_or_else(|| "All environments".to_string()),
+            env_label: env_label.unwrap_or_else(|| "All environments".to_owned()),
             env_filter,
             footer_hint: {
                 use crate::bottom_pane::settings_ui::hints::{hint_esc, hint_nav, shortcut_line, KeyHint};
@@ -92,7 +92,7 @@ impl BottomPaneView<'_> for CloudTasksView {
             KeyCode::Enter => {
                 if let Some(task_id) = self.selected_task_id() {
                     self.app_event_tx
-                        .send(AppEvent::ShowCloudTaskActions { task_id: task_id.to_string() });
+                        .send(AppEvent::ShowCloudTaskActions { task_id: task_id.to_owned() });
                 }
             }
             KeyCode::Esc => {
@@ -187,10 +187,10 @@ impl BottomPaneView<'_> for CloudTasksView {
 fn build_rows(tasks: &[TaskSummary]) -> Vec<GenericDisplayRow> {
     if tasks.is_empty() {
         return vec![GenericDisplayRow {
-            name: "No cloud tasks available".to_string(),
+            name: "No cloud tasks available".to_owned(),
             match_indices: None,
             is_current: false,
-            description: Some("Use `n` to create a new task or refresh with `r`.".to_string()),
+            description: Some("Use `n` to create a new task or refresh with `r`.".to_owned()),
             name_color: None,
         }];
     }
@@ -255,7 +255,7 @@ fn format_updated(updated_at: DateTime<Utc>) -> String {
     let now = Utc::now();
     let delta = now.signed_duration_since(updated_at);
     if delta.num_minutes() < 1 {
-        "updated just now".to_string()
+        "updated just now".to_owned()
     } else if delta.num_minutes() < 60 {
         format!("updated {}m ago", delta.num_minutes())
     } else if delta.num_hours() < 24 {

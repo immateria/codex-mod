@@ -238,22 +238,21 @@ impl ChatWidget<'_> {
         // Get current working directory string
         let cwd_str = match relativize_to_home(&self.config.cwd) {
             Some(rel) if !rel.as_os_str().is_empty() => format!("~/{}", rel.display()),
-            Some(_) => "~".to_string(),
+            Some(_) => "~".to_owned(),
             None => self.config.cwd.display().to_string(),
         };
 
         let cwd_short_str = cwd_str
             .rsplit(['/', '\\'])
             .find(|segment| !segment.is_empty())
-            .unwrap_or(cwd_str.as_str())
-            .to_string();
+            .unwrap_or(cwd_str.as_str()).to_owned();
 
         let branch_opt = self.get_git_branch();
 
         // Determine current shell display (configured override or $SHELL fallback)
         let shell_display = match &self.config.shell {
-            Some(shell) => format!("{} {}", shell.path, shell.args.join(" ")).trim().to_string(),
-            None => std::env::var("SHELL").ok().unwrap_or_else(|| "sh".to_string()),
+            Some(shell) => format!("{} {}", shell.path, shell.args.join(" ")).trim().to_owned(),
+            None => std::env::var("SHELL").ok().unwrap_or_else(|| "sh".to_owned()),
         };
         let header_title = self
             .config
@@ -271,14 +270,14 @@ impl ChatWidget<'_> {
                 let value = if count > 0 {
                     format!("error({count})")
                 } else {
-                    "error".to_string()
+                    "error".to_owned()
                 };
                 Some((McpHeaderIndicatorKind::Error, value))
             } else if self.session_id.is_none()
                 && !self.config.mcp_servers.is_empty()
                 && !self.test_mode
             {
-                Some((McpHeaderIndicatorKind::Connecting, "init".to_string()))
+                Some((McpHeaderIndicatorKind::Connecting, "init".to_owned()))
             } else {
                 None
             };
@@ -299,7 +298,7 @@ impl ChatWidget<'_> {
         };
         let reasoning_display = Self::format_reasoning_effort(self.config.model_reasoning_effort);
         let mcp_display = mcp_indicator
-            .as_ref().map_or_else(|| "ok".to_string(), |(_, value)| value.clone());
+            .as_ref().map_or_else(|| "ok".to_owned(), |(_, value)| value.clone());
         let branch_display = branch_opt.clone().unwrap_or_default();
         let hovered_action = self.hovered_clickable_action.borrow().clone();
         let hover_style = header_cfg.hover_style;
@@ -591,7 +590,7 @@ impl ChatWidget<'_> {
         for (item, value) in resolved {
             if added_any {
                 spans.push(Span::styled(
-                    " • ".to_string(),
+                    " • ".to_owned(),
                     crate::colors::style_text_dim(),
                 ));
                 width += 3;
@@ -646,7 +645,7 @@ impl ChatWidget<'_> {
         }
 
         if !added_any {
-            let fallback = "Status line configured with no available values".to_string();
+            let fallback = "Status line configured with no available values".to_owned();
             width = fallback.width();
             spans.push(Span::styled(
                 fallback,

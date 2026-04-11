@@ -41,10 +41,10 @@ impl MergeRepoState {
             .await
         {
             Ok(out) if out.status.success() => {
-                String::from_utf8_lossy(&out.stdout).trim().to_string()
+                String::from_utf8_lossy(&out.stdout).trim().to_owned()
             }
             _ => {
-                return Err("failed to detect worktree branch name".to_string());
+                return Err("failed to detect worktree branch name".to_owned());
             }
         };
 
@@ -55,14 +55,14 @@ impl MergeRepoState {
             .await
         {
             Ok(out) if out.status.success() => {
-                let sha = String::from_utf8_lossy(&out.stdout).trim().to_string();
+                let sha = String::from_utf8_lossy(&out.stdout).trim().to_owned();
                 if sha.is_empty() {
-                    "unknown".to_string()
+                    "unknown".to_owned()
                 } else {
                     sha
                 }
             }
-            _ => "unknown".to_string(),
+            _ => "unknown".to_owned(),
         };
 
         let worktree_status_raw = ChatWidget::git_short_status(&worktree_path).await;
@@ -72,7 +72,7 @@ impl MergeRepoState {
             ChatWidget::git_diff_stat(&worktree_path)
                 .await
                 .ok()
-                .map(|d| d.trim().to_string())
+                .map(|d| d.trim().to_owned())
                 .filter(|d| !d.is_empty())
         } else {
             None
@@ -96,7 +96,7 @@ impl MergeRepoState {
             .await
         {
             Ok(out) if out.status.success() => {
-                Some(String::from_utf8_lossy(&out.stdout).trim().to_string())
+                Some(String::from_utf8_lossy(&out.stdout).trim().to_owned())
             }
             _ => None,
         };
@@ -141,7 +141,7 @@ impl MergeRepoState {
             .await
         {
             Ok(out) if out.status.success() => {
-                let raw = String::from_utf8_lossy(&out.stdout).trim().to_string();
+                let raw = String::from_utf8_lossy(&out.stdout).trim().to_owned();
                 let candidate = PathBuf::from(&raw);
                 if candidate.is_absolute() {
                     candidate
@@ -185,9 +185,9 @@ impl MergeRepoState {
     pub(crate) fn normalize_status(result: Result<String, String>) -> (String, bool, bool) {
         match result {
             Ok(s) => {
-                let trimmed = s.trim().to_string();
+                let trimmed = s.trim().to_owned();
                 if trimmed.is_empty() {
-                    ("clean".to_string(), false, true)
+                    ("clean".to_owned(), false, true)
                 } else {
                     (trimmed, true, true)
                 }
@@ -224,13 +224,13 @@ impl MergeRepoState {
     pub(crate) fn auto_fast_forward_blockers(&self) -> Vec<String> {
         let mut reasons = Vec::new();
         if !self.worktree_status_ok {
-            reasons.push("unable to read worktree status".to_string());
+            reasons.push("unable to read worktree status".to_owned());
         }
         if self.worktree_dirty {
-            reasons.push("worktree has uncommitted changes".to_string());
+            reasons.push("worktree has uncommitted changes".to_owned());
         }
         if !self.repo_status_ok {
-            reasons.push("unable to read repo status".to_string());
+            reasons.push("unable to read repo status".to_owned());
         }
         if self.repo_dirty {
             reasons.push(format!(
@@ -240,11 +240,11 @@ impl MergeRepoState {
         }
         if self.repo_has_in_progress_op {
             reasons.push(
-                "default checkout has an in-progress merge/rebase/cherry-pick".to_string(),
+                "default checkout has an in-progress merge/rebase/cherry-pick".to_owned(),
             );
         }
         if self.default_branch.is_none() {
-            reasons.push("default branch is unknown".to_string());
+            reasons.push("default branch is unknown".to_owned());
         }
         if self.default_branch.is_some() && !self.default_branch_exists {
             reasons.push(format!(
@@ -258,12 +258,12 @@ impl MergeRepoState {
                 "repo root is on '{head}' instead of '{default}'"
             )),
             (Some(_), None) => reasons.push(
-                "repo root branch detected but default branch is still unknown".to_string(),
+                "repo root branch detected but default branch is still unknown".to_owned(),
             ),
-            (None, _) => reasons.push("unable to detect branch currently checked out in repo root".to_string()),
+            (None, _) => reasons.push("unable to detect branch currently checked out in repo root".to_owned()),
         }
         if !self.fast_forward_possible {
-            reasons.push("fast-forward merge is not possible".to_string());
+            reasons.push("fast-forward merge is not possible".to_owned());
         }
         reasons
     }
@@ -271,8 +271,7 @@ impl MergeRepoState {
     pub(crate) fn default_branch_label(&self) -> String {
         self.default_branch
             .as_deref()
-            .unwrap_or("default branch (determine before merging)")
-            .to_string()
+            .unwrap_or("default branch (determine before merging)").to_owned()
     }
 
     pub(crate) fn agent_preface(&self, reason_text: &str) -> String {
@@ -352,12 +351,12 @@ impl MergeRepoState {
 
     pub(crate) fn format_status_for_context(status: &str) -> String {
         if status == "clean" {
-            return "clean".to_string();
+            return "clean".to_owned();
         }
         status
             .lines()
             .enumerate()
-            .map(|(idx, line)| if idx == 0 { line.to_string() } else { format!("  {line}") })
+            .map(|(idx, line)| if idx == 0 { line.to_owned() } else { format!("  {line}") })
             .collect::<Vec<_>>()
             .join("\n")
     }
@@ -414,13 +413,13 @@ pub(crate) async fn run_fast_forward_merge(state: &MergeRepoState) -> Result<(),
 }
 
 pub(crate) fn describe_command_failure(out: &Output, fallback: &str) -> String {
-    let stderr_s = String::from_utf8_lossy(&out.stderr).trim().to_string();
-    let stdout_s = String::from_utf8_lossy(&out.stdout).trim().to_string();
+    let stderr_s = String::from_utf8_lossy(&out.stderr).trim().to_owned();
+    let stdout_s = String::from_utf8_lossy(&out.stdout).trim().to_owned();
     if !stderr_s.is_empty() {
         stderr_s
     } else if !stdout_s.is_empty() {
         stdout_s
     } else {
-        fallback.to_string()
+        fallback.to_owned()
     }
 }

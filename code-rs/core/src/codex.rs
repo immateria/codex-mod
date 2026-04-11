@@ -317,7 +317,7 @@ fn response_input_from_core_items(items: Vec<InputItem>) -> ResponseInputItem {
             InputItem::LocalImage { path } => match std::fs::read(&path) {
                 Ok(bytes) => {
                     let mime = mime_guess::from_path(&path)
-                        .first().map_or_else(|| crate::util::MIME_OCTET_STREAM.to_string(), |m| m.essence_str().to_owned());
+                        .first().map_or_else(|| crate::util::MIME_OCTET_STREAM.to_owned(), |m| m.essence_str().to_owned());
                     let encoded = base64::engine::general_purpose::STANDARD.encode(bytes);
                     content_items.push(ContentItem::InputImage {
                         image_url: format!("data:{mime};base64,{encoded}"),
@@ -347,7 +347,7 @@ fn response_input_from_core_items(items: Vec<InputItem>) -> ResponseInputItem {
                 match std::fs::read(&path) {
                     Ok(bytes) => {
                         let mime = mime_guess::from_path(&path)
-                            .first().map_or_else(|| crate::util::MIME_OCTET_STREAM.to_string(), |m| m.essence_str().to_owned());
+                            .first().map_or_else(|| crate::util::MIME_OCTET_STREAM.to_owned(), |m| m.essence_str().to_owned());
                         let encoded = base64::engine::general_purpose::STANDARD.encode(bytes);
                         tracing::info!("Created ephemeral image data URL with mime: {}", mime);
                         content_items.push(ContentItem::InputImage {
@@ -367,7 +367,7 @@ fn response_input_from_core_items(items: Vec<InputItem>) -> ResponseInputItem {
     }
 
     ResponseInputItem::Message {
-        role: "user".to_string(),
+        role: "user".to_owned(),
         content: content_items,
     }
 }
@@ -395,7 +395,7 @@ fn get_git_branch(cwd: &std::path::Path) -> Option<String> {
     if let Ok(contents) = std::fs::read_to_string(&head_path)
         && let Some(rest) = contents.trim().strip_prefix("ref: ")
             && let Some(branch) = rest.trim().rsplit('/').next() {
-                return Some(branch.to_string());
+                return Some(branch.to_owned());
             }
     None
 }
@@ -496,7 +496,7 @@ fn maybe_time_budget_status_item(sess: &Session) -> Option<ResponseItem> {
     let text = budget.maybe_nudge(Instant::now())?;
     Some(ResponseItem::Message {
         id: Some(format!("run-budget-{}", sess.id)),
-        role: "user".to_string(),
+        role: "user".to_owned(),
         content: vec![ContentItem::InputText { text }], end_turn: None, phase: None})
 }
 
@@ -513,7 +513,7 @@ async fn build_turn_status_items_legacy(sess: &Session) -> Vec<ResponseItem> {
 
     // Collect environment context
     let cwd = sess.cwd.to_string_lossy().into_owned();
-    let branch = get_git_branch(&sess.cwd).unwrap_or_else(|| "unknown".to_string());
+    let branch = get_git_branch(&sess.cwd).unwrap_or_else(|| "unknown".to_owned());
     let reasoning_effort = sess.client.get_reasoning_effort();
 
     // Build current system status (UI-only; not persisted)
@@ -560,7 +560,7 @@ async fn build_turn_status_items_legacy(sess: &Session) -> Vec<ResponseItem> {
                 let url = browser_manager
                     .get_current_url()
                     .await
-                    .unwrap_or_else(|| "unknown".to_string());
+                    .unwrap_or_else(|| "unknown".to_owned());
 
                 // Try to get a tab title if available
                 let title = match browser_manager.get_or_create_page().await {
@@ -633,7 +633,7 @@ async fn build_turn_status_items_legacy(sess: &Session) -> Vec<ResponseItem> {
                                 let mime = mime_guess::from_path(&screenshot_path)
                                     .first()
                                     .map(|m| m.to_string())
-                                    .unwrap_or_else(|| crate::util::MIME_IMAGE_PNG.to_string());
+                                    .unwrap_or_else(|| crate::util::MIME_IMAGE_PNG.to_owned());
                                 let encoded = base64::engine::general_purpose::STANDARD.encode(bytes);
                                 screenshot_content = Some(ContentItem::InputImage {
                                     image_url: format!("data:{mime};base64,{encoded}"),
@@ -693,7 +693,7 @@ async fn build_turn_status_items_legacy(sess: &Session) -> Vec<ResponseItem> {
     if !content.is_empty() {
         jar.items.push(ResponseItem::Message {
             id: None,
-            role: "user".to_string(),
+            role: "user".to_owned(),
             content, end_turn: None, phase: None});
     }
 
@@ -742,14 +742,14 @@ async fn build_turn_status_items_v2(sess: &Session) -> Vec<ResponseItem> {
                 );
                 items.push(ResponseItem::Message {
                     id: Some(browser_stream_id),
-                    role: "user".to_string(),
+                    role: "user".to_owned(),
                     content: vec![ContentItem::InputText { text: idle_text }], end_turn: None, phase: None});
                 return items;
             } else {
                 let url = browser_manager
                     .get_current_url()
                     .await
-                    .unwrap_or_else(|| "unknown".to_string());
+                    .unwrap_or_else(|| "unknown".to_owned());
 
             let title = match browser_manager.get_or_create_page().await {
                 Ok(page) => page.get_title().await,
@@ -761,9 +761,9 @@ async fn build_turn_status_items_v2(sess: &Session) -> Vec<ResponseItem> {
             let cursor_position = browser_manager.get_cursor_position().await.ok();
 
             let mut metadata = HashMap::new();
-            metadata.insert("browser_type".to_string(), browser_type.clone());
+            metadata.insert("browser_type".to_owned(), browser_type.clone());
             if let Some((x, y)) = cursor_position {
-                metadata.insert("cursor_position".to_string(), format!("{x:.0},{y:.0}"));
+                metadata.insert("cursor_position".to_owned(), format!("{x:.0},{y:.0}"));
             }
 
             let viewport = if viewport_width > 0 && viewport_height > 0 {
@@ -801,7 +801,7 @@ async fn build_turn_status_items_v2(sess: &Session) -> Vec<ResponseItem> {
                 if let Some(path) = screenshot_path {
                     let captured_at = OffsetDateTime::now_utc()
                         .format(&Rfc3339)
-                        .unwrap_or_else(|_| "1970-01-01T00:00:00Z".to_string());
+                        .unwrap_or_else(|_| "1970-01-01T00:00:00Z".to_owned());
 
                     let mut snapshot = BrowserSnapshot::new(url.clone(), captured_at);
                 snapshot.title = title.clone();
@@ -824,11 +824,11 @@ async fn build_turn_status_items_v2(sess: &Session) -> Vec<ResponseItem> {
                         let mime = mime_guess::from_path(&path)
                             .first()
                             .map(|m| m.to_string())
-                            .unwrap_or_else(|| crate::util::MIME_IMAGE_PNG.to_string());
+                            .unwrap_or_else(|| crate::util::MIME_IMAGE_PNG.to_owned());
                         let encoded = base64::engine::general_purpose::STANDARD.encode(bytes);
                         items.push(ResponseItem::Message {
                             id: Some(browser_stream_id),
-                            role: "user".to_string(),
+                            role: "user".to_owned(),
                             content: vec![ContentItem::InputImage {
                                 image_url: format!("data:{mime};base64,{encoded}"),
                             }], end_turn: None, phase: None});

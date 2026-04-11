@@ -69,7 +69,7 @@ impl RpcNotificationSender {
         self.outgoing_tx
             .send(RpcServerOutboundMessage::Notification(
                 JSONRPCNotification {
-                    method: method.to_string(),
+                    method: method.to_owned(),
                     params: Some(params),
                 },
             ))
@@ -231,7 +231,7 @@ impl RpcClient {
         let params = serde_json::to_value(params)?;
         self.write_tx
             .send(JSONRPCMessage::Notification(JSONRPCNotification {
-                method: method.to_string(),
+                method: method.to_owned(),
                 params: Some(params),
             }))
             .await
@@ -266,7 +266,7 @@ impl RpcClient {
             .write_tx
             .send(JSONRPCMessage::Request(JSONRPCRequest {
                 id: request_id.clone(),
-                method: method.to_string(),
+                method: method.to_owned(),
                 params: Some(params),
                 trace: None,
             }))
@@ -437,7 +437,7 @@ async fn drain_pending(pending: &Mutex<HashMap<RequestId, PendingRequest>>) {
         let _ = pending.send(Err(JSONRPCErrorError {
             code: -32000,
             data: None,
-            message: "JSON-RPC transport closed".to_string(),
+            message: "JSON-RPC transport closed".to_owned(),
         }));
     }
 }

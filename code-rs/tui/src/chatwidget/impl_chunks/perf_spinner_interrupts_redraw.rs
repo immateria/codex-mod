@@ -15,7 +15,7 @@ impl ChatWidget<'_> {
         }
         self.scroll_history_hint_shown = true;
         self.bottom_pane.flash_footer_notice_for(
-            "Use Shift+Up/Down to use previous input".to_string(),
+            "Use Shift+Up/Down to use previous input".to_owned(),
             std::time::Duration::from_secs(6),
         );
     }
@@ -96,14 +96,14 @@ impl ChatWidget<'_> {
             if let Some(batch) = agent.batch_id.as_ref() {
                 let trimmed = batch.trim();
                 if !trimmed.is_empty() {
-                    batch_ids.insert(trimmed.to_string());
+                    batch_ids.insert(trimmed.to_owned());
                     continue;
                 }
             }
 
             let trimmed_id = agent.id.trim();
             if !trimmed_id.is_empty() {
-                agent_ids.insert(trimmed_id.to_string());
+                agent_ids.insert(trimmed_id.to_owned());
             }
         }
 
@@ -123,7 +123,7 @@ impl ChatWidget<'_> {
         if !batch_ids.is_empty() {
             let count = batch_ids.len();
             status_parts.push(if count == 1 {
-                "1 batch".to_string()
+                "1 batch".to_owned()
             } else {
                 format!("{count} batches")
             });
@@ -131,14 +131,14 @@ impl ChatWidget<'_> {
         if !agent_ids.is_empty() {
             let count = agent_ids.len();
             status_parts.push(if count == 1 {
-                "1 agent".to_string()
+                "1 agent".to_owned()
             } else {
                 format!("{count} agents")
             });
         }
 
         let descriptor = if status_parts.is_empty() {
-            "agents".to_string()
+            "agents".to_owned()
         } else {
             status_parts.join(", ")
         };
@@ -189,7 +189,7 @@ impl ChatWidget<'_> {
         if stuck_on_completed_turn {
             self.active_task_ids.clear();
             any_tasks_active = false;
-            self.overall_task_status = "complete".to_string();
+            self.overall_task_status = "complete".to_owned();
         }
         if !(any_tools_running
             || any_streaming
@@ -318,7 +318,7 @@ impl ChatWidget<'_> {
 
         self.agents_ready_to_start = false;
         let status = Self::overall_task_status_for(&self.active_agents);
-        self.overall_task_status = status.to_string();
+        self.overall_task_status = status.to_owned();
         self.bottom_pane.set_task_running(false);
         self.bottom_pane.update_status_text("");
         self.maybe_hide_spinner();
@@ -455,12 +455,12 @@ impl ChatWidget<'_> {
         }
 
         match item.kind() {
-            HistoryCellType::Plain => "Plain".to_string(),
-            HistoryCellType::User => "User".to_string(),
-            HistoryCellType::Assistant => "Assistant".to_string(),
-            HistoryCellType::ProposedPlan => "ProposedPlan".to_string(),
-            HistoryCellType::Reasoning => "Reasoning".to_string(),
-            HistoryCellType::Error => "Error".to_string(),
+            HistoryCellType::Plain => "Plain".to_owned(),
+            HistoryCellType::User => "User".to_owned(),
+            HistoryCellType::Assistant => "Assistant".to_owned(),
+            HistoryCellType::ProposedPlan => "ProposedPlan".to_owned(),
+            HistoryCellType::Reasoning => "Reasoning".to_owned(),
+            HistoryCellType::Error => "Error".to_owned(),
             HistoryCellType::Exec { kind, status } => {
                 let k = match kind {
                     ExecKind::Read => "Read",
@@ -488,15 +488,15 @@ impl ChatWidget<'_> {
                 };
                 format!("Patch:{k}")
             }
-            HistoryCellType::PlanUpdate => "PlanUpdate".to_string(),
-            HistoryCellType::BackgroundEvent => "BackgroundEvent".to_string(),
-            HistoryCellType::Notice => "Notice".to_string(),
-            HistoryCellType::CompactionSummary => "CompactionSummary".to_string(),
-            HistoryCellType::Diff => "Diff".to_string(),
-            HistoryCellType::Image => "Image".to_string(),
-            HistoryCellType::Context => "Context".to_string(),
-            HistoryCellType::AnimatedWelcome => "AnimatedWelcome".to_string(),
-            HistoryCellType::Loading => "Loading".to_string(),
+            HistoryCellType::PlanUpdate => "PlanUpdate".to_owned(),
+            HistoryCellType::BackgroundEvent => "BackgroundEvent".to_owned(),
+            HistoryCellType::Notice => "Notice".to_owned(),
+            HistoryCellType::CompactionSummary => "CompactionSummary".to_owned(),
+            HistoryCellType::Diff => "Diff".to_owned(),
+            HistoryCellType::Image => "Image".to_owned(),
+            HistoryCellType::Context => "Context".to_owned(),
+            HistoryCellType::AnimatedWelcome => "AnimatedWelcome".to_owned(),
+            HistoryCellType::Loading => "Loading".to_owned(),
             HistoryCellType::JsRepl { status } => {
                 let s = exec_status_label(status);
                 format!("JsRepl:{s}")

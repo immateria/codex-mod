@@ -5,11 +5,11 @@ use code_protocol::protocol::ReviewTarget;
 
 pub(crate) fn build_review_request(args: ReviewArgs) -> anyhow::Result<ReviewRequest> {
     let (target, prompt, hint) = if args.uncommitted {
-        let prompt = "Review the current workspace changes and highlight bugs, regressions, risky patterns, and missing tests before merge.".to_string();
+        let prompt = "Review the current workspace changes and highlight bugs, regressions, risky patterns, and missing tests before merge.".to_owned();
         (
             ReviewTarget::UncommittedChanges,
             prompt,
-            Some("current workspace changes".to_string()),
+            Some("current workspace changes".to_owned()),
         )
     } else if let Some(branch) = args.base {
         let prompt =
@@ -36,10 +36,10 @@ pub(crate) fn build_review_request(args: ReviewArgs) -> anyhow::Result<ReviewReq
                 title: args.commit_title,
             },
             prompt,
-            Some("selected commit".to_string()),
+            Some("selected commit".to_owned()),
         )
     } else if let Some(prompt_arg) = args.prompt {
-        let prompt = resolve_prompt(Some(prompt_arg)).trim().to_string();
+        let prompt = resolve_prompt(Some(prompt_arg)).trim().to_owned();
         if prompt.is_empty() {
             anyhow::bail!("Review prompt cannot be empty");
         }
@@ -65,7 +65,7 @@ pub(crate) fn build_review_request(args: ReviewArgs) -> anyhow::Result<ReviewReq
 
 pub(crate) fn review_summary(review_request: &ReviewRequest) -> String {
     match &review_request.target {
-        ReviewTarget::UncommittedChanges => "/review --uncommitted".to_string(),
+        ReviewTarget::UncommittedChanges => "/review --uncommitted".to_owned(),
         ReviewTarget::BaseBranch { branch } => {
             format!("/review --base {branch}")
         }
@@ -73,9 +73,9 @@ pub(crate) fn review_summary(review_request: &ReviewRequest) -> String {
             format!("/review --commit {sha}")
         }
         ReviewTarget::Custom { instructions } => {
-            let trimmed = instructions.replace('\n', " ").trim().to_string();
+            let trimmed = instructions.replace('\n', " ").trim().to_owned();
             if trimmed.is_empty() {
-                "/review".to_string()
+                "/review".to_owned()
             } else {
                 format!("/review {trimmed}")
             }

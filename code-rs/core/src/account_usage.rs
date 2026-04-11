@@ -155,7 +155,7 @@ impl AccountUsageData {
     fn apply_plan(&mut self, plan: Option<&str>) {
         if let Some(plan) = plan
             && self.plan.as_deref() != Some(plan) {
-                self.plan = Some(plan.to_string());
+                self.plan = Some(plan.to_owned());
             }
     }
 
@@ -344,13 +344,13 @@ where
     file.lock_exclusive()?;
 
     let mut data = if file.metadata()?.len() == 0 {
-        AccountUsageData::new(account_id.to_string())
+        AccountUsageData::new(account_id.to_owned())
     } else {
         let mut contents = String::new();
         file.seek(SeekFrom::Start(0))?;
         file.read_to_string(&mut contents)?;
         if contents.trim().is_empty() {
-            AccountUsageData::new(account_id.to_string())
+            AccountUsageData::new(account_id.to_owned())
         } else {
             match serde_json::from_str::<AccountUsageData>(&contents) {
                 Ok(mut parsed) => {
@@ -359,7 +359,7 @@ where
                     }
                     parsed
                 }
-                Err(_) => AccountUsageData::new(account_id.to_string()),
+                Err(_) => AccountUsageData::new(account_id.to_owned()),
             }
         }
     };
@@ -682,7 +682,7 @@ fn append_rate_limit_warning_log(
     };
     let plan_field = plan.unwrap_or("-");
     let reset_field = warning
-        .reset_at.map_or_else(|| "-".to_string(), |dt| dt.to_rfc3339());
+        .reset_at.map_or_else(|| "-".to_owned(), |dt| dt.to_rfc3339());
     let line = format!(
         "{}\t{}\t{}\t{:.0}\t{}\t{}\t{}\n",
         warning.observed_at.to_rfc3339(),

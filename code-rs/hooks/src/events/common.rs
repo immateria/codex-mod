@@ -20,7 +20,7 @@ pub(crate) fn trimmed_non_empty(text: &str) -> Option<String> {
     if trimmed.is_empty() {
         None
     } else {
-        Some(trimmed.to_string())
+        Some(trimmed.to_owned())
     }
 }
 

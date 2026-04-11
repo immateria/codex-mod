@@ -40,7 +40,7 @@ pub async fn new_session(
         Err(err) => {
             let result = CallToolResult {
                 content: vec![ContentBlock::TextContent(TextContent {
-                    r#type: "text".to_string(),
+                    r#type: "text".to_owned(),
                     text: format!("Failed to start Codex session: {err}"),
                     annotations: None,
                 })],
@@ -205,7 +205,7 @@ pub async fn prompt(
 
         if let Some(update) = acp_update {
             let notification = OutgoingNotification {
-                method: acp::CLIENT_METHOD_NAMES.session_update.to_string(),
+                method: acp::CLIENT_METHOD_NAMES.session_update.to_owned(),
                 params: Some(
                     serde_json::to_value(acp::SessionNotification {
                         session_id: acp_session_id.clone(),

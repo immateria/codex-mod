@@ -201,10 +201,10 @@ impl ChatWidget<'_> {
                 .filter(|description| !description.is_empty())
                 .map(str::to_string);
 
-            let entry = by_id.entry(connector_id.to_string()).or_insert_with(|| {
+            let entry = by_id.entry(connector_id.to_owned()).or_insert_with(|| {
                 ConnectedAppSummary {
-                    id: connector_id.to_string(),
-                    name: connector_name.to_string(),
+                    id: connector_id.to_owned(),
+                    name: connector_name.to_owned(),
                     description: connector_description.clone(),
                     tool_count: 0,
                 }
@@ -228,7 +228,7 @@ impl ChatWidget<'_> {
             Some(code_core::protocol::McpAuthStatus::NotLoggedIn),
         );
         if needs_login {
-            return (Err("Not logged in".to_string()), true);
+            return (Err("Not logged in".to_owned()), true);
         }
 
         fn message_looks_like_auth_issue(message: &str) -> bool {

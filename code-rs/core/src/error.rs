@@ -329,7 +329,7 @@ fn format_reset_duration(total_secs: u64) -> String {
     }
 
     if parts.is_empty() {
-        return "less than a minute".to_string();
+        return "less than a minute".to_owned();
     }
 
     match parts.len() {
@@ -341,7 +341,7 @@ fn format_reset_duration(total_secs: u64) -> String {
 
 fn format_duration_short(seconds: u64) -> String {
     if seconds < 60 {
-        return "less than a minute".to_string();
+        return "less than a minute".to_owned();
     }
 
     let minutes = seconds / 60;

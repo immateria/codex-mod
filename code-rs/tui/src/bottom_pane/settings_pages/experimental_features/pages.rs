@@ -27,7 +27,7 @@ impl ExperimentalFeaturesSettingsView {
 
         if self.dirty {
             header_lines.push(Line::from(Span::styled(
-                "Unsaved changes (Ctrl+S to save)".to_string(),
+                "Unsaved changes (Ctrl+S to save)".to_owned(),
                 Style::new().fg(colors::warning()),
             )));
         }
@@ -74,11 +74,11 @@ impl ExperimentalFeaturesSettingsView {
                 let description = if cfg!(target_os = "android") && row.key == "prevent_idle_sleep" {
                     format!("{} (no-op on Android)", row.description)
                 } else {
-                    row.description.to_string()
+                    row.description.to_owned()
                 };
 
                 SettingsMenuRow::new(idx, row.name)
-                    .with_value(StyledText::new(value.to_string(), value_style))
+                    .with_value(StyledText::new(value.to_owned(), value_style))
                     .with_detail(StyledText::new(
                         description,
                         Style::new().fg(colors::text_dim()),

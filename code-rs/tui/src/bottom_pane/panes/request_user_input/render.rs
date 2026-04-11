@@ -65,7 +65,7 @@ impl RequestUserInputView {
         let progress = if question_count > 0 {
             format!("Question {}/{}", self.current_idx + 1, question_count)
         } else {
-            "Question 0/0".to_string()
+            "Question 0/0".to_owned()
         };
         Paragraph::new(Line::from(progress).dim()).render(
             Rect {
@@ -169,17 +169,17 @@ impl RequestUserInputView {
                     let other_value = if is_secret && !other_value.is_empty() {
                         mask_secret(other_value)
                     } else {
-                        other_value.to_string()
+                        other_value.to_owned()
                     };
                     let other_label = if is_selected && !other_value.is_empty() {
                         format!("Other: {other_value}")
                     } else {
-                        "Other".to_string()
+                        "Other".to_owned()
                     };
                     let prefix = if is_selected { "(x)" } else { "( )" };
                     rows.push(GenericDisplayRow {
                         name: format!("{prefix} {other_label}"),
-                        description: Some("Provide a custom answer".to_string()),
+                        description: Some("Provide a custom answer".to_owned()),
                         match_indices: None,
                         is_current: hovered.is_some_and(|hovered| hovered == other_idx),
                         name_color: None,
@@ -191,7 +191,7 @@ impl RequestUserInputView {
                 let display_text = if is_secret && !text.is_empty() {
                     mask_secret(text)
                 } else {
-                    text.to_string()
+                    text.to_owned()
                 };
                 let placeholder = "Type your answer…";
                 let display = if display_text.is_empty() {

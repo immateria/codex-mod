@@ -63,7 +63,7 @@ impl AppsSettingsView {
         let enabled_ids = self.enabled_source_ids(snapshot);
         if enabled_ids.is_empty() {
             header_lines.push(Line::from(Span::styled(
-                "Enabled sources this session: none".to_string(),
+                "Enabled sources this session: none".to_owned(),
                 Style::new().fg(colors::warning()),
             )));
         } else {
@@ -74,7 +74,7 @@ impl AppsSettingsView {
                     .iter()
                     .find(|acc| &acc.id == id)
                     .map_or(id.as_str(), |acc| acc.label.as_str());
-                labels.push(label.to_string());
+                labels.push(label.to_owned());
             }
             header_lines.push(Line::from(Span::styled(
                 format!("Enabled sources this session: {}", labels.join(", ")),
@@ -84,7 +84,7 @@ impl AppsSettingsView {
 
         if self.sources_dirty {
             header_lines.push(Line::from(Span::styled(
-                "Unsaved changes (Ctrl+S to save)".to_string(),
+                "Unsaved changes (Ctrl+S to save)".to_owned(),
                 Style::new().fg(colors::warning()),
             )));
         }
@@ -139,7 +139,7 @@ impl AppsSettingsView {
             return vec![
                 SettingsMenuRow::new(0usize, "No accounts found")
                     .with_detail(StyledText::new(
-                        "Press `a` to open Accounts settings.".to_string(),
+                        "Press `a` to open Accounts settings.".to_owned(),
                         Style::new().fg(colors::text_dim()),
                     ))
                     .disabled(),
@@ -181,7 +181,7 @@ impl AppsSettingsView {
                 let detail = match snapshot.status_by_account_id.get(&account.id) {
                     Some(crate::chatwidget::AppsAccountStatusState::Loading) => {
                         Some(StyledText::new(
-                            "loading...".to_string(),
+                            "loading...".to_owned(),
                             Style::new().fg(colors::function()),
                         ))
                     }
@@ -212,7 +212,7 @@ impl AppsSettingsView {
                 if !account.is_chatgpt {
                     row = row
                         .with_detail(StyledText::new(
-                            "not a ChatGPT account".to_string(),
+                            "not a ChatGPT account".to_owned(),
                             Style::new().fg(colors::text_dim()),
                         ))
                         .disabled();
@@ -248,7 +248,7 @@ impl AppsSettingsView {
             match status {
                 crate::chatwidget::AppsAccountStatusState::Loading => {
                     header_lines.push(Line::from(Span::styled(
-                        "Loading...".to_string(),
+                        "Loading...".to_owned(),
                         Style::new().fg(colors::function()),
                     )));
                 }
@@ -272,8 +272,7 @@ impl AppsSettingsView {
                     )));
                     if *needs_login {
                         header_lines.push(Line::from(Span::styled(
-                            "Action: press `l` to log in, or `a` for Accounts settings."
-                                .to_string(),
+                            "Action: press `l` to log in, or `a` for Accounts settings.".to_owned(),
                             Style::new().fg(colors::text_dim()),
                         )));
                     }

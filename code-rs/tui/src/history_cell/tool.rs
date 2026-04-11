@@ -130,7 +130,7 @@ impl ToolCallCell {
             }
             ArgumentValue::Secret => return None,
         };
-        let trimmed = raw.trim().to_string();
+        let trimmed = raw.trim().to_owned();
         if trimmed.is_empty() {
             return None;
         }
@@ -143,7 +143,7 @@ impl ToolCallCell {
         } else if trimmed.lines().count() > 1 {
             Some(format!("{first_line}…"))
         } else {
-            Some(first_line.to_string())
+            Some(first_line.to_owned())
         }
     }
 
@@ -344,7 +344,7 @@ impl RunningToolCallCell {
                 }
                 ArgumentValue::Secret => None,
             })
-            .map(|text| text.trim().to_string())
+            .map(|text| text.trim().to_owned())
             .filter(|text| !text.is_empty())
     }
 
@@ -361,7 +361,7 @@ impl RunningToolCallCell {
 
     fn progress_bar(completed: usize, total: usize, width: usize) -> String {
         if total == 0 {
-            return "[----------------]".to_string();
+            return "[----------------]".to_owned();
         }
         let clamped_width = width.max(1);
         let filled = (completed.saturating_mul(clamped_width)).saturating_add(total - 1) / total;

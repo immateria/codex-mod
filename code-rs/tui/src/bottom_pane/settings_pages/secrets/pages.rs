@@ -32,13 +32,13 @@ impl SecretsSettingsView {
         match &snapshot.list {
             crate::chatwidget::SecretsListState::Uninitialized => {
                 header_lines.push(Line::from(Span::styled(
-                    "Loading secrets...".to_string(),
+                    "Loading secrets...".to_owned(),
                     Style::new().fg(colors::function()),
                 )));
             }
             crate::chatwidget::SecretsListState::Loading { .. } => {
                 header_lines.push(Line::from(Span::styled(
-                    "Loading secrets...".to_string(),
+                    "Loading secrets...".to_owned(),
                     Style::new().fg(colors::function()),
                 )));
             }
@@ -71,7 +71,7 @@ impl SecretsSettingsView {
             )));
         } else if let Some(action) = snapshot.action_in_progress.as_ref() {
             let label = match action {
-                crate::chatwidget::SecretsActionInProgress::FetchList => "Loading secrets...".to_string(),
+                crate::chatwidget::SecretsActionInProgress::FetchList => "Loading secrets...".to_owned(),
                 crate::chatwidget::SecretsActionInProgress::Delete { entry, .. } => {
                     format!("Deleting {}...", entry.name.as_str())
                 }
@@ -147,8 +147,8 @@ impl SecretsSettingsView {
                     code_secrets::SecretScope::Environment(_) => Style::new().fg(colors::info()),
                     code_secrets::SecretScope::Global => Style::new().fg(colors::text_dim()),
                 };
-                let mut row = SettingsMenuRow::new(idx, entry.name.as_str().to_string())
-                    .with_value(StyledText::new(scope_label.to_string(), value_style))
+                let mut row = SettingsMenuRow::new(idx, entry.name.as_str().to_owned())
+                    .with_value(StyledText::new(scope_label.to_owned(), value_style))
                     .with_selected_hint("Del delete");
                 if deleting {
                     row = row.disabled();
@@ -178,7 +178,7 @@ impl SecretsSettingsView {
         SettingsActionPage::new(
             "Secrets",
             SettingsPanelStyle::bottom_pane(),
-            vec![title_line("Confirm delete".to_string())],
+            vec![title_line("Confirm delete".to_owned())],
             footer_lines,
         )
         .with_status_lines(status_lines)

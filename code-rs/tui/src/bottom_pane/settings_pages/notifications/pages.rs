@@ -23,7 +23,7 @@ impl NotificationsSettingsView {
             }
             NotificationsMode::Custom { entries } => {
                 let filters = if entries.is_empty() {
-                    "<none>".to_string()
+                    "<none>".to_owned()
                 } else {
                     entries.join(", ")
                 };

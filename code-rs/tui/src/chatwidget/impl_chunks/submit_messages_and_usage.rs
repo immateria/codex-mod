@@ -96,10 +96,10 @@ impl ChatWidget<'_> {
             // Surface immediately in the TUI as a notice (developer-style message).
             let mut notice_lines = Vec::new();
             if !preface_cache.trim().is_empty() {
-                notice_lines.push(preface_cache.trim().to_string());
+                notice_lines.push(preface_cache.trim().to_owned());
             }
             if !agent_cache.trim().is_empty() {
-                notice_lines.push(agent_cache.trim().to_string());
+                notice_lines.push(agent_cache.trim().to_owned());
             }
             if !notice_lines.is_empty() {
                 self.history_push_plain_paragraphs(PlainMessageKind::Notice, notice_lines);
@@ -170,7 +170,7 @@ impl ChatWidget<'_> {
             return;
         }
         let key = self.next_req_key_top();
-        let cell = history_cell::new_background_event(RESUME_PLACEHOLDER_MESSAGE.to_string());
+        let cell = history_cell::new_background_event(RESUME_PLACEHOLDER_MESSAGE.to_owned());
         let _ = self.history_insert_with_key_global_tagged(Box::new(cell), key, "background", None);
         self.resume_placeholder_visible = true;
     }
@@ -194,7 +194,7 @@ impl ChatWidget<'_> {
             return;
         }
         self.clear_resume_placeholder();
-        self.push_background_tail(message.to_string());
+        self.push_background_tail(message.to_owned());
     }
 
     pub(crate) fn clear_token_usage(&mut self) {
@@ -218,7 +218,7 @@ impl ChatWidget<'_> {
         let account_id = auth_accounts::get_active_account_id(&self.config.code_home)
             .ok()
             .flatten()
-            .unwrap_or_else(|| "_default".to_string());
+            .unwrap_or_else(|| "_default".to_owned());
 
         let plan = if account_id == "_default" {
             None

@@ -107,7 +107,7 @@ impl WebSearchSessionCell {
                 if trimmed.is_empty() {
                     None
                 } else {
-                    Some(trimmed.to_string())
+                    Some(trimmed.to_owned())
                 }
             });
         self.query != previous
@@ -197,7 +197,7 @@ impl WebSearchSessionCell {
 
         if UnicodeWidthStr::width(total.as_str()) <= body_width {
             segments.push(CardSegment::new(
-                title_text.to_string(),
+                title_text.to_owned(),
                 title_style,
             ));
             segments.push(CardSegment::new(

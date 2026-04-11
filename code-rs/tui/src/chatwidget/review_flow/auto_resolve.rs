@@ -70,11 +70,11 @@ impl ChatWidget<'_> {
         }
         let explanation = review.overall_explanation.trim();
         if !explanation.is_empty() {
-            sections.push(explanation.to_string());
+            sections.push(explanation.to_owned());
         }
         sections
             .into_iter()
-            .map(|s| s.trim().to_string())
+            .map(|s| s.trim().to_owned())
             .filter(|s| !s.is_empty())
             .collect::<Vec<_>>()
             .join("\n\n")
@@ -105,13 +105,13 @@ impl ChatWidget<'_> {
                 state.last_fix_message = None;
 
                 if output.findings.is_empty() {
-                    notice = Some("Auto-resolve: review reported no actionable findings. Exiting.".to_string());
+                    notice = Some("Auto-resolve: review reported no actionable findings. Exiting.".to_owned());
                     should_clear = true;
                 } else if state.max_attempts > 0 && state.attempt > state.max_attempts {
                     let limit = state.max_attempts;
                     notice = Some(match limit {
-                        0 => "Auto-resolve: attempt limit is set to 0, so automation stopped after the initial review.".to_string(),
-                        1 => "Auto-resolve: reached the review attempt limit (1 allowed review). Handing control back to you.".to_string(),
+                        0 => "Auto-resolve: attempt limit is set to 0, so automation stopped after the initial review.".to_owned(),
+                        1 => "Auto-resolve: reached the review attempt limit (1 allowed review). Handing control back to you.".to_owned(),
                         _ => format!(
                             "Auto-resolve: reached the review attempt limit ({limit} allowed reviews). Handing control back to you."
                         ),
@@ -121,11 +121,11 @@ impl ChatWidget<'_> {
                     state.phase = AutoResolvePhase::PendingFix {
                         review: output.clone(),
                     };
-                    notice = Some("Auto-resolve: review found issues. Preparing follow-up fix request.".to_string());
+                    notice = Some("Auto-resolve: review found issues. Preparing follow-up fix request.".to_owned());
                 }
             } else {
                 notice = Some(
-                    "Auto-resolve: review ended without findings. Please inspect manually.".to_string(),
+                    "Auto-resolve: review ended without findings. Please inspect manually.".to_owned(),
                 );
                 should_clear = true;
             }
@@ -197,7 +197,7 @@ impl ChatWidget<'_> {
 
         self.auto_resolve_notice("Auto-resolve: asking the agent to verify and address the review findings.");
         self.submit_hidden_text_message_with_preface(
-            "Is this a real issue introduced by our changes? If so, please fix and resolve all similar issues.".to_string(),
+            "Is this a real issue introduced by our changes? If so, please fix and resolve all similar issues.".to_owned(),
             preface,
         );
     }
@@ -227,7 +227,7 @@ impl ChatWidget<'_> {
         }
 
         self.auto_resolve_notice("Auto-resolve: requesting status JSON from the agent.");
-        self.submit_hidden_text_message_with_preface("Auto-resolve status check".to_string(), preface);
+        self.submit_hidden_text_message_with_preface("Auto-resolve status check".to_owned(), preface);
     }
 
     pub(in crate::chatwidget) fn dispatch_auto_continue(&mut self, review: &ReviewOutputEvent) {
@@ -242,7 +242,7 @@ impl ChatWidget<'_> {
             let _ = write!(preface, "\n\n{context}");
         }
         self.auto_resolve_notice("Auto-resolve: asking the agent to continue working on the findings.");
-        self.submit_hidden_text_message_with_preface("Please continue".to_string(), preface);
+        self.submit_hidden_text_message_with_preface("Please continue".to_owned(), preface);
     }
 
     pub(in crate::chatwidget) fn restart_auto_resolve_review(&mut self) {
@@ -253,14 +253,14 @@ impl ChatWidget<'_> {
         let re_reviews_allowed = state_snapshot.max_attempts;
         let total_allowed = re_reviews_allowed.saturating_add(1);
         let attempt_label = if re_reviews_allowed == 0 {
-            "attempt limit reached".to_string()
+            "attempt limit reached".to_owned()
         } else {
             format!("attempt {next_attempt} of {total_allowed}")
         };
         let prep_label = format!("Preparing follow-up code review ({attempt_label})");
-        let mut base_prompt = state_snapshot.prompt.trim_end().to_string();
+        let mut base_prompt = state_snapshot.prompt.trim_end().to_owned();
         if let Some(idx) = base_prompt.find(AUTO_RESOLVE_REVIEW_FOLLOWUP) {
-            base_prompt = base_prompt[..idx].trim_end().to_string();
+            base_prompt = base_prompt[..idx].trim_end().to_owned();
         }
 
         let mut next_hint = state_snapshot.hint.clone();
@@ -343,8 +343,8 @@ impl ChatWidget<'_> {
                         .map_or(0, |state| state.max_attempts);
                     let message = if rationale_text.is_empty() {
                         match limit {
-                            0 => "Auto-resolve: agent reported no remaining issues but automation is disabled (limit 0). Please inspect manually.".to_string(),
-                            1 => "Auto-resolve: agent reported no remaining issues but hit the single allowed review. Please inspect manually.".to_string(),
+                            0 => "Auto-resolve: agent reported no remaining issues but automation is disabled (limit 0). Please inspect manually.".to_owned(),
+                            1 => "Auto-resolve: agent reported no remaining issues but hit the single allowed review. Please inspect manually.".to_owned(),
                             _ => format!(
                                 "Auto-resolve: agent reported no remaining issues but hit the review attempt limit ({limit}). Please inspect manually."
                             ),
@@ -367,7 +367,7 @@ impl ChatWidget<'_> {
                 } else {
                     if rationale_text.is_empty() {
                         self.auto_resolve_notice(
-                            "Auto-resolve: agent reported no remaining issues. Running follow-up /review to confirm.".to_string(),
+                            "Auto-resolve: agent reported no remaining issues. Running follow-up /review to confirm.".to_owned(),
                         );
                     } else {
                         self.auto_resolve_notice(format!(
@@ -402,9 +402,9 @@ impl ChatWidget<'_> {
                         .as_ref()
                         .map_or(0, |state| state.max_attempts);
                     let message = if limit == 0 {
-                        "Auto-resolve: review-again requested but automation is disabled (limit 0). Stopping.".to_string()
+                        "Auto-resolve: review-again requested but automation is disabled (limit 0). Stopping.".to_owned()
                     } else if limit == 1 {
-                        "Auto-resolve: review-again requested but the attempt limit has been reached (1 allowed review). Stopping.".to_string()
+                        "Auto-resolve: review-again requested but the attempt limit has been reached (1 allowed review). Stopping.".to_owned()
                     } else {
                         format!(
                             "Auto-resolve: review-again requested but the attempt limit has been reached ({limit} allowed reviews). Stopping."
@@ -414,7 +414,7 @@ impl ChatWidget<'_> {
                     self.auto_resolve_clear();
                 } else {
                     if rationale.trim().is_empty() {
-                        self.auto_resolve_notice("Auto-resolve: running another /review pass.".to_string());
+                        self.auto_resolve_notice("Auto-resolve: running another /review pass.".to_owned());
                     } else {
                         let rationale_text = rationale.trim();
                         self.auto_resolve_notice(format!(

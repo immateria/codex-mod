@@ -107,7 +107,7 @@ fn start_guided_terminal_session(args: GuidedTerminalSessionArgs) {
     } = args;
     let fail_tx = app_event_tx.clone();
     if let Err(err) = std::thread::Builder::new()
-        .name("guided-terminal-session".to_string())
+        .name("guided-terminal-session".to_owned())
         .spawn(move || {
         let mut control = control;
         let runtime = match tokio::runtime::Builder::new_multi_thread()

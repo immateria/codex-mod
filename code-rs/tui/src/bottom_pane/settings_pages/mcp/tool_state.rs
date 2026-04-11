@@ -39,7 +39,7 @@ impl McpSettingsView {
         let Some(entry) = entries.get(self.tools_selected).copied() else {
             return;
         };
-        let tool_name = entry.name.to_string();
+        let tool_name = entry.name.to_owned();
         let enable = !entry.enabled;
 
         self.app_event_tx.send(AppEvent::UpdateMcpServerTool {
@@ -101,7 +101,7 @@ impl McpSettingsView {
         if self.is_tool_expanded(entry.name) {
             self.set_expanded_tool_for_selected_server(None);
         } else {
-            self.set_expanded_tool_for_selected_server(Some(entry.name.to_string()));
+            self.set_expanded_tool_for_selected_server(Some(entry.name.to_owned()));
             // Show expanded details from the top of the details pane.
             self.summary_scroll_top = 0;
             self.summary_hscroll = 0;

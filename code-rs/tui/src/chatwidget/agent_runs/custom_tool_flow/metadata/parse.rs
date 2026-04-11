@@ -31,10 +31,10 @@ fn populate_from_map(meta: &mut InvocationMetadata, map: &Map<String, Value>) {
 
 fn apply_root_fields(meta: &mut InvocationMetadata, map: &Map<String, Value>) {
     if let Some(action) = map.get("action").and_then(Value::as_str) {
-        meta.action = Some(action.to_string());
+        meta.action = Some(action.to_owned());
     }
     if let Some(batch) = map.get("batch_id").and_then(Value::as_str) {
-        meta.batch_id = Some(batch.to_string());
+        meta.batch_id = Some(batch.to_owned());
     }
     if let Some(write_flag) = map.get("write").and_then(Value::as_bool) {
         meta.write = Some(write_flag);
@@ -43,16 +43,16 @@ fn apply_root_fields(meta: &mut InvocationMetadata, map: &Map<String, Value>) {
         meta.read_only = Some(ro_flag);
     }
     if let Some(agent_id) = map.get("agent_id").and_then(Value::as_str) {
-        meta.agent_ids.push(agent_id.to_string());
+        meta.agent_ids.push(agent_id.to_owned());
     }
     if let Some(agent_name) = map.get("agent_name").and_then(Value::as_str) {
-        meta.label = Some(agent_name.to_string());
+        meta.label = Some(agent_name.to_owned());
     }
     if let Some(task) = map.get("task").and_then(Value::as_str) {
-        meta.task = Some(task.to_string());
+        meta.task = Some(task.to_owned());
     }
     if let Some(context) = map.get("context").and_then(Value::as_str) {
-        meta.context = Some(context.to_string());
+        meta.context = Some(context.to_owned());
     }
     if let Some(plan) = map.get("plan").and_then(Value::as_array) {
         meta.plan = plan
@@ -63,7 +63,7 @@ fn apply_root_fields(meta: &mut InvocationMetadata, map: &Map<String, Value>) {
     if let Some(models) = map.get("models").and_then(Value::as_array) {
         for model in models {
             if let Some(name) = model.as_str() {
-                meta.models.push(name.to_string());
+                meta.models.push(name.to_owned());
             }
         }
     }
@@ -79,18 +79,18 @@ fn apply_agents(meta: &mut InvocationMetadata, map: &Map<String, Value>) {
             continue;
         };
         if let Some(id) = obj.get("id").and_then(Value::as_str) {
-            meta.agent_ids.push(id.to_string());
+            meta.agent_ids.push(id.to_owned());
         }
         if meta.label.is_none()
             && let Some(name) = obj.get("name").and_then(Value::as_str)
         {
-            meta.label = Some(name.to_string());
+            meta.label = Some(name.to_owned());
         }
         if let Some(model) = obj.get("model").and_then(Value::as_str) {
-            meta.models.push(model.to_string());
+            meta.models.push(model.to_owned());
         }
         if let Some(backend) = obj.get("backend").and_then(Value::as_str) {
-            meta.models.push(backend.to_string());
+            meta.models.push(backend.to_owned());
         }
         if meta.write.is_none()
             && let Some(write_flag) = obj.get("write").and_then(Value::as_bool)
@@ -113,15 +113,15 @@ fn apply_create(meta: &mut InvocationMetadata, map: &Map<String, Value>) {
     if meta.task.is_none()
         && let Some(task) = create.get("task").and_then(Value::as_str)
     {
-        meta.task = Some(task.to_string());
+        meta.task = Some(task.to_owned());
     }
     if let Some(name) = create.get("name").and_then(Value::as_str) {
-        meta.label = Some(name.to_string());
+        meta.label = Some(name.to_owned());
     }
     if meta.context.is_none()
         && let Some(context) = create.get("context").and_then(Value::as_str)
     {
-        meta.context = Some(context.to_string());
+        meta.context = Some(context.to_owned());
     }
     if meta.write.is_none()
         && let Some(write_flag) = create.get("write").and_then(Value::as_bool)
@@ -150,10 +150,10 @@ fn apply_action_object(meta: &mut InvocationMetadata, map: &Map<String, Value>, 
     if meta.batch_id.is_none()
         && let Some(batch) = obj.get("batch_id").and_then(Value::as_str)
     {
-        meta.batch_id = Some(batch.to_string());
+        meta.batch_id = Some(batch.to_owned());
     }
     if let Some(agent_id) = obj.get("agent_id").and_then(Value::as_str) {
-        meta.agent_ids.push(agent_id.to_string());
+        meta.agent_ids.push(agent_id.to_owned());
     }
 }
 
@@ -162,6 +162,6 @@ fn apply_list(meta: &mut InvocationMetadata, map: &Map<String, Value>) {
         && meta.batch_id.is_none()
         && let Some(batch) = list.get("batch_id").and_then(Value::as_str)
     {
-        meta.batch_id = Some(batch.to_string());
+        meta.batch_id = Some(batch.to_owned());
     }
 }

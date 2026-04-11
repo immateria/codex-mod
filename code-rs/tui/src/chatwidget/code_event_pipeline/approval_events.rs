@@ -58,9 +58,9 @@ impl ChatWidget<'_> {
         let mut lines: Vec<String> = Vec::new();
         let is_mcp_access_prompt = ev.call_id.starts_with("mcp_access:");
         if is_mcp_access_prompt {
-            lines.push("Permission requested: MCP access".to_string());
+            lines.push("Permission requested: MCP access".to_owned());
         } else {
-            lines.push("Model requested user input".to_string());
+            lines.push("Model requested user input".to_owned());
         }
 
         for question in &ev.questions {
@@ -69,7 +69,7 @@ impl ChatWidget<'_> {
             let question_text = &question.question;
             lines.push(format!("\n{header} ({id})\n{question_text}"));
             if let Some(options) = &question.options {
-                lines.push("Options:".to_string());
+                lines.push("Options:".to_owned());
                 for option in options {
                     let label = &option.label;
                     let description = &option.description;
@@ -80,11 +80,11 @@ impl ChatWidget<'_> {
         let auto_answer =
             !is_mcp_access_prompt && self.auto_state.is_active() && !self.auto_state.is_paused_manual();
         if auto_answer {
-            lines.push("\nAuto Drive is active; continuing automatically.".to_string());
+            lines.push("\nAuto Drive is active; continuing automatically.".to_owned());
         } else if is_mcp_access_prompt {
-            lines.push("\nUse the picker below to continue (Esc cancels).".to_string());
+            lines.push("\nUse the picker below to continue (Esc cancels).".to_owned());
         } else {
-            lines.push("\nUse the picker below to continue (Esc to type in the composer).".to_string());
+            lines.push("\nUse the picker below to continue (Esc to type in the composer).".to_owned());
         }
 
         let role = history_cell::plain_role_for_kind(PlainMessageKind::Notice);
@@ -158,10 +158,10 @@ impl ChatWidget<'_> {
         let call_id = synthetic_turn_id.clone();
 
         let mut lines: Vec<String> = Vec::new();
-        lines.push("MCP server requested elicitation".to_string());
+        lines.push("MCP server requested elicitation".to_owned());
         lines.push(format!("server: `{}`", ev.server_name));
         lines.push(format!("\n{message}"));
-        lines.push("\nUse the picker below to continue (Esc cancels).".to_string());
+        lines.push("\nUse the picker below to continue (Esc cancels).".to_owned());
 
         let role = history_cell::plain_role_for_kind(PlainMessageKind::Notice);
         let state =
@@ -204,23 +204,23 @@ impl ChatWidget<'_> {
                 synthetic_turn_id,
                 call_id,
                 vec![RequestUserInputQuestion {
-                    id: "mcp_elicitation".to_string(),
-                    header: "MCP elicitation".to_string(),
-                    question: message.to_string(),
+                    id: "mcp_elicitation".to_owned(),
+                    header: "MCP elicitation".to_owned(),
+                    question: message.to_owned(),
                     is_other: false,
                     is_secret: false,
                     options: Some(vec![
                         RequestUserInputQuestionOption {
-                            label: "Accept".to_string(),
-                            description: "Proceed (respond with an empty object).".to_string(),
+                            label: "Accept".to_owned(),
+                            description: "Proceed (respond with an empty object).".to_owned(),
                         },
                         RequestUserInputQuestionOption {
-                            label: "Decline".to_string(),
-                            description: "Decline this request.".to_string(),
+                            label: "Decline".to_owned(),
+                            description: "Decline this request.".to_owned(),
                         },
                         RequestUserInputQuestionOption {
-                            label: "Cancel".to_string(),
-                            description: "Cancel without responding.".to_string(),
+                            label: "Cancel".to_owned(),
+                            description: "Cancel without responding.".to_owned(),
                         },
                     ]),
                 }],
@@ -241,7 +241,7 @@ impl ChatWidget<'_> {
         let lines = vec![
             format!("Dynamic tool call requested: {tool}"),
             format!("call_id: {call_id}"),
-            "Dynamic tools are not supported in this UI; returning a failure response.".to_string(),
+            "Dynamic tools are not supported in this UI; returning a failure response.".to_owned(),
         ];
         let role = history_cell::plain_role_for_kind(PlainMessageKind::Notice);
         let state =
@@ -252,7 +252,7 @@ impl ChatWidget<'_> {
         let response = DynamicToolResponse {
             content_items: vec![
                 code_protocol::dynamic_tools::DynamicToolCallOutputContentItem::InputText {
-                    text: "dynamic tools are not supported in this UI".to_string(),
+                    text: "dynamic tools are not supported in this UI".to_owned(),
                 },
             ],
             success: false,
@@ -310,11 +310,11 @@ impl ChatWidget<'_> {
     fn choose_freeform_value(question: &RequestUserInputQuestion) -> String {
         let key = format!("{} {}", question.id, question.header).to_ascii_lowercase();
         if key.contains("confirm") || key.contains("proceed") {
-            "yes".to_string()
+            "yes".to_owned()
         } else if key.contains("name") {
-            crate::auto_drive_style::AUTO_DRIVE_TITLE.to_string()
+            crate::auto_drive_style::AUTO_DRIVE_TITLE.to_owned()
         } else {
-            "auto".to_string()
+            "auto".to_owned()
         }
     }
 
@@ -350,11 +350,11 @@ impl ChatWidget<'_> {
                 .and_then(|a| a.answers.first())
                 .map_or("(skipped)", String::as_str);
             if questions.len() == 1 {
-                parts.push(label.to_string());
+                parts.push(label.to_owned());
             } else {
                 let header = question.header.trim();
                 if header.is_empty() {
-                    parts.push(label.to_string());
+                    parts.push(label.to_owned());
                 } else {
                     parts.push(format!("{header}: {label}"));
                 }

@@ -159,7 +159,7 @@ pub(crate) fn explore_record_push_from_parsed(
                 _ => String::new(),
             })
             .find(|s| !s.is_empty())
-            .unwrap_or_else(|| "exec".to_string());
+            .unwrap_or_else(|| "exec".to_owned());
         Some(ExploreSummary::Fallback { text })
     })?;
 
@@ -369,11 +369,11 @@ fn explore_lines_with_truncation(
             )),
             ExploreEntryStatus::Error { exit_code } => {
                 let msg = match (entry.action, exit_code) {
-                    (ExecAction::Search, Some(2)) => " (invalid pattern)".to_string(),
-                    (ExecAction::Search, _) => " (search error)".to_string(),
-                    (ExecAction::List, _) => " (list error)".to_string(),
-                    (ExecAction::Read, _) => " (read error)".to_string(),
-                    _ => exit_code.map_or_else(|| " (failed)".to_string(), |code| format!(" (exit {code})")),
+                    (ExecAction::Search, Some(2)) => " (invalid pattern)".to_owned(),
+                    (ExecAction::Search, _) => " (search error)".to_owned(),
+                    (ExecAction::List, _) => " (list error)".to_owned(),
+                    (ExecAction::Read, _) => " (read error)".to_owned(),
+                    _ => exit_code.map_or_else(|| " (failed)".to_owned(), |code| format!(" (exit {code})")),
                 };
                 spans.push(Span::styled(
                     msg,
@@ -436,14 +436,14 @@ fn entry_summary_spans(entry: &ExploreEntry) -> Vec<Span<'static>> {
             }
             if spans.is_empty() {
                 spans.push(Span::styled(
-                    "search".to_string(),
+                    "search".to_owned(),
                     s_text,
                 ));
             }
             spans
         }
         ExploreSummary::List { path } => {
-            let target = path.clone().unwrap_or_else(|| "./".to_string());
+            let target = path.clone().unwrap_or_else(|| "./".to_owned());
             vec![Span::styled(
                 target,
                 s_text_dim,
@@ -521,7 +521,7 @@ fn build_command_summary(cmd: &str, original_command: &[String]) -> CommandSumma
     let mut display = if trimmed.is_empty() {
         full_command
     } else if parts.is_empty() {
-        trimmed.to_string()
+        trimmed.to_owned()
     } else {
         parts.join(" ")
     };
@@ -669,7 +669,7 @@ fn split_pipeline_for_filter(cmd: &str) -> Option<(String, String)> {
         return None;
     }
 
-    Some((head.to_string(), tail_slice.to_string()))
+    Some((head.to_owned(), tail_slice.to_owned()))
 }
 
 fn command_string_for_annotation(original_command: &[String]) -> String {
@@ -884,19 +884,19 @@ fn ensure_dir_suffix(mut value: String) -> String {
 fn format_cwd_display(cwd: &Path, session_root: &Path) -> String {
     if let Ok(rel) = cwd.strip_prefix(session_root) {
         if rel.as_os_str().is_empty() {
-            return "./".to_string();
+            return "./".to_owned();
         }
         let mut parts: Vec<String> = Vec::new();
         for comp in rel.components() {
             match comp {
                 Component::Normal(part) => parts.push(part.to_string_lossy().into_owned()),
-                Component::ParentDir => parts.push("..".to_string()),
+                Component::ParentDir => parts.push("..".to_owned()),
                 Component::CurDir => {}
                 _ => {}
             }
         }
         if parts.is_empty() {
-            "./".to_string()
+            "./".to_owned()
         } else {
             ensure_dir_suffix(parts.join("/"))
         }
@@ -913,11 +913,11 @@ fn format_list_target(path: Option<&str>, cwd: &Path, session_root: &Path) -> Op
 
     let display = match trimmed {
         Some("." | "./") => format_cwd_display(cwd, session_root),
-        Some("/") => normalize_separators("/".to_string()),
+        Some("/") => normalize_separators("/".to_owned()),
         Some(raw) => {
             let stripped = raw.trim_end_matches('/');
             let base = if stripped.is_empty() { raw } else { stripped };
-            ensure_dir_suffix(base.to_string())
+            ensure_dir_suffix(base.to_owned())
         }
         None => format_cwd_display(cwd, session_root),
     };
@@ -944,7 +944,7 @@ fn format_read_target(name: &str, cwd: &Path, session_root: &Path) -> String {
 
     let normalized = if let Ok(rel) = resolved.strip_prefix(session_root) {
         if rel.as_os_str().is_empty() {
-            trimmed.to_string()
+            trimmed.to_owned()
         } else {
             normalize_separators(rel.display().to_string())
         }
@@ -953,7 +953,7 @@ fn format_read_target(name: &str, cwd: &Path, session_root: &Path) -> String {
     };
 
     if normalized.is_empty() {
-        trimmed.to_string()
+        trimmed.to_owned()
     } else {
         normalized
     }

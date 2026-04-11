@@ -2,7 +2,7 @@ impl AgentRunCell {
     pub(crate) fn new(agent_name: String) -> Self {
         Self {
             agent_name,
-            status_label: "Running".to_string(),
+            status_label: "Running".to_owned(),
             ..Default::default()
         }
     }
@@ -13,7 +13,7 @@ impl AgentRunCell {
             if trimmed.is_empty() {
                 None
             } else {
-                Some(trimmed.to_string())
+                Some(trimmed.to_owned())
             }
         });
     }
@@ -24,7 +24,7 @@ impl AgentRunCell {
             if trimmed.is_empty() {
                 None
             } else {
-                Some(trimmed.to_string())
+                Some(trimmed.to_owned())
             }
         });
     }
@@ -33,21 +33,21 @@ impl AgentRunCell {
         if let Some(label) = self.batch_label.as_ref() {
             let trimmed = label.trim();
             if !trimmed.is_empty() {
-                return Some(trimmed.to_string());
+                return Some(trimmed.to_owned());
             }
         }
         let trimmed_name = self.agent_name.trim();
         if trimmed_name.is_empty() || trimmed_name.eq_ignore_ascii_case("(pending)") {
             None
         } else {
-            Some(trimmed_name.to_string())
+            Some(trimmed_name.to_owned())
         }
     }
 
     pub(crate) fn set_plan(&mut self, plan: Vec<String>) {
         self.plan = plan
             .into_iter()
-            .map(|line| line.trim().to_string())
+            .map(|line| line.trim().to_owned())
             .filter(|line| !line.is_empty())
             .collect();
     }
@@ -77,7 +77,7 @@ impl AgentRunCell {
     pub(crate) fn set_latest_result(&mut self, lines: Vec<String>) {
         let mut cleaned: Vec<String> = lines
             .into_iter()
-            .map(|line| line.trim().to_string())
+            .map(|line| line.trim().to_owned())
             .filter(|line| !line.is_empty())
             .collect();
         if cleaned.len() > MAX_SUMMARY_LINES {
@@ -95,13 +95,13 @@ impl AgentRunCell {
     pub(crate) fn mark_completed(&mut self) {
         self.completed = true;
         if self.status_label.trim().is_empty() {
-            self.status_label = "Completed".to_string();
+            self.status_label = "Completed".to_owned();
         }
     }
 
     pub(crate) fn mark_failed(&mut self) {
         self.completed = true;
-        self.status_label = "Failed".to_string();
+        self.status_label = "Failed".to_owned();
     }
 
     pub(crate) fn set_agent_name(&mut self, name: String) {
@@ -124,7 +124,7 @@ impl AgentRunCell {
         if trimmed.is_empty() {
             return;
         }
-        let text = trimmed.to_string();
+        let text = trimmed.to_owned();
         if self
             .actions
             .last()
@@ -201,14 +201,14 @@ impl AgentRunCell {
 
         if title.is_none() {
             let agents_segment = if remaining >= string_width("Agents") {
-                "Agents".to_string()
+                "Agents".to_owned()
             } else {
                 let truncated = truncate_with_ellipsis("Agents", remaining);
                 let trimmed = truncated.trim_end();
                 if trimmed.is_empty() {
                     truncated
                 } else {
-                    trimmed.to_string()
+                    trimmed.to_owned()
                 }
             };
             let agents_width = string_width(agents_segment.as_str());
@@ -246,7 +246,7 @@ impl AgentRunCell {
             };
 
             let truncated = truncate_with_ellipsis(text_value, name_allow.max(1));
-            let trimmed_name = truncated.trim_end().to_string();
+            let trimmed_name = truncated.trim_end().to_owned();
             let name_width = string_width(trimmed_name.as_str());
             if !trimmed_name.is_empty() {
                 segments.push(CardSegment::new(
@@ -358,7 +358,7 @@ impl AgentRunCell {
             if trimmed.is_empty() {
                 None
             } else {
-                Some(trimmed.to_string())
+                Some(trimmed.to_owned())
             }
         });
     }
@@ -430,7 +430,7 @@ impl AgentRunCell {
                 .split_once("Context:")
                 .map_or(task, |(before, _)| before.trim_end());
             if !cleaned.is_empty() {
-                lines.push(cleaned.to_string());
+                lines.push(cleaned.to_owned());
             }
         }
 
@@ -643,9 +643,9 @@ impl AgentRunCell {
         let indent_style = primary_text_style(style);
         for entry in entries {
             let mut segments = Vec::new();
-            segments.push(CardSegment::new(indent.to_string(), indent_style));
+            segments.push(CardSegment::new(indent.to_owned(), indent_style));
             segments.push(CardSegment::new(
-                bullet.to_string(),
+                bullet.to_owned(),
                 Style::default().fg(entry.color),
             ));
 
@@ -727,9 +727,9 @@ impl AgentRunCell {
 
         for entry in entries {
             let mut segments = Vec::new();
-            segments.push(CardSegment::new(indent.to_string(), indent_style));
+            segments.push(CardSegment::new(indent.to_owned(), indent_style));
             segments.push(CardSegment::new(
-                bullet.to_string(),
+                bullet.to_owned(),
                 Style::default().fg(entry.color),
             ));
 
@@ -841,7 +841,7 @@ impl AgentRunCell {
         let label_style = Self::action_description_style(style);
         let ellipsis_time = |width: usize| {
             if width <= 1 {
-                return "⋮".to_string();
+                return "⋮".to_owned();
             }
             let lead = 2.min(width.saturating_sub(1));
             let trail = width.saturating_sub(lead + 1);
@@ -907,8 +907,7 @@ impl AgentRunCell {
                 let mut desc_display = entry.label.clone();
                 if string_width(desc_display.as_str()) > remaining {
                     desc_display = truncate_with_ellipsis(entry.label.as_str(), remaining)
-                        .trim_end()
-                        .to_string();
+                        .trim_end().to_owned();
                 }
                 if !desc_display.is_empty() {
                     segments.push(CardSegment::new(desc_display, label_style));
@@ -945,14 +944,14 @@ impl AgentRunCell {
         if let Some(model) = preview.model.as_ref() {
             let trimmed = model.trim();
             if !trimmed.is_empty() {
-                return trimmed.to_string();
+                return trimmed.to_owned();
             }
         }
         let name = preview.name.trim();
         if !name.is_empty() {
-            return name.to_string();
+            return name.to_owned();
         }
-        preview.id.trim().to_string()
+        preview.id.trim().to_owned()
     }
 
     fn agent_status_text(preview: &AgentStatusPreview) -> String {
@@ -977,7 +976,7 @@ impl AgentRunCell {
                     }
             let total_secs = duration.as_secs();
             if total_secs == 0 {
-                "0s".to_string()
+                "0s".to_owned()
             } else if total_secs < 60 {
                 format!("{total_secs}s")
             } else {

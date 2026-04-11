@@ -94,7 +94,7 @@ pub(super) fn render_create_theme_mode_inner(
             .unwrap_or_default()
             .as_millis() as u64;
         let frames = ["◌", "◔", "◑", "◕", "●", "◕", "◑", "◔"];
-        let frame = frames[((now_ms / 100) as usize) % frames.len()].to_string();
+        let frame = frames[((now_ms / 100) as usize) % frames.len()].to_owned();
         form_lines.push(Line::from(vec![
             Span::styled(frame, crate::colors::style_info()),
             Span::styled(
@@ -138,7 +138,7 @@ pub(super) fn render_create_theme_mode_inner(
             .proposed_name
             .borrow()
             .clone()
-            .unwrap_or_else(|| "Custom".to_string());
+            .unwrap_or_else(|| "Custom".to_owned());
         let onoff = if s.preview_on.get() { "on" } else { "off" };
         let toggle_style = if s.review_focus_is_toggle.get() {
             Style::default()
@@ -199,7 +199,7 @@ pub(super) fn render_create_theme_mode_inner(
             )));
             for line in raw.split('\n') {
                 form_lines.push(Line::from(Span::styled(
-                    line.to_string(),
+                    line.to_owned(),
                     Style::default().fg(theme.text),
                 )));
             }

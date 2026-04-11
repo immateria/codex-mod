@@ -265,7 +265,7 @@ impl SessionManager {
                 .is_none_or(|justification| justification.trim().is_empty())
         {
             return Err(
-                "sandbox_permissions=require_escalated requires a justification".to_string(),
+                "sandbox_permissions=require_escalated requires a justification".to_owned(),
             );
         }
 
@@ -277,8 +277,7 @@ impl SessionManager {
                 .is_none_or(code_protocol::models::PermissionProfile::is_empty)
         {
             return Err(
-                "sandbox_permissions=with_additional_permissions requires additional_permissions"
-                    .to_string(),
+                "sandbox_permissions=with_additional_permissions requires additional_permissions".to_owned(),
             );
         }
 
@@ -409,7 +408,7 @@ impl SessionManager {
 
         // Write stdin if provided.
         if !chars.is_empty() && writer_tx.send(chars.into_bytes()).await.is_err() {
-            return Err("failed to write to stdin".to_string());
+            return Err("failed to write to stdin".to_owned());
         }
 
         let cap_bytes_u64 = max_output_tokens
@@ -628,7 +627,7 @@ async fn create_exec_command_session(
             ));
         }
 
-        let command = vec![shell, shell_mode_opt.to_string(), cmd];
+        let command = vec![shell, shell_mode_opt.to_owned(), cmd];
         let seatbelt_args = crate::seatbelt::build_seatbelt_args(
             command,
             &sandbox_policy,
@@ -813,7 +812,7 @@ async fn spawn_pipe_exec_command_session(
             ));
         }
 
-        let command = vec![shell, shell_mode_opt.to_string(), cmd];
+        let command = vec![shell, shell_mode_opt.to_owned(), cmd];
         let seatbelt_args = crate::seatbelt::build_seatbelt_args(
             command,
             &sandbox_policy,

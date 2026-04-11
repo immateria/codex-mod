@@ -188,7 +188,7 @@ fn parse_auto_review_summary(raw: &str) -> AutoReviewSummary {
         return AutoReviewSummary {
             has_findings: false,
             findings: 0,
-            summary: Some(trimmed.to_string()),
+            summary: Some(trimmed.to_owned()),
         };
     }
 
@@ -196,7 +196,7 @@ fn parse_auto_review_summary(raw: &str) -> AutoReviewSummary {
         return AutoReviewSummary {
             has_findings: false,
             findings: 0,
-            summary: Some(trimmed.to_string()),
+            summary: Some(trimmed.to_owned()),
         };
     }
 
@@ -205,7 +205,7 @@ fn parse_auto_review_summary(raw: &str) -> AutoReviewSummary {
     AutoReviewSummary {
         has_findings,
         findings: 0,
-        summary: Some(trimmed.to_string()),
+        summary: Some(trimmed.to_owned()),
     }
 }
 
@@ -227,7 +227,7 @@ fn summary_from_runs(outputs: &[ReviewOutputEvent]) -> AutoReviewSummary {
                 summary.summary = match summary.summary {
                     Some(ref existing) if existing.contains(tail) => Some(existing.clone()),
                     Some(existing) => Some(format!("{existing} \n{tail}")),
-                    None => Some(tail.to_string()),
+                    None => Some(tail.to_owned()),
                 };
             }
         }
@@ -242,7 +242,7 @@ fn summary_from_output(output: &ReviewOutputEvent) -> AutoReviewSummary {
 
     let mut parts: Vec<String> = Vec::new();
     if !output.overall_explanation.trim().is_empty() {
-        parts.push(output.overall_explanation.trim().to_string());
+        parts.push(output.overall_explanation.trim().to_owned());
     }
     if has_findings {
         let titles: Vec<String> = output
@@ -250,7 +250,7 @@ fn summary_from_output(output: &ReviewOutputEvent) -> AutoReviewSummary {
             .iter()
             .filter_map(|f| {
                 let title = f.title.trim();
-                (!title.is_empty()).then_some(title.to_string())
+                (!title.is_empty()).then_some(title.to_owned())
             })
             .collect();
         if !titles.is_empty() {

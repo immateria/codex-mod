@@ -811,7 +811,7 @@ pub async fn clear_plugin_config(code_home: &Path, plugin_key: &str) -> Result<b
 
 fn normalize_marketplace_repo_url(url: &str) -> Option<String> {
     let trimmed = url.trim();
-    (!trimmed.is_empty()).then(|| trimmed.to_string())
+    (!trimmed.is_empty()).then(|| trimmed.to_owned())
 }
 
 fn normalize_marketplace_repo_ref(git_ref: Option<&str>) -> Option<String> {
@@ -1035,7 +1035,7 @@ pub async fn set_apps_sources(
     };
 
     let effective_profile = match profile {
-        Some(profile) => Some(profile.to_string()),
+        Some(profile) => Some(profile.to_owned()),
         None => doc
             .get("profile")
             .and_then(|item| item.as_str())
@@ -1359,20 +1359,20 @@ pub async fn upsert_agent_config(
                 }
                 if let Some(instr) = instructions {
                     if instr.trim().is_empty() { tbl.remove("instructions"); }
-                    else { tbl["instructions"] = toml_edit::value(instr.to_string()); }
+                    else { tbl["instructions"] = toml_edit::value(instr.to_owned()); }
                 }
                 if let Some(desc) = description {
                     if desc.trim().is_empty() {
                         tbl.remove("description");
                     } else {
-                        tbl["description"] = toml_edit::value(desc.to_string());
+                        tbl["description"] = toml_edit::value(desc.to_owned());
                     }
                 }
                 if let Some(cmd) = command {
                     if cmd.trim().is_empty() {
                         tbl.remove("command");
                     } else {
-                        tbl["command"] = toml_edit::value(cmd.to_string());
+                        tbl["command"] = toml_edit::value(cmd.to_owned());
                     }
                 }
                 found = true;
@@ -1423,16 +1423,16 @@ fn append_agent_entry(
     } = patch;
     let mut t = toml_edit::Table::new();
     t.set_implicit(true);
-    t["name"] = toml_edit::value(name.to_string());
+    t["name"] = toml_edit::value(name.to_owned());
     if let Some(val) = enabled { t["enabled"] = toml_edit::value(val); }
     if let Some(a) = args { t["args"] = toml_edit::value(toml_edit::Array::from_iter(a.iter().cloned())); }
     if let Some(ro) = args_read_only { t["args-read-only"] = toml_edit::value(toml_edit::Array::from_iter(ro.iter().cloned())); }
     if let Some(w) = args_write { t["args-write"] = toml_edit::value(toml_edit::Array::from_iter(w.iter().cloned())); }
-    if let Some(instr) = instructions && !instr.trim().is_empty() { t["instructions"] = toml_edit::value(instr.to_string()); }
-    if let Some(desc) = description && !desc.trim().is_empty() { t["description"] = toml_edit::value(desc.to_string()); }
+    if let Some(instr) = instructions && !instr.trim().is_empty() { t["instructions"] = toml_edit::value(instr.to_owned()); }
+    if let Some(desc) = description && !desc.trim().is_empty() { t["description"] = toml_edit::value(desc.to_owned()); }
     if let Some(cmd) = command
         && !cmd.trim().is_empty() {
-            t["command"] = toml_edit::value(cmd.to_string());
+            t["command"] = toml_edit::value(cmd.to_owned());
         }
 
     let mut arr = doc

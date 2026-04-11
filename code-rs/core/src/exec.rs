@@ -250,8 +250,7 @@ pub async fn process_exec_tool_call_with_managed_network(
         }
         SandboxType::WindowsRestrictedToken => {
             return Err(CodexErr::UnsupportedOperation(
-                "Windows restricted-token sandbox execution requires the app-server exec v2 path"
-                    .to_string(),
+                "Windows restricted-token sandbox execution requires the app-server exec v2 path".to_owned(),
             ));
         }
     };

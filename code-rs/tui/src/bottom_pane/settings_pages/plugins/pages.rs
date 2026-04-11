@@ -124,7 +124,7 @@ impl PluginsSettingsView {
                 }
                 if show_auth_recovery_actions {
                     header_lines.push(Line::from(Span::styled(
-                        "Action: press `l` to log in, or `a` for Accounts settings.".to_string(),
+                        "Action: press `l` to log in, or `a` for Accounts settings.".to_owned(),
                         Style::new().fg(colors::text_dim()),
                     )));
                 }
@@ -254,7 +254,7 @@ impl PluginsSettingsView {
                 }
 
                 SettingsMenuRow::new(idx, label)
-                    .with_value(StyledText::new(status_text.to_string(), status_style))
+                    .with_value(StyledText::new(status_text.to_owned(), status_style))
                     .with_detail(StyledText::new(detail, Style::new().fg(colors::text_dim())))
             })
             .collect()
@@ -271,7 +271,7 @@ impl PluginsSettingsView {
         SettingsActionPage::new(
             "Plugin",
             SettingsPanelStyle::bottom_pane(),
-            vec![title_line(title.to_string())],
+            vec![title_line(title.to_owned())],
             footer_lines,
         )
         .with_status_lines(status_lines)
@@ -386,9 +386,9 @@ impl PluginsSettingsView {
             sources
                 .curated_repo_url
                 .clone()
-                .unwrap_or_else(|| "Custom".to_string())
+                .unwrap_or_else(|| "Custom".to_owned())
         } else {
-            "Uses the built-in curated marketplace.".to_string()
+            "Uses the built-in curated marketplace.".to_owned()
         };
         if curated_is_custom
             && let Some(git_ref) = sources.curated_repo_ref.as_deref()
@@ -399,14 +399,14 @@ impl PluginsSettingsView {
         }
         rows.push(
             SettingsMenuRow::new(0usize, "Curated marketplace")
-                .with_value(StyledText::new(curated_value.to_string(), curated_style))
+                .with_value(StyledText::new(curated_value.to_owned(), curated_style))
                 .with_detail(StyledText::new(curated_detail, Style::new().fg(colors::text_dim()))),
         );
 
         rows.push(
             SettingsMenuRow::new(1usize, "Add marketplace repo")
                 .with_detail(StyledText::new(
-                    "Append a new git repo source.".to_string(),
+                    "Append a new git repo source.".to_owned(),
                     Style::new().fg(colors::text_dim()),
                 )),
         );
@@ -443,7 +443,7 @@ impl PluginsSettingsView {
             _ => "Sources",
         };
 
-        let mut header_lines = vec![title_line(title.to_string())];
+        let mut header_lines = vec![title_line(title.to_owned())];
         match mode {
             SourcesMode::EditCurated => {
                 header_lines.push(Line::from(
@@ -468,7 +468,7 @@ impl PluginsSettingsView {
             ))
         } else if snapshot.sources_sync_in_progress {
             Some(StyledText::new(
-                "Syncing marketplaces...".to_string(),
+                "Syncing marketplaces...".to_owned(),
                 Style::new().fg(colors::function()),
             ))
         } else {
@@ -539,7 +539,7 @@ impl PluginsSettingsView {
         SettingsActionPage::new(
             "Plugins",
             SettingsPanelStyle::bottom_pane(),
-            vec![title_line("Confirm remove".to_string())],
+            vec![title_line("Confirm remove".to_owned())],
             footer_lines,
         )
         .with_status_lines(status_lines)

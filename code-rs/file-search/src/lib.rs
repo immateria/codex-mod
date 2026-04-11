@@ -326,7 +326,7 @@ pub fn run_streaming(
         search_directory,
         exclude,
         threads_nz,
-        cancel_flag.clone(),
+        cancel_flag,
         compute_indices,
     )?;
 
@@ -392,12 +392,12 @@ impl BestMatchesList {
             self.num_matches += 1;
 
             if self.binary_heap.len() < self.max_count {
-                self.binary_heap.push(Reverse((score, line.to_string())));
+                self.binary_heap.push(Reverse((score, line.to_owned())));
             } else if let Some(min_element) = self.binary_heap.peek()
                 && score > min_element.0.0
             {
                 self.binary_heap.pop();
-                self.binary_heap.push(Reverse((score, line.to_string())));
+                self.binary_heap.push(Reverse((score, line.to_owned())));
             }
         }
     }

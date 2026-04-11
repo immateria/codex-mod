@@ -171,7 +171,7 @@ pub trait BlockedRequestObserver: Send + Sync + 'static {
 #[async_trait]
 impl<O: BlockedRequestObserver + ?Sized> BlockedRequestObserver for Arc<O> {
     async fn on_blocked_request(&self, request: BlockedRequest) {
-        (**self).on_blocked_request(request).await
+        (**self).on_blocked_request(request).await;
     }
 }
 
@@ -182,7 +182,7 @@ where
     Fut: Future<Output = ()> + Send,
 {
     async fn on_blocked_request(&self, request: BlockedRequest) {
-        (self)(request).await
+        (self)(request).await;
     }
 }
 

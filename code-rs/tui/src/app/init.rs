@@ -131,7 +131,7 @@ impl App<'_> {
             let input_suspended_thread = input_suspended.clone();
             let drop_release_events = enhanced_keys_supported;
             if let Err(err) = std::thread::Builder::new()
-                .name("tui-input-loop".to_string())
+                .name("tui-input-loop".to_owned())
                 .spawn(move || {
                 // Track recent typing to temporarily increase poll frequency for low latency.
                 let mut last_key_time = Instant::now();

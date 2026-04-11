@@ -1,7 +1,7 @@
 fn parse_token_count_arg(raw: &str) -> Result<u64, String> {
     let trimmed = raw.trim();
     if trimmed.is_empty() {
-        return Err("missing token count".to_string());
+        return Err("missing token count".to_owned());
     }
 
     let normalized = trimmed.to_ascii_lowercase();
@@ -21,7 +21,7 @@ fn parse_token_count_arg(raw: &str) -> Result<u64, String> {
         .checked_mul(multiplier)
         .ok_or_else(|| format!("token count is too large: '{trimmed}'"))?;
     if value == 0 {
-        return Err("token count must be greater than zero".to_string());
+        return Err("token count must be greater than zero".to_owned());
     }
     Ok(value)
 }
@@ -78,7 +78,7 @@ impl ChatWidget<'_> {
 
         let mut updated = false;
         if !self.config.planning_model.eq_ignore_ascii_case(trimmed) {
-            self.config.planning_model = trimmed.to_string();
+            self.config.planning_model = trimmed.to_owned();
             updated = true;
         }
         if self.config.planning_model_reasoning_effort != clamped_effort {
@@ -204,7 +204,7 @@ impl ChatWidget<'_> {
 
         let mut updated = false;
         if !self.config.auto_drive.model.eq_ignore_ascii_case(trimmed) {
-            self.config.auto_drive.model = trimmed.to_string();
+            self.config.auto_drive.model = trimmed.to_owned();
             updated = true;
         }
 
@@ -260,8 +260,7 @@ impl ChatWidget<'_> {
             let presets = self.available_model_presets();
             if presets.is_empty() {
                 let message =
-                    "No model presets are available. Update your configuration to define models."
-                        .to_string();
+                    "No model presets are available. Update your configuration to define models.".to_owned();
                 self.history_push_plain_state(history_cell::new_error_event(message));
                 return;
             }
@@ -330,11 +329,11 @@ impl ChatWidget<'_> {
 
         let window_label = self
             .config
-            .model_context_window.map_or_else(|| "default".to_string(), code_protocol::num_format::format_with_separators_u64);
+            .model_context_window.map_or_else(|| "default".to_owned(), code_protocol::num_format::format_with_separators_u64);
         let compact_label = self
             .config
             .model_auto_compact_token_limit
-            .map(|value| value.max(0) as u64).map_or_else(|| "auto".to_string(), code_protocol::num_format::format_with_separators_u64);
+            .map(|value| value.max(0) as u64).map_or_else(|| "auto".to_owned(), code_protocol::num_format::format_with_separators_u64);
 
         self.bottom_pane.flash_footer_notice(format!(
             "Context window {window_label} tokens; auto-compact at {compact_label}."
@@ -354,11 +353,11 @@ impl ChatWidget<'_> {
         if trimmed.is_empty() {
             let window_label = self
                 .config
-                .model_context_window.map_or_else(|| "default".to_string(), code_protocol::num_format::format_with_separators_u64);
+                .model_context_window.map_or_else(|| "default".to_owned(), code_protocol::num_format::format_with_separators_u64);
             let compact_label = self
                 .config
                 .model_auto_compact_token_limit
-                .map(|value| value.max(0) as u64).map_or_else(|| "auto".to_string(), code_protocol::num_format::format_with_separators_u64);
+                .map(|value| value.max(0) as u64).map_or_else(|| "auto".to_owned(), code_protocol::num_format::format_with_separators_u64);
             self.push_background_tail(format!(
                 "Context window is {window_label} tokens; auto-compact at {compact_label}. Use /context-window auto|1m|disabled|500k."
             ));
@@ -411,7 +410,7 @@ impl ChatWidget<'_> {
             let compact_label = self
                 .config
                 .model_auto_compact_token_limit
-                .map(|value| value.max(0) as u64).map_or_else(|| "auto".to_string(), code_protocol::num_format::format_with_separators_u64);
+                .map(|value| value.max(0) as u64).map_or_else(|| "auto".to_owned(), code_protocol::num_format::format_with_separators_u64);
             self.push_background_tail(format!(
                 "Auto-compact threshold is {compact_label}. Use /auto-compact auto|450k."
             ));
@@ -445,7 +444,7 @@ impl ChatWidget<'_> {
         // Verbosity is not supported with ChatGPT auth
         if self.config.using_chatgpt_auth {
             let message =
-                "Text verbosity is not available when using Sign in with ChatGPT".to_string();
+                "Text verbosity is not available when using Sign in with ChatGPT".to_owned();
             self.history_push_plain_state(history_cell::new_error_event(message));
             return;
         }
@@ -526,7 +525,7 @@ impl ChatWidget<'_> {
         self.push_system_cell(
             Box::new(cell),
             placement,
-            Some("ui:reasoning".to_string()),
+            Some("ui:reasoning".to_owned()),
             None,
             "system",
             Some(HistoryDomainRecord::Plain(state)),

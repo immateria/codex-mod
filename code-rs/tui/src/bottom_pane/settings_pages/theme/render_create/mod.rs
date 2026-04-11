@@ -13,9 +13,9 @@ impl ThemeSelectionView {
         if let Some(pos) = current.rfind('\n') {
             let (complete, remainder) = current.split_at(pos);
             if !complete.trim().is_empty() {
-                history.push(complete.trim().to_string());
+                history.push(complete.trim().to_owned());
             }
-            *current = remainder.trim_start_matches('\n').to_string();
+            *current = remainder.trim_start_matches('\n').to_owned();
             let keep = 10usize;
             let len = history.len();
             if len > keep {
@@ -31,9 +31,9 @@ impl ThemeSelectionView {
                 .rev()
                 .find(|line| !line.trim().is_empty())
                 .cloned()
-                .unwrap_or_else(|| "Waiting for model…".to_string())
+                .unwrap_or_else(|| "Waiting for model…".to_owned())
         } else {
-            current.trim().to_string()
+            current.trim().to_owned()
         }
     }
 

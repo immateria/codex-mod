@@ -71,7 +71,7 @@ fn handle_subagent(
     }
 
     let formatted = format_subagent_command(name, args, Some(ctx.agents), Some(ctx.subagent_commands));
-    let summary_args = args.replace('\n', " ").trim().to_string();
+    let summary_args = args.replace('\n', " ").trim().to_owned();
     let summary = if summary_args.is_empty() {
         format!("/{name}")
     } else {
@@ -87,11 +87,11 @@ fn handle_subagent(
 fn handle_review(args_raw: &str) -> Result<SlashDispatch, String> {
     let (prompt, hint) = if args_raw.is_empty() {
         (
-            "Review the current workspace changes and highlight bugs, regressions, risky patterns, and missing tests before merge.".to_string(),
-            "current workspace changes".to_string(),
+            "Review the current workspace changes and highlight bugs, regressions, risky patterns, and missing tests before merge.".to_owned(),
+            "current workspace changes".to_owned(),
         )
     } else {
-        let text = args_raw.trim().to_string();
+        let text = args_raw.trim().to_owned();
         (
             text.clone(),
             text,
@@ -99,11 +99,11 @@ fn handle_review(args_raw: &str) -> Result<SlashDispatch, String> {
     };
 
     let summary = if args_raw.is_empty() {
-        "/review".to_string()
+        "/review".to_owned()
     } else {
-        let hint_clean = hint.replace('\n', " ").trim().to_string();
+        let hint_clean = hint.replace('\n', " ").trim().to_owned();
         if hint_clean.is_empty() {
-            "/review".to_string()
+            "/review".to_owned()
         } else {
             format!("/review {hint_clean}")
         }

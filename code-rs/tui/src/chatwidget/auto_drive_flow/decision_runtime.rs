@@ -23,7 +23,7 @@ impl ChatWidget<'_> {
         self.auto_pending_goal_request = false;
 
         if let Some(goal_text) = goal.as_ref().map(|g| g.trim()).filter(|g| !g.is_empty()) {
-            let derived_goal = goal_text.to_string();
+            let derived_goal = goal_text.to_owned();
             self.auto_state.goal = Some(derived_goal.clone());
             self.auto_goal_bootstrap_done = true;
             self.auto_card_set_goal(Some(derived_goal));
@@ -118,7 +118,7 @@ impl ChatWidget<'_> {
                 .map(|prompt| {
                     let trimmed = prompt.trim();
                     if trimmed.is_empty() {
-                        "<empty prompt>".to_string()
+                        "<empty prompt>".to_owned()
                     } else {
                         format!("\"{trimmed}\"")
                     }
@@ -140,16 +140,16 @@ impl ChatWidget<'_> {
         match status {
             AutoCoordinatorStatus::Continue => {
                 let Some(prompt_text) = cli_prompt else {
-                    self.auto_stop(Some("Coordinator response omitted a prompt.".to_string()));
+                    self.auto_stop(Some("Coordinator response omitted a prompt.".to_owned()));
                     return;
                 };
                 if planning_turn {
-                    self.push_background_tail("Auto Drive: Planning started".to_string());
+                    self.push_background_tail("Auto Drive: Planning started".to_owned());
                     if let Some(full_prompt) = self.build_auto_turn_message(&prompt_text) {
                         self.auto_dispatch_cli_prompt(full_prompt);
                     } else {
                         self.auto_stop(Some(
-                            "Coordinator produced an empty planning prompt.".to_string(),
+                            "Coordinator produced an empty planning prompt.".to_owned(),
                         ));
                     }
                 } else {
@@ -159,7 +159,7 @@ impl ChatWidget<'_> {
             AutoCoordinatorStatus::Success => {
                 let normalized = summary_text.trim();
                 let message = if normalized.is_empty() {
-                    "Coordinator success.".to_string()
+                    "Coordinator success.".to_owned()
                 } else if normalized
                     .to_ascii_lowercase()
                     .starts_with("coordinator success:")
@@ -183,8 +183,8 @@ Have we met every part of this goal and is there no further work to do?"#
                 );
 
                 let tf = TextFormat {
-                    r#type: "json_schema".to_string(),
-                    name: Some("auto_drive_diagnostics".to_string()),
+                    r#type: "json_schema".to_owned(),
+                    name: Some("auto_drive_diagnostics".to_owned()),
                     strict: Some(true),
                     schema: Some(code_auto_drive_diagnostics::AutoDriveDiagnostics::completion_schema()),
                 };
@@ -192,7 +192,7 @@ Have we met every part of this goal and is there no further work to do?"#
                 self.next_cli_text_format = Some(tf);
                 self.auto_state.pending_stop_message = Some(message);
                 self.auto_card_add_action(
-                    "Auto Drive Diagnostics: Validating progress".to_string(),
+                    "Auto Drive Diagnostics: Validating progress".to_owned(),
                     AutoDriveActionKind::Info,
                 );
                 self.schedule_auto_cli_prompt(seq, prompt_text);
@@ -201,7 +201,7 @@ Have we met every part of this goal and is there no further work to do?"#
             AutoCoordinatorStatus::Failed => {
                 let normalized = summary_text.trim();
                 let message = if normalized.is_empty() {
-                    "Coordinator error.".to_string()
+                    "Coordinator error.".to_owned()
                 } else if normalized
                     .to_ascii_lowercase()
                     .starts_with("coordinator error:")
@@ -229,7 +229,7 @@ Have we met every part of this goal and is there no further work to do?"#
                 self.auto_history
                     .append_raw(std::slice::from_ref(&item));
             }
-            let lines = vec!["AUTO DRIVE RESPONSE".to_string(), text];
+            let lines = vec!["AUTO DRIVE RESPONSE".to_owned(), text];
             self.history_push_plain_paragraphs(PlainMessageKind::Notice, lines);
         }
 
@@ -410,7 +410,7 @@ Have we met every part of this goal and is there no further work to do?"#
                     self.bottom_pane
                         .update_status_text("Auto Drive paused");
                     self.bottom_pane.set_standard_terminal_hint(Some(
-                        AUTO_ESC_EXIT_HINT.to_string(),
+                        AUTO_ESC_EXIT_HINT.to_owned(),
                     ));
                     let message = format!(
                         "Auto Drive will retry automatically in {human_delay} (attempt {attempt}). Last error: {reason}"
@@ -522,12 +522,12 @@ Have we met every part of this goal and is there no further work to do?"#
 
         let Some(goal) = self.auto_state.goal.clone() else {
             self.auto_card_add_action(
-                "Auto Drive restart skipped because the goal is no longer available.".to_string(),
+                "Auto Drive restart skipped because the goal is no longer available.".to_owned(),
                 AutoDriveActionKind::Warning,
             );
             self.auto_state.pending_restart = None;
             self.auto_state.on_recovery_attempt();
-            self.auto_stop(Some("Auto Drive restart aborted.".to_string()));
+            self.auto_stop(Some("Auto Drive restart aborted.".to_owned()));
             return;
         };
 

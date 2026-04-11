@@ -83,13 +83,13 @@ impl AccountsSettingsContent {
 
         let title = Paragraph::new(Line::from(vec![
             Span::styled(
-                mode_label.to_string(),
+                mode_label.to_owned(),
                 Style::default()
                     .fg(colors::primary())
                     .add_modifier(Modifier::BOLD),
             ),
             Span::styled(
-                "  (Esc to return)".to_string(),
+                "  (Esc to return)".to_owned(),
                 Style::default().fg(colors::text_dim()),
             ),
         ]));

@@ -55,7 +55,7 @@ impl UpdateSettingsView {
     fn version_summary(&self, state: &UpdateSharedState) -> String {
         let current_version = &self.current_version;
         if state.checking {
-            "checking for updates".to_string()
+            "checking for updates".to_owned()
         } else if let Some(err) = state.error.as_deref() {
             format!("check failed: {err}")
         } else if let Some(latest) = state.latest_version.as_deref() {

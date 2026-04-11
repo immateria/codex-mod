@@ -79,7 +79,7 @@ impl BottomPaneView<'_> for CustomPromptView {
                 modifiers: KeyModifiers::NONE,
                 ..
             } => {
-                let text = self.textarea.text().trim().to_string();
+                let text = self.textarea.text().trim().to_owned();
                 if !text.is_empty() {
                     (self.on_submit)(text);
                     self.complete = true;

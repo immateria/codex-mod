@@ -78,12 +78,12 @@ pub(crate) fn init_highlight_from_config(cfg: &code_core::config_types::Highligh
     } else if let Some(rest) = val_trim.strip_prefix("syntect:") {
         // Deprecated prefix; ignore and treat as bare name for compatibility.
         let name = rest.trim();
-        if name.is_empty() { HighlightPref::Auto } else { HighlightPref::Name(name.to_string()) }
+        if name.is_empty() { HighlightPref::Auto } else { HighlightPref::Name(name.to_owned()) }
     } else if val_trim.eq_ignore_ascii_case("follow-ui") {
         // Deprecated alias; treat as auto.
         HighlightPref::Auto
     } else {
-        HighlightPref::Name(val_trim.to_string())
+        HighlightPref::Name(val_trim.to_owned())
     };
     if let Ok(mut lock) = pref_cell().write() {
         *lock = parsed;
@@ -119,8 +119,8 @@ fn themes() -> &'static ThemeSet {
     THEMES.get_or_init(|| {
         let mut ts = ThemeSet::load_defaults();
         // Insert Codex built-in themes
-        ts.themes.insert("Code Dark".to_string(), build_code_dark_theme());
-        ts.themes.insert("Code Light".to_string(), build_code_light_theme());
+        ts.themes.insert("Code Dark".to_owned(), build_code_dark_theme());
+        ts.themes.insert("Code Light".to_owned(), build_code_light_theme());
         ts
     })
 }
@@ -137,7 +137,7 @@ fn item(scope: &str, fg: (u8,u8,u8), style: Option<FontStyle>) -> ThemeItem {
 
 fn build_code_dark_theme() -> Theme {
     let mut t = Theme {
-        name: Some("Code Dark".to_string()),
+        name: Some("Code Dark".to_owned()),
         ..Theme::default()
     };
     t.settings = {
@@ -247,7 +247,7 @@ fn build_code_dark_theme() -> Theme {
 
 fn build_code_light_theme() -> Theme {
     let mut t = Theme {
-        name: Some("Code Light".to_string()),
+        name: Some("Code Light".to_owned()),
         ..Theme::default()
     };
     t.settings = {
@@ -576,7 +576,7 @@ fn span_from_syn((SynStyle { foreground, font_style, .. }, text): (SynStyle, &st
     }
     // Strip a single trailing newline from syntect's line so our Line has no '\n'
     let content = text.strip_suffix('\n').unwrap_or(text);
-    Span::styled(content.to_string(), style)
+    Span::styled(content.to_owned(), style)
 }
 
 pub(crate) struct HighlightedCodeBlock {

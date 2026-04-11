@@ -180,7 +180,7 @@ async fn traverse_directories_for_paths(
                     }
 
                     parse_timestamp_uuid_from_filename(name_str)
-                        .map(|(ts, id)| (ts, id, name_str.to_string(), path.to_path_buf()))
+                        .map(|(ts, id)| (ts, id, name_str.to_owned(), path.to_path_buf()))
                 })
                 .await?;
                 let mut day_entries = Vec::with_capacity(day_files.len());

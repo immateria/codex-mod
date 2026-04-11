@@ -204,7 +204,7 @@ impl Runner<'_> {
             );
             if !reasons.is_empty() {
                 let mut message =
-                    "Shell escalation (zsh-fork) is enabled but not ready:".to_string();
+                    "Shell escalation (zsh-fork) is enabled but not ready:".to_owned();
                 for reason in reasons {
                     let _ = write!(message, "\n- {reason}");
                 }
@@ -257,7 +257,7 @@ impl Runner<'_> {
             for message in profile.prepend_developer_messages {
                 let trimmed = message.trim();
                 if !trimmed.is_empty() {
-                    shell_style_profile_messages.push(trimmed.to_string());
+                    shell_style_profile_messages.push(trimmed.to_owned());
                 }
             }
 

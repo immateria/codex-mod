@@ -161,38 +161,38 @@ impl MemoriesSettingsView {
         match (self.scope, target) {
             (MemoriesScopeChoice::Global, EditTarget::MaxRawMemories) => {
                 let value: usize = text.trim().parse().map_err(|_| {
-                    "Max retained memories must be an integer >= 1".to_string()
+                    "Max retained memories must be an integer >= 1".to_owned()
                 })?;
                 if value == 0 {
-                    return Err("Max retained memories must be >= 1".to_string());
+                    return Err("Max retained memories must be >= 1".to_owned());
                 }
                 self.global_settings.max_raw_memories_for_consolidation = Some(value);
                 self.global_settings.max_raw_memories_for_global = None;
             }
             (MemoriesScopeChoice::Global, EditTarget::MaxRolloutAgeDays) => {
                 let value: i64 = text.trim().parse().map_err(|_| {
-                    "Max rollout age must be an integer >= 0".to_string()
+                    "Max rollout age must be an integer >= 0".to_owned()
                 })?;
                 if value < 0 {
-                    return Err("Max rollout age must be >= 0".to_string());
+                    return Err("Max rollout age must be >= 0".to_owned());
                 }
                 self.global_settings.max_rollout_age_days = Some(value);
             }
             (MemoriesScopeChoice::Global, EditTarget::MaxRolloutsPerStartup) => {
                 let value: usize = text.trim().parse().map_err(|_| {
-                    "Max rollouts per refresh must be an integer >= 1".to_string()
+                    "Max rollouts per refresh must be an integer >= 1".to_owned()
                 })?;
                 if value == 0 {
-                    return Err("Max rollouts per refresh must be >= 1".to_string());
+                    return Err("Max rollouts per refresh must be >= 1".to_owned());
                 }
                 self.global_settings.max_rollouts_per_startup = Some(value);
             }
             (MemoriesScopeChoice::Global, EditTarget::MinRolloutIdleHours) => {
                 let value: i64 = text.trim().parse().map_err(|_| {
-                    "Min rollout idle must be an integer >= 0".to_string()
+                    "Min rollout idle must be an integer >= 0".to_owned()
                 })?;
                 if value < 0 {
-                    return Err("Min rollout idle must be >= 0".to_string());
+                    return Err("Min rollout idle must be >= 0".to_owned());
                 }
                 self.global_settings.min_rollout_idle_hours = Some(value);
             }
@@ -204,10 +204,10 @@ impl MemoriesSettingsView {
                     settings.max_raw_memories_for_global = None;
                 } else {
                     let value: usize = trimmed.parse().map_err(|_| {
-                        "Max retained memories must be an integer >= 1".to_string()
+                        "Max retained memories must be an integer >= 1".to_owned()
                     })?;
                     if value == 0 {
-                        return Err("Max retained memories must be >= 1".to_string());
+                        return Err("Max retained memories must be >= 1".to_owned());
                     }
                     settings.max_raw_memories_for_consolidation = Some(value);
                     settings.max_raw_memories_for_global = None;
@@ -221,10 +221,10 @@ impl MemoriesSettingsView {
                     settings.max_rollout_age_days = None;
                 } else {
                     let value: i64 = trimmed.parse().map_err(|_| {
-                        "Max rollout age must be an integer >= 0".to_string()
+                        "Max rollout age must be an integer >= 0".to_owned()
                     })?;
                     if value < 0 {
-                        return Err("Max rollout age must be >= 0".to_string());
+                        return Err("Max rollout age must be >= 0".to_owned());
                     }
                     settings.max_rollout_age_days = Some(value);
                 }
@@ -237,10 +237,10 @@ impl MemoriesSettingsView {
                     settings.max_rollouts_per_startup = None;
                 } else {
                     let value: usize = trimmed.parse().map_err(|_| {
-                        "Max rollouts per refresh must be an integer >= 1".to_string()
+                        "Max rollouts per refresh must be an integer >= 1".to_owned()
                     })?;
                     if value == 0 {
-                        return Err("Max rollouts per refresh must be >= 1".to_string());
+                        return Err("Max rollouts per refresh must be >= 1".to_owned());
                     }
                     settings.max_rollouts_per_startup = Some(value);
                 }
@@ -253,10 +253,10 @@ impl MemoriesSettingsView {
                     settings.min_rollout_idle_hours = None;
                 } else {
                     let value: i64 = trimmed.parse().map_err(|_| {
-                        "Min rollout idle must be an integer >= 0".to_string()
+                        "Min rollout idle must be an integer >= 0".to_owned()
                     })?;
                     if value < 0 {
-                        return Err("Min rollout idle must be >= 0".to_string());
+                        return Err("Min rollout idle must be >= 0".to_owned());
                     }
                     settings.min_rollout_idle_hours = Some(value);
                 }
@@ -293,7 +293,7 @@ impl MemoriesSettingsView {
     fn open_memories_directory(&mut self) {
         if !crate::platform_caps::supports_reveal_in_file_manager() {
             self.set_status(
-                "Not supported on Android; copy the path manually.".to_string(),
+                "Not supported on Android; copy the path manually.".to_owned(),
                 true,
             );
             return;
@@ -392,7 +392,7 @@ impl MemoriesSettingsView {
                     true
                 }
                 KeyCode::Enter => {
-                    let text = field.text().to_string();
+                    let text = field.text().to_owned();
                     match self.apply_numeric_edit(*target, &text) {
                         Ok(()) => {
                             self.mode = ViewMode::Main;
@@ -405,7 +405,7 @@ impl MemoriesSettingsView {
                     true
                 }
                 KeyCode::Char('s') if key_event.modifiers.contains(KeyModifiers::CONTROL) => {
-                    let text = field.text().to_string();
+                    let text = field.text().to_owned();
                     match self.apply_numeric_edit(*target, &text) {
                         Ok(()) => {
                             self.mode = ViewMode::Main;

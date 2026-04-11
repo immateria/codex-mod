@@ -62,7 +62,7 @@ async fn request_user_code(
 ) -> std::io::Result<UserCodeResp> {
     let url = format!("{auth_base_url}/deviceauth/usercode");
     let body = serde_json::to_string(&UserCodeReq {
-        client_id: client_id.to_string(),
+        client_id: client_id.to_owned(),
     })
     .map_err(std::io::Error::other)?;
     let resp = client
@@ -116,8 +116,8 @@ async fn poll_for_token(
 
     loop {
         let body = serde_json::to_string(&TokenPollReq {
-            device_auth_id: device_auth_id.to_string(),
-            user_code: user_code.to_string(),
+            device_auth_id: device_auth_id.to_owned(),
+            user_code: user_code.to_owned(),
         })
         .map_err(std::io::Error::other)?;
         let resp = client
@@ -200,7 +200,7 @@ pub struct DeviceCodeSession {
 impl DeviceCodeSession {
     pub async fn start(opts: ServerOptions) -> std::io::Result<Self> {
         let client = default_client::create_client(&opts.originator);
-        let base_url = opts.issuer.trim_end_matches('/').to_string();
+        let base_url = opts.issuer.trim_end_matches('/').to_owned();
         let api_base_url = format!("{base_url}/api/accounts");
         let uc = request_user_code(&client, &api_base_url, &base_url, &opts.client_id).await?;
 

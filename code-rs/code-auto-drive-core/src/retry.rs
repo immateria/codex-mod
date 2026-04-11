@@ -139,7 +139,7 @@ where
                             elapsed: start_time.elapsed(),
                             sleep: None,
                             resume_at: None,
-                            reason: "rate limit window cleared".to_string(),
+                            reason: "rate limit window cleared".to_owned(),
                             is_rate_limit: true,
                         });
                         continue;

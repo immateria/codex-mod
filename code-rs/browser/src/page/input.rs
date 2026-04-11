@@ -28,8 +28,7 @@ impl Page {
             let status = res
                 .value()
                 .and_then(|v| v.as_str())
-                .unwrap_or("")
-                .to_string();
+                .unwrap_or("").to_owned();
             if status == "ok" {
                 return Ok(());
             } else {
@@ -661,8 +660,8 @@ impl Page {
         // Key down
         let mut down_builder = DispatchKeyEventParams::builder()
             .r#type(DispatchKeyEventType::KeyDown)
-            .key(key.to_string())
-            .code(code.to_string());
+            .key(key.to_owned())
+            .code(code.to_owned());
 
         if let Some(vk) = windows_virtual_key_code {
             down_builder = down_builder.windows_virtual_key_code(vk);
@@ -678,9 +677,9 @@ impl Page {
         if let Some(text_str) = text {
             let char_params = DispatchKeyEventParams::builder()
                 .r#type(DispatchKeyEventType::Char)
-                .key(key.to_string())
-                .code(code.to_string())
-                .text(text_str.to_string())
+                .key(key.to_owned())
+                .code(code.to_owned())
+                .text(text_str.to_owned())
                 .build()
                 .map_err(BrowserError::CdpError)?;
             self.cdp_page.execute(char_params).await?;
@@ -689,8 +688,8 @@ impl Page {
         // Key up
         let mut up_builder = DispatchKeyEventParams::builder()
             .r#type(DispatchKeyEventType::KeyUp)
-            .key(key.to_string())
-            .code(code.to_string());
+            .key(key.to_owned())
+            .code(code.to_owned());
 
         if let Some(vk) = windows_virtual_key_code {
             up_builder = up_builder.windows_virtual_key_code(vk);

@@ -102,12 +102,12 @@
                             crate::app_event::MemoriesArtifactsAction::Refresh => {
                                 code_core::refresh_memory_artifacts_now(&code_home, &settings)
                                     .await
-                                    .map(|_| "Memories: artifacts refreshed".to_string())
+                                    .map(|_| "Memories: artifacts refreshed".to_owned())
                             }
                             crate::app_event::MemoriesArtifactsAction::Clear => {
                                 code_core::clear_generated_memory_artifacts(&code_home)
                                     .await
-                                    .map(|_| "Memories: generated artifacts cleared".to_string())
+                                    .map(|_| "Memories: generated artifacts cleared".to_owned())
                             }
                         }
                         .map_err(|err| match action {

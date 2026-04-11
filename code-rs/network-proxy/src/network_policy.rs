@@ -132,7 +132,7 @@ impl NetworkDecision {
     pub fn deny_with_source(reason: impl Into<String>, source: NetworkDecisionSource) -> Self {
         let reason = reason.into();
         let reason = if reason.is_empty() {
-            REASON_POLICY_DENIED.to_string()
+            REASON_POLICY_DENIED.to_owned()
         } else {
             reason
         };
@@ -146,7 +146,7 @@ impl NetworkDecision {
     pub fn ask_with_source(reason: impl Into<String>, source: NetworkDecisionSource) -> Self {
         let reason = reason.into();
         let reason = if reason.is_empty() {
-            REASON_POLICY_DENIED.to_string()
+            REASON_POLICY_DENIED.to_owned()
         } else {
             reason
         };

@@ -25,7 +25,7 @@ impl AgentRunTracker {
     pub(super) fn new(order_key: super::OrderKey) -> Self {
         Self {
             slot: ToolCardSlot::new(order_key),
-            cell: AgentRunCell::new("(pending)".to_string()),
+            cell: AgentRunCell::new("(pending)".to_owned()),
             batch_id: None,
             batch_label: None,
             agent_ids: HashSet::new(),
@@ -60,7 +60,7 @@ impl AgentRunTracker {
             if trimmed.is_empty() {
                 continue;
             }
-            self.models.insert(trimmed.to_string());
+            self.models.insert(trimmed.to_owned());
         }
     }
 
@@ -68,7 +68,7 @@ impl AgentRunTracker {
         if let Some(label) = self.batch_label.as_ref() {
             let trimmed = label.trim();
             if !trimmed.is_empty() {
-                return Some(trimmed.to_string());
+                return Some(trimmed.to_owned());
             }
         }
         self.cell.display_title()
@@ -106,7 +106,7 @@ impl AgentRunTracker {
 
     pub(crate) fn overlay_display_label(&self) -> Option<String> {
         self.effective_label()
-            .map(|value| value.trim().to_string())
+            .map(|value| value.trim().to_owned())
             .filter(|value| !value.is_empty())
             .or_else(|| self.batch_id.as_ref().map(ToString::to_string))
     }
@@ -117,7 +117,7 @@ impl AgentRunTracker {
             if trimmed.is_empty() {
                 None
             } else {
-                Some(trimmed.to_string())
+                Some(trimmed.to_owned())
             }
         })
     }
@@ -128,7 +128,7 @@ impl AgentRunTracker {
             if trimmed.is_empty() {
                 None
             } else {
-                Some(trimmed.to_string())
+                Some(trimmed.to_owned())
             }
         })
     }

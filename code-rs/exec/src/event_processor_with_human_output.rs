@@ -193,7 +193,7 @@ impl EventProcessor for EventProcessorWithHumanOutput {
         // confirm path mismatches when testing new builds.
         let exe_path = std::env::current_exe()
             .map(|p| p.display().to_string())
-            .unwrap_or_else(|_| "<unknown>".to_string());
+            .unwrap_or_else(|_| "<unknown>".to_owned());
         ts_println!(self, "binary: {}", exe_path);
 
         eprintln!("--------");
@@ -392,7 +392,7 @@ impl EventProcessor for EventProcessorWithHumanOutput {
                 self.call_id_to_command.insert(
                     ev.call_id.clone(),
                     ExecCommandBegin {
-                        command: vec!["js_repl".to_string()],
+                        command: vec!["js_repl".to_owned()],
                     },
                 );
 

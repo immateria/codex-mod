@@ -11,7 +11,7 @@ const KNOWN_MODES: &[CollaborationModeKind] =
 
 pub(crate) fn render_collaboration_mode_instructions(mode: CollaborationModeKind) -> String {
     match mode {
-        CollaborationModeKind::Plan => COLLABORATION_MODE_PLAN.to_string(),
+        CollaborationModeKind::Plan => COLLABORATION_MODE_PLAN.to_owned(),
         CollaborationModeKind::Default => default_mode_instructions(),
     }
 }
@@ -55,8 +55,8 @@ fn allows_request_user_input(_mode: CollaborationModeKind) -> bool {
 fn format_mode_names(modes: &[CollaborationModeKind]) -> String {
     let mode_names: Vec<&str> = modes.iter().map(|mode| display_name(*mode)).collect();
     match mode_names.as_slice() {
-        [] => "none".to_string(),
-        [mode_name] => (*mode_name).to_string(),
+        [] => "none".to_owned(),
+        [mode_name] => (*mode_name).to_owned(),
         [first, second] => format!("{first} and {second}"),
         [..] => mode_names.join(", "),
     }

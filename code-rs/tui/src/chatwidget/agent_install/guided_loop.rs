@@ -212,7 +212,7 @@ fn run_guided_loop(runtime: &tokio::runtime::Runtime, args: GuidedLoopArgs<'_>) 
             });
             app_event_tx.send(AppEvent::TerminalUpdateMessage {
                 id: terminal_id,
-                message: "Command could not be constructed.".to_string(),
+                message: "Command could not be constructed.".to_owned(),
             });
             return Ok(());
         }
@@ -235,14 +235,14 @@ fn run_guided_loop(runtime: &tokio::runtime::Runtime, args: GuidedLoopArgs<'_>) 
         let truncated = tail_chars(&output, MAX_OUTPUT_CHARS);
         let summary = format!(
             "Command: {command}\nExit code: {}\nOutput (last {} chars):\n{}",
-            exit_code.map_or_else(|| "unknown".to_string(), |c| c.to_string()),
+            exit_code.map_or_else(|| "unknown".to_owned(), |c| c.to_string()),
             truncated.chars().count(),
             truncated
         );
         conversation.push(make_message("user", summary));
         app_event_tx.send(AppEvent::TerminalSetAssistantMessage {
             id: terminal_id,
-            message: "Analyzing output…".to_string(),
+            message: "Analyzing output…".to_owned(),
         });
     } else if let GuidedTerminalMode::Upgrade { initial_command, .. } = mode {
         if sandbox_restricted {
@@ -256,15 +256,15 @@ fn run_guided_loop(runtime: &tokio::runtime::Runtime, args: GuidedLoopArgs<'_>) 
             });
             app_event_tx.send(AppEvent::TerminalUpdateMessage {
                 id: terminal_id,
-                message: notice.trim().to_string(),
+                message: notice.trim().to_owned(),
             });
             app_event_tx.send(AppEvent::TerminalSetAssistantMessage {
                 id: terminal_id,
-                message: "Waiting for manual upgrade…".to_string(),
+                message: "Waiting for manual upgrade…".to_owned(),
             });
             conversation.push(make_message(
                 "user",
-                "Automatic execution blocked by sandbox. Await user's manual upgrade before continuing.".to_string(),
+                "Automatic execution blocked by sandbox. Await user's manual upgrade before continuing.".to_owned(),
             ));
             app_event_tx.send(AppEvent::TerminalExit {
                 id: terminal_id,
@@ -283,7 +283,7 @@ fn run_guided_loop(runtime: &tokio::runtime::Runtime, args: GuidedLoopArgs<'_>) 
             });
             app_event_tx.send(AppEvent::TerminalUpdateMessage {
                 id: terminal_id,
-                message: "Upgrade command could not be constructed.".to_string(),
+                message: "Upgrade command could not be constructed.".to_owned(),
             });
             return Ok(());
         }
@@ -306,14 +306,14 @@ fn run_guided_loop(runtime: &tokio::runtime::Runtime, args: GuidedLoopArgs<'_>) 
         let truncated = tail_chars(&output, MAX_OUTPUT_CHARS);
         let summary = format!(
             "Command: {initial_command}\nExit code: {}\nOutput (last {} chars):\n{}",
-            exit_code.map_or_else(|| "unknown".to_string(), |c| c.to_string()),
+            exit_code.map_or_else(|| "unknown".to_owned(), |c| c.to_string()),
             truncated.chars().count(),
             truncated
         );
         conversation.push(make_message("user", summary));
         app_event_tx.send(AppEvent::TerminalSetAssistantMessage {
             id: terminal_id,
-            message: "Analyzing output…".to_string(),
+            message: "Analyzing output…".to_owned(),
         });
     }
 
@@ -329,7 +329,7 @@ fn run_guided_loop(runtime: &tokio::runtime::Runtime, args: GuidedLoopArgs<'_>) 
         if steps == 1 {
                 app_event_tx.send(AppEvent::TerminalSetAssistantMessage {
                     id: terminal_id,
-                    message: "Starting analysis…".to_string(),
+                    message: "Starting analysis…".to_owned(),
                 });
         }
 
@@ -338,8 +338,8 @@ fn run_guided_loop(runtime: &tokio::runtime::Runtime, args: GuidedLoopArgs<'_>) 
         prompt.input.extend(conversation.clone());
         prompt.store = true;
         prompt.text_format = Some(TextFormat {
-            r#type: "json_schema".to_string(),
-            name: Some(schema_name.to_string()),
+            r#type: "json_schema".to_owned(),
+            name: Some(schema_name.to_owned()),
             strict: Some(true),
             schema: Some(schema.clone()),
         });
@@ -372,7 +372,7 @@ fn run_guided_loop(runtime: &tokio::runtime::Runtime, args: GuidedLoopArgs<'_>) 
                     .map(str::trim)
                     .filter(|c| !c.is_empty())
                     .ok_or_else(|| anyhow!("model response missing command for next step"))?;
-                let suggested = simplify_command(suggested_raw).to_string();
+                let suggested = simplify_command(suggested_raw).to_owned();
 
                 let require_confirmation = match mode {
                     GuidedTerminalMode::AgentInstall { .. } => steps > 1,
@@ -401,7 +401,7 @@ fn run_guided_loop(runtime: &tokio::runtime::Runtime, args: GuidedLoopArgs<'_>) 
                     suggested
                 };
 
-                let final_command = final_command.trim().to_string();
+                let final_command = final_command.trim().to_owned();
                 if final_command.is_empty() {
                     return Err(anyhow!("next command was empty after confirmation"));
                 }
@@ -433,7 +433,7 @@ fn run_guided_loop(runtime: &tokio::runtime::Runtime, args: GuidedLoopArgs<'_>) 
                 let truncated = tail_chars(&output, MAX_OUTPUT_CHARS);
                 let summary = format!(
                     "Command: {final_command}\nExit code: {}\nOutput (last {} chars):\n{}",
-                    exit_code.map_or_else(|| "unknown".to_string(), |c| c.to_string()),
+                    exit_code.map_or_else(|| "unknown".to_owned(), |c| c.to_string()),
                     truncated.chars().count(),
                     truncated
                 );
@@ -441,7 +441,7 @@ fn run_guided_loop(runtime: &tokio::runtime::Runtime, args: GuidedLoopArgs<'_>) 
 
                 app_event_tx.send(AppEvent::TerminalSetAssistantMessage {
                     id: terminal_id,
-                    message: "Analyzing output…".to_string(),
+                    message: "Analyzing output…".to_owned(),
                 });
             }
             "finish_success" => {

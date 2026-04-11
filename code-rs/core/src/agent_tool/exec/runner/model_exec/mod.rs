@@ -112,9 +112,9 @@ pub(crate) async fn execute_model_with_permissions(
         let stderr = stderr_buf.trim();
         let stdout = stdout_buf.trim();
         let combined = if stderr.is_empty() {
-            stdout.to_string()
+            stdout.to_owned()
         } else if stdout.is_empty() {
-            stderr.to_string()
+            stderr.to_owned()
         } else {
             format!("{stderr}\n{stdout}")
         };

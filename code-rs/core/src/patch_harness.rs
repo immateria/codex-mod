@@ -42,7 +42,7 @@ pub(crate) fn run_patch_harness(
     let mut ran: Vec<String> = Vec::new();
     let mut record_ran = |name: &str| {
         if !ran.iter().any(|existing| existing == name) {
-            ran.push(name.to_string());
+            ran.push(name.to_owned());
         }
     };
 
@@ -73,7 +73,7 @@ pub(crate) fn run_patch_harness(
                 record_ran("json-parse");
                 if let Err(err) = json::from_str::<json::Value>(contents) {
                     findings.push(HarnessFinding {
-                        tool: "json-parse".to_string(),
+                        tool: "json-parse".to_owned(),
                         file: Some(analysis_path.to_path_buf()),
                         message: format!("invalid JSON: {err}"),
                     });
@@ -83,7 +83,7 @@ pub(crate) fn run_patch_harness(
                 record_ran("toml-parse");
                 if let Err(err) = toml::from_str::<toml::Value>(contents) {
                     findings.push(HarnessFinding {
-                        tool: "toml-parse".to_string(),
+                        tool: "toml-parse".to_owned(),
                         file: Some(analysis_path.to_path_buf()),
                         message: format!("invalid TOML: {err}"),
                     });
@@ -93,7 +93,7 @@ pub(crate) fn run_patch_harness(
                 record_ran("yaml-parse");
                 if let Err(err) = serde_yaml::from_str::<serde_yaml::Value>(contents) {
                     findings.push(HarnessFinding {
-                        tool: "yaml-parse".to_string(),
+                        tool: "yaml-parse".to_owned(),
                         file: Some(analysis_path.to_path_buf()),
                         message: format!("invalid YAML: {err}"),
                     });
@@ -109,7 +109,7 @@ pub(crate) fn run_patch_harness(
             && !lines.is_empty() {
                 record_ran("actionlint");
                 for line in lines.into_iter().take(24) {
-                    findings.push(HarnessFinding { tool: "actionlint".to_string(), file: None, message: line });
+                    findings.push(HarnessFinding { tool: "actionlint".to_owned(), file: None, message: line });
                 }
             }
 
@@ -160,10 +160,10 @@ pub(crate) fn run_patch_harness(
         match run_with_timeout(cmd, timeout) {
             Some(output) => collect_output_lines(&output.stdout, &output.stderr)
                 .into_iter()
-                .map(|message| HarnessFinding { tool: tool.to_string(), file: None, message })
+                .map(|message| HarnessFinding { tool: tool.to_owned(), file: None, message })
                 .collect(),
             None => vec![HarnessFinding {
-                tool: tool.to_string(),
+                tool: tool.to_owned(),
                 file: None,
                 message: format!("{tool} timed out after {timeout} second(s)"),
             }],
@@ -295,22 +295,22 @@ pub(crate) fn run_patch_harness(
                             if output.status.is_none_or(|status| !status.success()) {
                                 let mut lines = collect_output_lines(&output.stdout, &output.stderr);
                                 if lines.is_empty() {
-                                    lines.push("tsc failed (no output)".to_string());
+                                    lines.push("tsc failed (no output)".to_owned());
                                 }
                                 for line in lines.into_iter().take(24) {
-                                    findings.push(HarnessFinding { tool: "tsc".to_string(), file: None, message: line });
+                                    findings.push(HarnessFinding { tool: "tsc".to_owned(), file: None, message: line });
                                 }
                             }
                         }
                         None => findings.push(HarnessFinding {
-                            tool: "tsc".to_string(),
+                            tool: "tsc".to_owned(),
                             file: None,
                             message: format!("tsc timed out after {ts_timeout} second(s)"),
                         }),
                     }
                 }
                 Err(err) => findings.push(HarnessFinding {
-                    tool: "tsc".to_string(),
+                    tool: "tsc".to_owned(),
                     file: None,
                     message: format!("failed to stage workspace for tsc: {err}"),
                 }),
@@ -343,22 +343,22 @@ pub(crate) fn run_patch_harness(
                             if output.status.is_none_or(|status| !status.success()) {
                                 let mut lines = collect_output_lines(&output.stdout, &output.stderr);
                                 if lines.is_empty() {
-                                    lines.push("eslint failed (no output)".to_string());
+                                    lines.push("eslint failed (no output)".to_owned());
                                 }
                                 for line in lines.into_iter().take(24) {
-                                    findings.push(HarnessFinding { tool: "eslint".to_string(), file: None, message: line });
+                                    findings.push(HarnessFinding { tool: "eslint".to_owned(), file: None, message: line });
                                 }
                             }
                         }
                         None => findings.push(HarnessFinding {
-                            tool: "eslint".to_string(),
+                            tool: "eslint".to_owned(),
                             file: None,
                             message: format!("eslint timed out after {lint_timeout} second(s)"),
                         }),
                     }
                 }
                 Err(err) => findings.push(HarnessFinding {
-                    tool: "eslint".to_string(),
+                    tool: "eslint".to_owned(),
                     file: None,
                     message: format!("failed to stage workspace for eslint: {err}"),
                 }),
@@ -391,22 +391,22 @@ pub(crate) fn run_patch_harness(
                             if output.status.is_none_or(|status| !status.success()) {
                                 let mut lines = collect_output_lines(&output.stdout, &output.stderr);
                                 if lines.is_empty() {
-                                    lines.push("phpstan failed (no output)".to_string());
+                                    lines.push("phpstan failed (no output)".to_owned());
                                 }
                                 for line in lines.into_iter().take(24) {
-                                    findings.push(HarnessFinding { tool: "phpstan".to_string(), file: None, message: line });
+                                    findings.push(HarnessFinding { tool: "phpstan".to_owned(), file: None, message: line });
                                 }
                             }
                         }
                         None => findings.push(HarnessFinding {
-                            tool: "phpstan".to_string(),
+                            tool: "phpstan".to_owned(),
                             file: None,
                             message: format!("phpstan timed out after {phpstan_timeout} second(s)"),
                         }),
                     }
                 }
                 Err(err) => findings.push(HarnessFinding {
-                    tool: "phpstan".to_string(),
+                    tool: "phpstan".to_owned(),
                     file: None,
                     message: format!("failed to stage workspace for phpstan: {err}"),
                 }),
@@ -434,22 +434,22 @@ pub(crate) fn run_patch_harness(
                             if output.status.is_none_or(|status| !status.success()) {
                                 let mut lines = collect_output_lines(&output.stdout, &output.stderr);
                                 if lines.is_empty() {
-                                    lines.push("psalm failed (no output)".to_string());
+                                    lines.push("psalm failed (no output)".to_owned());
                                 }
                                 for line in lines.into_iter().take(24) {
-                                    findings.push(HarnessFinding { tool: "psalm".to_string(), file: None, message: line });
+                                    findings.push(HarnessFinding { tool: "psalm".to_owned(), file: None, message: line });
                                 }
                             }
                         }
                         None => findings.push(HarnessFinding {
-                            tool: "psalm".to_string(),
+                            tool: "psalm".to_owned(),
                             file: None,
                             message: format!("psalm timed out after {psalm_timeout} second(s)"),
                         }),
                     }
                 }
                 Err(err) => findings.push(HarnessFinding {
-                    tool: "psalm".to_string(),
+                    tool: "psalm".to_owned(),
                     file: None,
                     message: format!("failed to stage workspace for psalm: {err}"),
                 }),
@@ -478,22 +478,22 @@ pub(crate) fn run_patch_harness(
                             if output.status.is_none_or(|status| !status.success()) {
                                 let mut lines = collect_output_lines(&output.stdout, &output.stderr);
                                 if lines.is_empty() {
-                                    lines.push("mypy failed (no output)".to_string());
+                                    lines.push("mypy failed (no output)".to_owned());
                                 }
                                 for line in lines.into_iter().take(24) {
-                                    findings.push(HarnessFinding { tool: "mypy".to_string(), file: None, message: line });
+                                    findings.push(HarnessFinding { tool: "mypy".to_owned(), file: None, message: line });
                                 }
                             }
                         }
                         None => findings.push(HarnessFinding {
-                            tool: "mypy".to_string(),
+                            tool: "mypy".to_owned(),
                             file: None,
                             message: format!("mypy timed out after {mypy_timeout} second(s)"),
                         }),
                     }
                 }
                 Err(err) => findings.push(HarnessFinding {
-                    tool: "mypy".to_string(),
+                    tool: "mypy".to_owned(),
                     file: None,
                     message: format!("failed to stage workspace for mypy: {err}"),
                 }),
@@ -517,22 +517,22 @@ pub(crate) fn run_patch_harness(
                             if output.status.is_none_or(|status| !status.success()) {
                                 let mut lines = collect_output_lines(&output.stdout, &output.stderr);
                                 if lines.is_empty() {
-                                    lines.push("pyright failed (no output)".to_string());
+                                    lines.push("pyright failed (no output)".to_owned());
                                 }
                                 for line in lines.into_iter().take(24) {
-                                    findings.push(HarnessFinding { tool: "pyright".to_string(), file: None, message: line });
+                                    findings.push(HarnessFinding { tool: "pyright".to_owned(), file: None, message: line });
                                 }
                             }
                         }
                         None => findings.push(HarnessFinding {
-                            tool: "pyright".to_string(),
+                            tool: "pyright".to_owned(),
                             file: None,
                             message: format!("pyright timed out after {pyright_timeout} second(s)"),
                         }),
                     }
                 }
                 Err(err) => findings.push(HarnessFinding {
-                    tool: "pyright".to_string(),
+                    tool: "pyright".to_owned(),
                     file: None,
                     message: format!("failed to stage workspace for pyright: {err}"),
                 }),
@@ -560,22 +560,22 @@ pub(crate) fn run_patch_harness(
                             if output.status.is_none_or(|status| !status.success()) {
                                 let mut lines = collect_output_lines(&output.stdout, &output.stderr);
                                 if lines.is_empty() {
-                                    lines.push("golangci-lint failed (no output)".to_string());
+                                    lines.push("golangci-lint failed (no output)".to_owned());
                                 }
                                 for line in lines.into_iter().take(24) {
-                                    findings.push(HarnessFinding { tool: "golangci-lint".to_string(), file: None, message: line });
+                                    findings.push(HarnessFinding { tool: "golangci-lint".to_owned(), file: None, message: line });
                                 }
                             }
                         }
                         None => findings.push(HarnessFinding {
-                            tool: "golangci-lint".to_string(),
+                            tool: "golangci-lint".to_owned(),
                             file: None,
                             message: format!("golangci-lint timed out after {lint_timeout} second(s)"),
                         }),
                     }
                 }
                 Err(err) => findings.push(HarnessFinding {
-                    tool: "golangci-lint".to_string(),
+                    tool: "golangci-lint".to_owned(),
                     file: None,
                     message: format!("failed to stage workspace for golangci-lint: {err}"),
                 }),
@@ -585,9 +585,9 @@ pub(crate) fn run_patch_harness(
     if functional_enabled && cfg.tools.cargo_check.unwrap_or(true) && !rust_files.is_empty() {
         if which(Path::new("cargo")).is_none() {
             findings.push(HarnessFinding {
-                tool: "cargo-check".to_string(),
+                tool: "cargo-check".to_owned(),
                 file: None,
-                message: "cargo executable not found; install the Rust toolchain".to_string(),
+                message: "cargo executable not found; install the Rust toolchain".to_owned(),
             });
         } else {
             match WorkspaceOverlay::apply(action) {
@@ -627,7 +627,7 @@ pub(crate) fn run_patch_harness(
                             if output.status.is_none_or(|status| !status.success()) {
                                 let mut lines = collect_output_lines(&output.stdout, &output.stderr);
                                 if lines.is_empty() {
-                                    lines.push("cargo check failed (no output)".to_string());
+                                    lines.push("cargo check failed (no output)".to_owned());
                                 }
                                 for line in lines.into_iter().take(24) {
                                     findings.push(HarnessFinding {
@@ -653,7 +653,7 @@ pub(crate) fn run_patch_harness(
             }
             Err(err) => {
                 findings.push(HarnessFinding {
-                    tool: "cargo-check".to_string(),
+                    tool: "cargo-check".to_owned(),
                     file: None,
                     message: format!("failed to stage workspace for cargo check: {err}"),
                 });

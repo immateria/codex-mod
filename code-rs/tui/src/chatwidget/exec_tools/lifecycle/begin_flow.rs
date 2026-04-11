@@ -269,7 +269,7 @@ pub(in super::super::super) fn handle_js_repl_begin_now(
     let exec_record = ExecRecord {
         id: HistoryId::ZERO,
         call_id: Some(call_id.clone()),
-        command: vec!["js_repl".to_string()],
+        command: vec!["js_repl".to_owned()],
         parsed: Vec::new(),
         action: ExecAction::Run,
         status: ExecStatus::Running,
@@ -303,7 +303,7 @@ pub(in super::super::super) fn handle_js_repl_begin_now(
     chat.exec.running_commands.insert(
         super::ExecCallId(call_id),
         super::RunningCommand {
-            command: vec!["js_repl".to_string()],
+            command: vec!["js_repl".to_owned()],
             parsed: Vec::new(),
             history_index: Some(history_idx),
             history_id,
@@ -525,7 +525,7 @@ pub(in super::super::super) fn handle_exec_begin_now(
         let preview = chat
             .exec
             .running_commands
-            .get(&super::ExecCallId(ev.call_id.clone())).map_or_else(|| "command".to_string(), |rc| rc.command.join(" "));
+            .get(&super::ExecCallId(ev.call_id.clone())).map_or_else(|| "command".to_owned(), |rc| rc.command.join(" "));
         let preview_short = if preview.chars().count() > 40 {
             let mut truncated: String = preview.chars().take(40).collect();
             truncated.push('…');

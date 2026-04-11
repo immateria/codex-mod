@@ -145,13 +145,13 @@ pub(super) fn resolve_display_message(view: &AutoCoordinatorView, model: &AutoAc
         .filter(|msg| !msg.is_empty())
         .filter(|msg| !is_generic_status_message(msg))
     {
-        return message.to_string();
+        return message.to_owned();
     }
 
     if let Some(current) = model.status_title.as_ref() {
         let trimmed = current.trim();
         if !trimmed.is_empty() {
-            return trimmed.to_string();
+            return trimmed.to_owned();
         }
     }
 
@@ -162,7 +162,7 @@ pub(super) fn resolve_display_message(view: &AutoCoordinatorView, model: &AutoAc
         if let Some(button) = &model.button {
             let trimmed = button.label.trim();
             if !trimmed.is_empty() {
-                return trimmed.to_string();
+                return trimmed.to_owned();
             }
         }
     }
@@ -170,11 +170,11 @@ pub(super) fn resolve_display_message(view: &AutoCoordinatorView, model: &AutoAc
     for status in &model.status_lines {
         let trimmed = status.trim();
         if !trimmed.is_empty() {
-            return trimmed.to_string();
+            return trimmed.to_owned();
         }
     }
 
-    auto_drive_strings::next_auto_drive_phrase().to_string()
+    auto_drive_strings::next_auto_drive_phrase().to_owned()
 }
 
 pub(super) fn runtime_text(_view: &AutoCoordinatorView, model: &AutoActiveViewModel) -> String {
@@ -190,7 +190,7 @@ pub(super) fn runtime_text(_view: &AutoCoordinatorView, model: &AutoActiveViewMo
         details.push(AutoCoordinatorView::format_turns(model.turns_completed));
     }
     if details.is_empty() {
-        label.to_string()
+        label.to_owned()
     } else {
         format!("{} ({})", label, details.join(", "))
     }
@@ -256,12 +256,12 @@ pub(super) fn render_header(view: &AutoCoordinatorView, buf: &mut Buffer, params
         let mut title_style = frame_style.title_style;
         title_style.fg = Some(fallback_color);
         title_style = title_style.add_modifier(Modifier::BOLD);
-        base_spans.push(Span::styled(header_label.to_string(), title_style));
+        base_spans.push(Span::styled(header_label.to_owned(), title_style));
     }
 
     base_spans.push(Span::styled(" > ", Style::default().fg(colors::text_dim())));
     let message_style = Style::default().fg(colors::text());
-    let default_message_span = Span::styled(display_message.to_string(), message_style);
+    let default_message_span = Span::styled(display_message.to_owned(), message_style);
     let base_line = {
         let mut spans = base_spans.clone();
         spans.push(default_message_span);
@@ -309,7 +309,7 @@ pub(super) fn render_header(view: &AutoCoordinatorView, buf: &mut Buffer, params
 
         let try_apply = |content: &str| -> Option<Line<'static>> {
             let mut candidate_spans = base_spans.clone();
-            candidate_spans.push(Span::styled(content.to_string(), status_style));
+            candidate_spans.push(Span::styled(content.to_owned(), status_style));
             let candidate_line = Line::from(candidate_spans);
             if candidate_line.width() <= left_available as usize {
                 Some(candidate_line)
@@ -357,7 +357,7 @@ pub(super) fn status_labels(model: &AutoActiveViewModel) -> (Option<String>, Opt
         if trimmed.is_empty() {
             None
         } else {
-            Some(trimmed.to_string())
+            Some(trimmed.to_owned())
         }
     });
     let title = model.status_title.as_ref().and_then(|value| {
@@ -365,7 +365,7 @@ pub(super) fn status_labels(model: &AutoActiveViewModel) -> (Option<String>, Opt
         if trimmed.is_empty() {
             None
         } else {
-            Some(trimmed.to_string())
+            Some(trimmed.to_owned())
         }
     });
     (sent_to_user, title)

@@ -257,7 +257,7 @@ async fn send_malformed_message(
 ) {
     let _ = incoming_tx
         .send(JsonRpcConnectionEvent::MalformedMessage {
-            reason: reason.unwrap_or_else(|| "malformed JSON-RPC message".to_string()),
+            reason: reason.unwrap_or_else(|| "malformed JSON-RPC message".to_owned()),
         })
         .await;
 }

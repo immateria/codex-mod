@@ -76,7 +76,7 @@ pub fn run_main(args: Args) -> Result<()> {
     for request in server.incoming_requests() {
         let client = client.clone();
         if let Err(err) = std::thread::Builder::new()
-            .name("responses-api-proxy-worker".to_string())
+            .name("responses-api-proxy-worker".to_owned())
             .spawn(move || {
             if http_shutdown && request.method() == &Method::Get && request.url() == "/shutdown" {
                 let _ = request.respond(Response::new_empty(StatusCode(200)));
@@ -123,7 +123,7 @@ fn write_server_info(path: &Path, port: u16) -> Result<()> {
 fn forward_request(client: &Client, auth_header: &'static str, mut req: Request) -> Result<()> {
     // Only allow POST /v1/responses exactly, no query string.
     let method = req.method().clone();
-    let url_path = req.url().to_string();
+    let url_path = req.url().to_owned();
     let allow = method == Method::Post && url_path == "/v1/responses";
 
     if !allow {

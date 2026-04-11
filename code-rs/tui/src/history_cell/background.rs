@@ -38,7 +38,7 @@ impl BackgroundEventCell {
                 lines.push(Line::from(""));
             }
             for line in self.state.description.lines() {
-                lines.push(Line::from(Span::styled(line.to_string(), dim_style)));
+                lines.push(Line::from(Span::styled(line.to_owned(), dim_style)));
             }
         }
 

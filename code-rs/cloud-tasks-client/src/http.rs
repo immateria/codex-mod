@@ -256,7 +256,7 @@ mod api {
                 && let Some(obj) = request_body.as_object_mut()
             {
                 obj.insert(
-                    "metadata".to_string(),
+                    "metadata".to_owned(),
                     serde_json::json!({ "best_of_n": best_of_n }),
                 );
             }
@@ -355,8 +355,7 @@ mod api {
                 return Ok(ApplyOutcome {
                     applied: false,
                     status: ApplyStatus::Error,
-                    message: "Expected unified git diff; backend returned an incompatible format."
-                        .to_string(),
+                    message: "Expected unified git diff; backend returned an incompatible format.".to_owned(),
                     skipped_paths: Vec::new(),
                     conflict_paths: Vec::new(),
                 });
@@ -497,7 +496,7 @@ mod api {
                     for p in parts {
                         if let Some(s) = p.as_str() {
                             if !s.is_empty() {
-                                msgs.push(s.to_string());
+                                msgs.push(s.to_owned());
                             }
                             continue;
                         }
@@ -505,7 +504,7 @@ mod api {
                             && obj.get("content_type").and_then(|t| t.as_str()) == Some("text")
                             && let Some(txt) = obj.get("text").and_then(|t| t.as_str())
                         {
-                            msgs.push(txt.to_string());
+                            msgs.push(txt.to_owned());
                         }
                     }
                 }
@@ -515,7 +514,7 @@ mod api {
     }
 
     fn turn_attempt_from_map(turn: &HashMap<String, Value>) -> Option<TurnAttempt> {
-        let turn_id = turn.get("id").and_then(Value::as_str)?.to_string();
+        let turn_id = turn.get("id").and_then(Value::as_str)?.to_owned();
         let attempt_placement = turn.get("attempt_placement").and_then(Value::as_i64);
         let created_at = parse_timestamp_value(turn.get("created_at"));
         let status = attempt_status_from_str(turn.get("turn_status").and_then(Value::as_str));
@@ -553,7 +552,7 @@ mod api {
                     if let Some(diff) = item.get("diff").and_then(Value::as_str)
                         && !diff.is_empty()
                     {
-                        return Some(diff.to_string());
+                        return Some(diff.to_owned());
                     }
                 }
                 Some("pr") => {
@@ -564,7 +563,7 @@ mod api {
                         .and_then(Value::as_str)
                         && !diff.is_empty()
                     {
-                        return Some(diff.to_string());
+                        return Some(diff.to_owned());
                     }
                 }
                 _ => {}
@@ -586,7 +585,7 @@ mod api {
                             && let Some(txt) = part.get("text").and_then(Value::as_str)
                             && !txt.is_empty()
                         {
-                            msgs.push(txt.to_string());
+                            msgs.push(txt.to_owned());
                         }
                     }
                 }
@@ -721,7 +720,7 @@ mod api {
 
     fn tail(s: &str, max: usize) -> String {
         if s.len() <= max {
-            s.to_string()
+            s.to_owned()
         } else {
             s[s.len() - max..].to_string()
         }
@@ -741,7 +740,7 @@ mod api {
         let lines = patch.lines().count();
         let chars = patch.len();
         let cwd = std::env::current_dir()
-            .ok().map_or_else(|| "<unknown>".to_string(), |p| p.display().to_string());
+            .ok().map_or_else(|| "<unknown>".to_owned(), |p| p.display().to_string());
         let head: String = patch.lines().take(20).collect::<Vec<&str>>().join("\n");
         let head_trunc = if head.len() > 800 {
             format!("{}…", &head[..800])

@@ -242,7 +242,7 @@ pub fn build_hook_prompt_message(fragments: &[HookPromptFragment]) -> Option<Res
 
     Some(ResponseItem::Message {
         id: Some(uuid::Uuid::new_v4().to_string()),
-        role: "user".to_string(),
+        role: "user".to_owned(),
         content,
         end_turn: None,
         phase: None,
@@ -285,8 +285,8 @@ fn serialize_hook_prompt_fragment(text: &str, hook_run_id: &str) -> Option<Strin
         return None;
     }
     to_xml_string(&HookPromptXml {
-        text: text.to_string(),
-        hook_run_id: hook_run_id.to_string(),
+        text: text.to_owned(),
+        hook_run_id: hook_run_id.to_owned(),
     })
     .ok()
 }

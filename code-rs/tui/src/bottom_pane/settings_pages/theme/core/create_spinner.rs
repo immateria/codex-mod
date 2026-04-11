@@ -83,11 +83,11 @@ impl ThemeSelectionView {
                 );
 
                 // Build developer guidance and input
-                let developer = "You are performing a custom task to create a terminal spinner.\n\nRequirements:\n- Output JSON ONLY, no prose.\n- `interval` is the delay in milliseconds between frames; MUST be between 50 and 300 inclusive.\n- `frames` is an array of strings; each element is a frame displayed sequentially at the given interval.\n- The spinner SHOULD have between 2 and 60 frames.\n- Each frame SHOULD be between 1 and 30 characters wide. ALL frames MUST be the SAME width (same number of characters). If you propose frames with varying widths, PAD THEM ON THE LEFT with spaces so they are uniform.\n- You MAY use both ASCII and Unicode characters (e.g., box drawing, braille, arrows). Use EMOJIS ONLY if the user explicitly requests emojis in their prompt.\n- Be creative! You have the full range of Unicode to play with!\n".to_string();
+                let developer = "You are performing a custom task to create a terminal spinner.\n\nRequirements:\n- Output JSON ONLY, no prose.\n- `interval` is the delay in milliseconds between frames; MUST be between 50 and 300 inclusive.\n- `frames` is an array of strings; each element is a frame displayed sequentially at the given interval.\n- The spinner SHOULD have between 2 and 60 frames.\n- Each frame SHOULD be between 1 and 30 characters wide. ALL frames MUST be the SAME width (same number of characters). If you propose frames with varying widths, PAD THEM ON THE LEFT with spaces so they are uniform.\n- You MAY use both ASCII and Unicode characters (e.g., box drawing, braille, arrows). Use EMOJIS ONLY if the user explicitly requests emojis in their prompt.\n- Be creative! You have the full range of Unicode to play with!\n".to_owned();
                 let input: Vec<code_protocol::models::ResponseItem> = vec![
                     code_protocol::models::ResponseItem::Message {
                         id: None,
-                        role: "developer".to_string(),
+                        role: "developer".to_owned(),
                         content: vec![code_protocol::models::ContentItem::InputText {
                             text: developer,
                         }],
@@ -96,7 +96,7 @@ impl ThemeSelectionView {
                     },
                     code_protocol::models::ResponseItem::Message {
                         id: None,
-                        role: "user".to_string(),
+                        role: "user".to_owned(),
                         content: vec![code_protocol::models::ContentItem::InputText {
                             text: user_prompt,
                         }],
@@ -122,7 +122,7 @@ impl ThemeSelectionView {
                     "required": ["name", "interval", "frames"],
                     "additionalProperties": false
                 });
-                let format = code_core::TextFormat { r#type: "json_schema".to_string(), name: Some("custom_spinner".to_string()), strict: Some(true), schema: Some(schema) };
+                let format = code_core::TextFormat { r#type: "json_schema".to_owned(), name: Some("custom_spinner".to_owned()), strict: Some(true), schema: Some(schema) };
 
                 let mut prompt = code_core::Prompt::default();
                 prompt.input = input;
@@ -132,7 +132,7 @@ impl ThemeSelectionView {
 
                 // Stream and collect final JSON
                 use futures::StreamExt;
-                let _ = progress_tx.send(ProgressMsg::ThinkingDelta("(connecting to model)".to_string()));
+                let _ = progress_tx.send(ProgressMsg::ThinkingDelta("(connecting to model)".to_owned()));
                 let mut stream = match client.stream(&prompt).await {
                     Ok(s) => s,
                     Err(e) => {
@@ -150,7 +150,7 @@ impl ThemeSelectionView {
                 let mut last_err: Option<String> = None;
                 while let Some(ev) = stream.next().await {
                     match ev {
-                        Ok(code_core::ResponseEvent::Created { .. }) => { tracing::info!("LLM: created"); let _ = progress_tx.send(ProgressMsg::SetStatus("(starting generation)".to_string())); }
+                        Ok(code_core::ResponseEvent::Created { .. }) => { tracing::info!("LLM: created"); let _ = progress_tx.send(ProgressMsg::SetStatus("(starting generation)".to_owned())); }
                         Ok(code_core::ResponseEvent::ReasoningSummaryDelta { delta, .. }) => { tracing::info!(target: "spinner", "LLM[thinking]: {}", delta); let _ = progress_tx.send(ProgressMsg::ThinkingDelta(delta.clone())); think_sum.push_str(&delta); }
                         Ok(code_core::ResponseEvent::ReasoningContentDelta { delta, .. }) => { tracing::info!(target: "spinner", "LLM[reasoning]: {}", delta); }
                         Ok(code_core::ResponseEvent::OutputTextDelta { delta, .. }) => { tracing::info!(target: "spinner", "LLM[delta]: {}", delta); let _ = progress_tx.send(ProgressMsg::OutputDelta(delta.clone())); out.push_str(&delta); }
@@ -250,8 +250,7 @@ impl ThemeSelectionView {
                     .and_then(serde_json::Value::as_str)
                     .map(str::trim)
                     .filter(|s| !s.is_empty())
-                    .unwrap_or("Custom")
-                    .to_string();
+                    .unwrap_or("Custom").to_owned();
                 let mut frames: Vec<String> = v
                     .get("frames")
                     .and_then(serde_json::Value::as_array)
@@ -277,7 +276,7 @@ impl ThemeSelectionView {
 
                 // Enforce count 2–50
                 if frames.len() > 50 { frames.truncate(50); }
-                if frames.len() < 2 { let _ = progress_tx.send(ProgressMsg::CompletedErr { error: "too few frames after validation".to_string(), _raw_snippet: out.chars().take(200).collect::<String>() }); return; }
+                if frames.len() < 2 { let _ = progress_tx.send(ProgressMsg::CompletedErr { error: "too few frames after validation".to_owned(), _raw_snippet: out.chars().take(200).collect::<String>() }); return; }
 
                 // Normalize: left-pad frames to equal display width so previews align.
                 let max_len = frames
@@ -305,12 +304,12 @@ impl ThemeSelectionView {
         .is_none()
         {
             let _ = completion_tx.send(ProgressMsg::CompletedErr {
-                error: "background worker unavailable".to_string(),
+                error: "background worker unavailable".to_owned(),
                 _raw_snippet: String::new(),
             });
             fallback_tx.send_background_before_next_output_with_ticket(
                 &fallback_ticket,
-                "Failed to generate spinner preview: background worker unavailable".to_string(),
+                "Failed to generate spinner preview: background worker unavailable".to_owned(),
             );
         }
     }

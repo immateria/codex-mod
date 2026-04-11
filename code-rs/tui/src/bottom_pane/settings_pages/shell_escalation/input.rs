@@ -13,13 +13,13 @@ impl ShellEscalationSettingsView {
     }
 
     fn normalize_opt_string(value: Option<String>) -> Option<String> {
-        let trimmed = value.as_deref().unwrap_or_default().trim().to_string();
+        let trimmed = value.as_deref().unwrap_or_default().trim().to_owned();
         if trimmed.is_empty() { None } else { Some(trimmed) }
     }
 
     fn normalize_text_field(text: &str) -> Option<String> {
         let trimmed = text.trim();
-        if trimmed.is_empty() { None } else { Some(trimmed.to_string()) }
+        if trimmed.is_empty() { None } else { Some(trimmed.to_owned()) }
     }
 
     fn open_text_editor(&mut self, target: EditTarget) {
@@ -176,7 +176,7 @@ impl ShellEscalationSettingsView {
             KeyEvent { code: KeyCode::Char('p'), modifiers: KeyModifiers::NONE, .. } => {
                 self.editor_notice = None;
                 if !crate::platform_caps::supports_native_picker() {
-                    self.editor_notice = Some("Not supported on Android; type the path.".to_string());
+                    self.editor_notice = Some("Not supported on Android; type the path.".to_owned());
                     return true;
                 }
                 let title = match target {

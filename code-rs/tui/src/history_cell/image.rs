@@ -128,22 +128,22 @@ impl ImageOutputCell {
             .map(|value| value.trim())
             .filter(|value| !value.is_empty())
         {
-            return alt.to_string();
+            return alt.to_owned();
         }
         if let Some(path) = self.record.source_path.as_ref() {
             if let Some(name) = path.file_name().and_then(|name| name.to_str())
                 && !name.trim().is_empty() {
-                    return name.to_string();
+                    return name.to_owned();
                 }
             return path.display().to_string();
         }
-        "Image".to_string()
+        "Image".to_owned()
     }
 
     fn header_title_text(&self) -> String {
         let label = self.display_label();
         if label.eq_ignore_ascii_case("image") {
-            "Image".to_string()
+            "Image".to_owned()
         } else {
             format!("Image: {label}")
         }
@@ -593,7 +593,7 @@ impl HistoryCell for ImageOutputCell {
     fn display_lines(&self) -> Vec<Line<'static>> {
         let label = self.display_label();
         let summary = if label.eq_ignore_ascii_case("image") {
-            "Image output".to_string()
+            "Image output".to_owned()
         } else {
             format!("Image output: {label}")
         };

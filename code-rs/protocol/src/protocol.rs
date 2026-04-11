@@ -2038,7 +2038,7 @@ impl From<CompactedItem> for ResponseItem {
     fn from(value: CompactedItem) -> Self {
         ResponseItem::Message {
             id: None,
-            role: "assistant".to_string(),
+            role: "assistant".to_owned(),
             content: vec![ContentItem::OutputText {
                 text: value.message,
             }],

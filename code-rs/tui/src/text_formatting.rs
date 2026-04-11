@@ -80,11 +80,11 @@ pub(crate) fn truncate_chars_with_ellipsis(text: &str, max_chars: usize) -> Stri
 
     let char_count = text.chars().count();
     if char_count <= max_chars {
-        return text.to_string();
+        return text.to_owned();
     }
 
     if max_chars == 1 {
-        return "…".to_string();
+        return "…".to_owned();
     }
 
     let keep = max_chars.saturating_sub(1);
@@ -101,7 +101,7 @@ pub(crate) fn truncate_chars_with_ellipsis(text: &str, max_chars: usize) -> Stri
 /// character longer than `max_chars`.
 pub(crate) fn truncate_chars_append_ellipsis(text: &str, max_chars: usize) -> String {
     if text.chars().count() <= max_chars {
-        return text.to_string();
+        return text.to_owned();
     }
     let mut out: String = text.chars().take(max_chars).collect();
     out.push('…');
@@ -115,7 +115,7 @@ pub(crate) fn truncate_to_display_width(text: &str, max_width: usize) -> String 
     }
 
     if UnicodeWidthStr::width(text) <= max_width {
-        return text.to_string();
+        return text.to_owned();
     }
 
     let mut out = String::new();
@@ -147,7 +147,7 @@ pub(crate) fn truncate_to_display_width_with_suffix(
         return String::new();
     }
     if UnicodeWidthStr::width(text) <= max_width {
-        return text.to_string();
+        return text.to_owned();
     }
 
     let suffix_width = UnicodeWidthStr::width(suffix);
@@ -171,7 +171,7 @@ pub(crate) fn pad_to_display_width(text: &str, width: usize) -> String {
     let truncated = if UnicodeWidthStr::width(text) > width {
         truncate_to_display_width(text, width)
     } else {
-        text.to_string()
+        text.to_owned()
     };
     let current = UnicodeWidthStr::width(truncated.as_str());
     if current >= width {
@@ -194,7 +194,7 @@ pub(crate) fn truncate_utf8_bytes_with_ellipsis(text: &str, max_bytes: usize) ->
         return String::new();
     }
     if text.len() <= max_bytes {
-        return text.to_string();
+        return text.to_owned();
     }
 
     let slice_limit = max_bytes.saturating_sub(ellipsis_bytes);
@@ -208,7 +208,7 @@ pub(crate) fn truncate_utf8_bytes_with_ellipsis(text: &str, max_bytes: usize) ->
 
     let safe_slice = text.get(..safe_boundary).unwrap_or("");
     if max_bytes < ellipsis_bytes {
-        safe_slice.to_string()
+        safe_slice.to_owned()
     } else {
         format!("{safe_slice}{ELLIPSIS}")
     }
@@ -339,7 +339,7 @@ pub(crate) fn wrap_text(text: &str, width: usize) -> Vec<String> {
         let parts: Vec<String> = if word_width > width {
             split_long_word(word, width)
         } else {
-            vec![word.to_string()]
+            vec![word.to_owned()]
         };
 
         for part in parts {

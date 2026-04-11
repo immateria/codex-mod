@@ -123,7 +123,7 @@ impl OnboardingScreen {
                     let tx1 = self.event_tx.clone();
                     let tx2 = self.event_tx.clone();
                     if let Err(err) = std::thread::Builder::new()
-                        .name("onboarding-auth-redraw".to_string())
+                        .name("onboarding-auth-redraw".to_owned())
                         .spawn(move || {
                             std::thread::sleep(std::time::Duration::from_millis(150));
                             tx1.send(AppEvent::RequestRedraw);

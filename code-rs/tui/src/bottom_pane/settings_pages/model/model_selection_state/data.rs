@@ -97,8 +97,7 @@ impl ModelSelectionData {
         CONTEXT_MODE_INTRO_LINES.get_or_init(|| {
             let threshold = format_with_separators_u64(STANDARD_CONTEXT_WINDOW_272K);
             [
-                "Fast mode speeds up replies. 1M Context is available on supported models."
-                    .to_string(),
+                "Fast mode speeds up replies. 1M Context is available on supported models.".to_owned(),
                 format!(
                     "Auto uses 1M limits and pre-turn compaction checks. Past {threshold} input tokens, the session is billed at 2x input and 1.5x output."
                 ),

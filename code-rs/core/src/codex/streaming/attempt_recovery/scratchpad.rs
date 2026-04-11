@@ -31,7 +31,7 @@ pub(in crate::codex::streaming) fn inject_scratchpad_into_attempt_input(
             continue;
         };
 
-        if seen_calls.insert(call_id.to_string()) {
+        if seen_calls.insert(call_id.to_owned()) {
             attempt_input.push(item);
         }
     }
@@ -75,7 +75,7 @@ pub(in crate::codex::streaming) fn inject_scratchpad_into_attempt_input(
         }
         attempt_input.push(ResponseItem::Message {
             id: None,
-            role: "user".to_string(),
+            role: "user".to_owned(),
             content: vec![ContentItem::InputText { text: hint }],
             end_turn: None,
             phase: None,

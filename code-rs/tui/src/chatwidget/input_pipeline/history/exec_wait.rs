@@ -13,7 +13,7 @@ impl ChatWidget<'_> {
             {
                 continue;
             }
-            target.push((trimmed.to_string(), *is_error));
+            target.push((trimmed.to_owned(), *is_error));
         }
     }
 
@@ -48,7 +48,7 @@ impl ChatWidget<'_> {
                     None
                 } else {
                     Some(ExecWaitNote {
-                        message: trimmed.to_string(),
+                        message: trimmed.to_owned(),
                         tone: if *is_error {
                             TextTone::Error
                         } else {

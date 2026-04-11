@@ -161,8 +161,8 @@ fn encode_image(
 
 fn format_to_mime(format: ImageFormat) -> String {
     match format {
-        ImageFormat::Jpeg => "image/jpeg".to_string(),
-        _ => "image/png".to_string(),
+        ImageFormat::Jpeg => "image/jpeg".to_owned(),
+        _ => "image/png".to_owned(),
     }
 }
 

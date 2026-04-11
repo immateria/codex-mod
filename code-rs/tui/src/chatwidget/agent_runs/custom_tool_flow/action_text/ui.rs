@@ -64,7 +64,7 @@ fn agent_start_line(tracker: &AgentRunTracker) -> Line<'static> {
     let title = tracker
         .effective_label()
         .or_else(|| tracker.batch_id.as_ref().map(|id| short_batch_id(id)))
-        .unwrap_or_else(|| "agent batch".to_string());
+        .unwrap_or_else(|| "agent batch".to_owned());
 
     let mut agents: Vec<String> = tracker.models.iter().cloned().collect();
     if agents.is_empty() {
@@ -76,7 +76,7 @@ fn agent_start_line(tracker: &AgentRunTracker) -> Line<'static> {
                 if trimmed.is_empty() || looks_like_uuid(trimmed) {
                     None
                 } else {
-                    Some(trimmed.to_string())
+                    Some(trimmed.to_owned())
                 }
             })
             .collect();

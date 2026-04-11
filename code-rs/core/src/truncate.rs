@@ -7,7 +7,7 @@
 /// if truncation occurred; otherwise returns the original string and `None`.
 pub(crate) fn truncate_middle(s: &str, max_bytes: usize) -> (String, Option<u64>) {
     if s.len() <= max_bytes {
-        return (s.to_string(), None);
+        return (s.to_owned(), None);
     }
 
     let est_tokens = (s.len() as u64).div_ceil(4);

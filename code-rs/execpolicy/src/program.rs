@@ -174,7 +174,7 @@ impl ProgramSpec {
         // Verify all required options are present.
         let matched_opt_names: HashSet<String> = matched_opts
             .iter()
-            .map(|opt| opt.name().to_string())
+            .map(|opt| opt.name().to_owned())
             .collect();
         if !matched_opt_names.is_superset(&self.required_options) {
             let mut options = self

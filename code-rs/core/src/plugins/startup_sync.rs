@@ -343,7 +343,7 @@ fn git_ls_remote_sha(
     if sha.is_empty() {
         return Err(format!("git ls-remote returned empty sha for {repo_url}"));
     }
-    Ok(sha.to_string())
+    Ok(sha.to_owned())
 }
 
 fn marketplace_repo_cache_key(repo: &PluginMarketplaceRepoToml) -> String {
@@ -372,7 +372,7 @@ fn git_head_sha(repo_path: &Path, git_binary: &str) -> Result<String, String> {
         })?;
     ensure_git_success(&output, "git rev-parse HEAD")?;
 
-    let sha = String::from_utf8_lossy(&output.stdout).trim().to_string();
+    let sha = String::from_utf8_lossy(&output.stdout).trim().to_owned();
     if sha.is_empty() {
         return Err(format!(
             "git rev-parse HEAD returned empty output in {}",
@@ -421,7 +421,7 @@ fn run_git_command_with_timeout(
             let output = child
                 .wait_with_output()
                 .map_err(|err| format!("failed to wait for {context} after timeout: {err}"))?;
-            let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
+            let stderr = String::from_utf8_lossy(&output.stderr).trim().to_owned();
             return if stderr.is_empty() {
                 Err(format!("{context} timed out after {}s", timeout.as_secs()))
             } else {
@@ -440,7 +440,7 @@ fn ensure_git_success(output: &Output, context: &str) -> Result<(), String> {
     if output.status.success() {
         return Ok(());
     }
-    let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
+    let stderr = String::from_utf8_lossy(&output.stderr).trim().to_owned();
     if stderr.is_empty() {
         Err(format!("{context} failed with status {}", output.status))
     } else {
@@ -534,7 +534,7 @@ fn github_request(client: &Client, url: &str) -> reqwest::RequestBuilder {
 fn read_sha_file(sha_path: &Path) -> Option<String> {
     std::fs::read_to_string(sha_path)
         .ok()
-        .map(|sha| sha.trim().to_string())
+        .map(|sha| sha.trim().to_owned())
         .filter(|sha| !sha.is_empty())
 }
 

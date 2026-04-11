@@ -83,7 +83,7 @@ impl BrowserManager {
                     let url = match tokio::time::timeout(Duration::from_millis(200), page.url()).await
                     {
                         Ok(Ok(Some(u))) => u,
-                        _ => "unknown".to_string(),
+                        _ => "unknown".to_owned(),
                     };
                     if !targets::is_controllable_target_url(&url) {
                         debug!("Skipping uncontrollable tab: {}", url);
@@ -93,8 +93,7 @@ impl BrowserManager {
                     }
                     // Evaluate visibility/focus of the tab. We avoid focus listeners since they won't fire when attaching.
                     let eval = page.evaluate(
-                        "(() => {\n"
-                            .to_string()
+                        "(() => {\n".to_owned()
                             + "  return {\n"
                             + "    visible: document.visibilityState === 'visible',\n"
                             + "    focused: (document.hasFocus && document.hasFocus()) || false,\n"
@@ -272,13 +271,13 @@ impl BrowserManager {
             let mut headers_map = std::collections::HashMap::new();
             if config.user_agent.is_none() && let Some(al) = &config.accept_language {
                 headers_map.insert(
-                    "Accept-Language".to_string(),
+                    "Accept-Language".to_owned(),
                     serde_json::Value::String(al.clone()),
                 );
             }
             if let Some(proxy_authorization) = &config.proxy_authorization {
                 headers_map.insert(
-                    "Proxy-Authorization".to_string(),
+                    "Proxy-Authorization".to_owned(),
                     serde_json::Value::String(proxy_authorization.clone()),
                 );
             }

@@ -513,7 +513,7 @@ impl InterfaceSettingsView {
     fn show_path_result(path: &std::path::Path, label: &str) -> (String, bool) {
         if !crate::platform_caps::supports_reveal_in_file_manager() {
             return (
-                "Not supported on Android; copy the path manually.".to_string(),
+                "Not supported on Android; copy the path manually.".to_owned(),
                 true,
             );
         }

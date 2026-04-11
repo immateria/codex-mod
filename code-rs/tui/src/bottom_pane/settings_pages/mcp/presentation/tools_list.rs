@@ -104,7 +104,7 @@ impl McpSettingsView {
                 ),
                 Span::styled(marker, marker_style),
                 Span::raw(" "),
-                Span::styled(expansion.to_string(), expansion_style),
+                Span::styled(expansion.to_owned(), expansion_style),
                 Span::raw(" "),
                 Span::styled(label, label_style),
             ];

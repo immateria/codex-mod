@@ -82,7 +82,7 @@ impl ChatComposerHistory {
         {
             return;
         }
-        self.local_history.push(text.to_string());
+        self.local_history.push(text.to_owned());
         self.history_cursor = None;
         self.last_history_text = None;
         self.original_text = None;
@@ -151,7 +151,7 @@ impl ChatComposerHistory {
 
         // If we're not browsing yet, save the current text as the original
         if self.history_cursor.is_none() && self.original_text.is_none() {
-            self.original_text = Some(current_text.to_string());
+            self.original_text = Some(current_text.to_owned());
         }
 
         let mut next_idx = match self.history_cursor {

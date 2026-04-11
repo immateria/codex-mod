@@ -506,7 +506,7 @@ impl ChatWidget<'_> {
                     self.clear_composer();
                     self.bottom_pane.update_status_text("");
                     self.bottom_pane.set_task_running(false);
-                    self.handle_auto_command(Some(trimmed.to_string()));
+                    self.handle_auto_command(Some(trimmed.to_owned()));
                     return;
                 }
                 if self.try_handle_help_query(text.trim()) {

@@ -26,9 +26,9 @@ pub fn render_skills_section(skills: &[SkillMetadata]) -> Option<String> {
     }
 
     let mut lines: Vec<String> = Vec::with_capacity(skills.len() + 5);
-    lines.push("## Skills".to_string());
-    lines.push(SKILLS_INTRO.to_string());
-    lines.push("### Available skills".to_string());
+    lines.push("## Skills".to_owned());
+    lines.push(SKILLS_INTRO.to_owned());
+    lines.push("### Available skills".to_owned());
 
     for skill in skills {
         let raw_path = skill.path.to_string_lossy();
@@ -42,8 +42,8 @@ pub fn render_skills_section(skills: &[SkillMetadata]) -> Option<String> {
         lines.push(format!("- {name}: {description} (file: `{path_str}`)"));
     }
 
-    lines.push("### How to use skills".to_string());
-    lines.push(SKILLS_USAGE_RULES.to_string());
+    lines.push("### How to use skills".to_owned());
+    lines.push(SKILLS_USAGE_RULES.to_owned());
 
     Some(lines.join("\n"))
 }

@@ -59,7 +59,7 @@ pub(crate) async fn get_user_instructions(
     let mut base_instructions: Option<String> = None;
     if let Some(original) = &config.user_instructions {
         let key = original.trim();
-        if !key.is_empty() && seen.insert(key.to_string()) {
+        if !key.is_empty() && seen.insert(key.to_owned()) {
             base_instructions = Some(original.clone());
         }
     }
@@ -71,21 +71,21 @@ pub(crate) async fn get_user_instructions(
             continue;
         }
 
-        if seen.insert(key.to_string()) {
+        if seen.insert(key.to_owned()) {
             unique_project_docs.push(doc);
         }
     }
 
     if let Some(skills_section) = skills_section {
         let key = skills_section.trim();
-        if !key.is_empty() && seen.insert(key.to_string()) {
+        if !key.is_empty() && seen.insert(key.to_owned()) {
             unique_project_docs.push(skills_section);
         }
     }
 
     if let Some(plugins_section) = plugins_section {
         let key = plugins_section.trim();
-        if !key.is_empty() && seen.insert(key.to_string()) {
+        if !key.is_empty() && seen.insert(key.to_owned()) {
             unique_project_docs.push(plugins_section);
         }
     }

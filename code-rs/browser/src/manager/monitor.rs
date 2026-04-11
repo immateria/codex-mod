@@ -123,8 +123,7 @@ impl BrowserManager {
                         let url = result
                             .get("url")
                             .and_then(|v| v.as_str())
-                            .unwrap_or("")
-                            .to_string();
+                            .unwrap_or("").to_owned();
 
                         if seq > last_seq {
                             info!(

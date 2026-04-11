@@ -127,7 +127,7 @@ impl ModelSelectionView {
         self.data
             .current
             .current_context_window
-            .map(format_with_separators_u64).map_or_else(|| "default".to_string(), |value| format!("{value} tokens"))
+            .map(format_with_separators_u64).map_or_else(|| "default".to_owned(), |value| format!("{value} tokens"))
     }
 
     pub(super) fn current_auto_compact_label(&self) -> String {
@@ -135,7 +135,7 @@ impl ModelSelectionView {
             .current
             .current_auto_compact_token_limit
             .and_then(|value| u64::try_from(value).ok())
-            .map(format_with_separators_u64).map_or_else(|| "auto".to_string(), |value| format!("{value} tokens"))
+            .map(format_with_separators_u64).map_or_else(|| "auto".to_owned(), |value| format!("{value} tokens"))
     }
 
     pub(super) fn open_edit_for(&mut self, target: EditTarget, clear_existing: bool) {
@@ -168,7 +168,7 @@ impl ModelSelectionView {
     fn parse_token_count_arg(raw: &str) -> Result<u64, String> {
         let trimmed = raw.trim();
         if trimmed.is_empty() {
-            return Err("Enter a token count".to_string());
+            return Err("Enter a token count".to_owned());
         }
 
         let lowered = trimmed.to_ascii_lowercase();
@@ -182,17 +182,17 @@ impl ModelSelectionView {
 
         let digits = number_part.replace(['_', ','], "");
         if digits.is_empty() {
-            return Err("Enter a token count".to_string());
+            return Err("Enter a token count".to_owned());
         }
 
         let parsed = digits
             .parse::<u64>()
-            .map_err(|_| "Token count must be an integer like 500000, 500k, or 1m".to_string())?;
+            .map_err(|_| "Token count must be an integer like 500000, 500k, or 1m".to_owned())?;
         let value = parsed
             .checked_mul(multiplier)
-            .ok_or_else(|| "Token count is too large".to_string())?;
+            .ok_or_else(|| "Token count is too large".to_owned())?;
         if value == 0 {
-            return Err("Token count must be greater than zero".to_string());
+            return Err("Token count must be greater than zero".to_owned());
         }
         Ok(value)
     }
@@ -200,7 +200,7 @@ impl ModelSelectionView {
     fn parse_ratio_arg(raw: &str) -> Result<(u64, u64), String> {
         let trimmed = raw.trim();
         if trimmed.is_empty() {
-            return Err("Enter a ratio like 0.9 or 9/10".to_string());
+            return Err("Enter a ratio like 0.9 or 9/10".to_owned());
         }
 
         if let Some((lhs, rhs)) = trimmed.split_once('/') {
@@ -208,20 +208,20 @@ impl ModelSelectionView {
                 .trim()
                 .replace(['_', ','], "")
                 .parse::<u64>()
-                .map_err(|_| "Ratio must use integers like 9/10".to_string())?;
+                .map_err(|_| "Ratio must use integers like 9/10".to_owned())?;
             let denominator = rhs
                 .trim()
                 .replace(['_', ','], "")
                 .parse::<u64>()
-                .map_err(|_| "Ratio must use integers like 9/10".to_string())?;
+                .map_err(|_| "Ratio must use integers like 9/10".to_owned())?;
             if denominator == 0 {
-                return Err("Ratio denominator must be greater than zero".to_string());
+                return Err("Ratio denominator must be greater than zero".to_owned());
             }
             if numerator == 0 {
-                return Err("Ratio must be greater than zero".to_string());
+                return Err("Ratio must be greater than zero".to_owned());
             }
             if numerator > denominator {
-                return Err("Ratio must be between 0 and 1".to_string());
+                return Err("Ratio must be between 0 and 1".to_owned());
             }
             return Ok((numerator, denominator));
         }
@@ -231,45 +231,45 @@ impl ModelSelectionView {
             let whole = whole.trim();
             let frac = frac.trim();
             if whole.is_empty() && frac.is_empty() {
-                return Err("Enter a ratio like 0.9".to_string());
+                return Err("Enter a ratio like 0.9".to_owned());
             }
             let whole_digits = if whole.is_empty() { "0" } else { whole };
             if !whole_digits.chars().all(|c| c.is_ascii_digit())
                 || !frac.chars().all(|c| c.is_ascii_digit())
             {
-                return Err("Ratio must look like 0.9 or 9/10".to_string());
+                return Err("Ratio must look like 0.9 or 9/10".to_owned());
             }
             let whole_value = whole_digits
                 .parse::<u64>()
-                .map_err(|_| "Ratio must look like 0.9".to_string())?;
+                .map_err(|_| "Ratio must look like 0.9".to_owned())?;
             if whole_value > 1 {
-                return Err("Ratio must be between 0 and 1".to_string());
+                return Err("Ratio must be between 0 and 1".to_owned());
             }
 
             let denom = 10_u64
                 .checked_pow(frac.len() as u32)
-                .ok_or_else(|| "Ratio has too many decimal places".to_string())?;
+                .ok_or_else(|| "Ratio has too many decimal places".to_owned())?;
             let frac_value = if frac.is_empty() {
                 0
             } else {
                 frac.parse::<u64>()
-                    .map_err(|_| "Ratio must look like 0.9".to_string())?
+                    .map_err(|_| "Ratio must look like 0.9".to_owned())?
             };
 
             let numerator = whole_value
                 .checked_mul(denom)
                 .and_then(|base| base.checked_add(frac_value))
-                .ok_or_else(|| "Ratio is too large".to_string())?;
+                .ok_or_else(|| "Ratio is too large".to_owned())?;
             if numerator == 0 {
-                return Err("Ratio must be greater than zero".to_string());
+                return Err("Ratio must be greater than zero".to_owned());
             }
             if numerator > denom {
-                return Err("Ratio must be between 0 and 1".to_string());
+                return Err("Ratio must be between 0 and 1".to_owned());
             }
             return Ok((numerator, denom));
         }
 
-        Err("Enter a ratio like 0.9 or 9/10".to_string())
+        Err("Enter a ratio like 0.9 or 9/10".to_owned())
     }
 
     fn parse_auto_compact_token_limit_arg(
@@ -278,44 +278,44 @@ impl ModelSelectionView {
     ) -> Result<u64, String> {
         let trimmed = raw.trim();
         if trimmed.is_empty() {
-            return Err("Enter a token count".to_string());
+            return Err("Enter a token count".to_owned());
         }
 
         let lowered = trimmed.to_ascii_lowercase();
         if let Some(percent_text) = lowered.strip_suffix('%') {
             let Some(context_window) = context_window else {
-                return Err("Set a context window before using a percentage".to_string());
+                return Err("Set a context window before using a percentage".to_owned());
             };
             let digits = percent_text.trim().replace(['_', ','], "");
             if digits.is_empty() {
-                return Err("Enter a percentage like 90%".to_string());
+                return Err("Enter a percentage like 90%".to_owned());
             }
             let percent = digits
                 .parse::<u64>()
-                .map_err(|_| "Percentage must be an integer like 90%".to_string())?;
+                .map_err(|_| "Percentage must be an integer like 90%".to_owned())?;
             if percent == 0 {
-                return Err("Percentage must be greater than zero".to_string());
+                return Err("Percentage must be greater than zero".to_owned());
             }
             if percent > 100 {
-                return Err("Percentage must be between 1% and 100%".to_string());
+                return Err("Percentage must be between 1% and 100%".to_owned());
             }
             let computed = ((context_window as u128) * (percent as u128)) / 100_u128;
             let computed = u64::try_from(computed).unwrap_or(u64::MAX);
             if computed == 0 {
-                return Err("Percentage results in a token limit of zero".to_string());
+                return Err("Percentage results in a token limit of zero".to_owned());
             }
             return Ok(computed);
         }
 
         if lowered.contains('/') || lowered.contains('.') {
             let Some(context_window) = context_window else {
-                return Err("Set a context window before using a ratio".to_string());
+                return Err("Set a context window before using a ratio".to_owned());
             };
             let (numerator, denominator) = Self::parse_ratio_arg(&lowered)?;
             let computed = ((context_window as u128) * (numerator as u128)) / (denominator as u128);
             let computed = u64::try_from(computed).unwrap_or(u64::MAX);
             if computed == 0 {
-                return Err("Ratio results in a token limit of zero".to_string());
+                return Err("Ratio results in a token limit of zero".to_owned());
             }
             return Ok(computed);
         }
@@ -430,7 +430,7 @@ impl ModelSelectionView {
                     ) {
                         return Ok(());
                     }
-                    return Err("Context settings unchanged".to_string());
+                    return Err("Context settings unchanged".to_owned());
                 }
 
                 let parsed = Self::parse_token_count_arg(trimmed)?;
@@ -441,7 +441,7 @@ impl ModelSelectionView {
                 ) {
                     Ok(())
                 } else {
-                    Err("Context settings unchanged".to_string())
+                    Err("Context settings unchanged".to_owned())
                 }
             }
             EditTarget::AutoCompact => {
@@ -453,7 +453,7 @@ impl ModelSelectionView {
                     ) {
                         return Ok(());
                     }
-                    return Err("Context settings unchanged".to_string());
+                    return Err("Context settings unchanged".to_owned());
                 }
 
                 let parsed = Self::parse_auto_compact_token_limit_arg(
@@ -467,7 +467,7 @@ impl ModelSelectionView {
                 ) {
                     Ok(())
                 } else {
-                    Err("Context settings unchanged".to_string())
+                    Err("Context settings unchanged".to_owned())
                 }
             }
         }

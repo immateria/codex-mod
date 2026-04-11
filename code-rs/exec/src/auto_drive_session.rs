@@ -32,9 +32,9 @@ use tokio::time::Instant;
 
 pub(crate) fn build_auto_drive_exec_config(config: &Config) -> Config {
     let mut auto_config = config.clone();
-    auto_config.model = config.auto_drive.model.trim().to_string();
+    auto_config.model = config.auto_drive.model.trim().to_owned();
     if auto_config.model.is_empty() {
-        auto_config.model = MODEL_SLUG.to_string();
+        auto_config.model = MODEL_SLUG.to_owned();
     }
     auto_config.model_reasoning_effort = config.auto_drive.model_reasoning_effort;
     auto_config
@@ -169,7 +169,7 @@ pub(crate) async fn run_auto_drive_session(
                 if let Some(cmd) = cli_command {
                     let prompt_text = cmd.trim();
                     if !prompt_text.is_empty() {
-                        history.append_raw(&[make_user_message(prompt_text.to_string())]);
+                        history.append_raw(&[make_user_message(prompt_text.to_owned())]);
                         let TurnResult {
                             last_agent_message,
                             error_seen: turn_error,
@@ -177,7 +177,7 @@ pub(crate) async fn run_auto_drive_session(
                             &conversation,
                             event_processor.as_mut(),
                             &mut auto_review_tracker,
-                            prompt_text.to_string(),
+                            prompt_text.to_owned(),
                             run_deadline,
                         )
                         .await

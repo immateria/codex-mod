@@ -9,7 +9,7 @@ impl SkillsSettingsView {
         aliases: &[String],
     ) -> Result<bool, String> {
         if style.is_none() && self.editor.style_profile_mode != StyleProfileMode::Inherit {
-            return Err("Style profile behavior requires a shell style value.".to_string());
+            return Err("Style profile behavior requires a shell style value.".to_owned());
         }
 
         let Some(style) = style else {
@@ -51,10 +51,10 @@ impl SkillsSettingsView {
             remove_profile_skill(&mut profile.disabled_skills, identifier);
         }
         if self.editor.style_profile_mode == StyleProfileMode::Enable {
-            profile.skills.push(skill_name.trim().to_string());
+            profile.skills.push(skill_name.trim().to_owned());
         }
         if self.editor.style_profile_mode == StyleProfileMode::Disable {
-            profile.disabled_skills.push(skill_name.trim().to_string());
+            profile.disabled_skills.push(skill_name.trim().to_owned());
         }
         Ok(true)
     }
@@ -77,7 +77,7 @@ impl SkillsSettingsView {
                 self.editor.style_skill_roots_dirty = false;
                 return Ok(false);
             }
-            return Err("Style references/skill roots require a shell style value.".to_string());
+            return Err("Style references/skill roots require a shell style value.".to_owned());
         };
 
         set_shell_style_profile_paths(code_home, style, &references, &skill_roots)
@@ -116,7 +116,7 @@ impl SkillsSettingsView {
                 self.editor.style_mcp_exclude_dirty = false;
                 return Ok(false);
             }
-            return Err("Style MCP include/exclude requires a shell style value.".to_string());
+            return Err("Style MCP include/exclude requires a shell style value.".to_owned());
         };
 
         set_shell_style_profile_mcp_servers(code_home, style, &include, &exclude)
@@ -177,7 +177,7 @@ pub(super) fn append_warning(current: &mut Option<String>, message: String) {
                 existing.push_str(trimmed);
             }
         }
-        None => *current = Some(trimmed.to_string()),
+        None => *current = Some(trimmed.to_owned()),
     }
 }
 

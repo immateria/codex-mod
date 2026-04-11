@@ -62,7 +62,7 @@ impl BrowserManager {
             *assets_guard = Some(Arc::new(crate::assets::AssetManager::new().await?));
         }
         let assets = assets_guard.as_ref().cloned().ok_or_else(|| {
-            BrowserError::AssetError("assets manager failed to initialize".to_string())
+            BrowserError::AssetError("assets manager failed to initialize".to_owned())
         })?;
         drop(assets_guard);
 
@@ -70,7 +70,7 @@ impl BrowserManager {
         let current_url = if let Ok(Ok(url)) = tokio::time::timeout(Duration::from_secs(3), page.get_current_url())
             .await { url } else {
             warn!("Failed to get current URL, using default");
-            "about:blank".to_string()
+            "about:blank".to_owned()
         };
 
         // Capture screenshots with timeout.
@@ -89,7 +89,7 @@ impl BrowserManager {
             }
             Err(_) => {
                 return Err(BrowserError::ScreenshotError(
-                    "Screenshot capture timed out after 15 seconds".to_string(),
+                    "Screenshot capture timed out after 15 seconds".to_owned(),
                 ));
             }
         };

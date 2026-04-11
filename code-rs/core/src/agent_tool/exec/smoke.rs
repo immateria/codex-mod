@@ -44,11 +44,11 @@ async fn run_agent_smoke_test(cfg: AgentConfig) -> Result<String, String> {
 fn summarize_agent_output(output: &str) -> String {
     let trimmed = output.trim();
     if trimmed.is_empty() {
-        return "<empty response>".to_string();
+        return "<empty response>".to_owned();
     }
     const MAX_LEN: usize = 240;
     if trimmed.len() <= MAX_LEN {
-        trimmed.to_string()
+        trimmed.to_owned()
     } else {
         let mut cutoff = MAX_LEN.min(trimmed.len());
         while cutoff > 0 && !trimmed.is_char_boundary(cutoff) {
@@ -60,7 +60,7 @@ fn summarize_agent_output(output: &str) -> String {
             if let Some(first) = chars.next() {
                 format!("{first}…")
             } else {
-                "…".to_string()
+                "…".to_owned()
             }
         } else {
             format!("{}…", &trimmed[..cutoff])
@@ -96,7 +96,7 @@ pub fn smoke_test_agent_blocking(cfg: AgentConfig) -> Result<(), String> {
             .spawn(move || run_smoke_test_with_new_runtime(cfg))
             .map_err(|e| format!("failed to spawn agent validation thread: {e}"))?
             .join()
-            .map_err(|_| "agent validation thread panicked".to_string())?
+            .map_err(|_| "agent validation thread panicked".to_owned())?
     } else {
         run_smoke_test_with_new_runtime(cfg)
     }

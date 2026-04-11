@@ -98,7 +98,7 @@ pub(crate) fn load_oauth_tokens(
             server_name,
             url,
         )
-        .with_context(|| "failed to read OAuth tokens from keyring".to_string()),
+        .with_context(|| "failed to read OAuth tokens from keyring".to_owned()),
     }
 }
 
@@ -530,9 +530,9 @@ fn token_needs_refresh(expires_at: Option<u64>) -> bool {
 
 fn compute_store_key(server_name: &str, server_url: &str) -> Result<String> {
     let mut payload = JsonMap::new();
-    payload.insert("type".to_string(), Value::String(MCP_SERVER_TYPE.to_string()));
-    payload.insert("url".to_string(), Value::String(server_url.to_string()));
-    payload.insert("headers".to_string(), Value::Object(JsonMap::new()));
+    payload.insert("type".to_owned(), Value::String(MCP_SERVER_TYPE.to_owned()));
+    payload.insert("url".to_owned(), Value::String(server_url.to_owned()));
+    payload.insert("headers".to_owned(), Value::Object(JsonMap::new()));
 
     let truncated = sha_256_prefix(&Value::Object(payload))?;
     Ok(format!("{server_name}|{truncated}"))
@@ -604,7 +604,7 @@ fn sha_256_prefix(value: &Value) -> Result<String> {
     let digest = hasher.finalize();
     let hex = format!("{digest:x}");
     let truncated = &hex[..16];
-    Ok(truncated.to_string())
+    Ok(truncated.to_owned())
 }
 
 #[cfg(test)]

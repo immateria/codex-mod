@@ -21,12 +21,12 @@ pub enum ApplyPatchToolType {
 /// https://platform.openai.com/docs/guides/function-calling#custom-tools
 pub(crate) fn create_apply_patch_freeform_tool() -> OpenAiTool {
     OpenAiTool::Freeform(FreeformTool {
-        name: "apply_patch".to_string(),
-        description: "Use the `apply_patch` tool to edit files".to_string(),
+        name: "apply_patch".to_owned(),
+        description: "Use the `apply_patch` tool to edit files".to_owned(),
         format: FreeformToolFormat {
-            r#type: "grammar".to_string(),
-            syntax: "lark".to_string(),
-            definition: APPLY_PATCH_LARK_GRAMMAR.to_string(),
+            r#type: "grammar".to_owned(),
+            syntax: "lark".to_owned(),
+            definition: APPLY_PATCH_LARK_GRAMMAR.to_owned(),
         },
     })
 }
@@ -35,15 +35,15 @@ pub(crate) fn create_apply_patch_freeform_tool() -> OpenAiTool {
 pub(crate) fn create_apply_patch_json_tool() -> OpenAiTool {
     let mut properties = BTreeMap::new();
     properties.insert(
-        "input".to_string(),
+        "input".to_owned(),
         JsonSchema::String {
-            description: Some(r#"The entire contents of the apply_patch command"#.to_string()),
+            description: Some(r#"The entire contents of the apply_patch command"#.to_owned()),
             allowed_values: None,
         },
     );
 
     OpenAiTool::Function(ResponsesApiTool {
-        name: "apply_patch".to_string(),
+        name: "apply_patch".to_owned(),
         description: r#"Use the `apply_patch` tool to edit files.
 Your patch language is a stripped‑down, file‑oriented diff format designed to be easy to parse and safe to apply. You can think of it as a high‑level envelope:
 
@@ -111,12 +111,11 @@ It is important to remember:
 - You must include a header with your intended action (Add/Delete/Update)
 - You must prefix new lines with `+` even when creating a new file
 - File references can only be relative, NEVER ABSOLUTE.
-"#
-        .to_string(),
+"#.to_owned(),
         strict: false,
         parameters: JsonSchema::Object {
             properties,
-            required: Some(vec!["input".to_string()]),
+            required: Some(vec!["input".to_owned()]),
             additional_properties: Some(false.into()),
         },
     })

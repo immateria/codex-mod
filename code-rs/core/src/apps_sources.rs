@@ -39,7 +39,7 @@ pub fn effective_source_account_ids(
     if include_active
         && let Some(active) = active_account_id.map(str::trim).filter(|id| !id.is_empty())
     {
-        ids.push(active.to_string());
+        ids.push(active.to_owned());
     }
 
     if !matches!(sources.mode, AppsSourcesModeToml::ActiveOnly) {
@@ -51,7 +51,7 @@ pub fn effective_source_account_ids(
             if ids.iter().any(|existing| existing == trimmed) {
                 continue;
             }
-            ids.push(trimmed.to_string());
+            ids.push(trimmed.to_owned());
         }
     }
 
@@ -59,7 +59,7 @@ pub fn effective_source_account_ids(
 }
 
 fn normalize_codex_apps_base_url(base_url: &str) -> String {
-    let mut base_url = base_url.trim_end_matches('/').to_string();
+    let mut base_url = base_url.trim_end_matches('/').to_owned();
     if (base_url.starts_with("https://chatgpt.com") || base_url.starts_with("https://chat.openai.com"))
         && !base_url.contains("/backend-api")
     {
@@ -160,7 +160,7 @@ pub async fn build_codex_apps_source_servers(
 
         let mut http_headers: HashMap<String, String> = HashMap::new();
         if let Some(chatgpt_account_id) = auth.get_account_id() {
-            http_headers.insert("ChatGPT-Account-ID".to_string(), chatgpt_account_id);
+            http_headers.insert("ChatGPT-Account-ID".to_owned(), chatgpt_account_id);
         } else {
             warnings.push(format!(
                 "Apps sources: ChatGPT account id is missing for stored account '{stored_account_id}'; continuing without ChatGPT-Account-ID header."

@@ -290,7 +290,7 @@ impl OtelEventManager {
             slug = %self.metadata.slug,
             duration_ms = %duration.as_millis(),
             error.message = %error,
-        ) } else { tracing::event!(
+        ); } else { tracing::event!(
             tracing::Level::INFO,
             event.name = "codex.sse_event",
             event.timestamp = %timestamp(),
@@ -303,7 +303,7 @@ impl OtelEventManager {
             slug = %self.metadata.slug,
             duration_ms = %duration.as_millis(),
             error.message = %error,
-        ) }
+        ); }
     }
 
     pub fn see_event_completed_failed<T>(&self, error: &T)

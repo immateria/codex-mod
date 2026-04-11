@@ -344,7 +344,7 @@ fn parse_update_file_chunk(
 ) -> Result<(UpdateFileChunk, usize), ParseError> {
     if lines.is_empty() {
         return Err(InvalidHunkError {
-            message: "Update hunk does not contain any lines".to_string(),
+            message: "Update hunk does not contain any lines".to_owned(),
             line_number,
         });
     }
@@ -353,7 +353,7 @@ fn parse_update_file_chunk(
     let (change_context, start_index) = if lines[0] == EMPTY_CHANGE_CONTEXT_MARKER {
         (None, 1)
     } else if let Some(context) = lines[0].strip_prefix(CHANGE_CONTEXT_MARKER) {
-        (Some(context.to_string()), 1)
+        (Some(context.to_owned()), 1)
     } else {
         if !allow_missing_context {
             return Err(InvalidHunkError {
@@ -368,7 +368,7 @@ fn parse_update_file_chunk(
     };
     if start_index >= lines.len() {
         return Err(InvalidHunkError {
-            message: "Update hunk does not contain any lines".to_string(),
+            message: "Update hunk does not contain any lines".to_owned(),
             line_number: line_number + 1,
         });
     }
@@ -384,7 +384,7 @@ fn parse_update_file_chunk(
             EOF_MARKER => {
                 if parsed_lines == 0 {
                     return Err(InvalidHunkError {
-                        message: "Update hunk does not contain any lines".to_string(),
+                        message: "Update hunk does not contain any lines".to_owned(),
                         line_number: line_number + 1,
                     });
                 }

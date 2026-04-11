@@ -15,7 +15,7 @@ pub(super) async fn handle_response_item(
             // Use the item_id if present and non-empty, otherwise fall back to sub_id.
             let event_id = id
                 .filter(|id| !id.is_empty())
-                .unwrap_or_else(|| sub_id.to_string());
+                .unwrap_or_else(|| sub_id.to_owned());
             for item in content {
                 if let ContentItem::OutputText { text } = item {
                     let order = crate::protocol::OrderMeta {
@@ -46,7 +46,7 @@ pub(super) async fn handle_response_item(
         } => {
             // Use the item_id if present and not empty, otherwise fall back to sub_id
             let event_id = if id.is_empty() {
-                sub_id.to_string()
+                sub_id.to_owned()
             } else {
                 id.clone()
             };

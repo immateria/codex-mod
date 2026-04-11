@@ -221,7 +221,7 @@ impl Page {
             .await
             .ok()
             .and_then(|r| r.value().and_then(|v| v.as_str().map(ToString::to_string)))
-            .unwrap_or_else(|| "missing".to_string());
+            .unwrap_or_else(|| "missing".to_owned());
 
         if status != "ok" {
             // Inject if missing

@@ -151,7 +151,7 @@ impl ToolRouter {
                 ..
             } => {
                 let mut ctx = ToolCallCtx::new(
-                    meta.sub_id.to_string(),
+                    meta.sub_id.to_owned(),
                     call_id,
                     meta.seq_hint,
                     meta.output_index,
@@ -195,7 +195,7 @@ impl ToolRouter {
                             call_id: String::new(),
                             output: FunctionCallOutputPayload {
                                 body: FunctionCallOutputBody::Text(
-                                    "LocalShellCall without call_id or id".to_string(),
+                                    "LocalShellCall without call_id or id".to_owned(),
                                 ),
                                 success: None,
                             },
@@ -204,7 +204,7 @@ impl ToolRouter {
                 };
 
                 let mut ctx = ToolCallCtx::new(
-                    meta.sub_id.to_string(),
+                    meta.sub_id.to_owned(),
                     effective_call_id,
                     meta.seq_hint,
                     meta.output_index,
@@ -223,7 +223,7 @@ impl ToolRouter {
             }
             ResponseItem::CustomToolCall { call_id, name, input, .. } => {
                 let mut ctx = ToolCallCtx::new(
-                    meta.sub_id.to_string(),
+                    meta.sub_id.to_owned(),
                     call_id,
                     meta.seq_hint,
                     meta.output_index,
@@ -327,7 +327,7 @@ impl ToolRouter {
         attempt_req: u64,
     ) -> ResponseInputItem {
         let call = ToolCall {
-            tool_name: "shell".to_string(),
+            tool_name: "shell".to_owned(),
             payload: ToolPayload::LocalShell { params },
         };
         self.registry

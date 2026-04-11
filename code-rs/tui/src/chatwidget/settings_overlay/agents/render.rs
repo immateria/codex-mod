@@ -72,7 +72,7 @@ impl AgentsSettingsContent {
             spans.push(Span::styled(crate::icons::bullet(), Style::default().fg(status.1)));
             spans.push(Span::raw(" "));
             spans.push(Span::styled(
-                status.0.to_string(),
+                status.0.to_owned(),
                 Style::default().fg(status.1),
             ));
 

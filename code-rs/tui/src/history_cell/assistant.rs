@@ -888,7 +888,7 @@ pub(crate) fn detect_bullet_prefix(
         }
     }
     let bullet_span = spans.get(idx)?;
-    let mut bullet_text = bullet_span.content.as_ref().to_string();
+    let mut bullet_text = bullet_span.content.as_ref().to_owned();
     let has_following_space_span = spans
         .get(idx + 1)
         .is_some_and(|s| s.content.as_ref() == " ");
@@ -973,7 +973,7 @@ pub(crate) fn wrap_bullet_line(
         Style::default()
     };
     if i < spans.len() {
-        let bullet_span_text = spans[i].content.as_ref().to_string();
+        let bullet_span_text = spans[i].content.as_ref().to_owned();
         i += 1;
         if !bullet_span_text.ends_with(' ') && i < spans.len() && spans[i].content.as_ref() == " " {
             i += 1;
@@ -985,7 +985,7 @@ pub(crate) fn wrap_bullet_line(
     for sp in spans.drain(i..) {
         let st = sp.style;
         for g in sp.content.as_ref().graphemes(true) {
-            clusters.push((g.to_string(), st));
+            clusters.push((g.to_owned(), st));
         }
     }
 
@@ -1067,7 +1067,7 @@ pub(crate) fn wrap_bullet_line(
             if indent_spaces > 0 {
                 seg_spans.push(Span::raw(" ".repeat(indent_spaces)));
             }
-            seg_spans.push(Span::styled(bullet.to_string(), bullet_style));
+            seg_spans.push(Span::styled(bullet.to_owned(), bullet_style));
             seg_spans.push(Span::raw("  "));
         } else {
             seg_spans.push(Span::raw(" ".repeat(cont_prefix)));
@@ -1100,7 +1100,7 @@ pub(crate) fn wrap_bullet_line(
         if indent_spaces > 0 {
             seg_spans.push(Span::raw(" ".repeat(indent_spaces)));
         }
-        seg_spans.push(Span::styled(bullet.to_string(), bullet_style));
+        seg_spans.push(Span::styled(bullet.to_owned(), bullet_style));
         out.push(ratatui::text::Line::from(seg_spans));
     }
 

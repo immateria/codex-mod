@@ -116,7 +116,7 @@ impl ChatWidget<'_> {
                         }
 
                         let status_text = overlay
-                            .start_time.map_or_else(|| "Running…".to_string(), |start| format!("Running… ({})", format_duration(start.elapsed())));
+                            .start_time.map_or_else(|| "Running…".to_owned(), |start| format!("Running… ({})", format_duration(start.elapsed())));
                         consumed_width = consumed_width
                             .saturating_add(UnicodeWidthStr::width(status_text.as_str()));
                         header_spans.push(ratatui::text::Span::styled(
@@ -133,7 +133,7 @@ impl ChatWidget<'_> {
                                 crate::icons::status_ok(),
                                 crate::colors::success(),
                                 overlay
-                                    .duration.map_or_else(|| "Completed".to_string(), |d| format!("Completed in {}", format_duration(d))),
+                                    .duration.map_or_else(|| "Completed".to_owned(), |d| format!("Completed in {}", format_duration(d))),
                             ),
                             Some(code) => (
                                 crate::icons::status_fail(),
@@ -145,7 +145,7 @@ impl ChatWidget<'_> {
                                 "!",
                                 crate::colors::warning(),
                                 overlay
-                                    .duration.map_or_else(|| "Stopped".to_string(), |d| format!("Stopped after {}", format_duration(d))),
+                                    .duration.map_or_else(|| "Stopped".to_owned(), |d| format!("Stopped after {}", format_duration(d))),
                             ),
                         };
 

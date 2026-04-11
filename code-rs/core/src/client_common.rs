@@ -167,7 +167,7 @@ impl Prompt {
             let developer_text = self.additional_instructions().into_owned();
             input_with_instructions.push(ResponseItem::Message {
                 id: None,
-                role: "developer".to_string(),
+                role: "developer".to_owned(),
                 content: vec![ContentItem::InputText { text: developer_text }], end_turn: None, phase: None});
             for message in &self.prepend_developer_messages {
                 let trimmed = message.trim();
@@ -176,9 +176,9 @@ impl Prompt {
                 }
                 input_with_instructions.push(ResponseItem::Message {
                     id: None,
-                    role: "developer".to_string(),
+                    role: "developer".to_owned(),
                     content: vec![ContentItem::InputText {
-                        text: trimmed.to_string(),
+                        text: trimmed.to_owned(),
                     }], end_turn: None, phase: None});
             }
             if let Some(ec) = self.get_formatted_environment_context() {
@@ -192,7 +192,7 @@ impl Prompt {
                 if !has_environment_context {
                     input_with_instructions.push(ResponseItem::Message {
                         id: None,
-                        role: "user".to_string(),
+                        role: "user".to_owned(),
                         content: vec![ContentItem::InputText { text: ec }], end_turn: None, phase: None});
                 }
             }
@@ -392,7 +392,7 @@ fn limit_screenshots_in_input(input: &mut [ResponseItem]) {
                     match item {
                         ContentItem::InputImage { .. } => {
                             new_content.push(ContentItem::InputText {
-                                text: "[screenshot no longer available]".to_string(),
+                                text: "[screenshot no longer available]".to_owned(),
                             });
                         }
                         other => new_content.push(other.clone()),
@@ -425,7 +425,7 @@ pub(crate) fn replace_image_payloads_for_model(input: &mut [ResponseItem], model
                 for content_item in content.iter_mut() {
                     if matches!(content_item, ContentItem::InputImage { .. }) {
                         *content_item = ContentItem::InputText {
-                            text: SPARK_IMAGE_PLACEHOLDER.to_string(),
+                            text: SPARK_IMAGE_PLACEHOLDER.to_owned(),
                         };
                     }
                 }
@@ -435,7 +435,7 @@ pub(crate) fn replace_image_payloads_for_model(input: &mut [ResponseItem], model
                     for output_item in content_items.iter_mut() {
                         if matches!(output_item, FunctionCallOutputContentItem::InputImage { .. }) {
                             *output_item = FunctionCallOutputContentItem::InputText {
-                                text: SPARK_IMAGE_PLACEHOLDER.to_string(),
+                                text: SPARK_IMAGE_PLACEHOLDER.to_owned(),
                             };
                         }
                     }
@@ -462,7 +462,7 @@ pub(crate) fn rewrite_image_generation_calls_for_input(input: &mut Vec<ResponseI
 
                 ResponseItem::Message {
                     id: None,
-                    role: "user".to_string(),
+                    role: "user".to_owned(),
                     content: vec![ContentItem::InputImage { image_url }],
                     end_turn: None,
                     phase: None,

@@ -46,7 +46,7 @@ impl McpSettingsView {
         if secs.fract() == 0.0 {
             let whole = duration.as_secs();
             if whole == 1 {
-                "1 second".to_string()
+                "1 second".to_owned()
             } else {
                 format!("{whole} seconds")
             }
@@ -57,7 +57,7 @@ impl McpSettingsView {
 
     pub(super) fn join_names_limited(names: &[String], max_items: usize) -> String {
         if names.is_empty() {
-            return "(none)".to_string();
+            return "(none)".to_owned();
         }
         if names.len() <= max_items {
             return names.join(", ");
@@ -71,7 +71,7 @@ impl McpSettingsView {
         let name = resource.name.as_str();
         let uri = resource.uri.as_str();
         let mut line = if resource.uri.trim().is_empty() {
-            name.to_string()
+            name.to_owned()
         } else {
             format!("{name} ({uri})")
         };
@@ -94,7 +94,7 @@ impl McpSettingsView {
         let name = template.name.as_str();
         let uri_template = template.uri_template.as_str();
         let mut line = if template.uri_template.trim().is_empty() {
-            name.to_string()
+            name.to_owned()
         } else {
             format!("{name} ({uri_template})")
         };

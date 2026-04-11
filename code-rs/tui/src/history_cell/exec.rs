@@ -467,7 +467,7 @@ impl ExecCell {
         state.notes = notes
             .iter()
             .map(|(text, is_error)| ExecWaitNote {
-                text: text.trim().to_string(),
+                text: text.trim().to_owned(),
                 is_error: *is_error,
             })
             .filter(|note| !note.text.is_empty())
@@ -481,7 +481,7 @@ impl ExecCell {
                     None
                 } else {
                     Some(RecordExecWaitNote {
-                        message: trimmed.to_string(),
+                        message: trimmed.to_owned(),
                         tone: if *is_error {
                             TextTone::Error
                         } else {
@@ -795,7 +795,7 @@ fn chunk_from_text(text: &str) -> Vec<ExecStreamChunk> {
     } else {
         vec![ExecStreamChunk {
             offset: 0,
-            content: text.to_string(),
+            content: text.to_owned(),
         }]
     }
 }

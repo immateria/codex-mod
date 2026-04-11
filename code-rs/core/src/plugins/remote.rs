@@ -231,7 +231,7 @@ fn ensure_chatgpt_auth(auth: Option<&CodexAuth>) -> Result<&CodexAuth, RemotePlu
 }
 
 fn default_remote_marketplace_name() -> String {
-    DEFAULT_REMOTE_MARKETPLACE_NAME.to_string()
+    DEFAULT_REMOTE_MARKETPLACE_NAME.to_owned()
 }
 
 async fn post_remote_plugin_mutation(
@@ -273,13 +273,13 @@ async fn post_remote_plugin_mutation(
     let expected_enabled = action == "enable";
     if parsed.id != plugin_id {
         return Err(RemotePluginMutationError::UnexpectedPluginId {
-            expected: plugin_id.to_string(),
+            expected: plugin_id.to_owned(),
             actual: parsed.id,
         });
     }
     if parsed.enabled != expected_enabled {
         return Err(RemotePluginMutationError::UnexpectedEnabledState {
-            plugin_id: plugin_id.to_string(),
+            plugin_id: plugin_id.to_owned(),
             expected_enabled,
             actual_enabled: parsed.enabled,
         });

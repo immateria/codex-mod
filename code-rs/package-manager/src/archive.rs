@@ -91,7 +91,7 @@ pub(crate) fn verify_sha256(bytes: &[u8], expected: &str) -> Result<(), PackageM
         return Ok(());
     }
     Err(PackageManagerError::ChecksumMismatch {
-        expected: expected.to_string(),
+        expected: expected.to_owned(),
         actual,
     })
 }
@@ -263,7 +263,7 @@ fn safe_extract_path(root: &Path, relative_path: &Path) -> Result<PathBuf, Packa
 
     if clean_relative.as_os_str().is_empty() {
         return Err(PackageManagerError::ArchiveExtraction(
-            "archive entry had an empty path".to_string(),
+            "archive entry had an empty path".to_owned(),
         ));
     }
     Ok(root.join(clean_relative))

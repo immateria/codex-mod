@@ -84,7 +84,7 @@ pub(crate) async fn create_task(env_id: String, prompt: String, best_of_n: usize
     }
 
     let backend = build_backend(&config)?;
-    let git_ref = detect_git_ref().await.unwrap_or_else(|| "main".to_string());
+    let git_ref = detect_git_ref().await.unwrap_or_else(|| "main".to_owned());
     backend
         .create_task(&env_id, &prompt, &git_ref, false, best_of_n)
         .await
@@ -95,8 +95,8 @@ pub(crate) async fn fetch_environments() -> Result<Vec<CloudEnvironment>> {
     let config = load_config().await?;
     if config.use_mock {
         return Ok(vec![CloudEnvironment {
-            id: "mock".to_string(),
-            label: Some("Mock environment".to_string()),
+            id: "mock".to_owned(),
+            label: Some("Mock environment".to_owned()),
             repo_hints: None,
             is_pinned: true,
         }]);
@@ -199,7 +199,7 @@ fn build_backend(config: &CloudTasksConfig) -> Result<Arc<dyn CloudBackend>> {
 
 async fn load_config() -> Result<CloudTasksConfig> {
     let base_url_env = std::env::var("CODEX_CLOUD_TASKS_BASE_URL")
-        .unwrap_or_else(|_| "https://chatgpt.com/backend-api".to_string());
+        .unwrap_or_else(|_| "https://chatgpt.com/backend-api".to_owned());
     let base_url = normalize_base_url(&base_url_env);
     let use_mock = std::env::var("CODEX_CLOUD_TASKS_MODE")
         .ok()
@@ -224,7 +224,7 @@ async fn load_config() -> Result<CloudTasksConfig> {
     let auth_manager = AuthManager::new(
         code_home,
         AuthMode::ChatGPT,
-        code_core::default_client::DEFAULT_ORIGINATOR.to_string(),
+        code_core::default_client::DEFAULT_ORIGINATOR.to_owned(),
     );
     let auth = auth_manager
         .auth()
@@ -248,7 +248,7 @@ async fn load_config() -> Result<CloudTasksConfig> {
 }
 
 fn normalize_base_url(input: &str) -> String {
-    let mut url = input.trim().to_string();
+    let mut url = input.trim().to_owned();
     while url.ends_with('/') {
         url.pop();
     }

@@ -17,7 +17,7 @@ pub fn connector_display_label(connector: &AppInfo) -> String {
     if trimmed.is_empty() {
         connector.id.clone()
     } else {
-        trimmed.to_string()
+        trimmed.to_owned()
     }
 }
 
@@ -170,7 +170,7 @@ where
                     "/connectors/directory/list?tier=categorized&token={encoded_token}&external_logos=true"
                 )
             }
-            None => "/connectors/directory/list?tier=categorized&external_logos=true".to_string(),
+            None => "/connectors/directory/list?tier=categorized&external_logos=true".to_owned(),
         };
         let response = fetch_page(path).await?;
         apps.extend(
@@ -181,7 +181,7 @@ where
         );
         next_token = response
             .next_token
-            .map(|token| token.trim().to_string())
+            .map(|token| token.trim().to_owned())
             .filter(|token| !token.is_empty());
         if next_token.is_none() {
             break;
@@ -196,7 +196,7 @@ where
     Fut: Future<Output = anyhow::Result<DirectoryListResponse>>,
 {
     let response =
-        fetch_page("/connectors/directory/list_workspace?external_logos=true".to_string()).await;
+        fetch_page("/connectors/directory/list_workspace?external_logos=true".to_owned()).await;
     match response {
         Ok(response) => Ok(response
             .apps
@@ -396,18 +396,18 @@ fn connector_name_slug(name: &str) -> String {
     }
     let normalized = normalized.trim_matches('-');
     if normalized.is_empty() {
-        "app".to_string()
+        "app".to_owned()
     } else {
-        normalized.to_string()
+        normalized.to_owned()
     }
 }
 
 fn normalize_connector_name(name: &str, connector_id: &str) -> String {
     let trimmed = name.trim();
     if trimmed.is_empty() {
-        connector_id.to_string()
+        connector_id.to_owned()
     } else {
-        trimmed.to_string()
+        trimmed.to_owned()
     }
 }
 

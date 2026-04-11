@@ -23,16 +23,16 @@ impl RateLimitSwitchState {
         mode: AuthMode,
         blocked_until: Option<DateTime<Utc>>,
     ) {
-        self.tried_accounts.insert(account_id.to_string());
+        self.tried_accounts.insert(account_id.to_owned());
 
         if mode.is_chatgpt() {
             self.limited_chatgpt_accounts
-                .insert(account_id.to_string());
+                .insert(account_id.to_owned());
         }
 
         if let Some(until) = blocked_until {
             self.blocked_until
-                .entry(account_id.to_string())
+                .entry(account_id.to_owned())
                 .and_modify(|existing| {
                     if until > *existing {
                         *existing = until;
@@ -97,7 +97,7 @@ pub(crate) fn select_next_account_id(
     current_account_id: Option<&str>,
 ) -> io::Result<Option<String>> {
     let current = match current_account_id {
-        Some(id) => Some(id.to_string()),
+        Some(id) => Some(id.to_owned()),
         None => auth_accounts::get_active_account_id(code_home)?,
     };
     let accounts = auth_accounts::list_accounts(code_home)?;

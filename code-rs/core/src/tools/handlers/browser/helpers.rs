@@ -17,14 +17,14 @@ pub(super) async fn resolve_target_id_from_value(
     if let Some(target_id) = value.get("target_id").and_then(serde_json::Value::as_str) {
         let trimmed = target_id.trim();
         if trimmed.is_empty() {
-            return Err("target_id must be non-empty".to_string());
+            return Err("target_id must be non-empty".to_owned());
         }
-        return Ok(trimmed.to_string());
+        return Ok(trimmed.to_owned());
     }
 
     if let Some(index) = value.get("index").and_then(serde_json::Value::as_u64) {
         if index == 0 {
-            return Err("index must be >= 1".to_string());
+            return Err("index must be >= 1".to_owned());
         }
         let targets = browser_manager
             .list_page_targets()
@@ -40,7 +40,7 @@ pub(super) async fn resolve_target_id_from_value(
             )),
         }
     } else {
-        Err("Missing target_id or index".to_string())
+        Err("Missing target_id or index".to_owned())
     }
 }
 
@@ -60,7 +60,7 @@ pub(super) fn unwrap_execute_javascript_value(result: Value) -> Result<Value, St
             .get("error")
             .and_then(serde_json::Value::as_str)
             .unwrap_or("JavaScript execution failed");
-        Err(err.to_string())
+        Err(err.to_owned())
     }
 }
 
@@ -71,7 +71,7 @@ pub(super) async fn selector_rect_after_scroll(
 ) -> Result<(f64, f64, f64, f64), String> {
     let selector = selector.trim();
     if selector.is_empty() {
-        return Err("selector must be non-empty".to_string());
+        return Err("selector must be non-empty".to_owned());
     }
 
     let selector_json =
@@ -118,22 +118,22 @@ pub(super) async fn selector_rect_after_scroll(
         .and_then(serde_json::Value::as_bool)
         .unwrap_or(false)
     {
-        let rect = value.get("rect").ok_or_else(|| "Missing rect".to_string())?;
+        let rect = value.get("rect").ok_or_else(|| "Missing rect".to_owned())?;
         let x = rect.get("x").and_then(serde_json::Value::as_f64)
-            .ok_or_else(|| "Missing or invalid rect.x".to_string())?;
+            .ok_or_else(|| "Missing or invalid rect.x".to_owned())?;
         let y = rect.get("y").and_then(serde_json::Value::as_f64)
-            .ok_or_else(|| "Missing or invalid rect.y".to_string())?;
+            .ok_or_else(|| "Missing or invalid rect.y".to_owned())?;
         let w = rect.get("width").and_then(serde_json::Value::as_f64)
-            .ok_or_else(|| "Missing or invalid rect.width".to_string())?;
+            .ok_or_else(|| "Missing or invalid rect.width".to_owned())?;
         let h = rect.get("height").and_then(serde_json::Value::as_f64)
-            .ok_or_else(|| "Missing or invalid rect.height".to_string())?;
+            .ok_or_else(|| "Missing or invalid rect.height".to_owned())?;
         Ok((x, y, w, h))
     } else {
         let error = value
             .get("error")
             .and_then(serde_json::Value::as_str)
             .unwrap_or("selector query failed");
-        Err(error.to_string())
+        Err(error.to_owned())
     }
 }
 
@@ -145,7 +145,7 @@ pub(super) async fn node_id_for_selector(
 
     let selector = selector.trim();
     if selector.is_empty() {
-        return Err("selector must be non-empty".to_string());
+        return Err("selector must be non-empty".to_owned());
     }
 
     let doc = browser_manager
@@ -156,7 +156,7 @@ pub(super) async fn node_id_for_selector(
         .get("root")
         .and_then(|r| r.get("nodeId"))
         .and_then(serde_json::Value::as_u64)
-        .ok_or_else(|| "DOM.getDocument missing root.nodeId".to_string())?;
+        .ok_or_else(|| "DOM.getDocument missing root.nodeId".to_owned())?;
 
     let query = browser_manager
         .execute_cdp(
@@ -170,7 +170,7 @@ pub(super) async fn node_id_for_selector(
         .and_then(serde_json::Value::as_u64)
         .unwrap_or(0);
     if node_id == 0 {
-        return Err("selector not found".to_string());
+        return Err("selector not found".to_owned());
     }
     Ok(node_id)
 }

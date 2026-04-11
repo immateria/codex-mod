@@ -18,9 +18,9 @@ use ratatui::layout::Constraint;
 impl ShellProfilesSettingsView {
     pub(super) fn open_editor(&mut self, target: ListTarget) {
         let before = match target {
-            ListTarget::Summary => self.summary_field.text().to_string(),
-            ListTarget::References => self.references_field.text().to_string(),
-            ListTarget::SkillRoots => self.skill_roots_field.text().to_string(),
+            ListTarget::Summary => self.summary_field.text().to_owned(),
+            ListTarget::References => self.references_field.text().to_owned(),
+            ListTarget::SkillRoots => self.skill_roots_field.text().to_owned(),
         };
         self.mode = ViewMode::EditList { target, before };
     }
@@ -176,14 +176,14 @@ impl ShellProfilesSettingsView {
     pub(super) fn editor_append_picker_path(&mut self, target: ListTarget) {
         let kind = match target {
             ListTarget::Summary => {
-                self.status = Some("Picker not available for summary".to_string());
+                self.status = Some("Picker not available for summary".to_owned());
                 return;
             }
             ListTarget::References => NativePickerKind::File,
             ListTarget::SkillRoots => NativePickerKind::Folder,
         };
         if !crate::platform_caps::supports_native_picker() {
-            self.status = Some("Not supported on Android; type the path.".to_string());
+            self.status = Some("Not supported on Android; type the path.".to_owned());
             return;
         }
         let title = match target {
@@ -198,13 +198,13 @@ impl ShellProfilesSettingsView {
                 let entry = entry.trim();
                 if !entry.is_empty() {
                     let field = self.editor_field_mut(target);
-                    let mut next = field.text().to_string();
+                    let mut next = field.text().to_owned();
                     if !next.trim().is_empty() && !next.ends_with('\n') {
                         next.push('\n');
                     }
                     next.push_str(entry);
                     field.set_text(&next);
-                    self.status = Some("Added path (not staged)".to_string());
+                    self.status = Some("Added path (not staged)".to_owned());
                 }
             }
             Ok(None) => {}
@@ -216,19 +216,19 @@ impl ShellProfilesSettingsView {
 
     pub(super) fn editor_show_last_path(&mut self, target: ListTarget) {
         if !crate::platform_caps::supports_reveal_in_file_manager() {
-            self.status = Some("Not supported on Android; copy the path manually.".to_string());
+            self.status = Some("Not supported on Android; copy the path manually.".to_owned());
             return;
         }
-        let text = self.editor_field_mut(target).text().to_string();
+        let text = self.editor_field_mut(target).text().to_owned();
         let mut lines = text.lines().map(str::trim).filter(|line| !line.is_empty());
         let last = lines.next_back();
 
         match last {
             Some(path) => match crate::native_file_manager::reveal_path(std::path::Path::new(path)) {
-                Ok(()) => self.status = Some("Opened in file manager".to_string()),
+                Ok(()) => self.status = Some("Opened in file manager".to_owned()),
                 Err(err) => self.status = Some(format!("Open failed: {err:#}")),
             },
-            None => self.status = Some("No paths to show".to_string()),
+            None => self.status = Some("No paths to show".to_owned()),
         }
     }
 

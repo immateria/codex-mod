@@ -317,7 +317,7 @@ impl Features {
     pub fn record_legacy_usage_force(&mut self, alias: &str, feature: Feature) {
         let (summary, details) = legacy_usage_notice(alias, feature);
         self.legacy_usages.insert(LegacyFeatureUsage {
-            alias: alias.to_string(),
+            alias: alias.to_owned(),
             feature,
             summary,
             details,
@@ -449,11 +449,11 @@ fn legacy_usage_notice(alias: &str, feature: Feature) -> (String, Option<String>
             };
             let summary =
                 format!("`{label}` is deprecated because web search is enabled by default.");
-            (summary, Some(web_search_details().to_string()))
+            (summary, Some(web_search_details().to_owned()))
         }
         _ => {
             let label = if alias.contains('.') || alias.starts_with('[') {
-                alias.to_string()
+                alias.to_owned()
             } else {
                 format!("[features].{alias}")
             };
@@ -880,7 +880,7 @@ pub fn unstable_features_warning_event(
                 continue;
             }
             if matches!(spec.stage, Stage::UnderDevelopment) {
-                under_development_feature_keys.push(spec.key.to_string());
+                under_development_feature_keys.push(spec.key.to_owned());
             }
         }
     }

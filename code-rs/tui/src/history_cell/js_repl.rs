@@ -84,7 +84,7 @@ impl JsReplCell {
     }
 
     pub(crate) fn record_child_call_id(&mut self, call_id: &str) -> bool {
-        let call_id = call_id.to_string();
+        let call_id = call_id.to_owned();
         let inserted = self.child_call_ids.insert(call_id.clone());
         self.last_child_call_id = Some(call_id);
         inserted
@@ -304,13 +304,13 @@ impl JsReplCell {
             let hidden_lines = non_empty_count.saturating_sub(1);
 
             let mut preview = if first.is_empty() {
-                "…".to_string()
+                "…".to_owned()
             } else if first.chars().count() > 60 {
                 let mut s: String = first.chars().take(60).collect();
                 s.push('…');
                 s
             } else {
-                first.to_string()
+                first.to_owned()
             };
 
             if hidden_lines > 0 {
@@ -343,7 +343,7 @@ impl JsReplCell {
                 .map(|l| {
                     Line::from(vec![
                         border_span.clone(),
-                        Span::styled(l.to_string(), code_style),
+                        Span::styled(l.to_owned(), code_style),
                     ])
                 })
                 .collect()
@@ -355,7 +355,7 @@ impl JsReplCell {
             return None;
         }
         let elapsed = self.start_time.map(|s| s.elapsed());
-        let mut msg = "Running…".to_string();
+        let mut msg = "Running…".to_owned();
         if let Some(dur) = elapsed
             && !dur.is_zero()
         {

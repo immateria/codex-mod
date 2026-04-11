@@ -150,7 +150,7 @@ pub mod tests {
                 .lock()
                 .unwrap_or_else(PoisonError::into_inner);
             guard
-                .entry(account.to_string())
+                .entry(account.to_owned())
                 .or_insert_with(|| Arc::new(MockCredential::default()))
                 .clone()
         }

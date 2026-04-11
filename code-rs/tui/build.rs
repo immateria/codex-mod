@@ -44,7 +44,7 @@ fn main() {
             else if key.contains("toggle") { "Toggles" }
             else if key.contains("monkey") || key.contains("earth") || key.contains("moon") || key.contains("weather") || key.contains("smiley") || key.contains("emoji") { "Emoji" }
             else { "Other" };
-        g.to_string()
+        g.to_owned()
     }
 
     let Ok(manifest_dir) = std::env::var("CARGO_MANIFEST_DIR") else {

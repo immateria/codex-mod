@@ -247,7 +247,7 @@ fn map_unauthorized_outcome(
 
     if !had_auth {
         return Some(CodexErr::AuthRefreshPermanent(
-            AUTH_REQUIRED_MESSAGE.to_string(),
+            AUTH_REQUIRED_MESSAGE.to_owned(),
         ));
     }
 
@@ -500,7 +500,7 @@ impl ModelClient {
         if agent_models.is_empty() {
             agent_models = enabled_agent_model_specs_for_auth(auth_mode, supports_pro_only_models)
                 .into_iter()
-                .map(|spec| spec.slug.to_string())
+                .map(|spec| spec.slug.to_owned())
                 .collect();
         }
         agent_models.sort_by_key(|a| a.to_ascii_lowercase());
@@ -704,8 +704,8 @@ impl ModelClient {
 
         let want_format = prompt.text_format.clone().or_else(|| {
             prompt.output_schema.as_ref().map(|schema| crate::client_common::TextFormat {
-                r#type: "json_schema".to_string(),
-                name: Some("code_output_schema".to_string()),
+                r#type: "json_schema".to_owned(),
+                name: Some("code_output_schema".to_owned()),
                 strict: Some(true),
                 schema: Some(schema.clone()),
             })
@@ -743,7 +743,7 @@ impl ModelClient {
 
             let reasoning = self.current_reasoning_param(&request_family, effective_effort);
             let include: Vec<String> = if !store && reasoning.is_some() {
-                vec!["reasoning.encrypted_content".to_string()]
+                vec!["reasoning.encrypted_content".to_owned()]
             } else {
                 Vec::new()
             };
@@ -761,7 +761,7 @@ impl ModelClient {
                 stream: true,
                 include,
                 service_tier: match self.config.service_tier {
-                    Some(ServiceTier::Fast) => Some("priority".to_string()),
+                    Some(ServiceTier::Fast) => Some("priority".to_owned()),
                     _ => None,
                 },
                 prompt_cache_key: Some(session_id_str.clone()),
@@ -769,7 +769,7 @@ impl ModelClient {
 
             let mut payload_json = serde_json::to_value(&payload)?;
             if let Some(model_value) = payload_json.get_mut("model") {
-                *model_value = serde_json::Value::String(model_slug.to_string());
+                *model_value = serde_json::Value::String(model_slug.to_owned());
             }
             if self.provider.is_azure_responses_endpoint() {
                 attach_item_ids(&mut payload_json, &input_with_instructions);
@@ -778,10 +778,10 @@ impl ModelClient {
                 && let Some(obj) = payload_json.as_object_mut()
             {
                 if let Some(provider) = &openrouter_cfg.provider {
-                    obj.insert("provider".to_string(), serde_json::to_value(provider)?);
+                    obj.insert("provider".to_owned(), serde_json::to_value(provider)?);
                 }
                 if let Some(route) = &openrouter_cfg.route {
-                    obj.insert("route".to_string(), route.clone());
+                    obj.insert("route".to_owned(), route.clone());
                 }
                 for (key, value) in &openrouter_cfg.extra {
                     obj.entry(key.clone()).or_insert(value.clone());
@@ -888,8 +888,8 @@ impl ModelClient {
             // Wrap the normal /responses request payload in the WebSocket envelope.
             let mut ws_payload = serde_json::Map::new();
             ws_payload.insert(
-                "type".to_string(),
-                serde_json::Value::String("response.create".to_string()),
+                "type".to_owned(),
+                serde_json::Value::String("response.create".to_owned()),
             );
             if let Some(obj) = payload_json.as_object() {
                 for (k, v) in obj {
@@ -921,7 +921,7 @@ impl ModelClient {
                                 "received unexpected x-codex-turn-state during websocket connect"
                             );
                         } else {
-                            let _ = turn_state.set(value.to_string());
+                            let _ = turn_state.set(value.to_owned());
                         }
                     }
 
@@ -1007,7 +1007,7 @@ impl ModelClient {
                                 Ok(Message::Binary(_)) => {
                                     let _ = tx_bytes
                                         .send(Err(CodexErr::Stream(
-                                            "[ws] unexpected binary websocket event".to_string(),
+                                            "[ws] unexpected binary websocket event".to_owned(),
                                             None,
                                             Some(request_id_for_ws.clone()),
                                         )))
@@ -1143,8 +1143,8 @@ impl ModelClient {
         // - When a structured `format` is present, still include `verbosity` so GPT-5 can honor it.
         let want_format = prompt.text_format.clone().or_else(|| {
             prompt.output_schema.as_ref().map(|schema| crate::client_common::TextFormat {
-                r#type: "json_schema".to_string(),
-                name: Some("code_output_schema".to_string()),
+                r#type: "json_schema".to_owned(),
+                name: Some("code_output_schema".to_owned()),
                 strict: Some(true),
                 schema: Some(schema.clone()),
             })
@@ -1203,7 +1203,7 @@ impl ModelClient {
             // Request encrypted COT if we are not storing responses,
             // otherwise reasoning items will be referenced by ID
             let include: Vec<String> = if !store && reasoning.is_some() {
-                vec!["reasoning.encrypted_content".to_string()]
+                vec!["reasoning.encrypted_content".to_owned()]
             } else {
                 Vec::new()
             };
@@ -1223,7 +1223,7 @@ impl ModelClient {
                 stream: true,
                 include,
                 service_tier: match self.config.service_tier {
-                    Some(ServiceTier::Fast) => Some("priority".to_string()),
+                    Some(ServiceTier::Fast) => Some("priority".to_owned()),
                     _ => None,
                 },
                 // Use a stable per-process cache key (session id). With store=false this is inert.
@@ -1232,7 +1232,7 @@ impl ModelClient {
 
             let mut payload_json = serde_json::to_value(&payload)?;
             if let Some(model_value) = payload_json.get_mut("model") {
-                *model_value = serde_json::Value::String(model_slug.to_string());
+                *model_value = serde_json::Value::String(model_slug.to_owned());
             }
             if azure_workaround {
                 attach_item_ids(&mut payload_json, &input_with_instructions);
@@ -1242,12 +1242,12 @@ impl ModelClient {
             {
                 if let Some(provider) = &openrouter_cfg.provider {
                     obj.insert(
-                        "provider".to_string(),
+                        "provider".to_owned(),
                         serde_json::to_value(provider)?
                     );
                 }
                 if let Some(route) = &openrouter_cfg.route {
-                    obj.insert("route".to_string(), route.clone());
+                    obj.insert("route".to_owned(), route.clone());
                 }
                 for (key, value) in &openrouter_cfg.extra {
                     obj.entry(key.clone()).or_insert(value.clone());
@@ -1360,7 +1360,7 @@ impl ModelClient {
                                 "received unexpected x-codex-turn-state during responses request"
                             );
                         } else {
-                            let _ = turn_state.set(value.to_string());
+                            let _ = turn_state.set(value.to_owned());
                         }
                     }
 
@@ -1443,7 +1443,7 @@ impl ModelClient {
                                 "received unexpected x-codex-turn-state during responses request"
                             );
                         } else {
-                            let _ = turn_state.set(value.to_string());
+                            let _ = turn_state.set(value.to_owned());
                         }
                     }
                     // Capture x-request-id up-front in case we consume the response body later.
@@ -1724,7 +1724,7 @@ impl ModelClient {
                                 if let Ok(ErrorResponse { error }) = serde_json::from_str::<ErrorResponse>(&body_text) {
                                     let msg = error
                                         .message
-                                        .unwrap_or_else(|| "server error".to_string());
+                                        .unwrap_or_else(|| "server error".to_owned());
                                     (msg, None)
                                 } else {
                                     let mut excerpt = body_text;
@@ -1732,7 +1732,7 @@ impl ModelClient {
                                         excerpt.truncate(MAX_ERROR_EXCERPT_CHARS);
                                     }
                                     (
-                                        "server error".to_string(),
+                                        "server error".to_owned(),
                                         if excerpt.is_empty() {
                                             None
                                         } else {
@@ -2046,11 +2046,11 @@ fn map_wrapped_websocket_error_event(event: WrappedWebsocketErrorEvent) -> Optio
         if let Some(error) = event.error {
             let message = error
                 .message
-                .unwrap_or_else(|| "websocket returned an error event".to_string());
+                .unwrap_or_else(|| "websocket returned an error event".to_owned());
             return Some(CodexErr::Stream(message, None, None));
         }
         return Some(CodexErr::Stream(
-            "websocket returned an error event".to_string(),
+            "websocket returned an error event".to_owned(),
             None,
             None,
         ));
@@ -2284,7 +2284,7 @@ fn attach_item_ids(payload_json: &mut Value, original_items: &[ResponseItem]) {
             }
 
             if let Some(obj) = value.as_object_mut() {
-                obj.insert("id".to_string(), Value::String(id.clone()));
+                obj.insert("id".to_owned(), Value::String(id.clone()));
             }
         }
     }
@@ -2573,8 +2573,7 @@ async fn process_sse<S>(
                     let call_id = item_val
                         .get("id")
                         .and_then(|v| v.as_str())
-                        .unwrap_or("")
-                        .to_string();
+                        .unwrap_or("").to_owned();
                     let query = item_val
                         .get("action")
                         .and_then(|a| a.get("query"))
@@ -2592,7 +2591,7 @@ async fn process_sse<S>(
 
                 // Extract item_id if present
                 if let Some(id) = item_val.get("id").and_then(|v| v.as_str()) {
-                    current_item_id = Some(id.to_string());
+                    current_item_id = Some(id.to_owned());
                 } else {
                     // Check within the parsed item structure
                     match &item {
@@ -2736,7 +2735,7 @@ async fn process_sse<S>(
             "response.failed" => {
                 if let Some(resp_val) = event.response {
                     response_error = Some(CodexErr::Stream(
-                        "response.failed event received".to_string(),
+                        "response.failed event received".to_owned(),
                         None,
                         Some(request_id.clone()),
                     ));
@@ -2876,8 +2875,7 @@ async fn process_sse<S>(
                         let call_id = item
                             .get("id")
                             .and_then(|v| v.as_str())
-                            .unwrap_or("")
-                            .to_string();
+                            .unwrap_or("").to_owned();
                         let ev = ResponseEvent::WebSearchCallBegin { call_id };
                         if tx_event.send(Ok(ev)).await.is_err() {
                             return;

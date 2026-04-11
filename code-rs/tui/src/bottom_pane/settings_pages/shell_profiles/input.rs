@@ -94,7 +94,7 @@ pub(super) fn handle_key_event_direct(view: &mut ShellProfilesSettingsView, key:
             (KeyCode::Char('s'), mods) if mods.contains(KeyModifiers::CONTROL) => {
                 view.stage_pending_profile_from_fields();
                 view.dirty = true;
-                view.status = Some("Changes staged. Select Apply to persist.".to_string());
+                view.status = Some("Changes staged. Select Apply to persist.".to_owned());
                 mode_guard.disarm();
                 true
             }

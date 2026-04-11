@@ -68,7 +68,7 @@ async fn handle_request_permissions(
                     permissions: RequestPermissionProfile::default(),
                     scope: PermissionGrantScope::Turn,
                 })
-                .unwrap_or_else(|_| "{}".to_string()),
+                .unwrap_or_else(|_| "{}".to_owned()),
             );
         }
         crate::protocol::AskForApproval::Reject(config) if config.rejects_request_permissions() => {
@@ -78,7 +78,7 @@ async fn handle_request_permissions(
                     permissions: RequestPermissionProfile::default(),
                     scope: PermissionGrantScope::Turn,
                 })
-                .unwrap_or_else(|_| "{}".to_string()),
+                .unwrap_or_else(|_| "{}".to_owned()),
             );
         }
         crate::protocol::AskForApproval::UnlessTrusted

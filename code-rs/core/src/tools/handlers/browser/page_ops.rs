@@ -19,7 +19,7 @@ pub(super) async fn handle_browser_javascript(
     execute_custom_tool(
         sess,
         ctx,
-        "browser_javascript".to_string(),
+        "browser_javascript".to_owned(),
         params,
         || async move {
             let browser_manager = get_browser_manager_for_session(sess_clone).await;
@@ -65,7 +65,7 @@ pub(super) async fn handle_browser_javascript(
                                         output.push_str("Result: ");
                                         output.push_str(
                                             &serde_json::to_string_pretty(value)
-                                                .unwrap_or_else(|_| "null".to_string()),
+                                                .unwrap_or_else(|_| "null".to_owned()),
                                         );
                                     } else if let Some(error) = obj.get("error") {
                                         output.push_str("Error: ");
@@ -76,12 +76,12 @@ pub(super) async fn handle_browser_javascript(
                                 } else {
                                     // Fallback to raw JSON if not in expected format.
                                     serde_json::to_string_pretty(&result)
-                                        .unwrap_or_else(|_| "null".to_string())
+                                        .unwrap_or_else(|_| "null".to_owned())
                                 }
                             } else {
                                 // Not an object, return as-is.
                                 serde_json::to_string_pretty(&result)
-                                    .unwrap_or_else(|_| "null".to_string())
+                                    .unwrap_or_else(|_| "null".to_owned())
                             };
 
                             tracing::info!("Returning to LLM: {}", formatted_result);
@@ -120,7 +120,7 @@ pub(super) async fn handle_browser_console(
     execute_custom_tool(
         sess,
         ctx,
-        "browser_console".to_string(),
+        "browser_console".to_owned(),
         params,
         || async move {
             let browser_manager = get_browser_manager_for_session(sess_clone).await;
@@ -141,7 +141,7 @@ pub(super) async fn handle_browser_console(
                 Ok(logs) => {
                     let formatted = if let Some(logs_array) = logs.as_array() {
                         if logs_array.is_empty() {
-                            "No console logs captured.".to_string()
+                            "No console logs captured.".to_owned()
                         } else {
                             let mut output = String::new();
                             output.push_str("Console logs:\n");
@@ -173,7 +173,7 @@ pub(super) async fn handle_browser_console(
                             output
                         }
                     } else {
-                        "No console logs captured.".to_string()
+                        "No console logs captured.".to_owned()
                     };
 
                     tool_output(call_id_clone, formatted)
@@ -200,7 +200,7 @@ pub(super) async fn handle_browser_cdp(
     execute_custom_tool(
         sess,
         ctx,
-        "browser_cdp".to_string(),
+        "browser_cdp".to_owned(),
         params,
         || async move {
             let browser_manager = get_browser_manager_for_session(sess_clone).await;
@@ -218,8 +218,7 @@ pub(super) async fn handle_browser_cdp(
                     let method = json
                         .get("method")
                         .and_then(|v| v.as_str())
-                        .unwrap_or("")
-                        .to_string();
+                        .unwrap_or("").to_owned();
                     let params = json
                         .get("params")
                         .cloned()
@@ -239,7 +238,7 @@ pub(super) async fn handle_browser_cdp(
                     match exec_res {
                         Ok(result) => {
                             let pretty = serde_json::to_string_pretty(&result)
-                                .unwrap_or_else(|_| "<non-serializable result>".to_string());
+                                .unwrap_or_else(|_| "<non-serializable result>".to_owned());
                             tool_output(call_id_clone, pretty)
                         }
                         Err(e) => tool_error(call_id_clone, format!(

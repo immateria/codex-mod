@@ -13,7 +13,7 @@ pub(super) async fn handle_browser_cleanup(sess: &Session, ctx: &ToolCallCtx) ->
     execute_custom_tool(
         sess,
         ctx,
-        "browser_cleanup".to_string(),
+        "browser_cleanup".to_owned(),
         Some(serde_json::json!({})),
         || async move {
             if let Some(browser_manager) = get_browser_manager_for_session(sess_clone).await {
@@ -43,7 +43,7 @@ pub(super) async fn handle_browser_open(
     execute_custom_tool(
         sess,
         ctx,
-        "browser_open".to_string(),
+        "browser_open".to_owned(),
         params,
         || async move {
             // Parse the URL from arguments
@@ -149,7 +149,7 @@ pub(super) async fn handle_browser_close(sess: &Session, ctx: &ToolCallCtx) -> R
     execute_custom_tool(
         sess,
         ctx,
-        "browser_close".to_string(),
+        "browser_close".to_owned(),
         None,
         || async move {
             let browser_manager = get_browser_manager_for_session(sess_clone).await;
@@ -183,7 +183,7 @@ pub(super) async fn handle_browser_status(sess: &Session, ctx: &ToolCallCtx) -> 
     execute_custom_tool(
         sess,
         ctx,
-        "browser_status".to_string(),
+        "browser_status".to_owned(),
         None,
         || async move {
             let browser_manager = get_browser_manager_for_session(sess_clone).await;
@@ -196,10 +196,10 @@ pub(super) async fn handle_browser_status(sess: &Session, ctx: &ToolCallCtx) -> 
                     if let Some(url) = status.current_url {
                         format!("Browser status: Enabled, currently at {url}")
                     } else {
-                        "Browser status: Enabled, no page loaded".to_string()
+                        "Browser status: Enabled, no page loaded".to_owned()
                     }
                 } else {
-                    "Browser status: Disabled".to_string()
+                    "Browser status: Disabled".to_owned()
                 };
 
                 tool_output(call_id_clone, status_msg)
@@ -218,7 +218,7 @@ pub(super) async fn handle_browser_targets(sess: &Session, ctx: &ToolCallCtx) ->
     execute_custom_tool(
         sess,
         ctx,
-        "browser_targets".to_string(),
+        "browser_targets".to_owned(),
         None,
         || async move {
             let browser_manager = get_browser_manager_for_session(sess_clone).await;
@@ -240,7 +240,7 @@ pub(super) async fn handle_browser_targets(sess: &Session, ctx: &ToolCallCtx) ->
                         });
 
                         let pretty = serde_json::to_string_pretty(&payload)
-                            .unwrap_or_else(|_| "{}".to_string());
+                            .unwrap_or_else(|_| "{}".to_owned());
                         tool_output(call_id_clone, pretty)
                     }
                     Err(e) => tool_error(call_id_clone, format!(
@@ -267,7 +267,7 @@ pub(super) async fn handle_browser_new_tab(
     execute_custom_tool(
         sess,
         ctx,
-        "browser_new_tab".to_string(),
+        "browser_new_tab".to_owned(),
         params,
         || async move {
             let browser_manager = match code_browser::global::get_browser_manager().await {
@@ -283,7 +283,7 @@ pub(super) async fn handle_browser_new_tab(
                         .and_then(serde_json::Value::as_str)
                         .map(ToString::to_string)
                 })
-                .unwrap_or_else(|| "about:blank".to_string());
+                .unwrap_or_else(|| "about:blank".to_owned());
 
             match browser_manager.new_tab(&url).await {
                 Ok(target_id) => {
@@ -292,7 +292,7 @@ pub(super) async fn handle_browser_new_tab(
                         "url": url,
                     });
                     let pretty = serde_json::to_string_pretty(&payload)
-                        .unwrap_or_else(|_| "{}".to_string());
+                        .unwrap_or_else(|_| "{}".to_owned());
                     tool_output(call_id_clone, pretty)
                 }
                 Err(e) => tool_error(call_id_clone, format!(
@@ -316,7 +316,7 @@ pub(super) async fn handle_browser_switch_target(
     execute_custom_tool(
         sess,
         ctx,
-        "browser_switch_target".to_string(),
+        "browser_switch_target".to_owned(),
         params.clone(),
         || async move {
             let browser_manager = get_browser_manager_for_session(sess_clone).await;
@@ -343,7 +343,7 @@ pub(super) async fn handle_browser_switch_target(
                     let current_url = browser_manager
                         .get_current_url()
                         .await
-                        .unwrap_or_else(|| "<unknown>".to_string());
+                        .unwrap_or_else(|| "<unknown>".to_owned());
                     tool_output(call_id_clone, format!(
                         "Switched to target {target_id} ({current_url})"
                     ))
@@ -369,7 +369,7 @@ pub(super) async fn handle_browser_activate_target(
     execute_custom_tool(
         sess,
         ctx,
-        "browser_activate_target".to_string(),
+        "browser_activate_target".to_owned(),
         params.clone(),
         || async move {
             let browser_manager = get_browser_manager_for_session(sess_clone).await;
@@ -413,7 +413,7 @@ pub(super) async fn handle_browser_close_target(
     execute_custom_tool(
         sess,
         ctx,
-        "browser_close_target".to_string(),
+        "browser_close_target".to_owned(),
         params.clone(),
         || async move {
             let browser_manager = get_browser_manager_for_session(sess_clone).await;

@@ -229,7 +229,7 @@ impl Widget for LimitsPaneWidget {
         };
 
         Paragraph::new(Line::from(vec![
-            Span::styled(self.title.to_string(), title_style),
+            Span::styled(self.title.to_owned(), title_style),
             Span::styled(" ─", crate::colors::style_text_dim()),
         ]))
         .style(crate::colors::style_on_background())

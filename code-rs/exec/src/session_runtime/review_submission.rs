@@ -73,7 +73,7 @@ pub(super) async fn submit_initial_turn(
                     Some(diff_paths.as_slice()),
                 );
                 if let Some(resolve_state) = state.auto_resolve_state.as_mut() {
-                    resolve_state.last_reviewed_commit = Some(snap.id().to_string());
+                    resolve_state.last_reviewed_commit = Some(snap.id().to_owned());
                 }
             }
         }

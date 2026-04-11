@@ -29,14 +29,14 @@ impl ChatComposer {
         if lower.contains("auto review") {
             let cleaned = technical_message.trim();
             if cleaned.is_empty() {
-                "Auto Review".to_string()
+                "Auto Review".to_owned()
             } else {
-                cleaned.to_string()
+                cleaned.to_owned()
             }
         } else if lower.contains("auto drive goal") {
-            crate::auto_drive_style::AUTO_DRIVE_GOAL_TITLE.to_string()
+            crate::auto_drive_style::AUTO_DRIVE_GOAL_TITLE.to_owned()
         } else if lower.contains("auto drive") {
-            crate::auto_drive_style::AUTO_DRIVE_TITLE.to_string()
+            crate::auto_drive_style::AUTO_DRIVE_TITLE.to_owned()
         }
         // Thinking/reasoning patterns
         else if lower.contains("reasoning")
@@ -44,7 +44,7 @@ impl ChatComposer {
             || lower.contains("planning")
             || lower.contains("waiting for model")
         {
-            "Thinking".to_string()
+            "Thinking".to_owned()
         }
         // Tool/command execution patterns
         else if lower.contains("tool")
@@ -53,7 +53,7 @@ impl ChatComposer {
             || lower.contains("bash")
             || lower.contains("shell")
         {
-            "Using tools".to_string()
+            "Using tools".to_owned()
         }
         // Browser activity
         else if lower.contains("browser")
@@ -64,14 +64,14 @@ impl ChatComposer {
             || lower.contains("load url")
             || lower.contains("screenshot")
         {
-            "Browsing".to_string()
+            "Browsing".to_owned()
         }
         // Multi-agent orchestration
         else if lower.contains("agent")
             || lower.contains("orchestrating")
             || lower.contains("coordinating")
         {
-            "Agents".to_string()
+            "Agents".to_owned()
         }
         // Response generation patterns
         else if lower.contains("generating")
@@ -82,7 +82,7 @@ impl ChatComposer {
             || lower.contains("chat completions")
             || lower.contains("completion")
         {
-            "Responding".to_string()
+            "Responding".to_owned()
         }
         // Transient network/stream retry patterns → keep spinner visible with a
         // clear reconnecting message so the user knows we are still working.
@@ -96,12 +96,12 @@ impl ChatComposer {
             || lower.contains("network")
             || lower.contains("connection")
         {
-            "Reconnecting".to_string()
+            "Reconnecting".to_owned()
         }
         // Initial connection / handshake (must come after reconnecting, since
         // "reconnecting" contains the substring "connecting").
         else if lower.contains("connecting") {
-            "Connecting".to_string()
+            "Connecting".to_owned()
         }
         // File/code editing patterns
         else if lower.contains("editing")
@@ -111,18 +111,18 @@ impl ChatComposer {
             || lower.contains("updating")
             || lower.contains("patch")
         {
-            "Coding".to_string()
+            "Coding".to_owned()
         }
         // Catch some common technical terms
         else if lower.contains("processing") || lower.contains("analyzing") {
-            "Thinking".to_string()
+            "Thinking".to_owned()
         } else if lower == "search" || lower.contains("searching") {
-            "Searching".to_string()
+            "Searching".to_owned()
         } else if lower.contains("reading") {
-            "Reading".to_string()
+            "Reading".to_owned()
         } else {
             // Default fallback - use "working" for unknown status
-            "Working".to_string()
+            "Working".to_owned()
         }
     }
 }

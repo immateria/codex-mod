@@ -64,8 +64,7 @@ impl AssetManager {
         let mime = match format {
             ImageFormat::Png => "image/png",
             ImageFormat::Webp => "image/webp",
-        }
-        .to_string();
+        }.to_owned();
 
         let image_ref = ImageRef {
             path: path.to_string_lossy().into_owned(),

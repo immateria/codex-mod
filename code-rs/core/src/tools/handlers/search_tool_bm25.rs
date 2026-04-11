@@ -85,21 +85,21 @@ fn build_search_text(
     input_keys: &[String],
 ) -> String {
     let mut parts = vec![
-        qualified_name.to_string(),
-        tool_name.to_string(),
-        server_name.to_string(),
+        qualified_name.to_owned(),
+        tool_name.to_owned(),
+        server_name.to_owned(),
     ];
 
     if let Some(title) = title
         && !title.trim().is_empty()
     {
-        parts.push(title.to_string());
+        parts.push(title.to_owned());
     }
 
     if let Some(description) = description
         && !description.trim().is_empty()
     {
-        parts.push(description.to_string());
+        parts.push(description.to_owned());
     }
 
     if !input_keys.is_empty() {
@@ -133,7 +133,7 @@ impl ToolHandler for SearchToolBm25Handler {
         execute_custom_tool(
             sess,
             &ctx,
-            crate::openai_tools::SEARCH_TOOL_BM25_TOOL_NAME.to_string(),
+            crate::openai_tools::SEARCH_TOOL_BM25_TOOL_NAME.to_owned(),
             params_for_event,
             move || async move {
                 let args: SearchToolBm25Args = match serde_json::from_str(&arguments) {

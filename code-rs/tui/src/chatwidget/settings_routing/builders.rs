@@ -416,7 +416,7 @@ impl ChatWidget<'_> {
         fn command_for_check(command: &str) -> String {
             let (base, _) = split_command_and_args(command);
             if base.trim().is_empty() {
-                command.trim().to_string()
+                command.trim().to_owned()
             } else {
                 base
             }
@@ -425,7 +425,7 @@ impl ChatWidget<'_> {
         let mut agent_rows: Vec<AgentOverviewRow> = Vec::new();
         let mut ordered: Vec<String> = enabled_agent_model_specs()
             .into_iter()
-            .map(|spec| spec.slug.to_string())
+            .map(|spec| spec.slug.to_owned())
             .collect();
         let mut extras: Vec<String> = Vec::new();
         for agent in &self.config.agents {
@@ -528,12 +528,12 @@ impl ChatWidget<'_> {
         if let Some(desc) = config_description {
             let trimmed = desc.trim();
             if !trimmed.is_empty() {
-                return Some(trimmed.to_string());
+                return Some(trimmed.to_owned());
             }
         }
         agent_model_spec(name)
             .or_else(|| command.and_then(agent_model_spec))
-            .map(|spec| spec.description.trim().to_string())
+            .map(|spec| spec.description.trim().to_owned())
             .filter(|desc| !desc.is_empty())
     }
 

@@ -13,7 +13,7 @@ pub(super) async fn execute_cloud_built_in_streaming(
     let program = current_code_binary_path()?;
     let mut args: Vec<String> = vec!["cloud".into(), "submit".into(), "--wait".into()];
     if let Some(spec) = agent_model_spec(model_slug) {
-        args.extend(spec.model_args.iter().map(|arg| (*arg).to_string()));
+        args.extend(spec.model_args.iter().map(|arg| (*arg).to_owned()));
     }
     args.push(prompt.into());
 
@@ -36,14 +36,14 @@ pub(super) async fn execute_cloud_built_in_streaming(
 
     // Stream stderr to HUD
     let stderr_task = if let Some(stderr) = child.stderr.take() {
-        let agent = agent_id.to_string();
+        let agent = agent_id.to_owned();
         Some(tokio::spawn(async move {
             let mut lines = BufReader::new(stderr).lines();
             while let Ok(Some(line)) = lines.next_line().await {
                 let msg = line.trim();
                 if msg.is_empty() { continue; }
                 let mut mgr = AGENT_MANAGER.write().await;
-                mgr.add_progress(&agent, msg.to_string()).await;
+                mgr.add_progress(&agent, msg.to_owned()).await;
             }
         }))
     } else { None };

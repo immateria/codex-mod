@@ -69,7 +69,7 @@ impl ChatWidget<'_> {
             .get_bool("shell_zsh_fork")
             .unwrap_or(false);
         if !enabled {
-            return Some("Disabled".to_string());
+            return Some("Disabled".to_owned());
         }
 
         let zsh_path = if self.config.zsh_path.is_some() { "set" } else { "unset" };
@@ -103,15 +103,15 @@ impl ChatWidget<'_> {
 
         match &state.list {
             crate::chatwidget::PluginsListState::Uninitialized => {
-                Some("Browse and manage plugins".to_string())
+                Some("Browse and manage plugins".to_owned())
             }
             crate::chatwidget::PluginsListState::Loading {
                 force_remote_sync,
                 ..
             } => Some(if *force_remote_sync {
-                "Syncing plugins...".to_string()
+                "Syncing plugins...".to_owned()
             } else {
-                "Loading plugins...".to_string()
+                "Loading plugins...".to_owned()
             }),
             crate::chatwidget::PluginsListState::Failed { error, .. } => {
                 Some(format!("Error: {error}"))
@@ -140,7 +140,7 @@ impl ChatWidget<'_> {
                 }
 
                 let enabled_summary = if installed_count == 0 {
-                    "Enabled: 0".to_string()
+                    "Enabled: 0".to_owned()
                 } else {
                     format!("Enabled: {enabled_installed_count}/{installed_count}")
                 };
@@ -152,7 +152,7 @@ impl ChatWidget<'_> {
                 ];
 
                 if remote_sync_error.is_some() {
-                    summary_parts.push("Sync error".to_string());
+                    summary_parts.push("Sync error".to_owned());
                 }
                 if !marketplace_load_errors.is_empty() {
                     summary_parts.push(format!("Load errors: {}", marketplace_load_errors.len()));
@@ -172,7 +172,7 @@ impl ChatWidget<'_> {
         let runtime_path = self
             .config
             .js_repl_runtime_path
-            .as_ref().map_or_else(|| "auto".to_string(), |path| path.to_string_lossy().into_owned());
+            .as_ref().map_or_else(|| "auto".to_owned(), |path| path.to_string_lossy().into_owned());
 
         Some(format!(
             "Status: {enabled} · Runtime: {runtime} · Path: {runtime_path}"
@@ -183,10 +183,10 @@ impl ChatWidget<'_> {
         fn fmt_limit(limit: code_core::config::ExecLimitToml, unit: Option<&'static str>) -> String {
             match limit {
                 code_core::config::ExecLimitToml::Mode(code_core::config::ExecLimitModeToml::Auto) => {
-                    "Auto".to_string()
+                    "Auto".to_owned()
                 }
                 code_core::config::ExecLimitToml::Mode(code_core::config::ExecLimitModeToml::Disabled) => {
-                    "Disabled".to_string()
+                    "Disabled".to_owned()
                 }
                 code_core::config::ExecLimitToml::Value(v) => match unit {
                     Some(unit) => format!("{v} {unit}"),
@@ -207,10 +207,10 @@ impl ChatWidget<'_> {
             Some(shell) => {
                 let style = shell
                     .script_style
-                    .or_else(|| ShellScriptStyle::infer_from_shell_program(&shell.path)).map_or_else(|| "auto".to_string(), |style| style.to_string());
+                    .or_else(|| ShellScriptStyle::infer_from_shell_program(&shell.path)).map_or_else(|| "auto".to_owned(), |style| style.to_string());
                 Some(format!("Shell: {} · Style: {style}", shell.path))
             }
-            None => Some("Shell: auto".to_string()),
+            None => Some("Shell: auto".to_owned()),
         }
     }
 
@@ -220,7 +220,7 @@ impl ChatWidget<'_> {
                 .or_else(|| ShellScriptStyle::infer_from_shell_program(&shell.path))
         });
         let Some(style) = active_style else {
-            return Some("Active: auto".to_string());
+            return Some("Active: auto".to_owned());
         };
         let Some(profile) = self.config.shell_style_profiles.get(&style) else {
             return Some(format!("Active: {style} · (no overrides)"));
@@ -254,7 +254,7 @@ impl ChatWidget<'_> {
     #[cfg(feature = "managed-network-proxy")]
     pub(super) fn settings_summary_network(&self) -> Option<String> {
         let Some(network) = self.config.network.as_ref() else {
-            return Some("Status: Disabled".to_string());
+            return Some("Status: Disabled".to_owned());
         };
         let status = if network.enabled { "Enabled" } else { "Disabled" };
         let mode = match network.mode {
@@ -285,7 +285,7 @@ impl ChatWidget<'_> {
                 Some(code_core::config_types::ServiceTier::Fast)
             )
         {
-            parts.push("Fast mode".to_string());
+            parts.push("Fast mode".to_owned());
         }
         if let Some(profile) = self
             .config
@@ -301,7 +301,7 @@ impl ChatWidget<'_> {
 
     pub(super) fn settings_summary_planning(&self) -> Option<String> {
         if self.config.planning_use_chat_model {
-            return Some("Model: Follow Chat Mode".to_string());
+            return Some("Model: Follow Chat Mode".to_owned());
         }
         let model = self.config.planning_model.trim();
         let model_display_storage;
@@ -324,7 +324,7 @@ impl ChatWidget<'_> {
 
     pub(super) fn settings_summary_updates(&self) -> Option<String> {
         if !crate::updates::upgrade_ui_enabled() {
-            return Some("Auto update: Disabled".to_string());
+            return Some("Auto update: Disabled".to_owned());
         }
         let status = if self.config.auto_upgrade_enabled {
             "Enabled"
@@ -367,10 +367,10 @@ impl ChatWidget<'_> {
 
         match &state.list {
             crate::chatwidget::SecretsListState::Uninitialized => {
-                Some("Manage stored secrets".to_string())
+                Some("Manage stored secrets".to_owned())
             }
             crate::chatwidget::SecretsListState::Loading { .. } => {
-                Some("Loading secrets...".to_string())
+                Some("Loading secrets...".to_owned())
             }
             crate::chatwidget::SecretsListState::Failed { error, .. } => {
                 Some(format!("Error: {error}"))
@@ -407,10 +407,10 @@ impl ChatWidget<'_> {
         let diagnostics_enabled = self.auto_state.qa_automation_enabled
             && (self.auto_state.review_enabled || self.auto_state.cross_check_enabled);
         let (model_text, effort_text) = if self.config.auto_drive_use_chat_model {
-            ("Follow Chat Mode".to_string(), None)
+            ("Follow Chat Mode".to_owned(), None)
         } else {
             let model_label = if self.config.auto_drive.model.trim().is_empty() {
-                "(default)".to_string()
+                "(default)".to_owned()
             } else {
                 crate::text_formatting::format_model_label(&self.config.auto_drive.model)
             };
@@ -445,7 +445,7 @@ impl ChatWidget<'_> {
         let auto_followups = self.config.auto_drive.auto_review_followup_attempts.get();
 
         let review_model_label = if self.config.review_use_chat_model {
-            "Chat".to_string()
+            "Chat".to_owned()
         } else {
             format!(
                 "{} ({})",
@@ -455,7 +455,7 @@ impl ChatWidget<'_> {
         };
 
         let review_resolve_label = if self.config.review_resolve_use_chat_model {
-            "Chat".to_string()
+            "Chat".to_owned()
         } else {
             format!(
                 "{} ({})",
@@ -465,7 +465,7 @@ impl ChatWidget<'_> {
         };
 
         let auto_review_model_label = if self.config.auto_review_use_chat_model {
-            "Chat".to_string()
+            "Chat".to_owned()
         } else {
             format!(
                 "{} ({})",
@@ -475,7 +475,7 @@ impl ChatWidget<'_> {
         };
 
         let auto_review_resolve_label = if self.config.auto_review_resolve_use_chat_model {
-            "Chat".to_string()
+            "Chat".to_owned()
         } else {
             format!(
                 "{} ({})",
@@ -502,18 +502,18 @@ impl ChatWidget<'_> {
             let secondary = snapshot.secondary_used_percent.clamp(0.0, 100.0).round() as i64;
             Some(format!("Primary: {primary}% · Secondary: {secondary}%"))
         } else if self.rate_limit_fetch_inflight {
-            Some("Refreshing usage...".to_string())
+            Some("Refreshing usage...".to_owned())
         } else {
-            Some("Usage data not loaded".to_string())
+            Some("Usage data not loaded".to_owned())
         }
     }
 
     #[cfg(feature = "browser-automation")]
     pub(super) fn settings_summary_chrome(&self) -> Option<String> {
         if self.browser_is_external {
-            Some("Browser: external".to_string())
+            Some("Browser: external".to_owned())
         } else {
-            Some("Browser: available".to_string())
+            Some("Browser: available".to_owned())
         }
     }
 
@@ -650,48 +650,48 @@ impl ChatWidget<'_> {
 
     pub(super) fn theme_display_name(theme: code_core::config_types::ThemeName) -> String {
         match theme {
-            code_core::config_types::ThemeName::LightPhoton => "Light - Photon".to_string(),
+            code_core::config_types::ThemeName::LightPhoton => "Light - Photon".to_owned(),
             code_core::config_types::ThemeName::LightPhotonAnsi16 => {
-                "Light - Photon (16-color)".to_string()
+                "Light - Photon (16-color)".to_owned()
             }
             code_core::config_types::ThemeName::LightPrismRainbow => {
-                "Light - Prism Rainbow".to_string()
+                "Light - Prism Rainbow".to_owned()
             }
             code_core::config_types::ThemeName::LightVividTriad => {
-                "Light - Vivid Triad".to_string()
+                "Light - Vivid Triad".to_owned()
             }
-            code_core::config_types::ThemeName::LightPorcelain => "Light - Porcelain".to_string(),
-            code_core::config_types::ThemeName::LightSandbar => "Light - Sandbar".to_string(),
-            code_core::config_types::ThemeName::LightGlacier => "Light - Glacier".to_string(),
+            code_core::config_types::ThemeName::LightPorcelain => "Light - Porcelain".to_owned(),
+            code_core::config_types::ThemeName::LightSandbar => "Light - Sandbar".to_owned(),
+            code_core::config_types::ThemeName::LightGlacier => "Light - Glacier".to_owned(),
             code_core::config_types::ThemeName::DarkCarbonNight => {
-                "Dark - Carbon Night".to_string()
+                "Dark - Carbon Night".to_owned()
             }
             code_core::config_types::ThemeName::DarkCarbonAnsi16 => {
-                "Dark - Carbon (16-color)".to_string()
+                "Dark - Carbon (16-color)".to_owned()
             }
             code_core::config_types::ThemeName::DarkShinobiDusk => {
-                "Dark - Shinobi Dusk".to_string()
+                "Dark - Shinobi Dusk".to_owned()
             }
             code_core::config_types::ThemeName::DarkOledBlackPro => {
-                "Dark - OLED Black Pro".to_string()
+                "Dark - OLED Black Pro".to_owned()
             }
             code_core::config_types::ThemeName::DarkAmberTerminal => {
-                "Dark - Amber Terminal".to_string()
+                "Dark - Amber Terminal".to_owned()
             }
-            code_core::config_types::ThemeName::DarkAuroraFlux => "Dark - Aurora Flux".to_string(),
+            code_core::config_types::ThemeName::DarkAuroraFlux => "Dark - Aurora Flux".to_owned(),
             code_core::config_types::ThemeName::DarkCharcoalRainbow => {
-                "Dark - Charcoal Rainbow".to_string()
+                "Dark - Charcoal Rainbow".to_owned()
             }
-            code_core::config_types::ThemeName::DarkZenGarden => "Dark - Zen Garden".to_string(),
+            code_core::config_types::ThemeName::DarkZenGarden => "Dark - Zen Garden".to_owned(),
             code_core::config_types::ThemeName::DarkPaperLightPro => {
-                "Dark - Paper Light Pro".to_string()
+                "Dark - Paper Light Pro".to_owned()
             }
             code_core::config_types::ThemeName::Custom => {
                 let mut label =
-                    crate::theme::custom_theme_label().unwrap_or_else(|| "Custom".to_string());
+                    crate::theme::custom_theme_label().unwrap_or_else(|| "Custom".to_owned());
                 for pref in ["Light - ", "Dark - ", "Light ", "Dark "] {
                     if label.starts_with(pref) {
-                        label = label[pref.len()..].trim().to_string();
+                        label = label[pref.len()..].trim().to_owned();
                         break;
                     }
                 }

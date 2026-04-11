@@ -205,12 +205,12 @@ fn parse_legacy_status_snapshot(item: &ResponseItem) -> Option<EnvironmentContex
                     if let Some(rest) = trimmed.strip_prefix("cwd:") {
                         let value = rest.trim();
                         if !value.is_empty() {
-                            cwd = Some(value.to_string());
+                            cwd = Some(value.to_owned());
                         }
                     } else if let Some(rest) = trimmed.strip_prefix("branch:") {
                         let value = rest.trim();
                         if !value.is_empty() && value != "unknown" {
-                            branch = Some(value.to_string());
+                            branch = Some(value.to_owned());
                         }
                     }
                 }

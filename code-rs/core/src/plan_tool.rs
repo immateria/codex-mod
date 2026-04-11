@@ -20,50 +20,49 @@ pub use code_protocol::plan_tool::UpdatePlanArgs;
 pub(crate) static PLAN_TOOL: LazyLock<OpenAiTool> = LazyLock::new(|| {
     let mut plan_item_props = BTreeMap::new();
     plan_item_props.insert(
-        "step".to_string(),
+        "step".to_owned(),
         JsonSchema::String {
             description: None,
             allowed_values: None,
         },
     );
     plan_item_props.insert(
-        "status".to_string(),
+        "status".to_owned(),
         JsonSchema::String {
-            description: Some("One of: pending, in_progress, completed".to_string()),
+            description: Some("One of: pending, in_progress, completed".to_owned()),
             allowed_values: None,
         },
     );
 
     let plan_items_schema = JsonSchema::Array {
-        description: Some("The list of steps".to_string()),
+        description: Some("The list of steps".to_owned()),
         items: Box::new(JsonSchema::Object {
             properties: plan_item_props,
-            required: Some(vec!["step".to_string(), "status".to_string()]),
+            required: Some(vec!["step".to_owned(), "status".to_owned()]),
             additional_properties: Some(false.into()),
         }),
     };
 
     let mut properties = BTreeMap::new();
     properties.insert(
-        "name".to_string(),
+        "name".to_owned(),
         JsonSchema::String {
-            description: Some("2-5 word title describing the plan e.g. 'Fix Box Rendering'".to_string()),
+            description: Some("2-5 word title describing the plan e.g. 'Fix Box Rendering'".to_owned()),
             allowed_values: None,
         },
     );
-    properties.insert("plan".to_string(), plan_items_schema);
+    properties.insert("plan".to_owned(), plan_items_schema);
 
     OpenAiTool::Function(ResponsesApiTool {
-        name: "update_plan".to_string(),
+        name: "update_plan".to_owned(),
         description: r#"Updates the task plan.
 Provide an optional name and a list of plan items, each with a step and status.
 At most one step can be in_progress at a time.
-"#
-        .to_string(),
+"#.to_owned(),
         strict: false,
         parameters: JsonSchema::Object {
             properties,
-            required: Some(vec!["plan".to_string()]),
+            required: Some(vec!["plan".to_owned()]),
             additional_properties: Some(false.into()),
         },
     })
@@ -83,7 +82,7 @@ pub(crate) async fn handle_update_plan(
             let output = ResponseInputItem::FunctionCallOutput {
                 call_id: ctx.call_id.clone(),
                 output: FunctionCallOutputPayload {
-                    body: code_protocol::models::FunctionCallOutputBody::Text("Plan updated".to_string()),
+                    body: code_protocol::models::FunctionCallOutputBody::Text("Plan updated".to_owned()),
                     success: Some(true)},
             };
             session
@@ -103,7 +102,7 @@ fn parse_update_plan_arguments(
         Ok(args) => Ok(args),
         Err(e) => {
             let output = ResponseInputItem::FunctionCallOutput {
-                call_id: call_id.to_string(),
+                call_id: call_id.to_owned(),
                 output: FunctionCallOutputPayload {
                     body: code_protocol::models::FunctionCallOutputBody::Text(format!("failed to parse function arguments: {e}")),
                     success: None},
@@ -114,7 +113,7 @@ fn parse_update_plan_arguments(
 }
 
 fn normalize_plan_name(name: Option<String>) -> Option<String> {
-    let name = name.map(|value| value.trim().to_string())?;
+    let name = name.map(|value| value.trim().to_owned())?;
 
     if name.is_empty() {
         return None;

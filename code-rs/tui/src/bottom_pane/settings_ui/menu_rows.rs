@@ -145,7 +145,7 @@ fn push_text_clipped<'a>(
 
     let span_width = UnicodeWidthStr::width(text);
     if span_width <= remaining {
-        spans.push(Span::styled(text.to_string(), style));
+        spans.push(Span::styled(text.to_owned(), style));
         *used_cols = used_cols.saturating_add(span_width);
         return false;
     }

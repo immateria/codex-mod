@@ -17,7 +17,7 @@ impl ChatWidget<'_> {
                 }
                 saw_blank = true;
             } else {
-                out.push(trimmed.to_string());
+                out.push(trimmed.to_owned());
                 saw_blank = false;
             }
         }
@@ -84,7 +84,7 @@ impl ChatWidget<'_> {
         if self.standard_terminal_mode {
             let message = "Standard terminal mode active. Press Ctrl+T to return to full UI.";
             self.bottom_pane
-                .set_standard_terminal_hint(Some(message.to_string()));
+                .set_standard_terminal_hint(Some(message.to_owned()));
         } else {
             self.bottom_pane.set_standard_terminal_hint(None);
         }
@@ -134,7 +134,7 @@ impl ChatWidget<'_> {
             shortened.push('…');
             shortened
         } else {
-            trimmed.to_string()
+            trimmed.to_owned()
         };
 
         tracing::info!(
@@ -193,7 +193,7 @@ impl ChatWidget<'_> {
                         tracing::warn!("[/browser] failed to disable internal browser: {}", e);
                     }
                     app_event_tx
-                        .send_background_event_with_ticket(&ticket, "Browser disabled".to_string());
+                        .send_background_event_with_ticket(&ticket, "Browser disabled".to_owned());
                 } else {
                     // Not in internal mode → enable internal and open about:blank
                     // Reuse existing helper (ensures config + start + global manager + screenshot)
@@ -244,7 +244,7 @@ impl ChatWidget<'_> {
                     app_event_tx
                         .send_background_event_with_ticket(
                             &ticket,
-                            "Browser enabled (about:blank)".to_string(),
+                            "Browser enabled (about:blank)".to_owned(),
                         );
                 }
             });
@@ -519,7 +519,7 @@ impl ChatWidget<'_> {
                             }
                         });
                         self.app_event_tx.send(AppEvent::RequestRedraw);
-                        "Browser mode disabled.".to_string()
+                        "Browser mode disabled.".to_owned()
                     }
                     "status" => {
                         // Get status from BrowserManager
@@ -532,7 +532,7 @@ impl ChatWidget<'_> {
                         });
                         status_rx
                             .recv()
-                            .unwrap_or_else(|_| "Failed to get browser status.".to_string())
+                            .unwrap_or_else(|_| "Failed to get browser status.".to_owned())
                     }
                     "fullpage" => {
                         if parts.len() > 2 {
@@ -544,8 +544,7 @@ impl ChatWidget<'_> {
                                             ChatWidget::get_browser_manager().await;
                                         browser_manager.set_fullpage_sync(true);
                                     });
-                                    "Full-page screenshot mode enabled (max 8 segments)."
-                                        .to_string()
+                                    "Full-page screenshot mode enabled (max 8 segments).".to_owned()
                                 }
                                 "off" => {
                                     // Disable full-page mode
@@ -554,12 +553,12 @@ impl ChatWidget<'_> {
                                             ChatWidget::get_browser_manager().await;
                                         browser_manager.set_fullpage_sync(false);
                                     });
-                                    "Full-page screenshot mode disabled.".to_string()
+                                    "Full-page screenshot mode disabled.".to_owned()
                                 }
-                                _ => "Usage: /browser fullpage [on|off]".to_string(),
+                                _ => "Usage: /browser fullpage [on|off]".to_owned(),
                             }
                         } else {
-                            "Usage: /browser fullpage [on|off]".to_string()
+                            "Usage: /browser fullpage [on|off]".to_owned()
                         }
                     }
                     "config" => {
@@ -583,10 +582,10 @@ impl ChatWidget<'_> {
                                                 "Browser viewport updated: {width}x{height}"
                                             )
                                         } else {
-                                            "Invalid viewport format. Use: /browser config viewport 1920x1080".to_string()
+                                            "Invalid viewport format. Use: /browser config viewport 1920x1080".to_owned()
                                         }
                                     } else {
-                                        "Invalid viewport format. Use: /browser config viewport 1920x1080".to_string()
+                                        "Invalid viewport format. Use: /browser config viewport 1920x1080".to_owned()
                                     }
                                 }
                                 "segments_max" => {
@@ -598,7 +597,7 @@ impl ChatWidget<'_> {
                                         });
                                         format!("Browser segments_max updated: {max}")
                                     } else {
-                                        "Invalid segments_max value. Use a number.".to_string()
+                                        "Invalid segments_max value. Use a number.".to_owned()
                                     }
                                 }
                                 _ => format!(
@@ -606,7 +605,7 @@ impl ChatWidget<'_> {
                                 ),
                             }
                         } else {
-                            "Usage: /browser config <key> <value>\nAvailable keys: viewport, segments_max".to_string()
+                            "Usage: /browser config <key> <value>\nAvailable keys: viewport, segments_max".to_owned()
                         }
                     }
                     _ => {
@@ -617,7 +616,7 @@ impl ChatWidget<'_> {
                 }
             }
         } else {
-            "Browser commands:\n• /browser <url> - Open URL in internal browser\n• /browser off - Disable browser mode\n• /browser status - Show current status\n• /browser fullpage [on|off] - Toggle full-page mode\n• /browser config <key> <value> - Update configuration\n\nUse /chrome [port] to connect to external Chrome browser".to_string()
+            "Browser commands:\n• /browser <url> - Open URL in internal browser\n• /browser off - Disable browser mode\n• /browser status - Show current status\n• /browser fullpage [on|off] - Toggle full-page mode\n• /browser config <key> <value> - Update configuration\n\nUse /chrome [port] to connect to external Chrome browser".to_owned()
         };
 
         // Add the response to the UI as a ticketed background event so it stays with

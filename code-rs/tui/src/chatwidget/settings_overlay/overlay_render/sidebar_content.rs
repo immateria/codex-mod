@@ -67,11 +67,11 @@ impl SettingsOverlayView {
 
             let mut spans: Vec<Span<'static>> = Vec::new();
             spans.push(Span::styled(
-                selection_indicator.to_string(),
+                selection_indicator.to_owned(),
                 crate::colors::style_text(),
             ));
             spans.push(Span::styled(
-                overflow_indicator.to_string(),
+                overflow_indicator.to_owned(),
                 crate::colors::style_text_dim(),
             ));
             spans.push(Span::raw(" "));

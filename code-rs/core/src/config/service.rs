@@ -498,7 +498,7 @@ fn set_toml_path(
             ));
         };
         current = table
-            .entry((*segment).to_string())
+            .entry((*segment).to_owned())
             .or_insert_with(|| TomlValue::Table(Default::default()));
     }
 
@@ -517,7 +517,7 @@ fn set_toml_path(
             "Config key path must not be empty",
         ));
     };
-    table.insert((*key).to_string(), value);
+    table.insert((*key).to_owned(), value);
 
     Ok(())
 }
@@ -547,7 +547,7 @@ fn upsert_toml_path(
             ));
         };
         current = table
-            .entry((*segment).to_string())
+            .entry((*segment).to_owned())
             .or_insert_with(|| TomlValue::Table(Default::default()));
     }
 
@@ -567,7 +567,7 @@ fn upsert_toml_path(
             "Config key path must not be empty",
         ));
     };
-    let key = (*key).to_string();
+    let key = (*key).to_owned();
     if let Some(existing) = table.get_mut(&key) {
         merge_toml_values(existing, value);
     } else {
@@ -619,13 +619,13 @@ fn format_layer_source_for_override(source: &code_app_server_protocol::ConfigLay
             let path = dot_codex_folder.as_ref().display();
             format!("project config ({path})")
         }
-        code_app_server_protocol::ConfigLayerSource::SessionFlags => "session overrides".to_string(),
+        code_app_server_protocol::ConfigLayerSource::SessionFlags => "session overrides".to_owned(),
         code_app_server_protocol::ConfigLayerSource::LegacyManagedConfigTomlFromFile { file } => {
             let path = file.as_ref().display();
             format!("managed config ({path})")
         }
         code_app_server_protocol::ConfigLayerSource::LegacyManagedConfigTomlFromMdm => {
-            "MDM managed config".to_string()
+            "MDM managed config".to_owned()
         }
     }
 }

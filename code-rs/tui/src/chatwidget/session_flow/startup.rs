@@ -7,11 +7,11 @@ impl ChatWidget<'_> {
     }
     // Strict stream order key helpers
     pub(super) fn seed_stream_order_key(&mut self, kind: StreamKind, id: &str, key: OrderKey) {
-        self.stream_order_seq.insert((kind, id.to_string()), key);
+        self.stream_order_seq.insert((kind, id.to_owned()), key);
     }
     // Try to fetch a seeded stream order key. Callers must handle None.
     pub(super) fn try_stream_order_key(&self, kind: StreamKind, id: &str) -> Option<OrderKey> {
-        self.stream_order_seq.get(&(kind, id.to_string())).copied()
+        self.stream_order_seq.get(&(kind, id.to_owned())).copied()
     }
     pub(crate) fn new(args: ChatWidgetInit) -> Self {
         let ChatWidgetInit {
@@ -202,7 +202,7 @@ impl ChatWidget<'_> {
             render_request_cache_dirty: Cell::new(true),
             history_prefix_append_only: Cell::new(true),
             pending_auto_turn_config: None,
-            overall_task_status: "preparing".to_string(),
+            overall_task_status: "preparing".to_owned(),
             active_plan_title: None,
             agent_runtime: HashMap::new(),
             pending_agent_updates: HashMap::new(),

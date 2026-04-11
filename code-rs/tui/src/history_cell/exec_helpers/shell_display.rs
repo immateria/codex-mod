@@ -7,7 +7,7 @@ pub(crate) fn normalize_shell_command_display(cmd: &str) -> String {
         .find(|(_, ch)| !ch.is_whitespace())
         .map(|(idx, _)| idx);
     let Some(start) = first_non_ws else {
-        return cmd.to_string();
+        return cmd.to_owned();
     };
     if cmd[start..].starts_with("./") {
         let mut normalized = String::with_capacity(cmd.len().saturating_sub(2));
@@ -15,13 +15,13 @@ pub(crate) fn normalize_shell_command_display(cmd: &str) -> String {
         normalized.push_str(&cmd[start + 2..]);
         normalized
     } else {
-        cmd.to_string()
+        cmd.to_owned()
     }
 }
 
 pub(crate) fn insert_line_breaks_after_double_ampersand(cmd: &str) -> String {
     if !cmd.contains("&&") {
-        return cmd.to_string();
+        return cmd.to_owned();
     }
 
     let mut result = String::with_capacity(cmd.len() + 8);
@@ -127,20 +127,20 @@ pub(crate) fn emphasize_shell_command_name(line: &mut Line<'static>) {
         let after = &content_owned[end..];
 
         if !before.is_empty() {
-            rebuilt.push(Span::styled(before.to_string(), style));
+            rebuilt.push(Span::styled(before.to_owned(), style));
         }
 
         if token.chars().count() <= 4 {
-            rebuilt.push(Span::styled(token.to_string(), style));
+            rebuilt.push(Span::styled(token.to_owned(), style));
         } else {
             let bright_style = style
                 .fg(crate::colors::text_bright())
                 .add_modifier(Modifier::BOLD);
-            rebuilt.push(Span::styled(token.to_string(), bright_style));
+            rebuilt.push(Span::styled(token.to_owned(), bright_style));
         }
 
         if !after.is_empty() {
-            rebuilt.push(Span::styled(after.to_string(), style));
+            rebuilt.push(Span::styled(after.to_owned(), style));
         }
 
         emphasized = true;

@@ -58,8 +58,8 @@ pub fn sanitize_ref_component(s: &str) -> String {
             last_dash = true;
         }
     }
-    let out = out.trim_matches('-').to_string();
-    if out.is_empty() { "branch".to_string() } else { out }
+    let out = out.trim_matches('-').to_owned();
+    if out.is_empty() { "branch".to_owned() } else { out }
 }
 
 /// Generate a branch name for a generic task. If `task` is None or cannot
@@ -76,8 +76,8 @@ pub fn generate_branch_name_from_task(task: Option<&str>) -> String {
             let mut slug = sanitize_ref_component(&words.join("-"));
             if slug.len() > 48 {
                 slug.truncate(48);
-                slug = slug.trim_matches('-').to_string();
-                if slug.is_empty() { slug = "branch".to_string(); }
+                slug = slug.trim_matches('-').to_owned();
+                if slug.is_empty() { slug = "branch".to_owned(); }
             }
             return format!("code-branch-{slug}");
         }
@@ -113,10 +113,10 @@ pub async fn get_git_root_from(cwd: &Path) -> Result<PathBuf, String> {
         .map_err(|e| format!("Git not installed or not in a git repository: {e}"))?;
 
     if output.status.success() {
-        let path = String::from_utf8_lossy(&output.stdout).trim().to_string();
+        let path = String::from_utf8_lossy(&output.stdout).trim().to_owned();
         Ok(PathBuf::from(path))
     } else {
-        Err("Not in a git repository".to_string())
+        Err("Not in a git repository".to_owned())
     }
 }
 
@@ -146,7 +146,7 @@ pub async fn setup_worktree(
         .await
         .map_err(|e| format!("Failed to create .code/branches directory: {e}"))?;
 
-    let mut effective_branch = branch_id.to_string();
+    let mut effective_branch = branch_id.to_owned();
     let mut worktree_path = code_dir.join(&effective_branch);
     let reuse_allowed = base_ref.is_none();
     if worktree_path.exists() {
@@ -206,7 +206,7 @@ pub async fn setup_worktree(
         &effective_branch,
         worktree_path
             .to_str()
-            .ok_or_else(|| "Invalid worktree path".to_string())?,
+            .ok_or_else(|| "Invalid worktree path".to_owned())?,
     ];
     if let Some(base) = base_ref {
         args.push(base);
@@ -238,7 +238,7 @@ pub async fn setup_worktree(
                 &effective_branch,
                 worktree_path
                     .to_str()
-                    .ok_or_else(|| "Invalid worktree path".to_string())?,
+                    .ok_or_else(|| "Invalid worktree path".to_owned())?,
             ];
             if let Some(base) = base_ref {
                 retry_args.push(base);
@@ -276,7 +276,7 @@ pub async fn setup_worktree(
                 &effective_branch,
                 worktree_path
                     .to_str()
-                    .ok_or_else(|| "Invalid worktree path".to_string())?,
+                    .ok_or_else(|| "Invalid worktree path".to_owned())?,
             ];
             if let Some(base) = base_ref {
                 retry_args.push(base);
@@ -376,7 +376,7 @@ pub async fn prepare_reusable_worktree(
             "--detach",
             worktree_path
                 .to_str()
-                .ok_or_else(|| "Invalid worktree path".to_string())?,
+                .ok_or_else(|| "Invalid worktree path".to_owned())?,
             base_ref,
         ])
         .output()
@@ -399,7 +399,7 @@ pub async fn prepare_reusable_worktree(
                     "--detach",
                     worktree_path
                         .to_str()
-                        .ok_or_else(|| "Invalid worktree path".to_string())?,
+                        .ok_or_else(|| "Invalid worktree path".to_owned())?,
                     base_ref,
                 ])
                 .output()
@@ -474,7 +474,7 @@ pub async fn ensure_local_default_remote(
 
     match remote_check {
         Ok(out) if out.status.success() => {
-            let existing = String::from_utf8_lossy(&out.stdout).trim().to_string();
+            let existing = String::from_utf8_lossy(&out.stdout).trim().to_owned();
             if existing != remote_url {
                 let update = Command::new("git")
                     .current_dir(git_root)
@@ -483,7 +483,7 @@ pub async fn ensure_local_default_remote(
                     .await
                     .map_err(|e| format!("Failed to set {remote_name} URL: {e}"))?;
                 if !update.status.success() {
-                    let stderr = String::from_utf8_lossy(&update.stderr).trim().to_string();
+                    let stderr = String::from_utf8_lossy(&update.stderr).trim().to_owned();
                     return Err(format!("Failed to set {remote_name} URL: {stderr}"));
                 }
                 bump_snapshot_epoch_for(git_root);
@@ -497,7 +497,7 @@ pub async fn ensure_local_default_remote(
                 .await
                 .map_err(|e| format!("Failed to add {remote_name}: {e}"))?;
             if !add.status.success() {
-                let stderr = String::from_utf8_lossy(&add.stderr).trim().to_string();
+                let stderr = String::from_utf8_lossy(&add.stderr).trim().to_owned();
                 return Err(format!("Failed to add {remote_name}: {stderr}"));
             }
             bump_snapshot_epoch_for(git_root);
@@ -515,7 +515,7 @@ pub async fn ensure_local_default_remote(
 
     let mut metadata = BranchMetadata {
         base_branch: base_branch_clean.clone(),
-        remote_name: Some(remote_name.to_string()),
+        remote_name: Some(remote_name.to_owned()),
         remote_ref: None,
         remote_url: Some(remote_url),
     };
@@ -528,7 +528,7 @@ pub async fn ensure_local_default_remote(
             .await
             .map_err(|e| format!("Failed to resolve base branch {base}: {e}"))?;
         if commit.status.success() {
-            let sha = String::from_utf8_lossy(&commit.stdout).trim().to_string();
+            let sha = String::from_utf8_lossy(&commit.stdout).trim().to_owned();
             if !sha.is_empty() {
                 let remote_ref = format!("refs/remotes/{remote_name}/{base}");
                 let update = Command::new("git")
@@ -617,7 +617,7 @@ async fn _ensure_origin_remote(git_root: &Path) -> Result<(), String> {
         .await
         .map_err(|e| format!("git remote failed: {e}"))?;
     if !remotes_out.status.success() {
-        return Err("git remote returned error".to_string());
+        return Err("git remote returned error".to_owned());
     }
     let remotes_lossy = String::from_utf8_lossy(&remotes_out.stdout);
     let remotes: Vec<&str> = remotes_lossy
@@ -651,7 +651,7 @@ async fn _ensure_origin_remote(git_root: &Path) -> Result<(), String> {
             .await;
         if let Ok(out) = url_out
             && out.status.success() {
-                let url = String::from_utf8_lossy(&out.stdout).trim().to_string();
+                let url = String::from_utf8_lossy(&out.stdout).trim().to_owned();
                 if !url.is_empty() {
                     // Add origin pointing to this URL
                     let add = Command::new("git")
@@ -661,7 +661,7 @@ async fn _ensure_origin_remote(git_root: &Path) -> Result<(), String> {
                         .await
                         .map_err(|e| format!("git remote add origin failed: {e}"))?;
                     if !add.status.success() {
-                        return Err("failed to add origin".to_string());
+                        return Err("failed to add origin".to_owned());
                     }
                     bump_snapshot_epoch_for(git_root);
                     let _ = Command::new("git")
@@ -674,7 +674,7 @@ async fn _ensure_origin_remote(git_root: &Path) -> Result<(), String> {
             }
     }
     // No usable remote found; leave as-is
-    Err("no suitable remote to alias as origin".to_string())
+    Err("no suitable remote to alias as origin".to_owned())
 }
 
 /// Copy uncommitted (modified + untracked) files from `src_root` into the `worktree_path`
@@ -776,7 +776,7 @@ pub async fn detect_default_branch(cwd: &Path) -> Option<String> {
         .ok()?;
     if sym.status.success()
         && let Ok(s) = String::from_utf8(sym.stdout)
-            && let Some((_, name)) = s.trim().rsplit_once('/') { return Some(name.to_string()); }
+            && let Some((_, name)) = s.trim().rsplit_once('/') { return Some(name.to_owned()); }
     // Fallback to local main/master
     for candidate in ["main", "master"] {
         let out = Command::new("git")
@@ -785,7 +785,7 @@ pub async fn detect_default_branch(cwd: &Path) -> Option<String> {
             .output()
             .await
             .ok()?;
-        if out.status.success() { return Some(candidate.to_string()); }
+        if out.status.success() { return Some(candidate.to_owned()); }
     }
     None
 }

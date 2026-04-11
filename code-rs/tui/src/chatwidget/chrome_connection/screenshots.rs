@@ -51,7 +51,7 @@ pub(super) fn spawn_initial_screenshot_capture(
                             "Initial CDP screenshot captured: {path}",
                             path = first_path.display()
                         );
-                        let url_text = url.unwrap_or_else(|| default_url.to_string());
+                        let url_text = url.unwrap_or_else(|| default_url.to_owned());
                         set_latest_screenshot(
                             &latest_screenshot,
                             first_path.clone(),
@@ -133,7 +133,7 @@ pub(super) async fn build_cdp_success_message(
         }
         (Some(p), _) => format!("CDP: connected to Chrome (port {p})"),
         (None, Some(url)) if !url.is_empty() => format!("CDP: connected to Chrome to {url}"),
-        _ => "CDP: connected to Chrome".to_string(),
+        _ => "CDP: connected to Chrome".to_owned(),
     }
 }
 

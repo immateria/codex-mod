@@ -198,7 +198,7 @@ pub(super) fn handle_key_event_without_popup(
             if view.handle_backslash_continuation() {
                 return (InputResult::None, true);
             }
-            let original_text = view.textarea.text().to_string();
+            let original_text = view.textarea.text().to_owned();
             let first_line = original_text.lines().next().unwrap_or("");
             if let Some((name, rest)) = parse_slash_name(first_line)
                 && rest.is_empty()

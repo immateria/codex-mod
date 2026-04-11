@@ -80,10 +80,10 @@ fn tokenize_cmd_script(script: &str) -> Option<Vec<String>> {
                     out.push(std::mem::take(&mut cur));
                 }
                 if i + 1 < chars.len() && chars[i + 1] == '&' {
-                    out.push("&&".to_string());
+                    out.push("&&".to_owned());
                     i += 2;
                 } else {
-                    out.push("&".to_string());
+                    out.push("&".to_owned());
                     i += 1;
                 }
             }
@@ -92,10 +92,10 @@ fn tokenize_cmd_script(script: &str) -> Option<Vec<String>> {
                     out.push(std::mem::take(&mut cur));
                 }
                 if i + 1 < chars.len() && chars[i + 1] == '|' {
-                    out.push("||".to_string());
+                    out.push("||".to_owned());
                     i += 2;
                 } else {
-                    out.push("|".to_string());
+                    out.push("|".to_owned());
                     i += 1;
                 }
             }

@@ -433,7 +433,7 @@ fn replace_case_insensitive_with_boundaries(
 ) -> String {
     let needle_lower = needle.to_ascii_lowercase();
     if needle_lower.is_empty() {
-        return input.to_string();
+        return input.to_owned();
     }
 
     let haystack_lower = input.to_ascii_lowercase();
@@ -458,7 +458,7 @@ fn replace_case_insensitive_with_boundaries(
     }
 
     if last_emitted == 0 {
-        return input.to_string();
+        return input.to_owned();
     }
 
     output.push_str(&input[last_emitted..]);
@@ -482,13 +482,13 @@ fn build_config_from_external(settings: &JsonValue) -> io::Result<TomlValue> {
         && !env.is_empty()
     {
         let mut shell_policy = toml::map::Map::new();
-        shell_policy.insert("inherit".to_string(), TomlValue::String("core".to_string()));
+        shell_policy.insert("inherit".to_owned(), TomlValue::String("core".to_owned()));
         shell_policy.insert(
-            "set".to_string(),
+            "set".to_owned(),
             TomlValue::Table(json_object_to_toml_table(env)?),
         );
         root.insert(
-            "shell_environment_policy".to_string(),
+            "shell_environment_policy".to_owned(),
             TomlValue::Table(shell_policy),
         );
     }
@@ -501,8 +501,8 @@ fn build_config_from_external(settings: &JsonValue) -> io::Result<TomlValue> {
         && sandbox_enabled
     {
         root.insert(
-            "sandbox_mode".to_string(),
-            TomlValue::String("workspace-write".to_string()),
+            "sandbox_mode".to_owned(),
+            TomlValue::String("workspace-write".to_owned()),
         );
     }
 
@@ -521,7 +521,7 @@ fn json_object_to_toml_table(
 
 fn json_to_toml_value(value: &JsonValue) -> io::Result<TomlValue> {
     match value {
-        JsonValue::Null => Ok(TomlValue::String("null".to_string())),
+        JsonValue::Null => Ok(TomlValue::String("null".to_owned())),
         JsonValue::Bool(v) => Ok(TomlValue::Boolean(*v)),
         JsonValue::Number(n) => {
             if let Some(i) = n.as_i64() {

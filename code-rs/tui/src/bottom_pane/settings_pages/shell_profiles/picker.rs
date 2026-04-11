@@ -93,7 +93,7 @@ impl ShellProfilesSettingsView {
                 continue;
             }
             items.push(PickListItem {
-                name: trimmed.to_string(),
+                name: trimmed.to_owned(),
                 description: None,
                 is_unknown: true,
                 is_no_filter_option: false,
@@ -111,12 +111,12 @@ impl ShellProfilesSettingsView {
         if has_no_filter_option {
             let (label, description) = match target {
                 PickTarget::SkillsAllowlist => (
-                    "(all skills)".to_string(),
-                    Some("No allowlist filter (disabled skills still apply).".to_string()),
+                    "(all skills)".to_owned(),
+                    Some("No allowlist filter (disabled skills still apply).".to_owned()),
                 ),
                 PickTarget::McpInclude => (
-                    "(all MCP servers)".to_string(),
-                    Some("No include filter (excluded servers still apply).".to_string()),
+                    "(all MCP servers)".to_owned(),
+                    Some("No include filter (excluded servers still apply).".to_owned()),
                 ),
                 _ => (String::new(), None),
             };
@@ -257,14 +257,14 @@ impl ShellProfilesSettingsView {
                 if item.is_no_filter_option {
                     return None;
                 }
-                (*checked).then_some(item.name.trim().to_string())
+                (*checked).then_some(item.name.trim().to_owned())
             })
             .filter(|value| !value.is_empty())
             .collect();
 
         self.apply_picker_selection(state.target, selection);
         self.dirty = true;
-        self.status = Some("Changes staged. Select Apply to persist.".to_string());
+        self.status = Some("Changes staged. Select Apply to persist.".to_owned());
     }
 
     pub(super) fn toggle_picker_selection(state: &mut PickListState) -> bool {
@@ -317,7 +317,7 @@ impl ShellProfilesSettingsView {
             if matches!(state.target, PickTarget::SkillsAllowlist | PickTarget::McpInclude)
                 && selected_count == 0
             {
-                "all (no filter)".to_string()
+                "all (no filter)".to_owned()
             } else {
                 format!("{selected_count} selected")
             };
@@ -413,7 +413,7 @@ impl ShellProfilesSettingsView {
                 area.y,
                 area.width,
                 &Line::from(vec![Span::styled(
-                    "no options available".to_string(),
+                    "no options available".to_owned(),
                     Style::default()
                         .fg(c_text_dim)
                         .add_modifier(Modifier::ITALIC),

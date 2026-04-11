@@ -52,7 +52,7 @@ pub(crate) async fn stream_chat_completions(
 ) -> Result<ResponseStream> {
     if prompt.output_schema.is_some() {
         return Err(CodexErr::UnsupportedOperation(
-            "output_schema is not supported for Chat Completions API".to_string(),
+            "output_schema is not supported for Chat Completions API".to_owned(),
         ));
     }
 
@@ -347,12 +347,12 @@ pub(crate) async fn stream_chat_completions(
     {
         if let Some(provider_cfg) = &openrouter_cfg.provider {
             obj.insert(
-                "provider".to_string(),
+                "provider".to_owned(),
                 serde_json::to_value(provider_cfg)?
             );
         }
         if let Some(route) = &openrouter_cfg.route {
-            obj.insert("route".to_string(), route.clone());
+            obj.insert("route".to_owned(), route.clone());
         }
         for (key, value) in &openrouter_cfg.extra {
             obj.entry(key.clone()).or_insert(value.clone());
@@ -366,10 +366,10 @@ pub(crate) async fn stream_chat_completions(
         && let Ok(n) = val.parse::<u64>()
         && let Some(obj) = payload.as_object_mut()
     {
-        obj.insert("num_ctx".to_string(), json!(n));
+        obj.insert("num_ctx".to_owned(), json!(n));
         // Also set options.num_ctx for native-style compatibility.
         let mut options = serde_json::Map::new();
-        options.insert("num_ctx".to_string(), json!(n));
+        options.insert("num_ctx".to_owned(), json!(n));
         obj.entry("options").or_insert(json!(options));
     }
 
@@ -547,7 +547,7 @@ fn push_tool_call_message(messages: &mut Vec<Value>, tool_call: Value, reasoning
                 }
                 existing.push_str(reasoning);
             } else {
-                obj.insert("reasoning".to_string(), Value::String(reasoning.to_string()));
+                obj.insert("reasoning".to_owned(), Value::String(reasoning.to_owned()));
             }
         }
         return;
@@ -561,7 +561,7 @@ fn push_tool_call_message(messages: &mut Vec<Value>, tool_call: Value, reasoning
     if let Some(reasoning) = reasoning
         && let Some(obj) = msg.as_object_mut()
     {
-        obj.insert("reasoning".to_string(), json!(reasoning));
+        obj.insert("reasoning".to_owned(), json!(reasoning));
     }
     messages.push(msg);
 }
@@ -615,7 +615,7 @@ async fn process_chat_sse<S>(
         // terminal events for both assistant content and raw reasoning.
         if !assistant_text.is_empty() {
             let item = ResponseItem::Message {
-                role: "assistant".to_string(),
+                role: "assistant".to_owned(),
                 content: vec![ContentItem::OutputText {
                     text: std::mem::take(assistant_text),
                 }],
@@ -649,7 +649,7 @@ async fn process_chat_sse<S>(
 
         let _ = tx_event
             .send(Ok(ResponseEvent::Completed {
-                response_id: response_id.unwrap_or_default().to_string(),
+                response_id: response_id.unwrap_or_default().to_owned(),
                 token_usage: None,
             }))
             .await;
@@ -792,7 +792,7 @@ async fn process_chat_sse<S>(
 
         // Extract item_id if present at the top level or in choice
         if let Some(item_id) = chunk.get("item_id").and_then(|id| id.as_str()) {
-            current_item_id = Some(item_id.to_string());
+            current_item_id = Some(item_id.to_owned());
         }
 
         let choice_opt = chunk.get("choices").and_then(|c| c.get(0));
@@ -800,7 +800,7 @@ async fn process_chat_sse<S>(
         if let Some(choice) = choice_opt {
             // Check for item_id in the choice as well
             if let Some(item_id) = choice.get("item_id").and_then(|id| id.as_str()) {
-                current_item_id = Some(item_id.to_string());
+                current_item_id = Some(item_id.to_owned());
             }
 
             // Handle assistant content tokens as streaming deltas.
@@ -813,7 +813,7 @@ async fn process_chat_sse<S>(
                 assistant_text.push_str(content);
                 let _ = tx_event
                     .send(Ok(ResponseEvent::OutputTextDelta {
-                        delta: content.to_string(),
+                        delta: content.to_owned(),
                         item_id: current_item_id.clone(),
                         sequence_number: None,
                         output_index: None,
@@ -836,13 +836,13 @@ async fn process_chat_sse<S>(
                         .and_then(|t| t.as_str())
                         .filter(|s| !s.is_empty())
                     {
-                        maybe_text = Some(s.to_string());
+                        maybe_text = Some(s.to_owned());
                     } else if let Some(s) = reasoning_val
                         .get("content")
                         .and_then(|t| t.as_str())
                         .filter(|s| !s.is_empty())
                     {
-                        maybe_text = Some(s.to_string());
+                        maybe_text = Some(s.to_owned());
                     }
                 }
 
@@ -870,7 +870,7 @@ async fn process_chat_sse<S>(
                         reasoning_text.push_str(s);
                         let _ = tx_event
                             .send(Ok(ResponseEvent::ReasoningContentDelta {
-                                delta: s.to_string(),
+                                delta: s.to_owned(),
                                 item_id: current_item_id.clone(),
                                 sequence_number: None,
                                 output_index: None,
@@ -888,7 +888,7 @@ async fn process_chat_sse<S>(
                     reasoning_text.push_str(s);
                     let _ = tx_event
                         .send(Ok(ResponseEvent::ReasoningContentDelta {
-                            delta: s.to_string(),
+                            delta: s.to_owned(),
                             item_id: current_item_id.clone(),
                             sequence_number: None,
                             output_index: None,
@@ -910,13 +910,13 @@ async fn process_chat_sse<S>(
 
                 // Extract call_id if present.
                 if let Some(id) = tool_call.get("id").and_then(|v| v.as_str()) {
-                    fn_call_state.call_id.get_or_insert_with(|| id.to_string());
+                    fn_call_state.call_id.get_or_insert_with(|| id.to_owned());
                 }
 
                 // Extract function details if present.
                 if let Some(function) = tool_call.get("function") {
                     if let Some(name) = function.get("name").and_then(|n| n.as_str()) {
-                        fn_call_state.name.get_or_insert_with(|| name.to_string());
+                        fn_call_state.name.get_or_insert_with(|| name.to_owned());
                     }
 
                     if let Some(args_fragment) =
@@ -961,7 +961,7 @@ async fn process_chat_sse<S>(
                         // as a single OutputItemDone so non-delta consumers see the result.
                         if !assistant_text.is_empty() {
                             let item = ResponseItem::Message {
-                                role: "assistant".to_string(),
+                                role: "assistant".to_owned(),
                                 content: vec![ContentItem::OutputText {
                                     text: std::mem::take(&mut assistant_text),
                                 }],
@@ -1134,7 +1134,7 @@ where
                     if !this.cumulative.is_empty() {
                         let aggregated_message = ResponseItem::Message {
                             id: this.cumulative_item_id.clone(),
-                            role: "assistant".to_string(),
+                            role: "assistant".to_owned(),
                             content: vec![code_protocol::models::ContentItem::OutputText {
                                 text: std::mem::take(&mut this.cumulative),
                             }], end_turn: None, phase: None};

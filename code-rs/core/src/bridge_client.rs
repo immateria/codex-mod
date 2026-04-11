@@ -67,22 +67,22 @@ struct BridgeBatchEvent {
 }
 
 fn default_levels() -> Vec<String> {
-    vec!["errors".to_string()]
+    vec!["errors".to_owned()]
 }
 
 fn default_filter() -> String {
-    "off".to_string()
+    "off".to_owned()
 }
 
 fn default_subscription() -> Subscription {
     Subscription {
         levels: default_levels(),
         capabilities: vec![
-            "console".to_string(),
-            "error".to_string(),
-            "pageview".to_string(),
-            "screenshot".to_string(),
-            "control".to_string(),
+            "console".to_owned(),
+            "error".to_owned(),
+            "pageview".to_owned(),
+            "screenshot".to_owned(),
+            "control".to_owned(),
         ],
         llm_filter: default_filter(),
     }
@@ -233,12 +233,12 @@ fn coalesce_events(events: Vec<BridgeBatchEvent>) -> CoalescedBatch {
 
 fn format_batch_message(batch: &CoalescedBatch) -> String {
     if batch.entries.is_empty() {
-        return "(no bridge events)".to_string();
+        return "(no bridge events)".to_owned();
     }
 
     let mut lines = Vec::new();
     let header = if batch.total_events == 1 {
-        "Code Bridge event".to_string()
+        "Code Bridge event".to_owned()
     } else {
         format!(
             "Code Bridge events ({} in last {}s)",
@@ -362,7 +362,7 @@ pub(crate) fn spawn_bridge_listener(session: std::sync::Arc<Session>) {
                         if last_override_seen.is_some() {
                             set_workspace_subscription(None);
                             session
-                                .record_bridge_event("Code Bridge subscription override removed or invalid; reverted to defaults (errors only).".to_string())
+                                .record_bridge_event("Code Bridge subscription override removed or invalid; reverted to defaults (errors only).".to_owned())
                                 .await;
                             *LAST_OVERRIDE_FINGERPRINT.lock().unwrap_or_else(std::sync::PoisonError::into_inner) = None;
                             last_override_seen = None;
@@ -373,8 +373,7 @@ pub(crate) fn spawn_bridge_listener(session: std::sync::Arc<Session>) {
                 set_workspace_subscription(None);
                 session
                     .record_bridge_event(
-                        "Code Bridge subscription override removed; reverted to defaults (errors only)."
-                            .to_string(),
+                        "Code Bridge subscription override removed; reverted to defaults (errors only).".to_owned(),
                     )
                     .await;
                 *LAST_OVERRIDE_FINGERPRINT.lock().unwrap_or_else(std::sync::PoisonError::into_inner) = None;
@@ -671,8 +670,7 @@ async fn connect_and_listen(meta: BridgeMeta, session: Arc<Session>, cwd: &Path)
     if !BRIDGE_HINT_EMITTED.swap(true, Ordering::SeqCst) && workspace_has_code_bridge(cwd) {
         session
             .record_bridge_event(
-                "Code Bridge is a local, real-time debug stream (errors/console like Sentry, plus pageviews/screenshots and a control channel). Use the `code_bridge` tool: `action=subscribe` with level (errors|warn|info|trace) to persist full-capability logging, `action=screenshot` to request a capture, or `action=javascript` with `code` to run JS on the bridge client."
-                    .to_string(),
+                "Code Bridge is a local, real-time debug stream (errors/console like Sentry, plus pageviews/screenshots and a control channel). Use the `code_bridge` tool: `action=subscribe` with level (errors|warn|info|trace) to persist full-capability logging, `action=screenshot` to request a capture, or `action=javascript` with `code` to run JS on the bridge client.".to_owned(),
             )
             .await;
     }
@@ -765,7 +763,7 @@ fn summarize(raw: &str) -> String {
         }
         return format!("<code_bridge_event>\n{}\n</code_bridge_event>", parts.join("\n"));
     }
-    raw.to_string()
+    raw.to_owned()
 }
 
 #[cfg(test)]

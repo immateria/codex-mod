@@ -28,7 +28,7 @@ pub(crate) const AUTO_REVIEW_SHUTDOWN_GRACE_MS: u64 = 1_500;
 pub(crate) fn append_timeboxed_auto_drive_goal(goal: &str) -> String {
     let trimmed_goal = goal.trim();
     if trimmed_goal.is_empty() {
-        return code_core::timeboxed_exec_guidance::AUTO_EXEC_TIMEBOXED_GOAL_SUFFIX.to_string();
+        return code_core::timeboxed_exec_guidance::AUTO_EXEC_TIMEBOXED_GOAL_SUFFIX.to_owned();
     }
 
     format!(
@@ -51,7 +51,7 @@ pub(crate) fn merge_developer_message(existing: Option<String>, extra: &str) -> 
             message.push_str(extra_trimmed);
             Some(message)
         }
-        None => Some(extra_trimmed.to_string()),
+        None => Some(extra_trimmed.to_owned()),
     }
 }
 
@@ -150,18 +150,18 @@ pub(crate) fn build_auto_prompt(
         .map(str::trim)
         .filter(|value| !value.is_empty())
     {
-        sections.push(ctx.to_string());
+        sections.push(ctx.to_owned());
     }
 
     let cli_prompt = cli_action.prompt.trim();
     if !cli_prompt.is_empty() {
-        sections.push(cli_prompt.to_string());
+        sections.push(cli_prompt.to_owned());
     }
 
     if !agents.is_empty() {
         let mut lines: Vec<String> = Vec::new();
-        lines.push("<agents>".to_string());
-        lines.push("Please use agents to help you complete this task.".to_string());
+        lines.push("<agents>".to_owned());
+        lines.push("Please use agents to help you complete this task.".to_owned());
 
         for action in agents {
             let prompt = action
@@ -190,15 +190,15 @@ pub(crate) fn build_auto_prompt(
 
         let timing_line = match agents_timing {
             Some(AutoTurnAgentsTiming::Parallel) =>
-                "Timing: parallel — continue the CLI prompt while agents run; call agent.wait when ready to merge results.".to_string(),
+                "Timing: parallel — continue the CLI prompt while agents run; call agent.wait when ready to merge results.".to_owned(),
             Some(AutoTurnAgentsTiming::Blocking) =>
-                "Timing: blocking — launch agents first, wait with agent.wait, then continue the CLI prompt.".to_string(),
+                "Timing: blocking — launch agents first, wait with agent.wait, then continue the CLI prompt.".to_owned(),
             None =>
-                "Timing: blocking — wait for agent.wait before continuing the CLI prompt.".to_string(),
+                "Timing: blocking — wait for agent.wait before continuing the CLI prompt.".to_owned(),
         };
         lines.push(String::new());
         lines.push(timing_line);
-        lines.push("</agents>".to_string());
+        lines.push("</agents>".to_owned());
 
         sections.push(lines.join("\n"));
     }

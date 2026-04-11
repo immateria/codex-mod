@@ -48,7 +48,7 @@ fn default_login() -> bool {
 }
 
 fn default_shell() -> String {
-    "/bin/bash".to_string()
+    "/bin/bash".to_owned()
 }
 
 #[derive(Debug, Deserialize, Serialize)]

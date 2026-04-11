@@ -84,7 +84,7 @@ pub(crate) fn header_map_to_json(headers: &reqwest::header::HeaderMap) -> serde_
         ordered
             .entry(name.as_str().to_owned())
             .or_default()
-            .push(value.to_str().unwrap_or_default().to_string());
+            .push(value.to_str().unwrap_or_default().to_owned());
     }
     serde_json::to_value(ordered).unwrap_or(serde_json::Value::Null)
 }
@@ -112,12 +112,12 @@ pub(crate) fn truncate_on_char_boundary(input: &str, max_len: usize) -> &str {
 /// returning an owned `String`.
 pub(crate) fn truncate_utf8_prefix_by_bytes(input: &str, max_bytes: usize) -> String {
     if input.len() <= max_bytes {
-        return input.to_string();
+        return input.to_owned();
     }
     if max_bytes == 0 {
         return String::new();
     }
-    truncate_on_char_boundary(input, max_bytes).to_string()
+    truncate_on_char_boundary(input, max_bytes).to_owned()
 }
 
 /// Check whether a string value is "truthy" (case-insensitive).

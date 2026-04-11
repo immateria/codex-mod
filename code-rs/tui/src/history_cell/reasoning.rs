@@ -429,7 +429,7 @@ fn dedup_append_entries(
             .collect::<String>()
     };
     let is_marker = |line: &ReasoningLineEntry| -> bool {
-        let t = to_plain(line).trim().to_string();
+        let t = to_plain(line).trim().to_owned();
         t.starts_with('[') && t.ends_with(']')
     };
 
@@ -516,7 +516,7 @@ fn sections_from_entries(lines: &[ReasoningLineEntry]) -> Vec<ReasoningSection> 
                     && let ReasoningBlock::Code { content, .. } = &block
                         && let Some(first_line) = content.lines().find(|l| !l.trim().is_empty()) {
                             current.summary = Some(vec![InlineSpan {
-                                text: first_line.trim().to_string(),
+                                text: first_line.trim().to_owned(),
                                 tone: TextTone::Dim,
                                 emphasis: TextEmphasis::default(),
                                 entity: None,
@@ -542,7 +542,7 @@ fn sections_from_entries(lines: &[ReasoningLineEntry]) -> Vec<ReasoningSection> 
                 current.summary = Some(spans.clone());
                 summary_set = true;
             }
-            current.heading = Some(plain.trim().to_string());
+            current.heading = Some(plain.trim().to_owned());
             idx += 1;
             continue;
         }
@@ -697,7 +697,7 @@ fn parse_bullet_marker(bullet: &str) -> BulletMarker {
     if matches!(bullet, "-" | "*") {
         BulletMarker::Dash
     } else {
-        BulletMarker::Custom(bullet.to_string())
+        BulletMarker::Custom(bullet.to_owned())
     }
 }
 
@@ -728,7 +728,7 @@ fn strip_prefix_from_inline_spans(spans: Vec<InlineSpan>, mut chars_to_strip: us
 fn trim_leading_whitespace(spans: &mut Vec<InlineSpan>) {
     while let Some(first) = spans.first_mut() {
         let original = first.text.clone();
-        let trimmed = original.trim_start().to_string();
+        let trimmed = original.trim_start().to_owned();
         if trimmed.is_empty() {
             spans.remove(0);
             continue;
@@ -877,7 +877,7 @@ fn sections_to_ratatui_lines(
                 } => {
                     let indent_spaces = (*indent as usize).saturating_mul(2);
                     let marker_text = match marker {
-                        BulletMarker::Dash => crate::icons::bullet().to_string(),
+                        BulletMarker::Dash => crate::icons::bullet().to_owned(),
                         BulletMarker::Numbered(n) => format!("{n}."),
                         BulletMarker::Custom(s) => s.clone(),
                     };
@@ -895,7 +895,7 @@ fn sections_to_ratatui_lines(
                 ReasoningBlock::Code { content, .. } => {
                     for line in content.lines() {
                         out.push(Line::from(Span::styled(
-                            line.to_string(),
+                            line.to_owned(),
                             Style::default()
                                 .fg(crate::colors::text_dim())
                                 .add_modifier(Modifier::DIM),

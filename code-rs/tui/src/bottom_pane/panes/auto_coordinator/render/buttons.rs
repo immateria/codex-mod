@@ -97,15 +97,15 @@ pub(super) fn ctrl_hint_spans(hint: &str) -> Option<Vec<Span<'static>>> {
         if use_prefix {
             let prefix = &trimmed[..3];
             let mut spans = Vec::new();
-            spans.push(Span::styled(prefix.to_string(), bold_style));
+            spans.push(Span::styled(prefix.to_owned(), bold_style));
             if !rest.is_empty() {
-                spans.push(Span::styled(rest.to_string(), normal_style));
+                spans.push(Span::styled(rest.to_owned(), normal_style));
             }
             return Some(spans);
         }
     }
 
-    Some(vec![Span::styled(trimmed.to_string(), normal_style)])
+    Some(vec![Span::styled(trimmed.to_owned(), normal_style)])
 }
 
 pub(super) fn ctrl_hint_line(ctx: &VariantContext) -> Option<Line<'static>> {

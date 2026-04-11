@@ -54,7 +54,7 @@ impl Environment {
     pub async fn create(
         experimental_exec_server_url: Option<String>,
     ) -> Result<Self, ExecServerError> {
-        Self::create_with_client_name(experimental_exec_server_url, "codex-environment".to_string())
+        Self::create_with_client_name(experimental_exec_server_url, "codex-environment".to_owned())
             .await
     }
 

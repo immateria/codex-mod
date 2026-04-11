@@ -100,11 +100,11 @@ pub(crate) fn diff_record_from_string(title: String, diff: &str) -> DiffRecord {
         let (kind, content) = if line.starts_with("+++") || line.starts_with("---") {
             (DiffLineKind::Context, line)
         } else if let Some(rest) = line.strip_prefix('+') {
-            (DiffLineKind::Addition, rest.to_string())
+            (DiffLineKind::Addition, rest.to_owned())
         } else if let Some(rest) = line.strip_prefix('-') {
-            (DiffLineKind::Removal, rest.to_string())
+            (DiffLineKind::Removal, rest.to_owned())
         } else if let Some(rest) = line.strip_prefix(' ') {
-            (DiffLineKind::Context, rest.to_string())
+            (DiffLineKind::Context, rest.to_owned())
         } else {
             (DiffLineKind::Context, line)
         };

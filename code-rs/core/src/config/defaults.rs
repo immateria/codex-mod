@@ -14,7 +14,7 @@ pub fn set_default_originator(originator: &str) -> std::io::Result<()> {
     let mut guard = RESPONSES_ORIGINATOR_OVERRIDE
         .lock()
         .map_err(|_| std::io::Error::other("originator override lock poisoned"))?;
-    *guard = Some(originator.to_string());
+    *guard = Some(originator.to_owned());
     Ok(())
 }
 
@@ -28,9 +28,9 @@ pub(crate) fn default_responses_originator() -> String {
 
 fn normalize_agent(mut agent: AgentConfig) -> AgentConfig {
     if let Some(spec) = agent_model_spec(&agent.name).or_else(|| agent_model_spec(&agent.command)) {
-        agent.name = spec.slug.to_string();
+        agent.name = spec.slug.to_owned();
         if agent.command.trim().is_empty() {
-            agent.command = spec.cli.to_string();
+            agent.command = spec.cli.to_owned();
         }
     } else if agent.command.trim().is_empty() {
         agent.command = agent.name.clone();
@@ -79,5 +79,5 @@ pub(crate) fn merge_with_default_agents(agents: Vec<AgentConfig>) -> Vec<AgentCo
 }
 
 pub(crate) fn default_review_model() -> String {
-    super::OPENAI_DEFAULT_REVIEW_MODEL.to_string()
+    super::OPENAI_DEFAULT_REVIEW_MODEL.to_owned()
 }

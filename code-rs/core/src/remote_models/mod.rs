@@ -101,7 +101,7 @@ impl RemoteModelsManager {
             .models
             .iter()
             .any(|m| m.slug == CODEX_AUTO_BALANCED_MODEL)
-            .then(|| CODEX_AUTO_BALANCED_MODEL.to_string())
+            .then(|| CODEX_AUTO_BALANCED_MODEL.to_owned())
     }
 
     /// Best-effort refresh of remote models.
@@ -332,9 +332,9 @@ impl RemoteModelsManager {
                     ..
                 })
             ) {
-                CHATGPT_CODEX_BASE_URL.to_string()
+                CHATGPT_CODEX_BASE_URL.to_owned()
             } else {
-                OPENAI_API_BASE_URL.to_string()
+                OPENAI_API_BASE_URL.to_owned()
             }
         });
 
@@ -502,7 +502,7 @@ fn map_truncation_policy(
 
 /// Build a client version string that remains wire-compatible with hosted models.
 fn format_client_version_to_whole() -> String {
-    code_version::wire_compatible_version().to_string()
+    code_version::wire_compatible_version().to_owned()
 }
 
 #[cfg(test)]

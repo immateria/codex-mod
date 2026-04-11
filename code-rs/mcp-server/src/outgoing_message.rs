@@ -68,7 +68,7 @@ impl OutgoingMessageSenderExt for OutgoingMessageSender {
             };
 
             self.send_notification(OutgoingNotification {
-                method: "codex/event".to_string(),
+                method: "codex/event".to_owned(),
                 params: Some(params),
             })
             .await;

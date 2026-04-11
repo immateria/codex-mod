@@ -275,7 +275,7 @@ impl From<String> for ExecCallId {
 }
 impl From<&str> for ExecCallId {
     fn from(s: &str) -> Self {
-        ExecCallId(s.to_string())
+        ExecCallId(s.to_owned())
     }
 }
 
@@ -298,7 +298,7 @@ fn wait_target_from_params(params: Option<&str>, call_id: &str) -> String {
 fn wait_exec_call_id_from_params(params: Option<&str>) -> Option<ExecCallId> {
     params
         .and_then(|raw| serde_json::from_str::<serde_json::Value>(raw).ok())
-        .and_then(|json| json.get("call_id").and_then(|v| v.as_str()).map(|s| ExecCallId(s.to_string())))
+        .and_then(|json| json.get("call_id").and_then(|v| v.as_str()).map(|s| ExecCallId(s.to_owned())))
 }
 
 fn wait_result_missing_background_job(message: &str) -> bool {
@@ -332,7 +332,7 @@ fn image_mime_from_path(path: &Path) -> Option<String> {
         "tif" | "tiff" => "image/tiff",
         _ => return None,
     };
-    Some(mime.to_string())
+    Some(mime.to_owned())
 }
 
 fn image_record_from_path(path: &Path) -> Option<ImageRecord> {
@@ -401,7 +401,7 @@ impl From<String> for ToolCallId {
 }
 impl From<&str> for ToolCallId {
     fn from(s: &str) -> Self {
-        ToolCallId(s.to_string())
+        ToolCallId(s.to_owned())
     }
 }
 impl std::fmt::Display for ToolCallId {
@@ -422,7 +422,7 @@ impl From<String> for StreamId {
 }
 impl From<&str> for StreamId {
     fn from(s: &str) -> Self {
-        StreamId(s.to_string())
+        StreamId(s.to_owned())
     }
 }
 impl std::fmt::Display for StreamId {

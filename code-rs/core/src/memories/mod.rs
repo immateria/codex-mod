@@ -185,7 +185,7 @@ fn resolve_current_generation(code_home: &Path) -> io::Result<Option<String>> {
     let current_path = current_generation_path(code_home);
     match std::fs::read_to_string(&current_path) {
         Ok(contents) => {
-            let generation = contents.trim().to_string();
+            let generation = contents.trim().to_owned();
             if generation.is_empty() {
                 Ok(None)
             } else {
@@ -201,7 +201,7 @@ async fn resolve_current_generation_async(code_home: &Path) -> io::Result<Option
     let current_path = current_generation_path(code_home);
     match tokio::fs::read_to_string(&current_path).await {
         Ok(contents) => {
-            let generation = contents.trim().to_string();
+            let generation = contents.trim().to_owned();
             if generation.is_empty() {
                 Ok(None)
             } else {

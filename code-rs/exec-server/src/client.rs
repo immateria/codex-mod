@@ -64,7 +64,7 @@ const INITIALIZE_TIMEOUT: Duration = Duration::from_secs(10);
 impl Default for ExecServerClientConnectOptions {
     fn default() -> Self {
         Self {
-            client_name: "codex-core".to_string(),
+            client_name: "codex-core".to_owned(),
             initialize_timeout: INITIALIZE_TIMEOUT,
         }
     }
@@ -212,7 +212,7 @@ impl ExecServerClient {
             .call(
                 EXEC_WRITE_METHOD,
                 &WriteParams {
-                    process_id: process_id.to_string(),
+                    process_id: process_id.to_owned(),
                     chunk: chunk.into(),
                 },
             )
@@ -226,7 +226,7 @@ impl ExecServerClient {
             .call(
                 EXEC_TERMINATE_METHOD,
                 &TerminateParams {
-                    process_id: process_id.to_string(),
+                    process_id: process_id.to_owned(),
                 },
             )
             .await

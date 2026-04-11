@@ -35,7 +35,7 @@ impl ArgType {
                 } else {
                     Err(Error::LiteralValueDidNotMatch {
                         expected: literal_value.clone(),
-                        actual: value.to_string(),
+                        actual: value.to_owned(),
                     })
                 }
             }
@@ -56,11 +56,11 @@ impl ArgType {
             ArgType::OpaqueNonFile | ArgType::Unknown => Ok(()),
             ArgType::PositiveInteger => match value.parse::<u64>() {
                 Ok(0) => Err(Error::InvalidPositiveInteger {
-                    value: value.to_string(),
+                    value: value.to_owned(),
                 }),
                 Ok(_) => Ok(()),
                 Err(_) => Err(Error::InvalidPositiveInteger {
-                    value: value.to_string(),
+                    value: value.to_owned(),
                 }),
             },
             ArgType::SedCommand => parse_sed_command(value),

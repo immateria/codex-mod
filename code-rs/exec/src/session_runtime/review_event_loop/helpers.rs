@@ -79,7 +79,7 @@ pub(super) async fn submit_followup_review(
         update_snapshot_epoch,
     } = params;
     if let Some(resolve_state) = state.auto_resolve_state.as_mut() {
-        resolve_state.last_reviewed_commit = Some(snap.id().to_string());
+        resolve_state.last_reviewed_commit = Some(snap.id().to_owned());
         if update_snapshot_epoch {
             resolve_state.snapshot_epoch = Some(current_snapshot_epoch_for(&config.cwd));
         }

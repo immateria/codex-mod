@@ -21,7 +21,7 @@ pub(super) fn confirm_slash_popup_selection_inner(view: &mut ChatComposer) -> (I
         }
     };
 
-    let command_text = view.textarea.text().to_string();
+    let command_text = view.textarea.text().to_owned();
 
     match selection {
         SlashPopupSelection::Builtin(cmd) => {

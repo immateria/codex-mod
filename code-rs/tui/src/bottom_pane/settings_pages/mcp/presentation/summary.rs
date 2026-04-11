@@ -103,7 +103,7 @@ impl McpSettingsView {
                     &mut lines,
                     "Min interval: ",
                     row.scheduling
-                        .min_interval_sec.map_or_else(|| "none".to_string(), Self::format_duration),
+                        .min_interval_sec.map_or_else(|| "none".to_owned(), Self::format_duration),
                     key_style,
                     value_style,
                 );
@@ -111,7 +111,7 @@ impl McpSettingsView {
                     &mut lines,
                     "Queue timeout: ",
                     row.scheduling
-                        .queue_timeout_sec.map_or_else(|| "none".to_string(), Self::format_duration),
+                        .queue_timeout_sec.map_or_else(|| "none".to_owned(), Self::format_duration),
                     key_style,
                     value_style,
                 );
@@ -119,7 +119,7 @@ impl McpSettingsView {
                     &mut lines,
                     "Max queue depth: ",
                     row.scheduling
-                        .max_queue_depth.map_or_else(|| "none".to_string(), |v| v.to_string()),
+                        .max_queue_depth.map_or_else(|| "none".to_owned(), |v| v.to_string()),
                     key_style,
                     value_style,
                 );
@@ -165,7 +165,7 @@ impl McpSettingsView {
                     let expanded = self.is_tool_expanded(entry.name);
                     lines.push(Line::from(vec![
                         Span::styled("Name: ", key_style),
-                        Span::styled(entry.name.to_string(), value_style),
+                        Span::styled(entry.name.to_owned(), value_style),
                         Span::raw("  "),
                         Span::styled(
                             if entry.enabled { "[enabled]" } else { "[disabled]" },
@@ -204,7 +204,7 @@ impl McpSettingsView {
                                 &mut lines,
                                 "Max concurrent: ",
                                 tool_override
-                                    .max_concurrent.map_or_else(|| "inherit".to_string(), |v| v.to_string()),
+                                    .max_concurrent.map_or_else(|| "inherit".to_owned(), |v| v.to_string()),
                                 key_style,
                                 value_style,
                             );
@@ -212,7 +212,7 @@ impl McpSettingsView {
                                 &mut lines,
                                 "Min interval: ",
                                 tool_override
-                                    .min_interval_sec.map_or_else(|| "inherit".to_string(), Self::format_duration),
+                                    .min_interval_sec.map_or_else(|| "inherit".to_owned(), Self::format_duration),
                                 key_style,
                                 value_style,
                             );
@@ -229,7 +229,7 @@ impl McpSettingsView {
                                     Self::push_key_value_line(
                                         &mut lines,
                                         "Title: ",
-                                        title.to_string(),
+                                        title.to_owned(),
                                         key_style,
                                         value_style,
                                     );
@@ -238,7 +238,7 @@ impl McpSettingsView {
                                     Self::push_key_value_line(
                                         &mut lines,
                                         "Description: ",
-                                        description.to_string(),
+                                        description.to_owned(),
                                         key_style,
                                         value_style,
                                     );

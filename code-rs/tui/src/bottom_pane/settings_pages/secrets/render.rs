@@ -80,7 +80,7 @@ impl SecretsSettingsView {
 
         let scope_line = match &entry.scope {
             code_secrets::SecretScope::Environment(env_id) => format!("Scope: env ({env_id})"),
-            code_secrets::SecretScope::Global => "Scope: global".to_string(),
+            code_secrets::SecretScope::Global => "Scope: global".to_owned(),
         };
 
         let lines = vec![

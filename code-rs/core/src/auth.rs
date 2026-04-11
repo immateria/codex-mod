@@ -281,9 +281,9 @@ impl CodexAuth {
             openai_api_key: None,
             tokens: Some(TokenData {
                 id_token: Default::default(),
-                access_token: "Access Token".to_string(),
-                refresh_token: "test".to_string(),
-                account_id: Some("account_id".to_string()),
+                access_token: "Access Token".to_owned(),
+                refresh_token: "test".to_owned(),
+                account_id: Some("account_id".to_owned()),
             }),
             last_refresh: Some(Utc::now()),
         };
@@ -378,7 +378,7 @@ fn read_openai_api_key_from_env() -> Option<String> {
 pub fn read_code_api_key_from_env() -> Option<String> {
     env::var(CODEX_API_KEY_ENV_VAR)
         .ok()
-        .map(|value| value.trim().to_string())
+        .map(|value| value.trim().to_owned())
         .filter(|value| !value.is_empty())
 }
 
@@ -390,7 +390,7 @@ pub fn read_code_api_key_from_env_or_secrets(code_home: &Path, cwd: &Path) -> Op
     );
     outcome
         .resolved
-        .map(|resolved| resolved.value.trim().to_string())
+        .map(|resolved| resolved.value.trim().to_owned())
         .filter(|value| !value.is_empty())
 }
 
@@ -432,14 +432,14 @@ pub fn logout(code_home: &Path) -> std::io::Result<bool> {
 pub fn login_with_api_key(code_home: &Path, api_key: &str) -> std::io::Result<()> {
     let auth_dot_json = AuthDotJson {
         auth_mode: Some(AuthMode::ApiKey),
-        openai_api_key: Some(api_key.to_string()),
+        openai_api_key: Some(api_key.to_owned()),
         tokens: None,
         last_refresh: None,
     };
     write_auth_json(&get_auth_file(code_home), &auth_dot_json)?;
     let _ = crate::auth_accounts::upsert_api_key_account(
         code_home,
-        api_key.to_string(),
+        api_key.to_owned(),
         None,
         true,
     )?;
@@ -479,15 +479,15 @@ pub fn login_with_chatgpt_auth_tokens(
             "business" => PlanType::Known(KnownPlan::Business),
             "enterprise" => PlanType::Known(KnownPlan::Enterprise),
             "edu" => PlanType::Known(KnownPlan::Edu),
-            _ => PlanType::Unknown(plan_type.to_string()),
+            _ => PlanType::Unknown(plan_type.to_owned()),
         });
     }
 
     let tokens = TokenData {
         id_token,
-        access_token: access_token.to_string(),
+        access_token: access_token.to_owned(),
         refresh_token: String::new(),
-        account_id: Some(chatgpt_account_id.to_string()),
+        account_id: Some(chatgpt_account_id.to_owned()),
     };
     let last_refresh = Utc::now();
     let auth_dot_json = AuthDotJson {
@@ -885,7 +885,7 @@ async fn try_refresh_token(
     let body = response
         .text()
         .await
-        .unwrap_or_else(|_| "<body unavailable>".to_string());
+        .unwrap_or_else(|_| "<body unavailable>".to_owned());
     Err(classify_refresh_failure(status, &body))
 }
 
@@ -927,7 +927,7 @@ fn classify_refresh_failure(status: StatusCode, body: &str) -> RefreshTokenError
     {
         let message = error
             .message
-            .unwrap_or_else(|| "refresh token already rotated".to_string());
+            .unwrap_or_else(|| "refresh token already rotated".to_owned());
         return RefreshTokenError::transient(format!(
             "refresh_token_reused: {message}"
         ));
@@ -992,13 +992,13 @@ fn classify_refresh_failure(status: StatusCode, body: &str) -> RefreshTokenError
 fn summarize_body(body: &str) -> String {
     let trimmed = body.trim();
     if trimmed.is_empty() {
-        return "<empty response>".to_string();
+        return "<empty response>".to_owned();
     }
     const MAX_LEN: usize = 240;
     if trimmed.len() > MAX_LEN {
         format!("{}…", &trimmed[..MAX_LEN])
     } else {
-        trimmed.to_string()
+        trimmed.to_owned()
     }
 }
 
@@ -1595,7 +1595,7 @@ impl AuthManager {
         };
         Arc::new(Self {
             code_home: PathBuf::new(),
-            originator: "code_cli_rs".to_string(),
+            originator: "code_cli_rs".to_owned(),
             inner: RwLock::new(cached),
             enable_code_api_key_env: false,
             auth_credentials_store_mode: RwLock::new(AuthCredentialsStoreMode::File),
@@ -1791,7 +1791,7 @@ impl AuthManager {
         Arc::new(Self::new(
             code_home,
             AuthMode::ApiKey,
-            crate::default_client::DEFAULT_ORIGINATOR.to_string(),
+            crate::default_client::DEFAULT_ORIGINATOR.to_owned(),
         ))
     }
 

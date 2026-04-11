@@ -146,10 +146,10 @@ fn update_origins_for_value(
         }
         if !prefix.is_empty() {
             origins.insert(
-                prefix.to_string(),
+                prefix.to_owned(),
                 ConfigLayerMetadata {
                     name: name.clone(),
-                    version: version.to_string(),
+                    version: version.to_owned(),
                 },
             );
         }
@@ -505,10 +505,10 @@ fn apply_toml_override(root: &mut TomlValue, path: &str, value: TomlValue) {
 
         if is_last {
             if let TomlValue::Table(table) = current {
-                table.insert((*segment).to_string(), value);
+                table.insert((*segment).to_owned(), value);
             } else {
                 let mut table = Table::new();
-                table.insert((*segment).to_string(), value);
+                table.insert((*segment).to_owned(), value);
                 *current = TomlValue::Table(table);
             }
             return;
@@ -516,13 +516,13 @@ fn apply_toml_override(root: &mut TomlValue, path: &str, value: TomlValue) {
 
         if let TomlValue::Table(table) = current {
             current = table
-                .entry((*segment).to_string())
+                .entry((*segment).to_owned())
                 .or_insert_with(|| TomlValue::Table(Table::new()));
         } else {
             *current = TomlValue::Table(Table::new());
             if let TomlValue::Table(table) = current {
                 current = table
-                    .entry((*segment).to_string())
+                    .entry((*segment).to_owned())
                     .or_insert_with(|| TomlValue::Table(Table::new()));
             }
         }
@@ -714,7 +714,7 @@ where
 {
     if Handle::try_current().is_ok() {
         std::thread::Builder::new()
-            .name("config-loader".to_string())
+            .name("config-loader".to_owned())
             .spawn(move || run_future(future))
             .map_err(|err| io::Error::other(format!("config loader thread spawn failed: {err}")))?
             .join()

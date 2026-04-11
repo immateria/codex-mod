@@ -140,7 +140,7 @@ impl MessageProcessor {
             } else {
                 let error = JSONRPCErrorError {
                     code: INVALID_REQUEST_ERROR_CODE,
-                    message: "session/new requires params".to_string(),
+                    message: "session/new requires params".to_owned(),
                     data: None,
                 };
                 self.outgoing.send_error(request_id, error).await;
@@ -169,7 +169,7 @@ impl MessageProcessor {
             } else {
                 let error = JSONRPCErrorError {
                     code: INVALID_REQUEST_ERROR_CODE,
-                    message: "session/prompt requires params".to_string(),
+                    message: "session/prompt requires params".to_owned(),
                     data: None,
                 };
                 self.outgoing.send_error(request_id, error).await;
@@ -198,7 +198,7 @@ impl MessageProcessor {
             } else {
                 let error = JSONRPCErrorError {
                     code: INVALID_REQUEST_ERROR_CODE,
-                    message: "session/set_model requires params".to_string(),
+                    message: "session/set_model requires params".to_owned(),
                     data: None,
                 };
                 self.outgoing.send_error(request_id, error).await;
@@ -216,7 +216,7 @@ impl MessageProcessor {
                     } else if let Some(num) = protocol_version.as_u64() {
                         *protocol_version = serde_json::Value::String(num.to_string());
                     } else if protocol_version.is_null() {
-                        *protocol_version = serde_json::Value::String("1".to_string());
+                        *protocol_version = serde_json::Value::String("1".to_owned());
                     }
                 }
 
@@ -227,9 +227,9 @@ impl MessageProcessor {
                             .unwrap_or_else(|| serde_json::Value::Object(Default::default()));
 
                         let mut cap_wrapper = serde_json::Map::new();
-                        cap_wrapper.insert("experimental".to_string(), capabilities);
+                        cap_wrapper.insert("experimental".to_owned(), capabilities);
                         map.insert(
-                            "capabilities".to_string(),
+                            "capabilities".to_owned(),
                             serde_json::Value::Object(cap_wrapper),
                         );
                     }
@@ -237,11 +237,11 @@ impl MessageProcessor {
                     map.entry("clientInfo").or_insert_with(|| {
                         let mut info = serde_json::Map::new();
                         info.insert(
-                            "name".to_string(),
+                            "name".to_owned(),
                             serde_json::Value::String("unknown-client".into()),
                         );
                         info.insert(
-                            "version".to_string(),
+                            "version".to_owned(),
                             serde_json::Value::String("0.0.0".into()),
                         );
                         serde_json::Value::Object(info)
@@ -305,7 +305,7 @@ impl MessageProcessor {
     pub(crate) async fn process_response(&mut self, response: JSONRPCResponse) {
         tracing::info!("<- response: {:?}", response);
         let JSONRPCResponse { id, result, .. } = response;
-        self.outgoing.notify_client_response(id, result).await
+        self.outgoing.notify_client_response(id, result).await;
     }
 
     /// Handle a fire-and-forget JSON-RPC notification.
@@ -378,7 +378,7 @@ impl MessageProcessor {
             // Already initialised: send JSON-RPC error response.
             let error = JSONRPCErrorError {
                 code: INVALID_REQUEST_ERROR_CODE,
-                message: "initialize called more than once".to_string(),
+                message: "initialize called more than once".to_owned(),
                 data: None,
             };
             self.outgoing.send_error(id, error).await;
@@ -537,21 +537,21 @@ impl MessageProcessor {
             "codex" => self.handle_tool_call_codex(id, arguments).await,
             "codex-reply" => {
                 self.handle_tool_call_code_session_reply(id, arguments)
-                    .await
+                    .await;
             }
             _ if name == acp::AGENT_METHOD_NAMES.session_new => {
-                self.handle_tool_call_acp_new_session(id, arguments).await
+                self.handle_tool_call_acp_new_session(id, arguments).await;
             }
             _ if name == acp::AGENT_METHOD_NAMES.session_prompt => {
-                self.handle_tool_call_acp_prompt(id, arguments).await
+                self.handle_tool_call_acp_prompt(id, arguments).await;
             }
             _ if name == acp::AGENT_METHOD_NAMES.session_set_model => {
-                self.handle_tool_call_acp_set_model(id, arguments).await
+                self.handle_tool_call_acp_set_model(id, arguments).await;
             }
             _ => {
                 let result = CallToolResult {
                     content: vec![ContentBlock::TextContent(TextContent {
-                        r#type: "text".to_string(),
+                        r#type: "text".to_owned(),
                         text: format!("Unknown tool '{name}'"),
                         annotations: None,
                     })],
@@ -601,10 +601,9 @@ impl MessageProcessor {
         } } else {
             let result = CallToolResult {
                 content: vec![ContentBlock::TextContent(TextContent {
-                    r#type: "text".to_string(),
+                    r#type: "text".to_owned(),
                     text:
-                        "Missing arguments for codex tool-call; the `prompt` field is required."
-                            .to_string(),
+                        "Missing arguments for codex tool-call; the `prompt` field is required.".to_owned(),
                     annotations: None,
                 })],
                 is_error: Some(true),
@@ -1152,7 +1151,7 @@ impl MessageProcessor {
             if let Ok(params_value) = serde_json::to_value(notification) {
                 self.outgoing
                     .send_notification(OutgoingNotification {
-                        method: acp::CLIENT_METHOD_NAMES.session_update.to_string(),
+                        method: acp::CLIENT_METHOD_NAMES.session_update.to_owned(),
                         params: Some(params_value),
                     })
                     .await;
@@ -1523,7 +1522,7 @@ fn session_models_from_config(config: &Config) -> Option<acp::SessionModelState>
         available_models.push(acp::ModelInfo {
             model_id: id.clone(),
             name: config.model.clone(),
-            description: Some("Configured via CODEX_HOME/config.toml".to_string()),
+            description: Some("Configured via CODEX_HOME/config.toml".to_owned()),
             meta: None,
         });
         return Some(acp::SessionModelState {
@@ -1539,7 +1538,7 @@ fn session_models_from_config(config: &Config) -> Option<acp::SessionModelState>
         available_models.push(acp::ModelInfo {
             model_id: id.clone(),
             name: config.model.clone(),
-            description: Some("Configured via CODEX_HOME/config.toml".to_string()),
+            description: Some("Configured via CODEX_HOME/config.toml".to_owned()),
             meta: None,
         });
         current_model_id = Some(id);
@@ -1581,7 +1580,7 @@ fn resolve_model_selection(model_id: &acp::ModelId, config: &Config) -> Option<M
             ReasoningEffort::Medium
         };
         return Some(ModelSelection {
-            model: stripped.to_string(),
+            model: stripped.to_owned(),
             effort,
         });
     }
@@ -1603,7 +1602,7 @@ fn apply_model_selection(config: &mut Config, model: &str, effort: ReasoningEffo
 
     let mut updated = false;
     if !config.model.eq_ignore_ascii_case(model) {
-        config.model = model.to_string();
+        config.model = model.to_owned();
         config.model_family = find_family_for_model(&config.model)
             .unwrap_or_else(|| derive_default_model_family(&config.model));
         updated = true;
@@ -1656,11 +1655,11 @@ fn configure_session_op_from_config(config: &Config) -> Op {
 }
 
 fn default_session_modes() -> acp::SessionModeState {
-    let mode_id = acp::SessionModeId(Arc::from("default".to_string()));
+    let mode_id = acp::SessionModeId(Arc::from("default".to_owned()));
     let mode = acp::SessionMode {
         id: mode_id.clone(),
-        name: "Default".to_string(),
-        description: Some("Code prompts before executing tools or applying patches.".to_string()),
+        name: "Default".to_owned(),
+        description: Some("Code prompts before executing tools or applying patches.".to_owned()),
         meta: None,
     };
 

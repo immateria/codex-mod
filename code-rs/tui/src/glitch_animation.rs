@@ -191,8 +191,7 @@ pub(crate) fn resolve_brand_title(brand_title: Option<&str>) -> String {
     brand_title
         .map(str::trim)
         .filter(|title| !title.is_empty())
-        .unwrap_or(DEFAULT_BRAND_TITLE)
-        .to_string()
+        .unwrap_or(DEFAULT_BRAND_TITLE).to_owned()
 }
 
 fn welcome_lines(
@@ -233,7 +232,7 @@ fn dynamic_welcome_lines(
     let max_width = available_width.min(max_width_cap);
     let normalized = normalize_brand_for_block_font(brand_title);
     let safe_text = if normalized.is_empty() {
-        "CODE".to_string()
+        "CODE".to_owned()
     } else {
         normalized
     };
@@ -342,7 +341,7 @@ fn max_chars_per_block_line(max_width: usize, scale: usize) -> usize {
 
 fn wrap_brand_for_block(text: &str, max_chars: usize) -> Vec<String> {
     if text.is_empty() {
-        return vec!["CODE".to_string()];
+        return vec!["CODE".to_owned()];
     }
     let mut lines = Vec::new();
     let mut current = String::new();
@@ -366,14 +365,14 @@ fn wrap_brand_for_block(text: &str, max_chars: usize) -> Vec<String> {
             current.push_str(token);
         } else {
             lines.push(current);
-            current = token.to_string();
+            current = token.to_owned();
         }
     }
     if !current.is_empty() {
         lines.push(current);
     }
     if lines.is_empty() {
-        vec!["CODE".to_string()]
+        vec!["CODE".to_owned()]
     } else {
         lines
     }
@@ -416,7 +415,7 @@ fn render_brand_text_lines(brand_title: &str, max_width: usize, max_rows: usize)
             current = candidate;
         } else {
             lines.push(center_line(&current, max_width));
-            current = word.to_string();
+            current = word.to_owned();
             if lines.len() >= max_rows {
                 break;
             }
@@ -525,13 +524,13 @@ fn center_line(line: &str, max_width: usize) -> String {
 fn fit_line_to_width(line: &str, max_width: usize) -> String {
     let line_width = line.chars().count();
     if line_width <= max_width {
-        return line.to_string();
+        return line.to_owned();
     }
     if max_width == 0 {
         return String::new();
     }
     if max_width == 1 {
-        return "…".to_string();
+        return "…".to_owned();
     }
     let mut out = String::new();
     for ch in line.chars().take(max_width - 1) {

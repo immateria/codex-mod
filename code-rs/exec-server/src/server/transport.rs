@@ -37,12 +37,12 @@ pub(crate) fn parse_listen_url(
 ) -> Result<SocketAddr, ExecServerListenUrlParseError> {
     if let Some(socket_addr) = listen_url.strip_prefix("ws://") {
         return socket_addr.parse::<SocketAddr>().map_err(|_| {
-            ExecServerListenUrlParseError::InvalidWebSocketListenUrl(listen_url.to_string())
+            ExecServerListenUrlParseError::InvalidWebSocketListenUrl(listen_url.to_owned())
         });
     }
 
     Err(ExecServerListenUrlParseError::UnsupportedListenUrl(
-        listen_url.to_string(),
+        listen_url.to_owned(),
     ))
 }
 

@@ -32,11 +32,11 @@ impl BrowserManager {
     pub async fn get_browser_type(&self) -> String {
         let config = self.config.read().await;
         if config.connect_ws.is_some() || config.connect_port.is_some() {
-            "CDP-connected to user's Chrome browser".to_string()
+            "CDP-connected to user's Chrome browser".to_owned()
         } else if config.headless {
-            "internal headless Chrome browser".to_string()
+            "internal headless Chrome browser".to_owned()
         } else {
-            "internal Chrome browser (headed mode)".to_string()
+            "internal Chrome browser (headed mode)".to_owned()
         }
     }
 

@@ -86,10 +86,10 @@
                                         format!("auto (>= {})", settings.overlay_min_width)
                                     }
                                     code_core::config_types::SettingsMenuOpenMode::Overlay => {
-                                        "overlay".to_string()
+                                        "overlay".to_owned()
                                     }
                                     code_core::config_types::SettingsMenuOpenMode::Bottom => {
-                                        "bottom".to_string()
+                                        "bottom".to_owned()
                                     }
                                 };
                                 widget.flash_footer_notice(format!("Settings UI: {mode}"));
@@ -884,7 +884,7 @@
                                 }
                             } else if let AppState::Chat { widget } = &mut self.app_state {
                                 widget.flash_footer_notice(
-                                    "Shell escalation settings unchanged".to_string(),
+                                    "Shell escalation settings unchanged".to_owned(),
                                 );
                             }
                         }

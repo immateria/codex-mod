@@ -18,7 +18,7 @@ impl BrowserManager {
         let browser_guard = self.browser.lock().await;
         let browser = browser_guard
             .as_ref()
-            .ok_or_else(|| BrowserError::CdpError("Browser not available".to_string()))?;
+            .ok_or_else(|| BrowserError::CdpError("Browser not available".to_owned()))?;
 
         // Local raw command type (serialize only params).
         #[derive(Debug, Clone)]
@@ -47,7 +47,7 @@ impl BrowserManager {
         }
 
         let cmd = RawCdpCommandBrowser {
-            method: method.to_string(),
+            method: method.to_owned(),
             params,
         };
         let resp = browser.execute(cmd).await?;

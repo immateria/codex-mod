@@ -48,7 +48,7 @@ pub(crate) fn set_test_pick_result(path: Option<PathBuf>) {
 fn normalize_title(title: &str) -> String {
     let trimmed = title.trim();
     if trimmed.is_empty() {
-        "Select".to_string()
+        "Select".to_owned()
     } else {
         trimmed.replace(['\r', '\n'], " ")
     }

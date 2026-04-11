@@ -132,8 +132,7 @@ pub(crate) fn load_plugin_manifest(plugin_root: &Path) -> Option<PluginManifest>
                 .file_name()
                 .and_then(|entry| entry.to_str())
                 .filter(|_| raw_name.trim().is_empty())
-                .unwrap_or(&raw_name)
-                .to_string();
+                .unwrap_or(&raw_name).to_owned();
             let interface = interface.and_then(|interface| {
                 let RawPluginManifestInterface {
                     display_name,

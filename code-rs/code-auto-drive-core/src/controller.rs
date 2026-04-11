@@ -650,18 +650,18 @@ impl AutoDriveController {
             "Waiting for connection… retrying in {human_delay} (attempt {pending_attempt})"
         ));
         self.current_display_is_summary = true;
-        self.current_status_title = Some("Retrying after error".to_string());
+        self.current_status_title = Some("Retrying after error".to_owned());
         self.current_status_sent_to_user = Some(format!(
             "Encountered an error: {truncated_reason}. Waiting before retrying."
         ));
-        self.placeholder_phrase = Some("Waiting for connection…".to_string());
+        self.placeholder_phrase = Some("Waiting for connection…".to_owned());
         self.thinking_prefix_stripped = false;
 
         vec![
             AutoControllerEffect::CancelCoordinator,
             AutoControllerEffect::SetTaskRunning { running: false },
             AutoControllerEffect::UpdateTerminalHint {
-                hint: Some("Press Esc to exit Auto Drive".to_string()),
+                hint: Some("Press Esc to exit Auto Drive".to_owned()),
             },
             AutoControllerEffect::TransientPause {
                 attempt: pending_attempt,
@@ -929,7 +929,7 @@ impl AutoDriveController {
         const MAX_LEN: usize = 160;
         let text = reason.trim();
         if text.len() <= MAX_LEN {
-            return text.to_string();
+            return text.to_owned();
         }
         let mut truncated = text.chars().take(MAX_LEN).collect::<String>();
         truncated.push('…');

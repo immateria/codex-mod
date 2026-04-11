@@ -98,7 +98,7 @@ impl NetworkSettingsView {
                 let mut seen = std::collections::HashSet::<String>::new();
                 let mut values = Vec::new();
                 for line in field.text().lines().map(str::trim).filter(|line| !line.is_empty()) {
-                    let value = line.to_string();
+                    let value = line.to_owned();
                     if seen.insert(value.clone()) {
                         values.push(value);
                     }
@@ -114,7 +114,7 @@ impl NetworkSettingsView {
             .send(AppEvent::SetNetworkProxySettings(self.settings.clone()));
         self.app_event_tx.send_background_event_with_ticket(
             &self.ticket,
-            "Network mediation: applying…".to_string(),
+            "Network mediation: applying…".to_owned(),
         );
         self.dirty = false;
     }

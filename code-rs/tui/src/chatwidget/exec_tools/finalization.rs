@@ -29,7 +29,7 @@ pub(in super::super) fn finalize_exec_cell_at(
 }
 
 pub(in super::super) fn finalize_all_running_as_interrupted(chat: &mut ChatWidget<'_>) {
-    let interrupted_msg = "Cancelled by user.".to_string();
+    let interrupted_msg = "Cancelled by user.".to_owned();
     let stdout_empty = String::new();
     let running: Vec<RunningExecEntry> = chat
         .exec
@@ -122,11 +122,11 @@ pub(in super::super) fn finalize_all_running_as_interrupted(chat: &mut ChatWidge
                         );
                     } else {
                         let completed = history_cell::new_completed_custom_tool_call(
-                            "custom".to_string(),
+                            "custom".to_owned(),
                             None,
                             std::time::Duration::ZERO,
                             false,
-                            "Cancelled by user.".to_string(),
+                            "Cancelled by user.".to_owned(),
                         );
                         chat.history_replace_at(idx, Box::new(completed));
                     }
@@ -204,7 +204,7 @@ pub(in super::super) fn finalize_all_running_due_to_answer(chat: &mut ChatWidget
             let finish_mutation = chat.history_state.apply_domain_event(
                 HistoryDomainEvent::FinishExec {
                     id: history_id,
-                    call_id: Some(call_id.as_ref().to_string()),
+                    call_id: Some(call_id.as_ref().to_owned()),
                     status: ExecStatus::Success,
                     exit_code: Some(exit_code),
                     completed_at: Some(now),
@@ -277,7 +277,7 @@ pub(in super::super) fn finalize_all_running_due_to_answer(chat: &mut ChatWidget
                     },
                 );
                 // Preserve linkage to the original call id when possible.
-                completed_cell.record.call_id = Some(call_id.as_ref().to_string());
+                completed_cell.record.call_id = Some(call_id.as_ref().to_owned());
 
                 if let Some(idx) = running.history_index {
                     chat.history_replace_and_maybe_merge(idx, Box::new(completed_cell));
@@ -392,7 +392,7 @@ pub(in super::super) fn finalize_wait_missing_exec(
         .history_state
         .apply_domain_event(HistoryDomainEvent::FinishExec {
             id: history_id,
-            call_id: Some(call_id.as_ref().to_string()),
+            call_id: Some(call_id.as_ref().to_owned()),
             status: ExecStatus::Error,
             exit_code: Some(-1),
             completed_at: Some(SystemTime::now()),
@@ -400,7 +400,7 @@ pub(in super::super) fn finalize_wait_missing_exec(
             wait_active: false,
             wait_notes: wait_notes_record,
             stdout_tail: None,
-            stderr_tail: Some(fallback_message.to_string()),
+            stderr_tail: Some(fallback_message.to_owned()),
         });
 
     let mut handled_via_state = false;
@@ -463,7 +463,7 @@ pub(in super::super) fn finalize_wait_missing_exec(
                 stderr: stderr_so_far,
             },
         );
-        completed_cell.record.call_id = Some(call_id.as_ref().to_string());
+        completed_cell.record.call_id = Some(call_id.as_ref().to_owned());
 
         if let Some(idx) = history_index {
             chat.history_replace_and_maybe_merge(idx, Box::new(completed_cell));

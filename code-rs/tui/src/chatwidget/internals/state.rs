@@ -3,7 +3,7 @@ use super::super::*;
 pub(crate) fn append_thought_ellipsis(text: &str) -> String {
     let trimmed = text.trim_end();
     if trimmed.ends_with('…') {
-        trimmed.to_string()
+        trimmed.to_owned()
     } else {
         format!("{trimmed}…")
     }
@@ -23,7 +23,7 @@ pub(crate) fn extract_latest_bold_title(text: &str) -> Option<String> {
         if trimmed.is_empty() {
             return None;
         }
-        Some(trimmed.to_string())
+        Some(trimmed.to_owned())
     }
 
     let bytes = text.as_bytes();
@@ -98,7 +98,7 @@ pub(crate) fn heading_from_line(line: &str) -> Option<String> {
         return None;
     }
 
-    Some(title.to_string())
+    Some(title.to_owned())
 }
 
 pub(crate) fn remove_bullet_prefix(line: &str) -> &str {

@@ -21,8 +21,7 @@ impl ChatWidget<'_> {
         let ext = path
             .extension()
             .and_then(|s| s.to_str())
-            .unwrap_or("png")
-            .to_string();
+            .unwrap_or("png").to_owned();
 
         let mut dir = self
             .config
@@ -92,7 +91,7 @@ impl ChatWidget<'_> {
                 let chunk = &text[cursor..mat.start()];
                 if !chunk.trim().is_empty() {
                     ordered_items.push(InputItem::Text {
-                        text: chunk.to_string(),
+                        text: chunk.to_owned(),
                     });
                 }
             }
@@ -102,7 +101,7 @@ impl ChatWidget<'_> {
                 if path.exists() && path.is_file() {
                     // Emit marker + image so the model keeps user-authored placement.
                     ordered_items.push(InputItem::Text {
-                        text: placeholder.to_string(),
+                        text: placeholder.to_owned(),
                     });
                     ordered_items.push(InputItem::LocalImage { path });
                 } else {
@@ -116,13 +115,13 @@ impl ChatWidget<'_> {
                         path.display()
                     ));
                     ordered_items.push(InputItem::Text {
-                        text: placeholder.to_string(),
+                        text: placeholder.to_owned(),
                     });
                 }
             } else {
                 // Unknown placeholder: preserve verbatim.
                 ordered_items.push(InputItem::Text {
-                    text: placeholder.to_string(),
+                    text: placeholder.to_owned(),
                 });
             }
             cursor = mat.end();
@@ -132,7 +131,7 @@ impl ChatWidget<'_> {
             let chunk = &text[cursor..];
             if !chunk.trim().is_empty() {
                 ordered_items.push(InputItem::Text {
-                    text: chunk.to_string(),
+                    text: chunk.to_owned(),
                 });
             }
         }
@@ -182,7 +181,7 @@ impl ChatWidget<'_> {
         let normalized = text.replace("\r\n", "\n");
         let lines: Vec<String> = normalized
             .lines()
-            .map(|line| line.trim_end().to_string())
+            .map(|line| line.trim_end().to_owned())
             .collect();
 
         let start = lines

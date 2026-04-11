@@ -40,7 +40,7 @@ pub fn build_provider(
 
     OtelProvider::from(&OtelSettings {
         service_name: config.responses_originator_header.clone(),
-        service_version: service_version.to_string(),
+        service_version: service_version.to_owned(),
         code_home: config.code_home.clone(),
         environment: config.otel.environment.clone(),
         exporter,

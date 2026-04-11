@@ -1338,7 +1338,7 @@ impl HistoryUsageTracker {
 
 fn command_preview(command: &[String]) -> String {
     if command.is_empty() {
-        return "<empty command>".to_string();
+        return "<empty command>".to_owned();
     }
     let joined = command.join(" ");
     truncate_display(&joined)
@@ -1352,7 +1352,7 @@ fn assistant_preview(state: &AssistantStreamState) -> String {
         && !last.delta.trim().is_empty() {
             return truncate_display(last.delta.trim());
         }
-    "<empty preview>".to_string()
+    "<empty preview>".to_owned()
 }
 
 fn truncate_display(input: &str) -> String {
@@ -1453,7 +1453,7 @@ impl HistoryState {
         metadata: Option<&MessageMetadata>,
     ) -> HistoryId {
         let event = HistoryDomainEvent::UpsertAssistantStream {
-            stream_id: stream_id.to_string(),
+            stream_id: stream_id.to_owned(),
             preview_markdown,
             delta,
             metadata: metadata.cloned(),

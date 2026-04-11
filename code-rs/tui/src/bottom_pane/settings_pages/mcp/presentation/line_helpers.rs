@@ -36,7 +36,7 @@ impl McpSettingsView {
         value_style: Style,
     ) {
         lines.push(Line::from(vec![
-            Span::styled(key.to_string(), key_style),
+            Span::styled(key.to_owned(), key_style),
             Span::styled(value.into(), value_style),
         ]));
     }

@@ -326,7 +326,7 @@ impl ChatWidget<'_> {
                         .as_ref()
                         .and_then(|b| {
                             let trimmed = b.trim();
-                            (!trimmed.is_empty()).then(|| trimmed.to_string())
+                            (!trimmed.is_empty()).then(|| trimmed.to_owned())
                         }).map_or_else(|| display_name.clone(), |batch| format!("{batch} / {display_name}"));
 
                     lines.push(Line::from(vec![

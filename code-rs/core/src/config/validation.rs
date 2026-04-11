@@ -144,8 +144,8 @@ pub(crate) fn upgrade_legacy_model_slugs(cfg: &mut ConfigToml) {
 
 fn upgrade_legacy_model_slug(slug: &str) -> Option<String> {
     match slug {
-        "gpt-5.2.4" => return Some("gpt-5.4".to_string()),
-        "test-gpt-5.2.4" => return Some("test-gpt-5.4".to_string()),
+        "gpt-5.2.4" => return Some("gpt-5.4".to_owned()),
+        "test-gpt-5.2.4" => return Some("test-gpt-5.4".to_owned()),
         _ => {}
     }
 
@@ -173,10 +173,10 @@ fn upgrade_legacy_model_slug(slug: &str) -> Option<String> {
     }
 
     match slug {
-        "gpt-5.1-codex" => return Some("gpt-5.1-codex-max".to_string()),
-        "gpt-4.1" => return Some("gpt-4.1-2024-04-09".to_string()),
-        "gpt-4.1-mini" => return Some("gpt-4.1-mini-2024-04-09".to_string()),
-        "gpt-4.1-nano" => return Some("gpt-4.1-nano-2024-04-09".to_string()),
+        "gpt-5.1-codex" => return Some("gpt-5.1-codex-max".to_owned()),
+        "gpt-4.1" => return Some("gpt-4.1-2024-04-09".to_owned()),
+        "gpt-4.1-mini" => return Some("gpt-4.1-mini-2024-04-09".to_owned()),
+        "gpt-4.1-nano" => return Some("gpt-4.1-nano-2024-04-09".to_owned()),
         _ => {}
     }
 
@@ -191,17 +191,17 @@ fn upgrade_legacy_model_slug(slug: &str) -> Option<String> {
     // Upgrade Anthropic Opus 4.1/4.5 to 4.6
     if slug.eq_ignore_ascii_case("claude-opus-4.1") || slug.eq_ignore_ascii_case("claude-opus-4.5")
     {
-        return Some("claude-opus-4.6".to_string());
+        return Some("claude-opus-4.6".to_owned());
     }
 
     // Upgrade Gemini 2.5 Pro to Gemini 3 Pro (or preview alias)
     if slug.eq_ignore_ascii_case("gemini-2.5-pro") || slug.eq_ignore_ascii_case("gemini-3-pro-preview") {
-        return Some("gemini-3-pro".to_string());
+        return Some("gemini-3-pro".to_owned());
     }
 
     // Upgrade Gemini 2.5 Flash to Gemini 3 Flash
     if slug.eq_ignore_ascii_case("gemini-2.5-flash") {
-        return Some("gemini-3-flash".to_string());
+        return Some("gemini-3-flash".to_owned());
     }
 
     // Keep codex variants on their existing line; upgrades are surfaced via the

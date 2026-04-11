@@ -81,7 +81,7 @@ impl LoginAccountsState {
         }
 
         let status = if self.accounts.is_empty() {
-            "No connected accounts".to_string()
+            "No connected accounts".to_owned()
         } else {
             format!(
                 "{} connected {}",

@@ -281,7 +281,7 @@
                     let command_args = {
                         let cmd_with_slash = format!("/{}", command.command());
                         if command_text.starts_with(&cmd_with_slash) {
-                            command_text[cmd_with_slash.len()..].trim().to_string()
+                            command_text[cmd_with_slash.len()..].trim().to_owned()
                         } else {
                             // Fallback: if format doesn't match, use the full text
                             command_text.clone()
@@ -333,20 +333,20 @@
                                 let trimmed = command_args.trim();
                                 if trimmed.is_empty() {
                                     widget.debug_notice(
-                                        "Usage: /rename <name> (or /rename - to clear)".to_string(),
+                                        "Usage: /rename <name> (or /rename - to clear)".to_owned(),
                                     );
                                 } else if let Some(session_id) = widget.session_id() {
                                     let nickname =
                                         if trimmed == "-" || trimmed.eq_ignore_ascii_case("clear") {
                                             None
                                         } else {
-                                            Some(trimmed.to_string())
+                                            Some(trimmed.to_owned())
                                         };
                                     let code_home = self.config.code_home.clone();
                                     let tx = self.app_event_tx.clone();
                                     let nickname_label = nickname.clone();
                                     if let Err(err) = std::thread::Builder::new()
-                                        .name("session-rename".to_string())
+                                        .name("session-rename".to_owned())
                                         .spawn(move || {
                                             let message = match tokio::runtime::Builder::new_current_thread()
                                                 .enable_all()
@@ -361,10 +361,10 @@
                                                             Some(name) => {
                                                                 format!("Session renamed to \"{name}\".")
                                                             }
-                                                            None => "Session nickname cleared.".to_string(),
+                                                            None => "Session nickname cleared.".to_owned(),
                                                         },
                                                         Ok(false) => {
-                                                            "Session not found in catalog.".to_string()
+                                                            "Session not found in catalog.".to_owned()
                                                         }
                                                         Err(err) => {
                                                             format!("Failed to rename session: {err}")
@@ -383,7 +383,7 @@
                                         ));
                                     }
                                 } else {
-                                    widget.debug_notice("Session not ready yet.".to_string());
+                                    widget.debug_notice("Session not ready yet.".to_owned());
                                 }
                             }
                         }
@@ -412,7 +412,7 @@
                             if let AppState::Chat { widget } = &mut self.app_state {
                                 const INIT_PROMPT: &str =
                                     include_str!("../../../../prompt_for_init_command.md");
-                                widget.submit_text_message(INIT_PROMPT.to_string());
+                                widget.submit_text_message(INIT_PROMPT.to_owned());
                             }
                         }
                         SlashCommand::Compact => {
@@ -454,7 +454,7 @@
                                         let text = if is_git_repo {
                                             diff_text
                                         } else {
-                                            "`/diff` — _not inside a git repository_".to_string()
+                                            "`/diff` — _not inside a git repository_".to_owned()
                                         };
                                         tx.send(AppEvent::DiffResult(text));
                                     }
@@ -689,7 +689,7 @@
                             use code_core::protocol::FileChange;
 
                             self.app_event_tx.send(AppEvent::codex_event(Event {
-                                id: "1".to_string(),
+                                id: "1".to_owned(),
                                 event_seq: 0,
                                 // msg: EventMsg::ExecApprovalRequest(ExecApprovalRequestEvent {
                                 //     call_id: "1".to_string(),
@@ -699,21 +699,21 @@
                                 // }),
                                 msg: EventMsg::ApplyPatchApprovalRequest(
                                     ApplyPatchApprovalRequestEvent {
-                                        call_id: "1".to_string(),
+                                        call_id: "1".to_owned(),
                                         changes: HashMap::from([
                                             (
                                                 PathBuf::from("/tmp/test.txt"),
                                                 FileChange::Add {
-                                                    content: "test".to_string(),
+                                                    content: "test".to_owned(),
                                                 },
                                             ),
                                             (
                                                 PathBuf::from("/tmp/test2.txt"),
                                                 FileChange::Update {
-                                                    unified_diff: "+test\n-test2".to_string(),
+                                                    unified_diff: "+test\n-test2".to_owned(),
                                                     move_path: None,
-                                                    original_content: "test2".to_string(),
-                                                    new_content: "test".to_string(),
+                                                    original_content: "test2".to_owned(),
+                                                    new_content: "test".to_owned(),
                                                 },
                                             ),
                                         ]),
@@ -948,7 +948,7 @@
                                     if let AppState::Chat { widget } = &mut self.app_state {
                                         widget.apply_reloaded_config_keep_settings_state(config);
                                         widget.flash_footer_notice(
-                                            "Saved context settings to config.".to_string(),
+                                            "Saved context settings to config.".to_owned(),
                                         );
                                     }
                                 }

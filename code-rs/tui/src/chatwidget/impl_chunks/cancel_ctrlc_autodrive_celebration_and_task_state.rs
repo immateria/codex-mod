@@ -239,7 +239,7 @@ impl ChatWidget<'_> {
             .update_status_text("Waiting in background");
 
         if wait_ids.is_empty() {
-            self.push_background_tail("Input unblocked after 10s; wait still running.".to_string());
+            self.push_background_tail("Input unblocked after 10s; wait still running.".to_owned());
         } else {
             self.push_background_tail(format!(
                 "Input unblocked after 10s; wait still running ({}).",

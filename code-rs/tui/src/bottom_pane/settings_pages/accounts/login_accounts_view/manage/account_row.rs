@@ -56,7 +56,7 @@ impl AccountRow {
         }
 
         if mode == AuthMode::ApiKey {
-            detail_parts.push("Type: API key account".to_string());
+            detail_parts.push("Type: API key account".to_owned());
         }
 
         if let Some(created_at) = account.created_at {
@@ -86,7 +86,7 @@ fn format_relative_time(target: DateTime<Utc>, now: DateTime<Utc>) -> String {
     let seconds = delta.num_seconds();
     if seconds >= 0 {
         if seconds < 60 {
-            "in <1m".to_string()
+            "in <1m".to_owned()
         } else if seconds < 3600 {
             format!("in {}m", seconds / 60)
         } else if seconds < 86_400 {
@@ -97,7 +97,7 @@ fn format_relative_time(target: DateTime<Utc>, now: DateTime<Utc>) -> String {
     } else {
         let past = seconds.saturating_abs();
         if past < 60 {
-            "<1m ago".to_string()
+            "<1m ago".to_owned()
         } else if past < 3600 {
             format!("{}m ago", past / 60)
         } else if past < 86_400 {

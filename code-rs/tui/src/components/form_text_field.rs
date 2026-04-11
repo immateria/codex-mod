@@ -60,7 +60,7 @@ impl FormTextField {
         self.placeholder = if trimmed.is_empty() {
             None
         } else {
-            Some(placeholder.to_string())
+            Some(placeholder.to_owned())
         };
     }
 

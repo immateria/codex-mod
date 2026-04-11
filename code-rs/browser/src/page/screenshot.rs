@@ -130,7 +130,7 @@ impl Page {
                         Ok(Ok(resp)) => Ok(resp.result),
                         Ok(Err(retry_err)) => Err(retry_err.into()),
                         Err(_) => Err(BrowserError::ScreenshotError(
-                            "Screenshot retry (from_surface=true) timed out".to_string(),
+                            "Screenshot retry (from_surface=true) timed out".to_owned(),
                         )),
                     }
                 } else {
@@ -160,7 +160,7 @@ impl Page {
                                 Ok(Ok(resp)) => Ok(resp.result),
                                 Ok(Err(e3)) => Err(e3.into()),
                                 Err(_) => Err(BrowserError::ScreenshotError(
-                                    "Screenshot timed out (final from_surface=true fallback)".to_string(),
+                                    "Screenshot timed out (final from_surface=true fallback)".to_owned(),
                                 )),
                             }
                         }
@@ -179,7 +179,7 @@ impl Page {
                                 Ok(Ok(resp)) => Ok(resp.result),
                                 Ok(Err(e3)) => Err(e3.into()),
                                 Err(_) => Err(BrowserError::ScreenshotError(
-                                    "Screenshot timed out after retries (from_surface=true fallback)".to_string(),
+                                    "Screenshot timed out after retries (from_surface=true fallback)".to_owned(),
                                 )),
                             }
                         }
@@ -203,7 +203,7 @@ impl Page {
                         Ok(Ok(resp)) => Ok(resp.result),
                         Ok(Err(e)) => Err(e.into()),
                         Err(_) => Err(BrowserError::ScreenshotError(
-                            "Screenshot timed out with from_surface(true)".to_string(),
+                            "Screenshot timed out with from_surface(true)".to_owned(),
                         )),
                     }
                 } else {
@@ -231,7 +231,7 @@ impl Page {
                                 Ok(Ok(resp)) => Ok(resp.result),
                                 Ok(Err(e3)) => Err(e3.into()),
                                 Err(_) => Err(BrowserError::ScreenshotError(
-                                    "Screenshot timed out after retries (final from_surface=true)".to_string(),
+                                    "Screenshot timed out after retries (final from_surface=true)".to_owned(),
                                 )),
                             }
                         }
@@ -250,7 +250,7 @@ impl Page {
                                 Ok(Ok(resp)) => Ok(resp.result),
                                 Ok(Err(e3)) => Err(e3.into()),
                                 Err(_) => Err(BrowserError::ScreenshotError(
-                                    "Screenshot timed out after retries (from_surface=true fallback)".to_string(),
+                                    "Screenshot timed out after retries (from_surface=true fallback)".to_owned(),
                                 )),
                             }
                         }

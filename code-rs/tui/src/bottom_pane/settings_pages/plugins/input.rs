@@ -448,12 +448,12 @@ impl PluginsSettingsView {
                     sources.curated_repo_url = None;
                     sources.curated_repo_ref = None;
                 } else {
-                    sources.curated_repo_url = Some(url.to_string());
+                    sources.curated_repo_url = Some(url.to_owned());
                     let git_ref = self.sources_editor.ref_field.text().trim();
                     if git_ref.is_empty() {
                         sources.curated_repo_ref = None;
                     } else {
-                        sources.curated_repo_ref = Some(git_ref.to_string());
+                        sources.curated_repo_ref = Some(git_ref.to_owned());
                     }
                 }
                 self.request_set_plugin_marketplace_sources(sources);
@@ -463,13 +463,13 @@ impl PluginsSettingsView {
             SourcesMode::EditMarketplaceRepo { index } => {
                 let url = self.sources_editor.url_field.text().trim();
                 if url.is_empty() {
-                    self.sources_editor.error = Some("Marketplace repo URL is required.".to_string());
+                    self.sources_editor.error = Some("Marketplace repo URL is required.".to_owned());
                     return true;
                 }
                 let git_ref = self.sources_editor.ref_field.text().trim();
                 let repo = PluginMarketplaceRepoToml {
-                    url: url.to_string(),
-                    git_ref: (!git_ref.is_empty()).then(|| git_ref.to_string()),
+                    url: url.to_owned(),
+                    git_ref: (!git_ref.is_empty()).then(|| git_ref.to_owned()),
                 };
                 match index {
                     Some(idx) if idx < sources.marketplace_repos.len() => {

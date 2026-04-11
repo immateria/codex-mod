@@ -42,7 +42,7 @@ impl BrowserManager {
             Ok(Err(err)) => return Err(BrowserError::CdpError(err.to_string())),
             Err(_) => {
                 return Err(BrowserError::CdpError(
-                    "Timed out fetching browser targets".to_string(),
+                    "Timed out fetching browser targets".to_owned(),
                 ))
             }
         };

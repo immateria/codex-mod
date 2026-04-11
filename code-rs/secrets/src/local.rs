@@ -70,7 +70,7 @@ impl LocalSecretsBackend {
         anyhow::ensure!(!value.is_empty(), "secret value must not be empty");
         let canonical_key = scope.canonical_key(name);
         let mut file = self.load_file()?;
-        file.secrets.insert(canonical_key, value.to_string());
+        file.secrets.insert(canonical_key, value.to_owned());
         self.save_file(&file)
     }
 
@@ -351,7 +351,7 @@ fn read_passphrase_file(path: &Path) -> Result<Option<SecretString>> {
                 "secrets passphrase file is empty at {}",
                 path.display()
             );
-            Ok(Some(SecretString::from(trimmed.to_string())))
+            Ok(Some(SecretString::from(trimmed.to_owned())))
         }
         Err(err) if err.kind() == std::io::ErrorKind::NotFound => Ok(None),
         Err(err) => Err(err).with_context(|| {
@@ -430,7 +430,7 @@ fn parse_canonical_key(canonical_key: &str) -> Option<SecretListEntry> {
                 return None;
             }
             let name = SecretName::new(name).ok()?;
-            let scope = SecretScope::environment(environment_id.to_string()).ok()?;
+            let scope = SecretScope::environment(environment_id.to_owned()).ok()?;
             Some(SecretListEntry { scope, name })
         }
         _ => None,

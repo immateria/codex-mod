@@ -48,7 +48,7 @@ impl CliConfigOverrides {
                 let mut parts = s.splitn(2, '=');
                 let key = match parts.next() {
                     Some(k) => k.trim(),
-                    None => return Err("Override missing key".to_string()),
+                    None => return Err("Override missing key".to_owned()),
                 };
                 let value_str = parts
                     .next()
@@ -65,10 +65,10 @@ impl CliConfigOverrides {
                 let value: Value = if let Ok(v) = parse_toml_value(value_str) { v } else {
                     // Strip leading/trailing quotes if present
                     let trimmed = value_str.trim().trim_matches(|c| c == '"' || c == '\'');
-                    Value::String(trimmed.to_string())
+                    Value::String(trimmed.to_owned())
                 };
 
-                Ok((key.to_string(), value))
+                Ok((key.to_owned(), value))
             })
             .collect()
     }
@@ -98,10 +98,10 @@ fn apply_single_override(root: &mut Value, path: &str, value: Value) {
 
         if is_last {
             if let Value::Table(tbl) = current {
-                tbl.insert((*part).to_string(), value);
+                tbl.insert((*part).to_owned(), value);
             } else {
                 let mut tbl = Table::new();
-                tbl.insert((*part).to_string(), value);
+                tbl.insert((*part).to_owned(), value);
                 *current = Value::Table(tbl);
             }
             return;
@@ -110,13 +110,13 @@ fn apply_single_override(root: &mut Value, path: &str, value: Value) {
         // Traverse or create intermediate table.
         if let Value::Table(tbl) = current {
             current = tbl
-                .entry((*part).to_string())
+                .entry((*part).to_owned())
                 .or_insert_with(|| Value::Table(Table::new()));
         } else {
             *current = Value::Table(Table::new());
             if let Value::Table(tbl) = current {
                 current = tbl
-                    .entry((*part).to_string())
+                    .entry((*part).to_owned())
                     .or_insert_with(|| Value::Table(Table::new()));
             }
         }

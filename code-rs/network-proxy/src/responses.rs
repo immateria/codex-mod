@@ -24,8 +24,8 @@ pub fn text_response(status: StatusCode, body: &str) -> Response {
     Response::builder()
         .status(status)
         .header("content-type", "text/plain")
-        .body(Body::from(body.to_string()))
-        .unwrap_or_else(|_| Response::new(Body::from(body.to_string())))
+        .body(Body::from(body.to_owned()))
+        .unwrap_or_else(|_| Response::new(Body::from(body.to_owned())))
 }
 
 pub fn json_response<T: Serialize>(value: &T) -> Response {
@@ -33,7 +33,7 @@ pub fn json_response<T: Serialize>(value: &T) -> Response {
         Ok(body) => body,
         Err(err) => {
             error!("failed to serialize JSON response: {err}");
-            "{}".to_string()
+            "{}".to_owned()
         }
     };
     Response::builder()
@@ -73,7 +73,7 @@ pub fn blocked_message(reason: &str) -> &'static str {
 
 pub fn blocked_message_with_policy(reason: &str, details: &PolicyDecisionDetails<'_>) -> String {
     let _ = (details.reason, details.host);
-    blocked_message(reason).to_string()
+    blocked_message(reason).to_owned()
 }
 
 pub fn blocked_text_response_with_policy(

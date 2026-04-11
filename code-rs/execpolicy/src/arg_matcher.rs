@@ -108,7 +108,7 @@ impl<'v> UnpackValue<'v> for ArgMatcher {
 
     fn unpack_value_impl(value: Value<'v>) -> starlark::Result<Option<Self>> {
         if let Some(str) = value.downcast_ref::<StarlarkStr>() {
-            Ok(Some(ArgMatcher::Literal(str.as_str().to_string())))
+            Ok(Some(ArgMatcher::Literal(str.as_str().to_owned())))
         } else {
             Ok(value.downcast_ref::<ArgMatcher>().cloned())
         }

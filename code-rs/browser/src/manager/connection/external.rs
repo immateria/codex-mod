@@ -117,7 +117,7 @@ impl BrowserManager {
                 sleep(Duration::from_millis(200)).await;
             }
 
-            let base = "CDP WebSocket connect failed after all attempts".to_string();
+            let base = "CDP WebSocket connect failed after all attempts".to_owned();
             let msg = if let Some(e) = last_err {
                 format!("{base}: {e}")
             } else {
@@ -275,7 +275,7 @@ impl BrowserManager {
                     sleep(Duration::from_millis(200)).await;
                 }
 
-                let base = "CDP WebSocket connect failed after all attempts".to_string();
+                let base = "CDP WebSocket connect failed after all attempts".to_owned();
                 let msg = if let Some(e) = last_err {
                     format!("{base}: {e}")
                 } else {
@@ -284,12 +284,12 @@ impl BrowserManager {
                 Err(BrowserError::CdpError(msg))
             } else {
                 Err(BrowserError::CdpError(
-                    "No Chrome instance found with debug port".to_string(),
+                    "No Chrome instance found with debug port".to_owned(),
                 ))
             }
         } else {
             Err(BrowserError::CdpError(
-                "No CDP port configured for Chrome connection".to_string(),
+                "No CDP port configured for Chrome connection".to_owned(),
             ))
         }
     }

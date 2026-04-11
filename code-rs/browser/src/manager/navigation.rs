@@ -179,7 +179,7 @@ impl BrowserManager {
                 .opener_id
                 .as_ref()
                 .map(|opener_id| format!("{opener_id:?}"))
-                .unwrap_or_else(|| "-".to_string());
+                .unwrap_or_else(|| "-".to_owned());
             let url = &target.url;
             let title = &target.title;
             let attached = target.attached;

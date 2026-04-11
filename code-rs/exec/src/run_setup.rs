@@ -62,7 +62,7 @@ pub(crate) fn prepare_run_inputs(
     let mut auto_drive_goal: Option<String> = None;
     let trimmed_prompt = prompt.trim();
     if trimmed_prompt.starts_with("/auto") {
-        auto_drive_goal = Some(trimmed_prompt.trim_start_matches("/auto").trim().to_string());
+        auto_drive_goal = Some(trimmed_prompt.trim_start_matches("/auto").trim().to_owned());
     }
     if auto_drive {
         if trimmed_prompt.is_empty() {
@@ -73,7 +73,7 @@ pub(crate) fn prepare_run_inputs(
             .as_deref()
             .is_none_or(str::is_empty)
         {
-            auto_drive_goal = Some(trimmed_prompt.to_string());
+            auto_drive_goal = Some(trimmed_prompt.to_owned());
         }
     }
 

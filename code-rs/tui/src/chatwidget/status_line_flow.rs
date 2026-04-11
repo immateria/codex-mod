@@ -29,7 +29,7 @@ impl ChatWidget<'_> {
             "bottom" => StatusLineLane::Bottom,
             _ => {
                 return Err(
-                    "Usage: /statusline [primary|secondary|top|bottom]".to_string(),
+                    "Usage: /statusline [primary|secondary|top|bottom]".to_owned(),
                 );
             }
         };
@@ -194,9 +194,9 @@ impl ChatWidget<'_> {
                         self.config.service_tier,
                         Some(code_core::config_types::ServiceTier::Fast)
                     ) {
-                        "fast".to_string()
+                        "fast".to_owned()
                     } else {
-                        "standard".to_string()
+                        "standard".to_owned()
                     },
                 )
             }
@@ -210,7 +210,7 @@ impl ChatWidget<'_> {
                     };
                     format!("sh {display}")
                 }
-                None => "sh auto".to_string(),
+                None => "sh auto".to_owned(),
             }),
             StatusLineItem::ShellStyle => {
                 let style = self.config.shell.as_ref().and_then(|shell| {
@@ -219,7 +219,7 @@ impl ChatWidget<'_> {
                 });
                 Some(match style {
                     Some(style) => format!("style {style}"),
-                    None => "style auto".to_string(),
+                    None => "style auto".to_owned(),
                 })
             }
             StatusLineItem::CurrentDir => Some(Self::status_line_format_cwd(&self.config.cwd)),
@@ -231,10 +231,10 @@ impl ChatWidget<'_> {
             #[cfg(feature = "managed-network-proxy")]
             StatusLineItem::NetworkMediation => {
                 let Some(settings) = self.config.network.as_ref() else {
-                    return Some("net off".to_string());
+                    return Some("net off".to_owned());
                 };
                 if !settings.enabled {
-                    return Some("net off".to_string());
+                    return Some("net off".to_owned());
                 }
 
                 let mode = match settings.mode {
@@ -324,7 +324,7 @@ impl ChatWidget<'_> {
         if summary.contains("(network access enabled)") {
             format!("{base} +net")
         } else {
-            base.to_string()
+            base.to_owned()
         }
     }
 
@@ -345,14 +345,14 @@ impl ChatWidget<'_> {
     fn status_line_format_cwd(cwd: &Path) -> String {
         match crate::exec_command::relativize_to_home(cwd) {
             Some(rel) if !rel.as_os_str().is_empty() => format!("~/{}", rel.display()),
-            Some(_) => "~".to_string(),
+            Some(_) => "~".to_owned(),
             None => cwd.display().to_string(),
         }
     }
 
     fn format_window_minutes(minutes: u64) -> String {
         if minutes == 0 {
-            return "window".to_string();
+            return "window".to_owned();
         }
         if minutes.is_multiple_of(24 * 60) {
             let days = minutes / (24 * 60);

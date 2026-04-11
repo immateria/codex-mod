@@ -45,7 +45,7 @@ pub struct Hook {
 impl Default for Hook {
     fn default() -> Self {
         Self {
-            name: "default".to_string(),
+            name: "default".to_owned(),
             func: Arc::new(|_| Box::pin(async { HookResult::Success })),
         }
     }

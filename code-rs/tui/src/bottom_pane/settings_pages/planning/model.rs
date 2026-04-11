@@ -13,7 +13,7 @@ impl PlanningSettingsView {
 
     pub(super) fn menu_rows(&self) -> Vec<SettingsMenuRow<'static, PlanningRow>> {
         let value_text = if self.use_chat_model {
-            "Follow Chat Mode".to_string()
+            "Follow Chat Mode".to_owned()
         } else {
             format!(
                 "{} ({})",

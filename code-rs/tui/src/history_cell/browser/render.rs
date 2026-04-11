@@ -98,7 +98,7 @@ impl BrowserSessionCell {
         }
         self
             .url.clone()
-            .unwrap_or_else(|| "Browser Session".to_string())
+            .unwrap_or_else(|| "Browser Session".to_owned())
     }
 
     fn build_card_rows(&self, width: u16, style: &CardStyle) -> (Vec<CardRow>, Option<ScreenshotLayout>) {
@@ -426,12 +426,12 @@ impl BrowserSessionCell {
         let mut segments = Vec::new();
         let mut consumed = 0usize;
         if !indent.is_empty() {
-            segments.push(CardSegment::new(indent.to_string(), Style::default()));
+            segments.push(CardSegment::new(indent.to_owned(), Style::default()));
             consumed += indent_cols;
         }
 
         if !time.is_empty() {
-            segments.push(CardSegment::new(time.to_string(), time_style));
+            segments.push(CardSegment::new(time.to_owned(), time_style));
             consumed += time_width;
         }
 
@@ -441,16 +441,16 @@ impl BrowserSessionCell {
         }
 
         if !label.is_empty() {
-            segments.push(CardSegment::new(label.to_string(), label_style));
+            segments.push(CardSegment::new(label.to_owned(), label_style));
             consumed += label_width;
         }
 
         if !gap.is_empty() {
-            segments.push(CardSegment::new(gap.to_string(), Style::default()));
+            segments.push(CardSegment::new(gap.to_owned(), Style::default()));
             consumed += ACTION_LABEL_GAP;
         }
 
-        segments.push(CardSegment::new(detail.to_string(), detail_style));
+        segments.push(CardSegment::new(detail.to_owned(), detail_style));
         consumed += string_display_width(detail);
 
         let available = body_width.saturating_sub(consumed);

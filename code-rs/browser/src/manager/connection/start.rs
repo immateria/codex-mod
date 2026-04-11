@@ -200,7 +200,7 @@ impl BrowserManager {
                 sleep(Duration::from_millis(200)).await;
             }
 
-            let base = "CDP WebSocket connect failed after all attempts".to_string();
+            let base = "CDP WebSocket connect failed after all attempts".to_owned();
             let msg = if let Some(e) = last_err {
                 format!("{base}: {e}")
             } else {
@@ -338,7 +338,7 @@ impl BrowserManager {
                     sleep(Duration::from_millis(200)).await;
                 }
 
-                let base = "CDP WebSocket connect failed after all attempts".to_string();
+                let base = "CDP WebSocket connect failed after all attempts".to_owned();
                 let msg = if let Some(e) = last_err {
                     format!("{base}: {e}")
                 } else {

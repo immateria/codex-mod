@@ -36,7 +36,7 @@ pub(super) fn confirm_file_popup_selection(view: &mut ChatComposer) -> (InputRes
             return (InputResult::None, false);
         };
 
-        sel.to_string()
+        sel.to_owned()
     };
 
     view.insert_selected_path(&sel_path);

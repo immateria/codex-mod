@@ -51,7 +51,7 @@ impl From<ParsedCommand> for code_protocol::parse_command::ParsedCommand {
 
 fn shlex_join(tokens: &[String]) -> String {
     shlex_try_join(tokens.iter().map(std::string::String::as_str))
-        .unwrap_or_else(|_| "<command included NUL byte>".to_string())
+        .unwrap_or_else(|_| "<command included NUL byte>".to_owned())
 }
 
 fn simple_space_join(tokens: &[String]) -> Option<String> {
@@ -1228,7 +1228,7 @@ fn short_display_path(path: &str) -> String {
         !p.is_empty() && *p != "build" && *p != "dist" && *p != "node_modules" && *p != "src"
     });
     parts
-        .next().map_or_else(|| trimmed.to_string(), ToString::to_string)
+        .next().map_or_else(|| trimmed.to_owned(), ToString::to_string)
 }
 
 // Skip values consumed by specific flags and ignore --flag=value style arguments.

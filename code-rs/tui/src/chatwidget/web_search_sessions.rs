@@ -133,7 +133,7 @@ pub(super) fn handle_complete(
     let elapsed = tracker.started_at.elapsed();
     tracker
         .cell
-        .record_success(elapsed, "Results ready".to_string());
+        .record_success(elapsed, "Results ready".to_owned());
     tracker.cell.set_duration(Some(elapsed));
     tracker.cell.set_status(WebSearchStatus::Completed);
 
@@ -175,7 +175,7 @@ pub(super) fn finalize_all_failed(chat: &mut ChatWidget<'_>, message: &str) {
         let elapsed = tracker.started_at.elapsed();
         tracker
             .cell
-            .record_error(elapsed, message.to_string());
+            .record_error(elapsed, message.to_owned());
         tracker.cell.set_status(WebSearchStatus::Failed);
         tracker.replace(chat);
     }
@@ -193,7 +193,7 @@ pub(super) fn finalize_all_completed(chat: &mut ChatWidget<'_>, message: &str) {
         let elapsed = tracker.started_at.elapsed();
         tracker
             .cell
-            .record_success(elapsed, message.to_string());
+            .record_success(elapsed, message.to_owned());
         tracker.cell.set_status(WebSearchStatus::Completed);
         tracker.replace(chat);
     }

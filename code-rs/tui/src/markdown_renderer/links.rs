@@ -147,9 +147,9 @@ fn autolink_spans(spans: Vec<Span<'static>>) -> Vec<Span<'static>> {
                 let raw = &text[start..end];
                 let (core, trailing) = split_trailing_punct(raw);
                 // Emit URL text verbatim; terminal will make it clickable.
-                out.push(Span::styled(core.to_string(), base_style.patch(Style::default().fg(link_fg))));
+                out.push(Span::styled(core.to_owned(), base_style.patch(Style::default().fg(link_fg))));
                 if !trailing.is_empty() {
-                    out.push(Span::styled(trailing.to_string(), base_style));
+                    out.push(Span::styled(trailing.to_owned(), base_style));
                 }
                 cursor = start + core.len() + trailing.len();
                 changed = true;
@@ -166,16 +166,16 @@ fn autolink_spans(spans: Vec<Span<'static>>) -> Vec<Span<'static>> {
                 let raw = &text[start..end];
                 let (core_dom, trailing) = split_trailing_punct(raw);
                 if is_probable_domain(core_dom) {
-                    out.push(Span::styled(core_dom.to_string(), base_style.patch(Style::default().fg(link_fg))));
+                    out.push(Span::styled(core_dom.to_owned(), base_style.patch(Style::default().fg(link_fg))));
                     if !trailing.is_empty() {
-                        out.push(Span::styled(trailing.to_string(), base_style));
+                        out.push(Span::styled(trailing.to_owned(), base_style));
                     }
                     cursor = start + core_dom.len() + trailing.len();
                     changed = true;
                     continue;
                 }
                 // Not a probable domain; emit raw text
-                out.push(Span::styled(raw.to_string(), base_style));
+                out.push(Span::styled(raw.to_owned(), base_style));
                 cursor = end;
                 changed = true;
                 continue;
@@ -240,7 +240,7 @@ fn find_markdown_link(s: &str) -> Option<(usize, usize, String, String)> {
             let label = &s[i + 1..j];
             let target = &s[targ_start..k];
             // Full match is from i ..= k
-            return Some((i, k + 1, label.to_string(), target.to_string()));
+            return Some((i, k + 1, label.to_owned(), target.to_owned()));
         }
         i += 1;
     }
@@ -287,17 +287,17 @@ fn find_markdown_image(s: &str) -> Option<(usize, String, String)> {
     if k >= bytes.len() || depth != 0 {
         return None;
     }
-    let mut target = s[targ_start..k].trim().to_string();
+    let mut target = s[targ_start..k].trim().to_owned();
     // Strip optional quoted title at end: url "title"
     if let Some(space_idx) = target.rfind(' ') {
         let (left, right) = target.split_at(space_idx);
         let t = right.trim();
         if (t.starts_with('\"') && t.ends_with('\"')) || (t.starts_with('\'') && t.ends_with('\''))
         {
-            target = left.trim().to_string();
+            target = left.trim().to_owned();
         }
     }
-    Some((k + 1, label.to_string(), target)) // consumed up to and including ')'
+    Some((k + 1, label.to_owned(), target)) // consumed up to and including ')'
 }
 
 // Heuristic: determine if `label` is a short preview (typically a bare domain)
@@ -332,8 +332,7 @@ fn is_short_preview_of_url(label: &str, target: &str) -> bool {
         let mut host = without_scheme
             .split(&['/', '?', '#'][..])
             .next()
-            .unwrap_or("")
-            .to_string();
+            .unwrap_or("").to_owned();
         if host.is_empty() {
             return None;
         }
@@ -346,7 +345,7 @@ fn is_short_preview_of_url(label: &str, target: &str) -> bool {
         }
         // Drop leading www.
         let host = host.trim().trim_matches('.').to_ascii_lowercase();
-        let host = host.strip_prefix("www.").unwrap_or(&host).to_string();
+        let host = host.strip_prefix("www.").unwrap_or(&host).to_owned();
         host.contains('.').then_some(host)
     }
 
@@ -372,8 +371,8 @@ fn is_short_preview_of_url(label: &str, target: &str) -> bool {
     match (label_host, target_host) {
         (Some(lh_raw), Some(mut th)) => {
             let mut lh = lh_raw.trim().trim_end_matches('/').to_ascii_lowercase();
-            if lh.starts_with("www.") { lh = lh.trim_start_matches("www.").to_string(); }
-            if th.starts_with("www.") { th = th.trim_start_matches("www.").to_string(); }
+            if lh.starts_with("www.") { lh = lh.trim_start_matches("www.").to_owned(); }
+            if th.starts_with("www.") { th = th.trim_start_matches("www.").to_owned(); }
             // Require label to look like a domain to avoid stripping arbitrary text
             if !looks_like_domain(&lh) { return false; }
             // Exact match or label equals the registrable/root portion of the host

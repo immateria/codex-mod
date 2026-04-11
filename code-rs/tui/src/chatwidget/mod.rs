@@ -431,7 +431,7 @@ impl ChatWidget<'_> {
             && let Ok(seconds) = stripped.trim().parse::<u64>() {
                 return format!("00:{:02}", seconds.min(59));
             }
-        label.to_string()
+        label.to_owned()
     }
 }
 use code_git_tooling::{

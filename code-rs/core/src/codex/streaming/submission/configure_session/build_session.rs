@@ -246,7 +246,7 @@ impl Runner<'_> {
         if agent_models.is_empty() {
             agent_models = enabled_agent_model_specs_for_auth(auth_mode, supports_pro_only_models)
                 .into_iter()
-                .map(|spec| spec.slug.to_string())
+                .map(|spec| spec.slug.to_owned())
                 .collect();
         }
         agent_models.sort_by_key(|a| a.to_ascii_lowercase());
@@ -378,17 +378,17 @@ impl Runner<'_> {
                 let trimmed = program.trim();
                 (!trimmed.is_empty()).then_some(trimmed)
             }) {
-            Some(program) => (Some(program.to_string()), config.lifecycle_hooks.shell_args.clone()),
+            Some(program) => (Some(program.to_owned()), config.lifecycle_hooks.shell_args.clone()),
             None => match &resolved_shell {
                 crate::shell::Shell::Zsh(zsh) => {
-                    (Some(zsh.shell_path.clone()), vec!["-lc".to_string()])
+                    (Some(zsh.shell_path.clone()), vec!["-lc".to_owned()])
                 }
                 crate::shell::Shell::Bash(bash) => {
-                    (Some(bash.shell_path.clone()), vec!["-lc".to_string()])
+                    (Some(bash.shell_path.clone()), vec!["-lc".to_owned()])
                 }
                 crate::shell::Shell::PowerShell(ps) => (
                     Some(ps.exe.clone()),
-                    vec!["-NoProfile".to_string(), "-Command".to_string()],
+                    vec!["-NoProfile".to_owned(), "-Command".to_owned()],
                 ),
                 crate::shell::Shell::Generic(generic) => match generic.command.split_first() {
                     Some((program, args)) => (Some(program.clone()), args.to_vec()),

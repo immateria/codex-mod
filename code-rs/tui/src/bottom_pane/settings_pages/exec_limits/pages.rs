@@ -100,7 +100,7 @@ impl ExecLimitsSettingsView {
         let mut post_field_lines = Vec::new();
         if let Some(err) = error {
             post_field_lines.push(Line::from(Span::styled(
-                err.to_string(),
+                err.to_owned(),
                 Style::default().fg(colors::error()),
             )));
         } else {

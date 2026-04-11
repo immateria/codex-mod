@@ -157,14 +157,14 @@ fn format_cli_reasoning_levels(levels: &[ReasoningEffort]) -> String {
 fn default_auto_drive_cli_routing_entries() -> Vec<AutoDriveCliRoutingEntry> {
     vec![
         AutoDriveCliRoutingEntry {
-            model: AUTO_DRIVE_CLI_MODEL_PRIMARY.to_string(),
+            model: AUTO_DRIVE_CLI_MODEL_PRIMARY.to_owned(),
             reasoning_levels: vec![ReasoningEffort::High, ReasoningEffort::XHigh],
-            description: AUTO_DRIVE_PRIMARY_ROUTING_DESCRIPTION.to_string(),
+            description: AUTO_DRIVE_PRIMARY_ROUTING_DESCRIPTION.to_owned(),
         },
         AutoDriveCliRoutingEntry {
-            model: AUTO_DRIVE_CLI_MODEL_SPARK.to_string(),
+            model: AUTO_DRIVE_CLI_MODEL_SPARK.to_owned(),
             reasoning_levels: vec![ReasoningEffort::High],
-            description: AUTO_DRIVE_SPARK_ROUTING_DESCRIPTION.to_string(),
+            description: AUTO_DRIVE_SPARK_ROUTING_DESCRIPTION.to_owned(),
         },
     ]
 }
@@ -174,17 +174,17 @@ fn auto_drive_cli_routing_entries_for_auth(
     supports_pro_only_models: bool,
 ) -> Vec<AutoDriveCliRoutingEntry> {
     let mut entries = vec![AutoDriveCliRoutingEntry {
-        model: AUTO_DRIVE_CLI_MODEL_PRIMARY.to_string(),
+        model: AUTO_DRIVE_CLI_MODEL_PRIMARY.to_owned(),
         reasoning_levels: vec![ReasoningEffort::High, ReasoningEffort::XHigh],
-        description: AUTO_DRIVE_PRIMARY_ROUTING_DESCRIPTION.to_string(),
+        description: AUTO_DRIVE_PRIMARY_ROUTING_DESCRIPTION.to_owned(),
     }];
     if auth_mode.is_some_and(code_app_server_protocol::AuthMode::is_chatgpt)
         && supports_pro_only_models
     {
         entries.push(AutoDriveCliRoutingEntry {
-            model: AUTO_DRIVE_CLI_MODEL_SPARK.to_string(),
+            model: AUTO_DRIVE_CLI_MODEL_SPARK.to_owned(),
             reasoning_levels: vec![ReasoningEffort::High],
-            description: AUTO_DRIVE_SPARK_ROUTING_DESCRIPTION.to_string(),
+            description: AUTO_DRIVE_SPARK_ROUTING_DESCRIPTION.to_owned(),
         });
     }
     entries
@@ -234,7 +234,7 @@ fn normalize_auto_drive_cli_routing_entries(
             continue;
         }
 
-        let description = entry.description.trim().to_string();
+        let description = entry.description.trim().to_owned();
         if let Some(existing) = normalized
             .iter_mut()
             .find(|candidate| candidate.model.eq_ignore_ascii_case(&model))
@@ -1856,7 +1856,7 @@ pub fn start_auto_coordinator(
     // large coordinator transcripts. The previous 256 KiB budget could
     // overflow when validation recursed through long assistant responses.
     let builder = std::thread::Builder::new()
-        .name("code-auto-coordinator".to_string())
+        .name("code-auto-coordinator".to_owned())
         .stack_size(1024 * 1024);
     let handle = match builder.spawn(move || {
         if let Err(err) = run_auto_loop(AutoLoopInputs {
@@ -1911,7 +1911,7 @@ fn run_auto_loop(inputs: AutoLoopInputs) -> Result<()> {
     } = inputs;
     let mut config = config;
     if config.model.trim().is_empty() {
-        config.model = MODEL_SLUG.to_string();
+        config.model = MODEL_SLUG.to_owned();
     }
     if matches!(config.model_reasoning_effort, ReasoningEffort::None) {
         config.model_reasoning_effort = ReasoningEffort::High;
@@ -1986,7 +1986,7 @@ fn run_auto_loop(inputs: AutoLoopInputs) -> Result<()> {
             supports_pro_only_models,
         )
         .into_iter()
-        .map(|spec| spec.slug.to_string())
+        .map(|spec| spec.slug.to_owned())
         .collect();
     }
     let client = Arc::new(ModelClient::new(
@@ -2012,7 +2012,7 @@ fn run_auto_loop(inputs: AutoLoopInputs) -> Result<()> {
 
     let auto_instructions = match runtime.block_on(read_auto_drive_docs(config.as_ref())) {
         Ok(Some(text)) => {
-            let trimmed = text.trim().to_string();
+            let trimmed = text.trim().to_owned();
             if trimmed.is_empty() {
                 None
             } else {
@@ -2051,9 +2051,9 @@ fn run_auto_loop(inputs: AutoLoopInputs) -> Result<()> {
         for entry in &allowed_cli_routing_entries {
             let levels = format_cli_reasoning_levels(&entry.reasoning_levels);
             let description = if entry.description.trim().is_empty() {
-                "No additional description".to_string()
+                "No additional description".to_owned()
             } else {
-                entry.description.trim().to_string()
+                entry.description.trim().to_owned()
             };
             routing_lines.push(format!(
                 "- {} ({levels}) — {description}",
@@ -2231,7 +2231,7 @@ fn run_auto_loop(inputs: AutoLoopInputs) -> Result<()> {
                         let event = AutoCoordinatorEvent::Decision {
                             seq: current_seq,
                             status: AutoCoordinatorStatus::Failed,
-                            status_title: Some("Turn limit reached".to_string()),
+                            status_title: Some("Turn limit reached".to_owned()),
                             status_sent_to_user: Some(format!(
                                 "Stopped after {coordinator_turns_seen} coordinator turns (cap={coordinator_turn_cap}) to prevent a runaway session."
                             )),
@@ -2404,7 +2404,7 @@ fn run_auto_loop(inputs: AutoLoopInputs) -> Result<()> {
                             });
                             // Show a user-facing action entry in the Auto Drive card (does not go to the model).
                             event_tx.send(AutoCoordinatorEvent::Action {
-                                message: "Retrying prompt generation after the previous response was too long to send to the CLI.".to_string(),
+                                message: "Retrying prompt generation after the previous response was too long to send to the CLI.".to_owned(),
                             });
                             pending_conversation = Some(retry_snapshot);
                             continue;
@@ -2421,7 +2421,7 @@ fn run_auto_loop(inputs: AutoLoopInputs) -> Result<()> {
                     let event = AutoCoordinatorEvent::Decision {
                         seq: current_seq,
                         status: AutoCoordinatorStatus::Failed,
-                        status_title: Some("Coordinator error".to_string()),
+                        status_title: Some("Coordinator error".to_owned()),
                         status_sent_to_user: Some(format!("Encountered an error: {error}")),
                         goal: None,
                         cli: None,
@@ -2626,7 +2626,7 @@ fn read_coordinator_prompt(config: &Config) -> Option<String> {
     } else if config.max_run_seconds.is_some() {
         Some(format!("{trimmed}\n\n# Time Budget\n{TIMEBOXED_EXEC_COORDINATOR_GUIDANCE}"))
     } else {
-        Some(trimmed.to_string())
+        Some(trimmed.to_owned())
     }
 }
 
@@ -2640,12 +2640,12 @@ fn build_developer_message(
     let coordinator_message = if prompt_body.is_empty() {
         None
     } else {
-        Some(prompt_body.to_string())
+        Some(prompt_body.to_owned())
     };
     let intro = format!("Environment:
 {environment_details}");
     let primary_goal = if derive_goal_from_history {
-        "**Primary Goal**\nYou are preparing to start Auto Drive. Review the recent conversation history and identify the single primary coding goal the assistant should pursue next.".to_string()
+        "**Primary Goal**\nYou are preparing to start Auto Drive. Review the recent conversation history and identify the single primary coding goal the assistant should pursue next.".to_owned()
     } else {
         format!("**Primary Goal**\n{goal_text}")
     };
@@ -2668,11 +2668,9 @@ fn build_initial_planning_seed(goal_text: &str, include_agents: bool) -> Option<
     }
 
     let cli_prompt = if include_agents {
-        "Please provide a clear plan to best achieve the Primary Goal. If this is not a trivial task, launch agents and use your tools to research the best approach. If this is a trivial task, or the plan is already in the conversation history, immediately provide the plan. Judge the length of research and planning you perform based on the complexity of the task. For more complex tasks, you can break the plan into workstreams that can be performed at the same time."
-            .to_string()
+        "Please provide a clear plan to best achieve the Primary Goal. If this is not a trivial task, launch agents and use your tools to research the best approach. If this is a trivial task, or the plan is already in the conversation history, immediately provide the plan. Judge the length of research and planning you perform based on the complexity of the task. For more complex tasks, you can break the plan into workstreams that can be performed at the same time.".to_owned()
     } else {
-        "Please provide a clear plan to best achieve the Primary Goal. If this is not a trivial task, use your tools to research the best approach. If this is a trivial task, or the plan is already in the conversation history, immediately provide the plan. Judge the length of research and planning you perform based on the complexity of the task."
-            .to_string()
+        "Please provide a clear plan to best achieve the Primary Goal. If this is not a trivial task, use your tools to research the best approach. If this is a trivial task, or the plan is already in the conversation history, immediately provide the plan. Judge the length of research and planning you perform based on the complexity of the task.".to_owned()
     };
 
     let response_json = format!(
@@ -2683,8 +2681,8 @@ fn build_initial_planning_seed(goal_text: &str, include_agents: bool) -> Option<
         response_json,
         cli_prompt,
         goal_message: format!("Primary Goal: {goal}"),
-        status_title: "Planning route".to_string(),
-        status_sent_to_user: "Planning best route to reach the goal.".to_string(),
+        status_title: "Planning route".to_owned(),
+        status_sent_to_user: "Planning best route to reach the goal.".to_owned(),
         agents_timing: if include_agents {
             Some(AutoTurnAgentsTiming::Parallel)
         } else {
@@ -2694,17 +2692,17 @@ fn build_initial_planning_seed(goal_text: &str, include_agents: bool) -> Option<
 }
 
 fn format_environment_details(sandbox: &str) -> String {
-    let cwd = std::env::current_dir().map_or_else(|_| "<unknown>".to_string(), |dir| dir.display().to_string());
-    let branch = run_git_command(["rev-parse", "--abbrev-ref", "HEAD"]).unwrap_or_else(|| "<unknown>".to_string());
+    let cwd = std::env::current_dir().map_or_else(|_| "<unknown>".to_owned(), |dir| dir.display().to_string());
+    let branch = run_git_command(["rev-parse", "--abbrev-ref", "HEAD"]).unwrap_or_else(|| "<unknown>".to_owned());
     let git_status_raw = run_git_command(["status", "--short"]);
     let git_status = match git_status_raw {
-        Some(raw) if raw.trim().is_empty() => "  clean".to_string(),
+        Some(raw) if raw.trim().is_empty() => "  clean".to_owned(),
         Some(raw) => raw
             .lines()
             .map(|line| format!("  {line}"))
             .collect::<Vec<_>>()
             .join("\n"),
-        None => "  <git status unavailable>".to_string(),
+        None => "  <git status unavailable>".to_owned(),
     };
     format!(
         "- Access: {sandbox}\n- Working directory: {cwd}\n- Git branch: {branch}\n- Git status:\n{git_status}"
@@ -2721,7 +2719,7 @@ fn run_git_command<const N: usize>(args: [&str; N]) -> Option<String> {
     }
     String::from_utf8(output.stdout)
         .ok()
-        .map(|text| text.trim_end().to_string())
+        .map(|text| text.trim_end().to_owned())
 }
 
 #[derive(Clone, Copy)]
@@ -2784,24 +2782,24 @@ fn build_schema(
     let mut required: Vec<Value> = Vec::new();
 
     properties.insert(
-        "finish_status".to_string(),
+        "finish_status".to_owned(),
         json!({
             "type": "string",
             "enum": ["continue", "finish_success", "finish_failed"],
             "description": "Prefer 'continue' until the solution is rock solid. Do not finish if there are obvious edge cases or missing tests to write. You MUST populate the 'finish_evidence' object when finishing."
         }),
     );
-    required.push(Value::String("finish_status".to_string()));
+    required.push(Value::String("finish_status".to_owned()));
 
     properties.insert(
-        "phase".to_string(),
+        "phase".to_owned(),
         json!({
             "type": ["string", "null"],
             "enum": ["explore", "implement", "validate", "lockdown", null],
             "description": "Optional: tracks mission state. Use 'explore' for recon/planning, 'implement' for coding, and 'validate/lockdown' to trigger deep validation before finishing."
         }),
     );
-    required.push(Value::String("phase".to_string()));
+    required.push(Value::String("phase".to_owned()));
 
     let goal_schema = if features.include_goal_field {
         json!({
@@ -2817,11 +2815,11 @@ fn build_schema(
             "description": "Use only when bootstrapping/clarifying the mission goal is required."
         })
     };
-    properties.insert("goal".to_string(), goal_schema);
-    required.push(Value::String("goal".to_string()));
+    properties.insert("goal".to_owned(), goal_schema);
+    required.push(Value::String("goal".to_owned()));
 
     properties.insert(
-        "status_title".to_string(),
+        "status_title".to_owned(),
         json!({
             "type": ["string", "null"],
             "minLength": 2,
@@ -2829,10 +2827,10 @@ fn build_schema(
             "description": "1-4 words, present-tense milestone headline."
         }),
     );
-    required.push(Value::String("status_title".to_string()));
+    required.push(Value::String("status_title".to_owned()));
 
     properties.insert(
-        "status_sent_to_user".to_string(),
+        "status_sent_to_user".to_owned(),
         json!({
             "type": ["string", "null"],
             "minLength": 4,
@@ -2840,17 +2838,17 @@ fn build_schema(
             "description": "1-2 sentences explaining the high-level milestone the CLI (and any agents) are tackling."
         }),
     );
-    required.push(Value::String("status_sent_to_user".to_string()));
+    required.push(Value::String("status_sent_to_user".to_owned()));
 
     properties.insert(
-        "cli_milestone_instruction".to_string(),
+        "cli_milestone_instruction".to_owned(),
         json!({
             "type": ["string", "null"],
             "minLength": CLI_PROMPT_MIN_CHARS,
             "description": "Single milestone instruction to the CLI. Outcome-focused, non-procedural. Keep this between 4 and 600 characters; set to null ONLY when finishing."
         }),
     );
-    required.push(Value::String("cli_milestone_instruction".to_string()));
+    required.push(Value::String("cli_milestone_instruction".to_owned()));
 
     if features.include_cli_model_routing {
         let mut cli_model_enum: Vec<Value> = cli_routing_entries
@@ -2859,16 +2857,16 @@ fn build_schema(
             .collect();
         cli_model_enum.push(Value::Null);
         let cli_models_description = if cli_routing_entries.is_empty() {
-            "CLI model for this turn. Set to null only when finishing.".to_string()
+            "CLI model for this turn. Set to null only when finishing.".to_owned()
         } else {
             let routes = cli_routing_entries
                 .iter()
                 .map(|entry| {
                     let levels = format_cli_reasoning_levels(&entry.reasoning_levels);
                     let description = if entry.description.trim().is_empty() {
-                        "No description".to_string()
+                        "No description".to_owned()
                     } else {
-                        entry.description.trim().to_string()
+                        entry.description.trim().to_owned()
                     };
                     format!("{} ({levels}) — {description}", entry.model)
                 })
@@ -2879,14 +2877,14 @@ fn build_schema(
             )
         };
         properties.insert(
-            "cli_model".to_string(),
+            "cli_model".to_owned(),
             json!({
                 "type": ["string", "null"],
                 "enum": cli_model_enum,
                 "description": cli_models_description,
             }),
         );
-        required.push(Value::String("cli_model".to_string()));
+        required.push(Value::String("cli_model".to_owned()));
 
         let mut reasoning_enum: Vec<Value> = Vec::new();
         for level in [
@@ -2900,14 +2898,13 @@ fn build_schema(
                 .iter()
                 .any(|entry| entry.reasoning_levels.contains(&level))
             {
-                reasoning_enum.push(Value::String(cli_reasoning_effort_to_str(level).to_string()));
+                reasoning_enum.push(Value::String(cli_reasoning_effort_to_str(level).to_owned()));
             }
         }
         reasoning_enum.push(Value::Null);
 
         let reasoning_description = if cli_routing_entries.is_empty() {
-            "Reasoning effort for the selected CLI model this turn. Set to null only when finishing."
-                .to_string()
+            "Reasoning effort for the selected CLI model this turn. Set to null only when finishing.".to_owned()
         } else {
             let per_model = cli_routing_entries
                 .iter()
@@ -2926,19 +2923,19 @@ fn build_schema(
         };
 
         properties.insert(
-            "cli_reasoning_effort".to_string(),
+            "cli_reasoning_effort".to_owned(),
             json!({
                 "type": ["string", "null"],
                 "enum": reasoning_enum,
                 "description": reasoning_description,
             }),
         );
-        required.push(Value::String("cli_reasoning_effort".to_string()));
+        required.push(Value::String("cli_reasoning_effort".to_owned()));
     }
 
     if features.include_agents {
         properties.insert(
-            "agents".to_string(),
+            "agents".to_owned(),
             json!({
                 "type": ["object", "null"],
                 "additionalProperties": false,
@@ -2979,11 +2976,11 @@ fn build_schema(
                 "required": ["timing", "list"]
             }),
         );
-        required.push(Value::String("agents".to_string()));
+        required.push(Value::String("agents".to_owned()));
     }
 
     properties.insert(
-        "finish_evidence".to_string(),
+        "finish_evidence".to_owned(),
         json!({
             "type": ["object", "null"],
             "additionalProperties": false,
@@ -3016,17 +3013,17 @@ fn build_schema(
             "required": ["primary_outcome_achieved", "validation_checks_passed", "edge_cases_handled"]
         }),
     );
-    required.push(Value::String("finish_evidence".to_string()));
+    required.push(Value::String("finish_evidence".to_owned()));
 
     let mut schema = serde_json::Map::new();
     schema.insert(
-        "title".to_string(),
-        Value::String("Coordinator Turn".to_string()),
+        "title".to_owned(),
+        Value::String("Coordinator Turn".to_owned()),
     );
-    schema.insert("type".to_string(), Value::String("object".to_string()));
-    schema.insert("additionalProperties".to_string(), Value::Bool(false));
-    schema.insert("properties".to_string(), Value::Object(properties));
-    schema.insert("required".to_string(), Value::Array(required));
+    schema.insert("type".to_owned(), Value::String("object".to_owned()));
+    schema.insert("additionalProperties".to_owned(), Value::Bool(false));
+    schema.insert("properties".to_owned(), Value::Object(properties));
+    schema.insert("required".to_owned(), Value::Array(required));
     // Avoid JSON schema combinators like allOf/if/then here because the
     // Responses API validator currently rejects them for text.format.schema.
     // We enforce conditional requirements in parse-time validation instead.
@@ -3101,9 +3098,9 @@ fn request_decision(
         Ok(result) => Ok(result),
         Err(err) => {
             let preferred = request.model_slug.as_str();
-            let fallback_candidate = request.client.default_model_slug().to_string();
+            let fallback_candidate = request.client.default_model_slug().to_owned();
             let fallback_slug = if fallback_candidate.eq_ignore_ascii_case(preferred) {
-                MODEL_SLUG.to_string()
+                MODEL_SLUG.to_owned()
             } else {
                 fallback_candidate
             };
@@ -3132,7 +3129,7 @@ fn summarize_json_for_debug(raw: &str) -> String {
     let trimmed = raw.trim();
     let mut chars = trimmed.chars();
     if trimmed.chars().count() <= DEBUG_JSON_MAX_CHARS {
-        return trimmed.to_string();
+        return trimmed.to_owned();
     }
     let mut summary: String = chars.by_ref().take(DEBUG_JSON_MAX_CHARS).collect();
     summary.push('…');
@@ -3179,8 +3176,8 @@ fn request_decision_with_model(
         model_slug,
         ..
     } = request;
-    let developer_intro = developer_intro.to_string();
-    let primary_goal = primary_goal.to_string();
+    let developer_intro = developer_intro.to_owned();
+    let primary_goal = primary_goal.to_owned();
     let time_budget_message = time_budget_message.map(ToString::to_string);
     let loop_warning = loop_warning.map(ToString::to_string);
     let schema = schema.clone();
@@ -3202,7 +3199,7 @@ fn request_decision_with_model(
             if let Some(fallback_model) = spark_fallback_model(&active_model) {
                 did_usage_limit_model_fallback = true;
                 if let Ok(mut guard) = selected_model_for_retry.lock() {
-                    *guard = fallback_model.to_string();
+                    *guard = fallback_model.to_owned();
                 }
                 event_tx.send(AutoCoordinatorEvent::Action {
                     message: format!(
@@ -3211,7 +3208,7 @@ fn request_decision_with_model(
                 });
                 return RetryDecision::RateLimited {
                     wait_until: Instant::now(),
-                    reason: "usage limit reached; switched to non-spark model".to_string(),
+                    reason: "usage limit reached; switched to non-spark model".to_owned(),
                 };
             }
         }
@@ -3284,7 +3281,7 @@ fn request_decision_with_model(
                             }) => {
                                 let cleaned = strip_role_prefix(&delta);
                                 reasoning_delta_accumulator.push_str(cleaned);
-                                let message = cleaned.to_string();
+                                let message = cleaned.to_owned();
                                 tx_inner.send(AutoCoordinatorEvent::Thinking {
                                     delta: message,
                                     summary_index,
@@ -3293,7 +3290,7 @@ fn request_decision_with_model(
                             Ok(ResponseEvent::ReasoningContentDelta { delta, .. }) => {
                                 let cleaned = strip_role_prefix(&delta);
                                 reasoning_delta_accumulator.push_str(cleaned);
-                                let message = cleaned.to_string();
+                                let message = cleaned.to_owned();
                                 tx_inner.send(AutoCoordinatorEvent::Thinking {
                                     delta: message,
                                     summary_index: None,
@@ -3316,7 +3313,7 @@ fn request_decision_with_model(
                             id: String::new(),
                             summary: Vec::new(),
                             content: Some(vec![ReasoningItemContent::ReasoningText {
-                                text: reasoning_delta_accumulator.trim().to_string(),
+                                text: reasoning_delta_accumulator.trim().to_owned(),
                             }]),
                             encrypted_content: None,
                         });
@@ -3334,7 +3331,7 @@ fn request_decision_with_model(
             &cancel,
             |status| {
                 let human_delay = status
-                    .sleep.map_or_else(|| "0s".to_string(), format_duration);
+                    .sleep.map_or_else(|| "0s".to_owned(), format_duration);
                 let elapsed = format_duration(status.elapsed);
                 let prefix = if status.is_rate_limit {
                     "Rate limit"
@@ -3345,7 +3342,7 @@ fn request_decision_with_model(
                 let resume_str = status.resume_at.and_then(|resume| {
                     let now = Instant::now();
                     if resume <= now {
-                        Some("now".to_string())
+                        Some("now".to_owned())
                     } else {
                         let remaining = resume.duration_since(now);
                         SystemTime::now()
@@ -3415,7 +3412,7 @@ fn build_user_turn_prompt(input: BuildUserTurnPromptInput<'_>) -> Prompt {
         if !trimmed.is_empty() {
             prompt
                 .input
-                .push(make_message("developer", trimmed.to_string()));
+                .push(make_message("developer", trimmed.to_owned()));
         }
     }
     if let Some(prompt_text) = coordinator_prompt {
@@ -3423,7 +3420,7 @@ fn build_user_turn_prompt(input: BuildUserTurnPromptInput<'_>) -> Prompt {
         if !trimmed.is_empty() {
             prompt
                 .prepend_developer_messages
-                .push(trimmed.to_string());
+                .push(trimmed.to_owned());
         }
     }
 
@@ -3432,7 +3429,7 @@ fn build_user_turn_prompt(input: BuildUserTurnPromptInput<'_>) -> Prompt {
         if !trimmed.is_empty() {
             prompt
                 .input
-                .push(make_message("developer", trimmed.to_string()));
+                .push(make_message("developer", trimmed.to_owned()));
         }
     }
     if let Some(warning) = loop_warning {
@@ -3440,23 +3437,23 @@ fn build_user_turn_prompt(input: BuildUserTurnPromptInput<'_>) -> Prompt {
         if !trimmed.is_empty() {
             prompt
                 .input
-                .push(make_message("developer", trimmed.to_string()));
+                .push(make_message("developer", trimmed.to_owned()));
         }
     }
     prompt
         .input
-        .push(make_message("developer", developer_intro.to_string()));
+        .push(make_message("developer", developer_intro.to_owned()));
     prompt
         .input
-        .push(make_message("developer", primary_goal.to_string()));
+        .push(make_message("developer", primary_goal.to_owned()));
     prompt.input.extend(conversation.iter().cloned());
     prompt.text_format = Some(TextFormat {
-        r#type: "json_schema".to_string(),
-        name: Some(USER_TURN_SCHEMA_NAME.to_string()),
+        r#type: "json_schema".to_owned(),
+        name: Some(USER_TURN_SCHEMA_NAME.to_owned()),
         strict: Some(true),
         schema: Some(schema.clone()),
     });
-    prompt.model_override = Some(model_slug.to_string());
+    prompt.model_override = Some(model_slug.to_owned());
     let family = find_family_for_model(model_slug)
         .unwrap_or_else(|| derive_default_model_family(model_slug));
     prompt.model_family_override = Some(family);
@@ -3491,7 +3488,7 @@ pub(crate) fn classify_model_error(error: &anyhow::Error) -> RetryDecision {
             }
             CodexErr::Timeout => {
                 return RetryDecision::RetryAfterBackoff {
-                    reason: "model request timed out".to_string(),
+                    reason: "model request timed out".to_owned(),
                 };
             }
             CodexErr::UnexpectedStatus(err) => {
@@ -3504,18 +3501,18 @@ pub(crate) fn classify_model_error(error: &anyhow::Error) -> RetryDecision {
                 }
                 if status.as_u16() == 499 {
                     return RetryDecision::RetryAfterBackoff {
-                        reason: "client closed request (499)".to_string(),
+                        reason: "client closed request (499)".to_owned(),
                     };
                 }
                 if status == StatusCode::TOO_MANY_REQUESTS {
                     if let Some(wait_until) = parse_rate_limit_hint(body) {
                         return RetryDecision::RateLimited {
                             wait_until,
-                            reason: "rate limited; waiting for reset".to_string(),
+                            reason: "rate limited; waiting for reset".to_owned(),
                         };
                     }
                     return RetryDecision::RetryAfterBackoff {
-                        reason: "rate limited (429)".to_string(),
+                        reason: "rate limited (429)".to_owned(),
                     };
                 }
                 if status.is_client_error() {
@@ -3532,7 +3529,7 @@ pub(crate) fn classify_model_error(error: &anyhow::Error) -> RetryDecision {
                     let wait_until = compute_rate_limit_wait(Duration::from_secs(seconds));
                     return RetryDecision::RateLimited {
                         wait_until,
-                        reason: "usage limit reached".to_string(),
+                        reason: "usage limit reached".to_owned(),
                     };
                 }
                 return RetryDecision::Fatal(anyhow!(error.to_string()));
@@ -3565,7 +3562,7 @@ pub(crate) fn classify_model_error(error: &anyhow::Error) -> RetryDecision {
             CodexErr::Io(io_err) => {
                 if io_err.kind() == std::io::ErrorKind::TimedOut {
                     return RetryDecision::RetryAfterBackoff {
-                        reason: "network timeout".to_string(),
+                        reason: "network timeout".to_owned(),
                     };
                 }
             }
@@ -3580,7 +3577,7 @@ pub(crate) fn classify_model_error(error: &anyhow::Error) -> RetryDecision {
     if let Some(io_err) = find_in_chain::<std::io::Error>(error)
         && io_err.kind() == std::io::ErrorKind::TimedOut {
             return RetryDecision::RetryAfterBackoff {
-                reason: "network timeout".to_string(),
+                reason: "network timeout".to_owned(),
             };
         }
 
@@ -3661,7 +3658,7 @@ fn classify_model_error_with_auto_switch(
                                     });
                                     return RetryDecision::RateLimited {
                                         wait_until: Instant::now(),
-                                        reason: "usage limit reached; switched accounts".to_string(),
+                                        reason: "usage limit reached; switched accounts".to_owned(),
                                     };
                                 }
                                 Ok(None) => {}
@@ -3695,7 +3692,7 @@ fn classify_reqwest_error(err: &reqwest::Error) -> RetryDecision {
     if let Some(status) = err.status() {
         if status == StatusCode::TOO_MANY_REQUESTS {
             return RetryDecision::RetryAfterBackoff {
-                reason: "rate limited (429)".to_string(),
+                reason: "rate limited (429)".to_owned(),
             };
         }
         if status == StatusCode::REQUEST_TIMEOUT || status.as_u16() == 408 {
@@ -3705,7 +3702,7 @@ fn classify_reqwest_error(err: &reqwest::Error) -> RetryDecision {
         }
         if status.as_u16() == 499 {
             return RetryDecision::RetryAfterBackoff {
-                reason: "client closed request (499)".to_string(),
+                reason: "client closed request (499)".to_owned(),
             };
         }
         if status.is_server_error() {
@@ -3816,71 +3813,63 @@ fn classify_recoverable_decision_error(err: &anyhow::Error) -> Option<Recoverabl
         || lower.contains("missing cli prompt")
     {
         return Some(RecoverableDecisionError {
-            summary: "missing `cli_milestone_instruction` for `finish_status: \"continue\"`"
-                .to_string(),
+            summary: "missing `cli_milestone_instruction` for `finish_status: \"continue\"`".to_owned(),
             guidance: Some(
-                "Include a non-empty `cli_milestone_instruction` string whenever `finish_status` is `\"continue\"`."
-                    .to_string(),
+                "Include a non-empty `cli_milestone_instruction` string whenever `finish_status` is `\"continue\"`.".to_owned(),
             ),
         });
     }
 
     if lower.contains("missing finish_evidence") {
         return Some(RecoverableDecisionError {
-            summary: "missing `finish_evidence` for finish status".to_string(),
+            summary: "missing `finish_evidence` for finish status".to_owned(),
             guidance: Some(
-                "Include a `finish_evidence` object whenever `finish_status` is `finish_success` or `finish_failed`."
-                    .to_string(),
+                "Include a `finish_evidence` object whenever `finish_status` is `finish_success` or `finish_failed`.".to_owned(),
             ),
         });
     }
 
     if lower.contains("missing cli_model") {
         return Some(RecoverableDecisionError {
-            summary: "missing `cli_model` for continue turn".to_string(),
+            summary: "missing `cli_model` for continue turn".to_owned(),
             guidance: Some(
-                "When Auto Drive model routing is enabled, include `cli_model` on every continue turn."
-                    .to_string(),
+                "When Auto Drive model routing is enabled, include `cli_model` on every continue turn.".to_owned(),
             ),
         });
     }
 
     if lower.contains("missing cli_reasoning_effort") {
         return Some(RecoverableDecisionError {
-            summary: "missing `cli_reasoning_effort` for continue turn".to_string(),
+            summary: "missing `cli_reasoning_effort` for continue turn".to_owned(),
             guidance: Some(
-                "When Auto Drive model routing is enabled, include `cli_reasoning_effort` on every continue turn."
-                    .to_string(),
+                "When Auto Drive model routing is enabled, include `cli_reasoning_effort` on every continue turn.".to_owned(),
             ),
         });
     }
 
     if lower.contains("validation_checks_passed must include at least one") {
         return Some(RecoverableDecisionError {
-            summary: "finish evidence is missing passing validation checks".to_string(),
+            summary: "finish evidence is missing passing validation checks".to_owned(),
             guidance: Some(
-                "Provide at least one concrete passing validation check in `finish_evidence.validation_checks_passed` before finishing."
-                    .to_string(),
+                "Provide at least one concrete passing validation check in `finish_evidence.validation_checks_passed` before finishing.".to_owned(),
             ),
         });
     }
 
     if lower.contains("finish_evidence must be null") {
         return Some(RecoverableDecisionError {
-            summary: "`finish_evidence` must be null for continue turns".to_string(),
+            summary: "`finish_evidence` must be null for continue turns".to_owned(),
             guidance: Some(
-                "Set `finish_evidence` to null (or omit it) when `finish_status` is `continue`."
-                    .to_string(),
+                "Set `finish_evidence` to null (or omit it) when `finish_status` is `continue`.".to_owned(),
             ),
         });
     }
 
     if lower.contains("must set cli_milestone_instruction to null") {
         return Some(RecoverableDecisionError {
-            summary: "`cli_milestone_instruction` must be null for finish statuses".to_string(),
+            summary: "`cli_milestone_instruction` must be null for finish statuses".to_owned(),
             guidance: Some(
-                "When finishing (`finish_success`/`finish_failed`), set `cli_milestone_instruction` to null and include `finish_evidence`."
-                    .to_string(),
+                "When finishing (`finish_success`/`finish_failed`), set `cli_milestone_instruction` to null and include `finish_evidence`.".to_owned(),
             ),
         });
     }
@@ -3889,20 +3878,18 @@ fn classify_recoverable_decision_error(err: &anyhow::Error) -> Option<Recoverabl
         || lower.contains("must set cli_reasoning_effort to null")
     {
         return Some(RecoverableDecisionError {
-            summary: "CLI model routing fields must be null for finish statuses".to_string(),
+            summary: "CLI model routing fields must be null for finish statuses".to_owned(),
             guidance: Some(
-                "When finishing (`finish_success`/`finish_failed`), set `cli_model` and `cli_reasoning_effort` to null."
-                    .to_string(),
+                "When finishing (`finish_success`/`finish_failed`), set `cli_model` and `cli_reasoning_effort` to null.".to_owned(),
             ),
         });
     }
 
     if lower.contains("unsupported cli_model") || lower.contains("unsupported cli_reasoning_effort") {
         return Some(RecoverableDecisionError {
-            summary: "unsupported CLI model routing selection".to_string(),
+            summary: "unsupported CLI model routing selection".to_owned(),
             guidance: Some(
-                "Use a `cli_model` listed in the schema and a `cli_reasoning_effort` allowed for that model."
-                    .to_string(),
+                "Use a `cli_model` listed in the schema and a `cli_reasoning_effort` allowed for that model.".to_owned(),
             ),
         });
     }
@@ -3912,20 +3899,18 @@ fn classify_recoverable_decision_error(err: &anyhow::Error) -> Option<Recoverabl
         || lower.contains("exceeds") && lower.contains("cli_milestone_instruction")
     {
         return Some(RecoverableDecisionError {
-            summary: "model output was cut off by a length cap".to_string(),
+            summary: "model output was cut off by a length cap".to_owned(),
             guidance: Some(
-                "Regenerate with a shorter `cli_milestone_instruction` (<=600 chars) and more concise status text so the response fits within provider limits."
-                    .to_string(),
+                "Regenerate with a shorter `cli_milestone_instruction` (<=600 chars) and more concise status text so the response fits within provider limits.".to_owned(),
             ),
         });
     }
 
     if lower.contains("legacy model response missing cli_prompt for continue") {
         return Some(RecoverableDecisionError {
-            summary: "legacy response omitted `cli_prompt` for continue turn".to_string(),
+            summary: "legacy response omitted `cli_prompt` for continue turn".to_owned(),
             guidance: Some(
-                "Legacy coordinator responses must populate `cli_prompt` when the turn continues."
-                    .to_string(),
+                "Legacy coordinator responses must populate `cli_prompt` when the turn continues.".to_owned(),
             ),
         });
     }
@@ -3963,32 +3948,29 @@ fn classify_recoverable_decision_error(err: &anyhow::Error) -> Option<Recoverabl
         let extracted = text
             .split('\'')
             .nth(1)
-            .filter(|value| !value.is_empty()).map_or_else(|| "unexpected finish_status".to_string(), |value| format!("unexpected finish_status '{value}'"));
+            .filter(|value| !value.is_empty()).map_or_else(|| "unexpected finish_status".to_owned(), |value| format!("unexpected finish_status '{value}'"));
         return Some(RecoverableDecisionError {
             summary: extracted,
             guidance: Some(
-                "Use `finish_status` values: `continue`, `finish_success`, or `finish_failed`."
-                    .to_string(),
+                "Use `finish_status` values: `continue`, `finish_success`, or `finish_failed`.".to_owned(),
             ),
         });
     }
 
     if lower.contains("model response was not valid json") || lower.contains("parsing json from model output") {
         return Some(RecoverableDecisionError {
-            summary: "response was not valid JSON".to_string(),
+            summary: "response was not valid JSON".to_owned(),
             guidance: Some(
-                "Return strictly valid JSON that matches the `auto_coordinator_flow` schema without extra prose."
-                    .to_string(),
+                "Return strictly valid JSON that matches the `auto_coordinator_flow` schema without extra prose.".to_owned(),
             ),
         });
     }
 
     if lower.contains("decoding coordinator decision failed") {
         return Some(RecoverableDecisionError {
-            summary: "response did not match the coordinator schema".to_string(),
+            summary: "response did not match the coordinator schema".to_owned(),
             guidance: Some(
-                "Ensure every required field is present and spelled correctly per the coordinator schema."
-                    .to_string(),
+                "Ensure every required field is present and spelled correctly per the coordinator schema.".to_owned(),
             ),
         });
     }
@@ -4027,7 +4009,7 @@ fn parse_decision(raw: &str, options: DecisionParseOptions) -> Result<(ParsedCoo
         }
         Err(new_err) => {
             let decision: CoordinatorDecisionLegacy = serde_json::from_value(value.clone()).map_err(|legacy_err| {
-                let payload = serde_json::to_string(&value).unwrap_or_else(|_| "<unprintable json>".to_string());
+                let payload = serde_json::to_string(&value).unwrap_or_else(|_| "<unprintable json>".to_owned());
                 let snippet = if payload.len() > 2000 {
                     format!("{}…", &payload[..2000])
                 } else {
@@ -4174,7 +4156,7 @@ fn convert_decision_new(
         goal,
         response_items: Vec::new(),
         token_usage: None,
-        model_slug: MODEL_SLUG.to_string(),
+        model_slug: MODEL_SLUG.to_owned(),
     })
 }
 
@@ -4238,7 +4220,7 @@ fn convert_decision_legacy(
         goal,
         response_items: Vec::new(),
         token_usage: None,
-        model_slug: MODEL_SLUG.to_string(),
+        model_slug: MODEL_SLUG.to_owned(),
     })
 }
 
@@ -4253,7 +4235,7 @@ fn clean_optional(input: Option<String>) -> Option<String> {
             if final_trimmed.is_empty() {
                 None
             } else {
-                Some(final_trimmed.to_string())
+                Some(final_trimmed.to_owned())
             }
         }
     })
@@ -4267,7 +4249,7 @@ fn clean_models(models: Option<Vec<String>>) -> Option<Vec<String>> {
             if trimmed.is_empty() {
                 None
             } else {
-                Some(trimmed.to_string())
+                Some(trimmed.to_owned())
             }
         })
         .collect();
@@ -4291,7 +4273,7 @@ fn clean_required(value: &str, field: &str) -> Result<String> {
         if final_trimmed.is_empty() {
             Err(anyhow!("{field} is empty"))
         } else {
-            Ok(final_trimmed.to_string())
+            Ok(final_trimmed.to_owned())
         }
     }
 }
@@ -4344,7 +4326,7 @@ fn normalize_cli_model(
         }
     }
     let expected_models = if allowed_cli_routing_entries.is_empty() {
-        "<none>".to_string()
+        "<none>".to_owned()
     } else {
         allowed_cli_routing_entries
             .iter()
@@ -4557,7 +4539,7 @@ pub(crate) fn make_message(role: &str, text: String) -> ResponseItem {
 
     ResponseItem::Message {
         id: None,
-        role: role.to_string(),
+        role: role.to_owned(),
         content: vec![content],
         end_turn: None,
         phase: None,
@@ -4643,7 +4625,7 @@ fn maybe_compact(request: CompactionRequest<'_>) -> CompactionResult {
     };
 
     event_tx.send(AutoCoordinatorEvent::Thinking {
-        delta: "Compacting history to stay within the context window…".to_string(),
+        delta: "Compacting history to stay within the context window…".to_owned(),
         summary_index: None,
     });
 
@@ -4671,7 +4653,7 @@ fn maybe_compact(request: CompactionRequest<'_>) -> CompactionResult {
         Err(err) => {
             warn!("[Auto coordinator] remote compaction failed: {err:#}");
             event_tx.send(AutoCoordinatorEvent::Thinking {
-                delta: "Remote compaction failed; falling back to local summary.".to_string(),
+                delta: "Remote compaction failed; falling back to local summary.".to_owned(),
                 summary_index: None,
             });
         }
@@ -4723,7 +4705,7 @@ fn maybe_compact(request: CompactionRequest<'_>) -> CompactionResult {
     if !applied {
         warn!("[Auto coordinator] apply_compaction returned None; bounds={bounds:?}");
         event_tx.send(AutoCoordinatorEvent::Thinking {
-            delta: "Failed to compact history because the conversation changed while applying the summary. Continuing without compaction.".to_string(),
+            delta: "Failed to compact history because the conversation changed while applying the summary. Continuing without compaction.".to_owned(),
             summary_index: None,
         });
         return CompactionResult::Skipped;

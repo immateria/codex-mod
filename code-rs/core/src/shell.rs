@@ -76,7 +76,7 @@ impl Shell {
                     return match &ps.bash_exe_fallback {
                         Some(bash) => Some(vec![
                             bash.to_string_lossy().into_owned(),
-                            "-lc".to_string(),
+                            "-lc".to_owned(),
                             script,
                         ]),
 
@@ -85,8 +85,8 @@ impl Shell {
                         // should give a clue to the model to fix upon retry that it's running under PowerShell.
                         None => Some(vec![
                             ps.exe.clone(),
-                            "-NoProfile".to_string(),
-                            "-Command".to_string(),
+                            "-NoProfile".to_owned(),
+                            "-Command".to_owned(),
                             script,
                         ]),
                     };
@@ -105,8 +105,8 @@ impl Shell {
                     return joined.map(|arg| {
                         vec![
                             ps.exe.clone(),
-                            "-NoProfile".to_string(),
-                            "-Command".to_string(),
+                            "-NoProfile".to_owned(),
+                            "-Command".to_owned(),
                             arg,
                         ]
                     });
@@ -164,7 +164,7 @@ fn format_shell_invocation_with_rc(
         joined
     };
 
-    Some(vec![shell_path.to_string(), "-lc".to_string(), rc_command])
+    Some(vec![shell_path.to_owned(), "-lc".to_owned(), rc_command])
 }
 
 fn strip_bash_lc(command: &[String]) -> Option<String> {
@@ -230,19 +230,19 @@ fn detect_default_user_shell() -> Shell {
                 || shell_path.ends_with("/ksh")
             {
                 return Shell::Generic(GenericShell {
-                    command: vec![shell_path, "-c".to_string()],
+                    command: vec![shell_path, "-c".to_owned()],
                     script_style: Some(ShellScriptStyle::PosixSh),
                 });
             }
             if shell_path.ends_with("/nu") {
                 return Shell::Generic(GenericShell {
-                    command: vec![shell_path, "-c".to_string()],
+                    command: vec![shell_path, "-c".to_owned()],
                     script_style: Some(ShellScriptStyle::Nushell),
                 });
             }
             if shell_path.ends_with("/elvish") {
                 return Shell::Generic(GenericShell {
-                    command: vec![shell_path, "-c".to_string()],
+                    command: vec![shell_path, "-c".to_owned()],
                     script_style: Some(ShellScriptStyle::Elvish),
                 });
             }

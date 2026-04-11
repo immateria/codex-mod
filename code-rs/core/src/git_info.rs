@@ -82,7 +82,7 @@ pub async fn collect_git_info(cwd: &Path) -> Option<GitInfo> {
     if let Some(output) = commit_result
         && output.status.success()
             && let Ok(hash) = String::from_utf8(output.stdout) {
-                git_info.commit_hash = Some(hash.trim().to_string());
+                git_info.commit_hash = Some(hash.trim().to_owned());
             }
 
     // Process branch name
@@ -91,7 +91,7 @@ pub async fn collect_git_info(cwd: &Path) -> Option<GitInfo> {
             && let Ok(branch) = String::from_utf8(output.stdout) {
                 let branch = branch.trim();
                 if branch != "HEAD" {
-                    git_info.branch = Some(branch.to_string());
+                    git_info.branch = Some(branch.to_owned());
                 }
             }
 
@@ -99,7 +99,7 @@ pub async fn collect_git_info(cwd: &Path) -> Option<GitInfo> {
     if let Some(output) = url_result
         && output.status.success()
             && let Ok(url) = String::from_utf8(output.stdout) {
-                git_info.repository_url = Some(url.trim().to_string());
+                git_info.repository_url = Some(url.trim().to_owned());
             }
 
     Some(git_info)
@@ -151,9 +151,9 @@ pub async fn recent_commits(cwd: &Path, limit: usize) -> Vec<CommitLogEntry> {
         }
         let timestamp = ts_s.parse::<i64>().unwrap_or(0);
         entries.push(CommitLogEntry {
-            sha: sha.to_string(),
+            sha: sha.to_owned(),
             timestamp,
-            subject: subject.to_string(),
+            subject: subject.to_owned(),
         });
     }
 
@@ -237,7 +237,7 @@ async fn get_default_branch(cwd: &Path) -> Option<String> {
                 && let Ok(sym) = String::from_utf8(symref_output.stdout) {
                     let trimmed = sym.trim();
                     if let Some((_, name)) = trimmed.rsplit_once('/') {
-                        return Some(name.to_string());
+                        return Some(name.to_owned());
                     }
                 }
 
@@ -251,7 +251,7 @@ async fn get_default_branch(cwd: &Path) -> Option<String> {
                         if let Some(rest) = line.strip_prefix("HEAD branch:") {
                             let name = rest.trim();
                             if !name.is_empty() {
-                                return Some(name.to_string());
+                                return Some(name.to_owned());
                             }
                         }
                     }
@@ -276,7 +276,7 @@ async fn get_default_branch_local(cwd: &Path) -> Option<String> {
         )
         .await
             && verify.status.success() {
-                return Some(candidate.to_string());
+                return Some(candidate.to_owned());
             }
     }
 
@@ -296,7 +296,7 @@ async fn branch_ancestry(cwd: &Path) -> Option<Vec<String>> {
                 None
             }
         })
-        .map(|s| s.trim().to_string())
+        .map(|s| s.trim().to_owned())
         .filter(|s| s != "HEAD");
 
     // Discover default branch
@@ -336,8 +336,8 @@ async fn branch_ancestry(cwd: &Path) -> Option<Vec<String>> {
                         let short = line.trim();
                         if let Some(stripped) = short.strip_prefix(&format!("{remote}/"))
                             && !stripped.is_empty() && !seen.contains(stripped) {
-                                seen.insert(stripped.to_string());
-                                ancestry.push(stripped.to_string());
+                                seen.insert(stripped.to_owned());
+                                ancestry.push(stripped.to_owned());
                             }
                     }
                 }
@@ -514,8 +514,7 @@ pub fn resolve_root_git_project_for_trust(cwd: &Path) -> Option<PathBuf> {
     }
     let git_dir_s = String::from_utf8(git_dir_out.stdout)
         .ok()?
-        .trim()
-        .to_string();
+        .trim().to_owned();
 
     let git_dir_path_raw = if Path::new(&git_dir_s).is_absolute() {
         PathBuf::from(&git_dir_s)
@@ -537,7 +536,7 @@ pub async fn local_git_branches(cwd: &Path) -> Vec<String> {
     {
         String::from_utf8_lossy(&out.stdout)
             .lines()
-            .map(|s| s.trim().to_string())
+            .map(|s| s.trim().to_owned())
             .filter(|s| !s.is_empty())
             .collect()
     } else {
@@ -564,7 +563,7 @@ pub async fn current_branch_name(cwd: &Path) -> Option<String> {
     }
     String::from_utf8(out.stdout)
         .ok()
-        .map(|s| s.trim().to_string())
+        .map(|s| s.trim().to_owned())
         .filter(|name| !name.is_empty())
 }
 

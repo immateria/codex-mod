@@ -52,7 +52,7 @@ impl ServerOptions {
         Self {
             code_home,
             client_id,
-            issuer: DEFAULT_ISSUER.to_string(),
+            issuer: DEFAULT_ISSUER.to_owned(),
             port: DEFAULT_PORT,
             open_browser: !code_core::env::is_headless_environment(),
             force_state: None,
@@ -141,7 +141,7 @@ pub fn run_login_server(opts: ServerOptions) -> io::Result<LoginServer> {
     let _server_handle = {
         let server = server.clone();
         thread::Builder::new()
-            .name("login-server-listener".to_string())
+            .name("login-server-listener".to_owned())
             .spawn(move || -> io::Result<()> {
                 while let Ok(request) = server.recv() {
                     tx.blocking_send(request).map_err(|e| {
@@ -169,7 +169,7 @@ pub fn run_login_server(opts: ServerOptions) -> io::Result<LoginServer> {
                             break Err(io::Error::other("Login was not completed"));
                         };
 
-                        let url_raw = req.url().to_string();
+                        let url_raw = req.url().to_owned();
                         let response =
                             process_request(&url_raw, &opts, &redirect_uri, &pkce, actual_port, &state).await;
 
@@ -232,7 +232,7 @@ async fn process_request(
             );
         }
     };
-    let path = parsed_url.path().to_string();
+    let path = parsed_url.path().to_owned();
 
     match path.as_str() {
         "/auth/callback" => {
@@ -496,7 +496,7 @@ pub(crate) async fn persist_tokens_async(
             .get("chatgpt_account_id")
             .and_then(|v| v.as_str())
         {
-            tokens.account_id = Some(acc.to_string());
+            tokens.account_id = Some(acc.to_owned());
         }
         let tokens_for_store = tokens.clone();
         let last_refresh = Utc::now();
@@ -554,12 +554,12 @@ fn compose_success_url(port: u16, issuer: &str, id_token: &str, access_token: &s
     };
 
     let mut params = vec![
-        ("id_token", id_token.to_string()),
+        ("id_token", id_token.to_owned()),
         ("needs_setup", needs_setup.to_string()),
-        ("org_id", org_id.to_string()),
-        ("project_id", project_id.to_string()),
-        ("plan_type", plan_type.to_string()),
-        ("platform_url", platform_url.to_string()),
+        ("org_id", org_id.to_owned()),
+        ("project_id", project_id.to_owned()),
+        ("plan_type", plan_type.to_owned()),
+        ("platform_url", platform_url.to_owned()),
     ];
     let qs = params
         .drain(..)

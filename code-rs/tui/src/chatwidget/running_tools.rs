@@ -194,11 +194,11 @@ pub(super) fn finalize_all_due_to_answer(chat: &mut ChatWidget<'_>) {
         }
 
         let completed = history_cell::new_completed_custom_tool_call(
-            "custom".to_string(),
+            "custom".to_owned(),
             None,
             std::time::Duration::ZERO,
             true,
-            "Final answer received".to_string(),
+            "Final answer received".to_owned(),
         );
         chat.history_replace_at(idx, Box::new(completed));
         chat.history_debug(format!(

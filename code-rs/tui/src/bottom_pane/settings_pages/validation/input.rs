@@ -30,7 +30,7 @@ impl ValidationSettingsView {
             }
             row.enabled = !row.enabled;
             self.app_event_tx.send(AppEvent::UpdateValidationTool {
-                name: row.status.name.to_string(),
+                name: row.status.name.to_owned(),
                 enable: row.enabled,
             });
         }
@@ -56,8 +56,8 @@ impl ValidationSettingsView {
                     if tool.status.installed {
                         self.toggle_tool(idx);
                     } else {
-                        let command = tool.status.install_hint.trim().to_string();
-                        let tool_name = tool.status.name.to_string();
+                        let command = tool.status.install_hint.trim().to_owned();
+                        let tool_name = tool.status.name.to_owned();
                         if command.is_empty() {
                             self.flash_notice(pane, format!("No install command available for {tool_name}"));
                         } else {

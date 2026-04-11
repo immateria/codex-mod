@@ -76,7 +76,7 @@ fn sanitize_responses_api_tool_name(name: &str) -> String {
     }
 
     if sanitized.is_empty() {
-        "_".to_string()
+        "_".to_owned()
     } else {
         sanitized
     }
@@ -255,7 +255,7 @@ impl ElicitationRequestManager {
 
                 let _ = tx_event
                     .send(Event {
-                        id: "mcp_elicitation_request".to_string(),
+                        id: "mcp_elicitation_request".to_owned(),
                         event_seq: 0,
                         msg: EventMsg::ElicitationRequest(code_protocol::approvals::ElicitationRequestEvent {
                             turn_id: None,
@@ -1272,7 +1272,7 @@ impl McpConnectionManager {
         let tool_timeout = cfg.tool_timeout_sec;
         {
             let mut scheduling = self.server_scheduling_write();
-            scheduling.insert(server_name.to_string(), cfg.scheduling.clone());
+            scheduling.insert(server_name.to_owned(), cfg.scheduling.clone());
         }
         {
             let limiter = McpCallLimiter::new(
@@ -1282,13 +1282,13 @@ impl McpConnectionManager {
                 cfg.scheduling.max_queue_depth,
             );
             let mut limiters = self.server_limiters_write();
-            limiters.insert(server_name.to_string(), limiter);
+            limiters.insert(server_name.to_owned(), limiter);
         }
         {
             let mut scheduling = self.tool_scheduling_write();
             let mut limiters = self.tool_limiters_write();
             for (tool_name, override_cfg) in &cfg.tool_scheduling {
-                let key = (server_name.to_string(), tool_name.clone());
+                let key = (server_name.to_owned(), tool_name.clone());
                 if override_cfg.is_empty() {
                     scheduling.remove(&key);
                     limiters.remove(&key);
@@ -1328,7 +1328,7 @@ impl McpConnectionManager {
         let transport = cfg.transport.clone();
         {
             let mut transports = self.server_transports_write();
-            transports.insert(server_name.to_string(), transport.clone());
+            transports.insert(server_name.to_owned(), transport.clone());
         }
 
         let code_home = self.code_home.clone();
@@ -1340,7 +1340,7 @@ impl McpConnectionManager {
                 let args_os: Vec<OsString> = args.into_iter().map(Into::into).collect();
                 let send_elicitation = self
                     .elicitation_requests
-                    .make_sender(server_name.to_string(), self.tx_event.clone());
+                    .make_sender(server_name.to_owned(), self.tx_event.clone());
                 McpClientAdapter::new_stdio_client(
                     command_os,
                     args_os,
@@ -1366,7 +1366,7 @@ impl McpConnectionManager {
                 )?;
                 let send_elicitation = self
                     .elicitation_requests
-                    .make_sender(server_name.to_string(), self.tx_event.clone());
+                    .make_sender(server_name.to_owned(), self.tx_event.clone());
                 McpClientAdapter::new_streamable_http_client(StreamableHttpClientArgs {
                     code_home,
                     server_name,
@@ -1394,7 +1394,7 @@ impl McpConnectionManager {
             if clients.contains_key(server_name) {
                 false
             } else {
-                clients.insert(server_name.to_string(), managed.clone());
+                clients.insert(server_name.to_owned(), managed.clone());
                 true
             }
         };
@@ -1407,7 +1407,7 @@ impl McpConnectionManager {
         {
             let mut names = self.server_names_write();
             if !names.iter().any(|name| name.eq_ignore_ascii_case(server_name)) {
-                names.push(server_name.to_string());
+                names.push(server_name.to_owned());
                 names.sort_by_key(|name| name.to_ascii_lowercase());
                 names.dedup_by(|a, b| a.eq_ignore_ascii_case(b));
             }
@@ -1456,7 +1456,7 @@ impl McpConnectionManager {
             });
         let tool_limiter = self
             .tool_limiters_read()
-            .get(&(server.to_string(), tool.to_string()))
+            .get(&(server.to_owned(), tool.to_owned()))
             .cloned();
 
         let (client, timeout) = {
@@ -1472,7 +1472,7 @@ impl McpConnectionManager {
             acquire_and_schedule(&server_limiter, tool_limiter.as_ref()).await?;
 
         client
-            .call_tool(tool.to_string(), arguments, timeout)
+            .call_tool(tool.to_owned(), arguments, timeout)
             .await
             .with_context(|| format!("tool call failed for `{server}/{tool}`"))
     }
@@ -1486,9 +1486,9 @@ impl McpConnectionManager {
 
     pub fn set_server_scheduling(&self, server: &str, scheduling: McpServerSchedulingToml) {
         self.server_scheduling_write()
-            .insert(server.to_string(), scheduling.clone());
+            .insert(server.to_owned(), scheduling.clone());
         self.server_limiters_write().insert(
-            server.to_string(),
+            server.to_owned(),
             McpCallLimiter::new(
                 scheduling.max_concurrent,
                 scheduling.min_interval_sec,
@@ -1518,7 +1518,7 @@ impl McpConnectionManager {
 
         let mut limiters = self.tool_limiters_write();
         for (tool, cfg) in overrides {
-            let key = (server.to_string(), tool);
+            let key = (server.to_owned(), tool);
             limiters.insert(
                 key,
                 McpCallLimiter::new(
@@ -1537,7 +1537,7 @@ impl McpConnectionManager {
         tool: &str,
         override_cfg: Option<McpToolSchedulingOverrideToml>,
     ) {
-        let key = (server.to_string(), tool.to_string());
+        let key = (server.to_owned(), tool.to_owned());
         let override_cfg = override_cfg.filter(|cfg| !cfg.is_empty());
         if let Some(cfg) = override_cfg.as_ref() {
             let server_max = self
@@ -1589,7 +1589,7 @@ impl McpConnectionManager {
     }
 
     pub async fn set_tool_enabled(&self, server: &str, tool: &str, enable: bool) -> bool {
-        let key = (server.to_string(), tool.to_string());
+        let key = (server.to_owned(), tool.to_owned());
         let changed = {
             let mut excluded = self.excluded_tools_write();
             if enable {

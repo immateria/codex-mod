@@ -54,7 +54,7 @@ fn get_default_models() -> Vec<String> {
         .filter(|spec| {
             matches!(spec.family, "code" | "codex" | "cloud") || command_exists(spec.cli)
         })
-        .map(|spec| spec.slug.to_string())
+        .map(|spec| spec.slug.to_owned())
         .collect()
 }
 
@@ -102,7 +102,7 @@ pub fn default_instructions_for(name: &str) -> Option<String> {
 3. Wait for all agents to complete.
 4. Analyze every agent's plans and recommendations. Identify common themes and best practices from each agent.
 5. Think deeply and synthesize the best elements from each to create a final, comprehensive plan that incorporates the strongest recommendations from all agents.
-6. Present the final plan with clear steps and rationale."#.to_string()),
+6. Present the final plan with clear steps and rationale."#.to_owned()),
         "solve" => Some(r#"Solve a complicated problem leveraging multiple state-of-the-art agents working in parallel.
 
 1. If you do not fully understand the problem, research it briefly. Do not attempt to solve it yet, just understand what the problem is and what the desired result should be.
@@ -111,7 +111,7 @@ pub fn default_instructions_for(name: &str) -> Option<String> {
 4. Go through each possible solution to the problem from each agent. If you're able to test each solution to compare them, you should do so. Utilize short helper scripts to do this.
 5. If no solutions work, then start additional agents. You should always try to gather additional debugging information to feed to the agents.
 6. Do no stop any agents prematurely - wait until problem is completely solved. Longer running agents may sometimes come up with unique solutions.
-7. Once you have a working solution, check all running agents once again - see if there's any new solutions which might be optimal before completing the task."#.to_string()),
+7. Once you have a working solution, check all running agents once again - see if there's any new solutions which might be optimal before completing the task."#.to_owned()),
         "code" => Some(r#"Complete a coding task using multiple state-of-the-art agents working in parallel.
 
 1. If you do not fully understand the task, research it briefly. Do not attempt to code or solve it, just understand the task in the context of the current code base.
@@ -126,7 +126,7 @@ pub fn default_instructions_for(name: &str) -> Option<String> {
 4. Wait for all agents to complete.
 5. View each agent's implementation in the worktree for each agent. You may use git to compare changes. Consider the different approaches and solutions
 6. Bring the best parts of each solution into your own final implementation
-7. If you are not satisfied the solution has been found, start a new round of agents with additional context"#.to_string()),
+7. If you are not satisfied the solution has been found, start a new round of agents with additional context"#.to_owned()),
         _ => None,
     }
 }
@@ -173,7 +173,7 @@ pub fn format_subagent_command(
     );
 
     SubagentResolution {
-        name: name.to_string(),
+        name: name.to_owned(),
         read_only,
         models,
         orchestrator_instructions: orch_extra,
@@ -232,7 +232,7 @@ pub fn handle_slash_command(input: &str, agents: Option<&[AgentConfig]>) -> Opti
     match command {
         "/plan" => {
             if args.is_empty() {
-                Some("Error: /plan requires a task description. Usage: /plan <task>".to_string())
+                Some("Error: /plan requires a task description. Usage: /plan <task>".to_owned())
             } else {
                 Some(format_plan_command(&args, None, agents))
             }
@@ -240,8 +240,7 @@ pub fn handle_slash_command(input: &str, agents: Option<&[AgentConfig]>) -> Opti
         "/solve" => {
             if args.is_empty() {
                 Some(
-                    "Error: /solve requires a problem description. Usage: /solve <problem>"
-                        .to_string(),
+                    "Error: /solve requires a problem description. Usage: /solve <problem>".to_owned(),
                 )
             } else {
                 Some(format_solve_command(&args, None, agents))
@@ -249,7 +248,7 @@ pub fn handle_slash_command(input: &str, agents: Option<&[AgentConfig]>) -> Opti
         }
         "/code" => {
             if args.is_empty() {
-                Some("Error: /code requires a task description. Usage: /code <task>".to_string())
+                Some("Error: /code requires a task description. Usage: /code <task>".to_owned())
             } else {
                 Some(format_code_command(&args, None, agents))
             }

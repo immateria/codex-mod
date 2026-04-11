@@ -184,7 +184,7 @@ impl RolloutRecorder {
                         forked_from_id,
                         timestamp,
                         cwd: config.cwd.clone(),
-                        originator: DEFAULT_ORIGINATOR.to_string(),
+                        originator: DEFAULT_ORIGINATOR.to_owned(),
                         cli_version: env!("CARGO_PKG_VERSION").to_string(),
                         source,
                         model_provider: None,
@@ -410,7 +410,7 @@ impl RolloutRecorder {
                                 }
                                 items.push(RolloutItem::ResponseItem(ResponseItem::Message {
                                     id: Some(ev.id.clone()),
-                                    role: "user".to_string(),
+                                    role: "user".to_owned(),
                                     content, end_turn: None, phase: None}));
                             }
                             ProtoEventMsg::AgentMessage(_) => items.push(RolloutItem::Event(ev)),

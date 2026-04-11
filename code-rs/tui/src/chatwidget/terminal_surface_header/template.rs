@@ -42,7 +42,7 @@ pub(super) fn render_styled_header_template(
         *width += value.width();
         span_starts.push(start);
         spans.push(Span::styled(
-            value.to_string(),
+            value.to_owned(),
             crate::colors::style_text_dim(),
         ));
     };
@@ -139,8 +139,8 @@ pub(super) fn render_styled_header_template(
                 let should_split = !label_suffix.trim().is_empty() && label_suffix.contains(':');
 
                 if should_split {
-                    let prefix = content.get(..label_start_byte).unwrap_or_default().to_string();
-                    let suffix = label_suffix.to_string();
+                    let prefix = content.get(..label_start_byte).unwrap_or_default().to_owned();
+                    let suffix = label_suffix.to_owned();
                     if !prefix.is_empty() {
                         span_starts.push(last_start);
                         spans.push(Span::styled(prefix.clone(), last_span.style));
@@ -163,7 +163,7 @@ pub(super) fn render_styled_header_template(
             let end = width;
             span_starts.push(value_start);
             spans.push(Span::styled(
-                value.to_string(),
+                value.to_owned(),
                 apply_hover_style(style, context.hover_style, is_hovered),
             ));
             if let Some(action) = maybe_action
@@ -176,7 +176,7 @@ pub(super) fn render_styled_header_template(
             let start = width;
             width += raw_token.width();
             span_starts.push(start);
-            spans.push(Span::styled(raw_token.to_string(), dim_style));
+            spans.push(Span::styled(raw_token.to_owned(), dim_style));
         }
 
         index = close + 1;

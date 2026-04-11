@@ -63,7 +63,7 @@ async fn apply_diff(diff: &str, cwd: Option<PathBuf>) -> anyhow::Result<()> {
     let cwd = cwd.unwrap_or(std::env::current_dir().unwrap_or_else(|_| std::env::temp_dir()));
     let req = code_git_apply::ApplyGitRequest {
         cwd,
-        diff: diff.to_string(),
+        diff: diff.to_owned(),
         revert: false,
         preflight: false,
     };

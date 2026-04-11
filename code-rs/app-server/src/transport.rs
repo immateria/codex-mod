@@ -114,13 +114,13 @@ impl AppServerTransport {
 
         if let Some(socket_addr) = listen_url.strip_prefix("ws://") {
             let bind_address = socket_addr.parse::<SocketAddr>().map_err(|_| {
-                AppServerTransportParseError::InvalidWebSocketListenUrl(listen_url.to_string())
+                AppServerTransportParseError::InvalidWebSocketListenUrl(listen_url.to_owned())
             })?;
             return Ok(Self::WebSocket { bind_address });
         }
 
         Err(AppServerTransportParseError::UnsupportedListenUrl(
-            listen_url.to_string(),
+            listen_url.to_owned(),
         ))
     }
 }
@@ -430,7 +430,7 @@ async fn enqueue_incoming_message(
                 id: request.id,
                 error: JSONRPCErrorError {
                     code: OVERLOADED_ERROR_CODE,
-                    message: "Server overloaded; retry later.".to_string(),
+                    message: "Server overloaded; retry later.".to_owned(),
                     data: None,
                 },
             });

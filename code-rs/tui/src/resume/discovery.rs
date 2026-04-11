@@ -87,7 +87,7 @@ pub fn list_sessions_for_cwd(
         Ok(handle) => {
             let handle = handle;
             match thread::Builder::new()
-                .name("resume-discovery".to_string())
+                .name("resume-discovery".to_owned())
                 .spawn(move || handle.block_on(fetch))
             {
                 Ok(handle) => if let Ok(result) = handle.join() { result } else {

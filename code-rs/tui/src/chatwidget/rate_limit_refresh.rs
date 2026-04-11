@@ -88,7 +88,7 @@ fn start_rate_limit_refresh_with_options(
     {
         if notify_on_failure {
             let message =
-                "Failed to refresh rate limits: background worker unavailable".to_string();
+                "Failed to refresh rate limits: background worker unavailable".to_owned();
             fallback_tx.send(AppEvent::RateLimitFetchFailed { message });
         } else {
             tracing::warn!("Failed to refresh rate limits: background worker unavailable");
@@ -147,9 +147,9 @@ fn run_refresh(
         prompt.base_instructions_override = config.base_instructions.clone();
         prompt.input.push(ResponseItem::Message {
             id: None,
-            role: "user".to_string(),
+            role: "user".to_owned(),
             content: vec![ContentItem::InputText {
-                text: "Yield immediately with only the message \"ok\"".to_string(),
+                text: "Yield immediately with only the message \"ok\"".to_owned(),
             }],
             end_turn: None,
             phase: None,

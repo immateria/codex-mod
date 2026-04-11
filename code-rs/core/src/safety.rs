@@ -163,7 +163,7 @@ pub fn assess_patch_safety(
 ) -> SafetyCheck {
     if action.is_empty() {
         return SafetyCheck::Reject {
-            reason: "empty patch".to_string(),
+            reason: "empty patch".to_owned(),
         };
     }
 
@@ -171,14 +171,13 @@ pub fn assess_patch_safety(
     if matches!(sandbox_policy, SandboxPolicy::ReadOnly) {
         return match policy {
             AskForApproval::Never => SafetyCheck::Reject {
-                reason: "write operations require approval but approval policy is set to never".to_string(),
+                reason: "write operations require approval but approval policy is set to never".to_owned(),
             },
             AskForApproval::Reject(config)
                 if config.rejects_sandbox_approval() || config.rejects_rules_approval() =>
             {
                 SafetyCheck::Reject {
-                    reason: "write operations require approval but approval policy is set to reject"
-                        .to_string(),
+                    reason: "write operations require approval but approval policy is set to reject".to_owned(),
                 }
             }
             _ => SafetyCheck::AskUser,
@@ -226,8 +225,7 @@ pub fn assess_patch_safety(
         }
     } else if policy == AskForApproval::Never {
         SafetyCheck::Reject {
-            reason: "writing outside of the project; rejected by user approval settings"
-                .to_string(),
+            reason: "writing outside of the project; rejected by user approval settings".to_owned(),
         }
     } else {
         SafetyCheck::AskUser
@@ -298,7 +296,7 @@ pub fn assess_command_safety(
     {
         return if matches!(approval_policy, AskForApproval::Never) {
             SafetyCheck::Reject {
-                reason: "auto-rejected because command is considered dangerous".to_string(),
+                reason: "auto-rejected because command is considered dangerous".to_owned(),
             }
         } else {
             SafetyCheck::AskUser
@@ -329,14 +327,13 @@ pub(crate) fn assess_safety_for_untrusted_command(
         match approval_policy {
             Never => {
                 return SafetyCheck::Reject {
-                    reason: "sandbox override requires approval but approval policy is set to never"
-                        .to_string(),
+                    reason: "sandbox override requires approval but approval policy is set to never".to_owned(),
                 };
             }
             Reject(config) => {
                 if config.rejects_sandbox_approval() || config.rejects_rules_approval() {
                     return SafetyCheck::Reject {
-                        reason: "auto-rejected by approval policy".to_string(),
+                        reason: "auto-rejected by approval policy".to_owned(),
                     };
                 }
             }
@@ -360,7 +357,7 @@ pub(crate) fn assess_safety_for_untrusted_command(
         (Reject(config), ReadOnly | WorkspaceWrite { .. }) => {
             if config.rejects_sandbox_approval() || config.rejects_rules_approval() {
                 SafetyCheck::Reject {
-                    reason: "auto-rejected by approval policy".to_string(),
+                    reason: "auto-rejected by approval policy".to_owned(),
                 }
             } else if sandbox_permissions.requests_sandbox_override()
                 && !(sandbox_override_preapproved && sandbox_permissions.uses_additional_permissions())
@@ -411,8 +408,7 @@ pub(crate) fn assess_safety_for_untrusted_command(
                         // We are in non-interactive mode and lack approval, so
                         // all we can do is reject the command.
                         SafetyCheck::Reject {
-                            reason: "auto-rejected because command is not on trusted list"
-                                .to_string(),
+                            reason: "auto-rejected because command is not on trusted list".to_owned(),
                         }
                     }
                 }

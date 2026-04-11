@@ -83,7 +83,7 @@ impl TurnDiffTracker {
                         path: path.clone(),
                         content: vec![],
                         mode: FileMode::Regular,
-                        oid: ZERO_OID.to_string(),
+                        oid: ZERO_OID.to_owned(),
                     })
                 };
 
@@ -108,7 +108,7 @@ impl TurnDiffTracker {
                             path: path.clone(),
                             content: vec![],
                             mode: FileMode::Regular,
-                            oid: ZERO_OID.to_string(),
+                            oid: ZERO_OID.to_owned(),
                         },
                     );
                     i
@@ -212,7 +212,7 @@ impl TurnDiffTracker {
         if !output.status.success() {
             return None;
         }
-        let s = String::from_utf8_lossy(&output.stdout).trim().to_string();
+        let s = String::from_utf8_lossy(&output.stdout).trim().to_owned();
         (s.len() == 40).then_some(s)
     }
 
@@ -254,7 +254,7 @@ impl TurnDiffTracker {
             if let Some(info) = self.baseline_file_info.get(internal_file_name) {
                 (info.path.clone(), info.mode, info.oid.clone())
             } else {
-                (PathBuf::new(), FileMode::Regular, ZERO_OID.to_string())
+                (PathBuf::new(), FileMode::Regular, ZERO_OID.to_owned())
             }
         };
         let current_external_path = match self.get_path_for_internal(internal_file_name) {
@@ -278,7 +278,7 @@ impl TurnDiffTracker {
                     .unwrap_or_else(|| format!("{:x}", git_blob_sha1_hex_bytes(b)))
             }
         } else {
-            ZERO_OID.to_string()
+            ZERO_OID.to_owned()
         };
 
         // Borrow baseline content only after all &mut self uses are done.
@@ -330,12 +330,12 @@ impl TurnDiffTracker {
             let old_header = if left_present {
                 format!("a/{left_display}")
             } else {
-                DEV_NULL.to_string()
+                DEV_NULL.to_owned()
             };
             let new_header = if right_bytes.is_some() {
                 format!("b/{right_display}")
             } else {
-                DEV_NULL.to_string()
+                DEV_NULL.to_owned()
             };
 
             let diff = similar::TextDiff::from_lines(l, r);
@@ -351,12 +351,12 @@ impl TurnDiffTracker {
             let old_header = if left_present {
                 format!("a/{left_display}")
             } else {
-                DEV_NULL.to_string()
+                DEV_NULL.to_owned()
             };
             let new_header = if right_bytes.is_some() {
                 format!("b/{right_display}")
             } else {
-                DEV_NULL.to_string()
+                DEV_NULL.to_owned()
             };
             let _ = writeln!(aggregated, "--- {old_header}");
             let _ = writeln!(aggregated, "+++ {new_header}");

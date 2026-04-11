@@ -46,7 +46,7 @@ pub(crate) fn build_skill_mcp_dependency_warnings(
         grouped
             .entry((server, tool))
             .or_default()
-            .insert(dep.skill_name.trim().to_string());
+            .insert(dep.skill_name.trim().to_owned());
     }
 
     let mut warnings = Vec::new();
@@ -167,7 +167,7 @@ fn format_skill_list(skills: &BTreeSet<String>) -> String {
         .collect();
 
     if entries.is_empty() {
-        return "A skill".to_string();
+        return "A skill".to_owned();
     }
 
     entries.sort();

@@ -174,7 +174,7 @@ async fn http_connect_accept(
             host,
             authority.port,
             client_addr(&req),
-            Some("CONNECT".to_string()),
+            Some("CONNECT".to_owned()),
             NetworkProtocol::HttpsConnect,
         )
         .await);
@@ -185,7 +185,7 @@ async fn http_connect_accept(
         host: host.clone(),
         port: authority.port,
         client_addr: client.clone(),
-        method: Some("CONNECT".to_string()),
+        method: Some("CONNECT".to_owned()),
         command: None,
         exec_policy_hint: None,
         attempt_id: network_attempt_id.clone(),
@@ -210,12 +210,12 @@ async fn http_connect_accept(
                     host: host.clone(),
                     reason: reason.clone(),
                     client: client.clone(),
-                    method: Some("CONNECT".to_string()),
+                    method: Some("CONNECT".to_owned()),
                     mode: None,
-                    protocol: "http-connect".to_string(),
+                    protocol: "http-connect".to_owned(),
                     attempt_id: network_attempt_id.clone(),
-                    decision: Some(details.decision.as_str().to_string()),
-                    source: Some(details.source.as_str().to_string()),
+                    decision: Some(details.decision.as_str().to_owned()),
+                    source: Some(details.source.as_str().to_owned()),
                     port: Some(authority.port),
                 }))
                 .await;
@@ -250,14 +250,14 @@ async fn http_connect_accept(
         let _ = app_state
             .record_blocked(BlockedRequest::new(BlockedRequestArgs {
                 host: host.clone(),
-                reason: REASON_METHOD_NOT_ALLOWED.to_string(),
+                reason: REASON_METHOD_NOT_ALLOWED.to_owned(),
                 client: client.clone(),
-                method: Some("CONNECT".to_string()),
+                method: Some("CONNECT".to_owned()),
                 mode: Some(NetworkMode::Limited),
-                protocol: "http-connect".to_string(),
+                protocol: "http-connect".to_owned(),
                 attempt_id: network_attempt_id,
-                decision: Some(details.decision.as_str().to_string()),
-                source: Some(details.source.as_str().to_string()),
+                decision: Some(details.decision.as_str().to_owned()),
+                source: Some(details.source.as_str().to_owned()),
                 port: Some(authority.port),
             }))
             .await;
@@ -382,7 +382,7 @@ async fn http_plain_proxy(
     // macOS-only + explicit allowlist, to avoid turning the proxy into a general local capability
     // escalation mechanism.
     if let Some(unix_socket_header) = req.headers().get("x-unix-socket") {
-        let socket_path = if let Ok(value) = unix_socket_header.to_str() { value.to_string() } else {
+        let socket_path = if let Ok(value) = unix_socket_header.to_str() { value.to_owned() } else {
             warn!("invalid x-unix-socket header value (non-UTF8)");
             return Ok(text_response(
                 StatusCode::BAD_REQUEST,
@@ -405,7 +405,7 @@ async fn http_plain_proxy(
                 socket_path,
                 0,
                 client_addr(&req),
-                Some(req.method().as_str().to_string()),
+                Some(req.method().as_str().to_owned()),
                 NetworkProtocol::Http,
             )
             .await);
@@ -480,7 +480,7 @@ async fn http_plain_proxy(
             host,
             port,
             client_addr(&req),
-            Some(req.method().as_str().to_string()),
+            Some(req.method().as_str().to_owned()),
             NetworkProtocol::Http,
         )
         .await);
@@ -491,7 +491,7 @@ async fn http_plain_proxy(
         host: host.clone(),
         port,
         client_addr: client.clone(),
-        method: Some(req.method().as_str().to_string()),
+        method: Some(req.method().as_str().to_owned()),
         command: None,
         exec_policy_hint: None,
         attempt_id: network_attempt_id.clone(),
@@ -516,12 +516,12 @@ async fn http_plain_proxy(
                     host: host.clone(),
                     reason: reason.clone(),
                     client: client.clone(),
-                    method: Some(req.method().as_str().to_string()),
+                    method: Some(req.method().as_str().to_owned()),
                     mode: None,
-                    protocol: "http".to_string(),
+                    protocol: "http".to_owned(),
                     attempt_id: network_attempt_id.clone(),
-                    decision: Some(details.decision.as_str().to_string()),
-                    source: Some(details.source.as_str().to_string()),
+                    decision: Some(details.decision.as_str().to_owned()),
+                    source: Some(details.source.as_str().to_owned()),
                     port: Some(port),
                 }))
                 .await;
@@ -548,14 +548,14 @@ async fn http_plain_proxy(
         let _ = app_state
             .record_blocked(BlockedRequest::new(BlockedRequestArgs {
                 host: host.clone(),
-                reason: REASON_METHOD_NOT_ALLOWED.to_string(),
+                reason: REASON_METHOD_NOT_ALLOWED.to_owned(),
                 client: client.clone(),
-                method: Some(req.method().as_str().to_string()),
+                method: Some(req.method().as_str().to_owned()),
                 mode: Some(NetworkMode::Limited),
-                protocol: "http".to_string(),
+                protocol: "http".to_owned(),
                 attempt_id: network_attempt_id,
-                decision: Some(details.decision.as_str().to_string()),
-                source: Some(details.source.as_str().to_string()),
+                decision: Some(details.decision.as_str().to_owned()),
+                source: Some(details.source.as_str().to_owned()),
                 port: Some(port),
             }))
             .await;
@@ -723,14 +723,14 @@ async fn proxy_disabled_response(
     let _ = app_state
         .record_blocked(BlockedRequest::new(BlockedRequestArgs {
             host: blocked_host,
-            reason: REASON_PROXY_DISABLED.to_string(),
+            reason: REASON_PROXY_DISABLED.to_owned(),
             client,
             method,
             mode: None,
-            protocol: protocol.as_policy_protocol().to_string(),
+            protocol: protocol.as_policy_protocol().to_owned(),
             attempt_id: None,
-            decision: Some("deny".to_string()),
-            source: Some("proxy_state".to_string()),
+            decision: Some("deny".to_owned()),
+            source: Some("proxy_state".to_owned()),
             port: Some(port),
         }))
         .await;
@@ -758,8 +758,8 @@ fn text_response(status: StatusCode, body: &str) -> Response {
     Response::builder()
         .status(status)
         .header("content-type", "text/plain")
-        .body(Body::from(body.to_string()))
-        .unwrap_or_else(|_| Response::new(Body::from(body.to_string())))
+        .body(Body::from(body.to_owned()))
+        .unwrap_or_else(|_| Response::new(Body::from(body.to_owned())))
 }
 
 #[derive(Serialize)]

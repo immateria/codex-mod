@@ -123,9 +123,9 @@ pub fn collect_compaction_snippets(items: &[ResponseItem]) -> Vec<CompactionSnip
 
 pub fn render_compaction_summary(snippets: &[CompactionSnippet], summary_text: &str) -> String {
     let normalized_summary = if summary_text.trim().is_empty() {
-        "(no summary available)".to_string()
+        "(no summary available)".to_owned()
     } else {
-        summary_text.to_string()
+        summary_text.to_owned()
     };
 
     HistoryBridgeTemplate {
@@ -143,7 +143,7 @@ pub fn make_compaction_summary_message(
     let text = render_compaction_summary(snippets, summary_text);
     ResponseItem::Message {
         id: None,
-        role: "user".to_string(),
+        role: "user".to_owned(),
         content: vec![ContentItem::InputText { text }], end_turn: None, phase: None}
 }
 
@@ -154,9 +154,9 @@ pub fn make_compaction_summary_message(
 pub fn resolve_compact_prompt_text(override_prompt: Option<&str>) -> String {
     if let Some(text) = override_prompt
         && !text.trim().is_empty() {
-            return text.to_string();
+            return text.to_owned();
         }
-    SUMMARIZATION_PROMPT.to_string()
+    SUMMARIZATION_PROMPT.to_owned()
 }
 
 pub(super) fn spawn_compact_task(
@@ -224,7 +224,7 @@ pub(super) async fn apply_emergency_compaction_fallback(
     reason: &str,
 ) -> Vec<ResponseItem> {
     let message = if reason.trim().is_empty() {
-        COMPACTION_EMERGENCY_MESSAGE.to_string()
+        COMPACTION_EMERGENCY_MESSAGE.to_owned()
     } else {
         format!("{reason} {COMPACTION_EMERGENCY_MESSAGE}")
     };
@@ -284,7 +284,7 @@ pub(super) async fn perform_compaction(
                 Some(sess.user_shell.clone()),
             )),
             model_descriptions: sess.model_descriptions.clone(),
-            log_tag: Some("codex/compact".to_string()),
+            log_tag: Some("codex/compact".to_owned()),
             ..Prompt::default()
         };
 
@@ -345,7 +345,7 @@ pub(super) async fn perform_compaction(
                         "Compaction trimmed {truncated_count} items but still exceeded the context window."
                     )
                 } else {
-                    "Compaction failed: context overflow even with minimal input.".to_string()
+                    "Compaction failed: context overflow even with minimal input.".to_owned()
                 };
                 tracing::error!("{reason}");
                 let _ = apply_emergency_compaction_fallback(
@@ -411,7 +411,7 @@ pub(super) async fn perform_compaction(
     sess.persist_rollout_items(&[rollout_item]).await;
 
     let display_message = if summary_text.trim().is_empty() {
-        "Compact task completed.".to_string()
+        "Compact task completed.".to_owned()
     } else {
         summary_text.clone()
     };
@@ -454,7 +454,7 @@ async fn run_compact_task_inner_inline(
                 Some(sess.user_shell.clone()),
             )),
             model_descriptions: sess.model_descriptions.clone(),
-            log_tag: Some("codex/compact".to_string()),
+            log_tag: Some("codex/compact".to_owned()),
             ..Prompt::default()
         };
 
@@ -514,7 +514,7 @@ async fn run_compact_task_inner_inline(
                         "Compaction trimmed {truncated_count} items but still exceeded the context window."
                     )
                 } else {
-                    "Compaction failed: context overflow even with minimal input.".to_string()
+                    "Compaction failed: context overflow even with minimal input.".to_owned()
                 };
                 tracing::error!("{reason}");
 
@@ -578,7 +578,7 @@ async fn run_compact_task_inner_inline(
     sess.persist_rollout_items(&[rollout_item]).await;
 
     let display_message = if summary_text.trim().is_empty() {
-        "Compact task completed.".to_string()
+        "Compact task completed.".to_owned()
     } else {
         summary_text.clone()
     };
@@ -798,7 +798,7 @@ pub fn prune_orphan_tool_outputs(items: &mut Vec<ResponseItem>) -> usize {
 
 fn compaction_checkpoint_warning_event() -> EventMsg {
     EventMsg::CompactionCheckpointWarning(CompactionCheckpointWarningEvent {
-        message: COMPACTION_CHECKPOINT_MESSAGE.to_string(),
+        message: COMPACTION_CHECKPOINT_MESSAGE.to_owned(),
     })
 }
 
@@ -843,9 +843,9 @@ pub(crate) fn build_emergency_compacted_history(
     let mut history = initial_context;
     history.push(ResponseItem::Message {
         id: None,
-        role: "user".to_string(),
+        role: "user".to_owned(),
         content: vec![ContentItem::InputText {
-            text: warning_message.to_string(),
+            text: warning_message.to_owned(),
         }], end_turn: None, phase: None});
     history
 }
@@ -906,7 +906,7 @@ pub(super) fn response_input_from_core_items(items: Vec<InputItem>) -> ResponseI
             InputItem::LocalImage { path } => match std::fs::read(&path) {
                 Ok(bytes) => {
                     let mime = mime_guess::from_path(&path)
-                        .first().map_or_else(|| crate::util::MIME_OCTET_STREAM.to_string(), |m| m.essence_str().to_owned());
+                        .first().map_or_else(|| crate::util::MIME_OCTET_STREAM.to_owned(), |m| m.essence_str().to_owned());
                     let encoded = base64::engine::general_purpose::STANDARD.encode(bytes);
                     content_items.push(ContentItem::InputImage {
                         image_url: format!("data:{mime};base64,{encoded}"),
@@ -929,7 +929,7 @@ pub(super) fn response_input_from_core_items(items: Vec<InputItem>) -> ResponseI
                 match std::fs::read(&path) {
                     Ok(bytes) => {
                         let mime = mime_guess::from_path(&path)
-                            .first().map_or_else(|| crate::util::MIME_OCTET_STREAM.to_string(), |m| m.essence_str().to_owned());
+                            .first().map_or_else(|| crate::util::MIME_OCTET_STREAM.to_owned(), |m| m.essence_str().to_owned());
                         let encoded = base64::engine::general_purpose::STANDARD.encode(bytes);
                         content_items.push(ContentItem::InputImage {
                             image_url: format!("data:{mime};base64,{encoded}"),
@@ -948,7 +948,7 @@ pub(super) fn response_input_from_core_items(items: Vec<InputItem>) -> ResponseI
     }
 
     ResponseInputItem::Message {
-        role: "user".to_string(),
+        role: "user".to_owned(),
         content: content_items,
     }
 }

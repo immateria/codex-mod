@@ -55,7 +55,7 @@ impl ChatWidget<'_> {
             .filter(|text| !text.is_empty());
 
         self.app_event_tx.send(AppEvent::EmitTuiNotification {
-            title: "Code".to_string(),
+            title: "Code".to_owned(),
             body: snippet,
         });
     }
@@ -107,7 +107,7 @@ impl ChatWidget<'_> {
                             if let Ok((enabled, _)) = code_core::config::list_mcp_servers(&home)
                                 && let Some((_, cfg)) = enabled.into_iter().find(|(n, _)| n == name)
                                 {
-                                    self.config.mcp_servers.insert(name.to_string(), cfg);
+                                    self.config.mcp_servers.insert(name.to_owned(), cfg);
                                 }
                         } else {
                             self.config.mcp_servers.remove(name);
@@ -158,15 +158,15 @@ impl ChatWidget<'_> {
                             .iter()
                             .any(|name| name == tool_name)
                         {
-                            server_cfg.disabled_tools.push(tool_name.to_string());
+                            server_cfg.disabled_tools.push(tool_name.to_owned());
                             server_cfg.disabled_tools.sort();
                             server_cfg.disabled_tools.dedup();
                         }
                     }
 
                     self.submit_op(Op::SetMcpToolEnabled {
-                        server: server_name.to_string(),
-                        tool: tool_name.to_string(),
+                        server: server_name.to_owned(),
+                        tool: tool_name.to_owned(),
                         enable,
                     });
 
@@ -209,7 +209,7 @@ impl ChatWidget<'_> {
                     }
 
                     self.submit_op(Op::SetMcpServerScheduling {
-                        server: server_name.to_string(),
+                        server: server_name.to_owned(),
                         scheduling,
                     });
 
@@ -253,7 +253,7 @@ impl ChatWidget<'_> {
                             {
                                 server_cfg
                                     .tool_scheduling
-                                    .insert(normalized_tool.to_string(), cfg.clone());
+                                    .insert(normalized_tool.to_owned(), cfg.clone());
                             } else {
                                 server_cfg.tool_scheduling.remove(normalized_tool);
                             }
@@ -261,8 +261,8 @@ impl ChatWidget<'_> {
                     }
 
                     self.submit_op(Op::SetMcpToolSchedulingOverride {
-                        server: server_name.to_string(),
-                        tool: tool_name.to_string(),
+                        server: server_name.to_owned(),
+                        tool: tool_name.to_owned(),
                         override_cfg,
                     });
 

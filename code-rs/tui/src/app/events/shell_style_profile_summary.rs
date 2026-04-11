@@ -28,8 +28,7 @@ pub(super) async fn generate_shell_style_profile_summary(
     let mut prompt = code_core::Prompt::default();
     prompt.include_additional_instructions = false;
     prompt.base_instructions_override = Some(
-        "You write concise, user-facing summaries for configuration profiles. Output 1-2 sentences. No markdown."
-            .to_string(),
+        "You write concise, user-facing summaries for configuration profiles. Output 1-2 sentences. No markdown.".to_owned(),
     );
 
     let profile_json = serde_json::to_string_pretty(&profile).unwrap_or_else(|_| format!("{profile:?}"));
@@ -38,7 +37,7 @@ pub(super) async fn generate_shell_style_profile_summary(
     );
     prompt.input.push(code_core::ResponseItem::Message {
         id: None,
-        role: "user".to_string(),
+        role: "user".to_owned(),
         content: vec![code_core::ContentItem::InputText { text: input_text }],
         end_turn: None,
         phase: None,

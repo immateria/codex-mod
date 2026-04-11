@@ -102,7 +102,7 @@ fn scope_from_current_dir() -> Option<PathBuf> {
         .args(["rev-parse", "--show-toplevel"])
         .output()
         && out.status.success() {
-            let path = String::from_utf8_lossy(&out.stdout).trim().to_string();
+            let path = String::from_utf8_lossy(&out.stdout).trim().to_owned();
             if !path.is_empty() {
                 return Some(PathBuf::from(path));
             }
@@ -119,7 +119,7 @@ fn git_head(cwd: &Path) -> Option<String> {
     if !output.status.success() {
         return None;
     }
-    Some(String::from_utf8_lossy(&output.stdout).trim().to_string())
+    Some(String::from_utf8_lossy(&output.stdout).trim().to_owned())
 }
 
 pub fn try_acquire_lock(intent: &str, cwd: &Path) -> std::io::Result<Option<ReviewGuard>> {
@@ -137,7 +137,7 @@ pub fn try_acquire_lock(intent: &str, cwd: &Path) -> std::io::Result<Option<Revi
                     .duration_since(UNIX_EPOCH)
                     .unwrap_or_default()
                     .as_secs(),
-                intent: intent.to_string(),
+                intent: intent.to_owned(),
                 git_head: git_head(cwd),
                 snapshot_epoch: current_snapshot_epoch_for(cwd),
             };

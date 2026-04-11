@@ -493,12 +493,12 @@ fn render_menu_detail_pane<Id: Copy + PartialEq>(
 
     let mut y = area.y;
     let mut header_spans = vec![Span::styled(
-        row.label.as_ref().to_string(),
+        row.label.as_ref().to_owned(),
         Style::new().fg(colors::text()).bold(),
     )];
     if let Some(value) = &row.value {
         header_spans.push(Span::raw("  "));
-        header_spans.push(Span::styled(value.text.as_ref().to_string(), value.style));
+        header_spans.push(Span::styled(value.text.as_ref().to_owned(), value.style));
     }
     write_line(
         buf,
@@ -542,7 +542,7 @@ fn render_menu_detail_pane<Id: Copy + PartialEq>(
             y,
             max_width,
             &Line::from(Span::styled(
-                hint.to_string(),
+                hint.to_owned(),
                 Style::new().fg(colors::text_dim()),
             )),
             base_style,

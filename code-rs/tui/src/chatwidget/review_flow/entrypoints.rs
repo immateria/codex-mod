@@ -5,7 +5,7 @@ impl ChatWidget<'_> {
     pub(crate) fn open_review_dialog(&mut self) {
         if self.is_task_running() {
             self.history_push_plain_state(crate::history_cell::new_error_event(
-                "`/review` — complete or cancel the current task before starting a new review.".to_string(),
+                "`/review` — complete or cancel the current task before starting a new review.".to_owned(),
             ));
             self.request_redraw();
             return;
@@ -26,7 +26,7 @@ impl ChatWidget<'_> {
             "Auto Resolve is disabled."
         };
         items.push(SelectionItem {
-            name: "Auto Resolve settings moved to /settings".to_string(),
+            name: "Auto Resolve settings moved to /settings".to_owned(),
             description: Some(format!(
                 "{auto_note} Manage Auto Resolve reviews and max re-reviews via `/settings review`."
             )),
@@ -34,18 +34,18 @@ impl ChatWidget<'_> {
             actions: vec![Box::new(|tx: &crate::app_event_sender::AppEventSender| {
                 tx.send(crate::app_event::AppEvent::DispatchCommand(
                     SlashCommand::Settings,
-                    "review".to_string(),
+                    "review".to_owned(),
                 ));
             })],
         });
 
-        let workspace_prompt = "Review the current workspace changes (staged, unstaged, and untracked files) and highlight bugs, regressions, risky patterns, and missing tests before merge.".to_string();
-        let workspace_hint = "current workspace changes".to_string();
-        let workspace_preparation = "Preparing code review for current changes".to_string();
+        let workspace_prompt = "Review the current workspace changes (staged, unstaged, and untracked files) and highlight bugs, regressions, risky patterns, and missing tests before merge.".to_owned();
+        let workspace_hint = "current workspace changes".to_owned();
+        let workspace_preparation = "Preparing code review for current changes".to_owned();
         let workspace_auto_resolve = self.config.tui.review_auto_resolve;
         items.push(SelectionItem {
-            name: "Review uncommitted changes".to_string(),
-            description: Some("Look at staged, unstaged, and untracked files".to_string()),
+            name: "Review uncommitted changes".to_owned(),
+            description: Some("Look at staged, unstaged, and untracked files".to_owned()),
             is_current: false,
             actions: vec![Box::new({
                 let prompt = workspace_prompt;
@@ -64,8 +64,8 @@ impl ChatWidget<'_> {
         });
 
         items.push(SelectionItem {
-            name: "Review /branch changes".to_string(),
-            description: Some("Compare your worktree branch against its merge target".to_string()),
+            name: "Review /branch changes".to_owned(),
+            description: Some("Compare your worktree branch against its merge target".to_owned()),
             is_current: false,
             actions: vec![Box::new(|tx: &crate::app_event_sender::AppEventSender| {
                 tx.send(crate::app_event::AppEvent::RunReviewCommand(String::new()));
@@ -73,8 +73,8 @@ impl ChatWidget<'_> {
         });
 
         items.push(SelectionItem {
-            name: "Review a specific commit".to_string(),
-            description: Some("Pick from recent commits".to_string()),
+            name: "Review a specific commit".to_owned(),
+            description: Some("Pick from recent commits".to_owned()),
             is_current: false,
             actions: vec![Box::new(|tx: &crate::app_event_sender::AppEventSender| {
                 tx.send(crate::app_event::AppEvent::StartReviewCommitPicker);
@@ -82,8 +82,8 @@ impl ChatWidget<'_> {
         });
 
         items.push(SelectionItem {
-            name: "Review against a base branch".to_string(),
-            description: Some("Diff current branch against another".to_string()),
+            name: "Review against a base branch".to_owned(),
+            description: Some("Diff current branch against another".to_owned()),
             is_current: false,
             actions: vec![Box::new(|tx: &crate::app_event_sender::AppEventSender| {
                 tx.send(crate::app_event::AppEvent::StartReviewBranchPicker);
@@ -91,8 +91,8 @@ impl ChatWidget<'_> {
         });
 
         items.push(SelectionItem {
-            name: "Custom review instructions".to_string(),
-            description: Some("Describe exactly what to audit".to_string()),
+            name: "Custom review instructions".to_owned(),
+            description: Some("Describe exactly what to audit".to_owned()),
             is_current: false,
             actions: vec![Box::new(|tx: &crate::app_event_sender::AppEventSender| {
                 tx.send(crate::app_event::AppEvent::OpenReviewCustomPrompt);
@@ -100,9 +100,9 @@ impl ChatWidget<'_> {
         });
 
         let view: ListSelectionView = ListSelectionView::new(
-            " Review options ".to_string(),
-            Some("Choose what scope to review".to_string()),
-            Some("Enter select · Esc cancel".to_string()),
+            " Review options ".to_owned(),
+            Some("Choose what scope to review".to_owned()),
+            Some("Enter select · Esc cancel".to_owned()),
             items,
             self.app_event_tx.clone(),
             6,
@@ -117,9 +117,9 @@ impl ChatWidget<'_> {
             submit_tx.send(crate::app_event::AppEvent::RunReviewCommand(text));
         });
         let view = CustomPromptView::new(
-            "Custom review instructions".to_string(),
-            "Describe the files or changes you want reviewed".to_string(),
-            Some("Press Enter to submit · Esc cancel".to_string()),
+            "Custom review instructions".to_owned(),
+            "Describe the files or changes you want reviewed".to_owned(),
+            Some("Press Enter to submit · Esc cancel".to_owned()),
             self.app_event_tx.clone(),
             None,
             on_submit,
@@ -165,7 +165,7 @@ impl ChatWidget<'_> {
             }
         };
 
-        self.bottom_pane.flash_footer_notice(message.to_string());
+        self.bottom_pane.flash_footer_notice(message.to_owned());
         self.refresh_settings_overview_rows();
         self.update_review_settings_model_row();
         self.request_redraw();
@@ -206,7 +206,7 @@ impl ChatWidget<'_> {
             }
         };
 
-        self.bottom_pane.flash_footer_notice(message.to_string());
+        self.bottom_pane.flash_footer_notice(message.to_owned());
         self.refresh_settings_overview_rows();
         self.update_review_settings_model_row();
         self.request_redraw();
@@ -327,7 +327,7 @@ impl ChatWidget<'_> {
     pub(crate) fn handle_review_command(&mut self, args: String) {
         if self.is_task_running() {
             self.history_push_plain_state(crate::history_cell::new_error_event(
-                "`/review` — complete or cancel the current task before starting a new review.".to_string(),
+                "`/review` — complete or cancel the current task before starting a new review.".to_owned(),
             ));
             self.request_redraw();
             return;
@@ -362,12 +362,12 @@ impl ChatWidget<'_> {
                             Some(value) => Some(value),
                             None => code_core::git_worktree::detect_default_branch(&git_root)
                                 .await
-                                .map(|name| name.trim().to_string())
+                                .map(|name| name.trim().to_owned())
                                 .filter(|name| !name.is_empty()),
                         };
                         let current_branch = code_core::git_info::current_branch_name(&worktree_cwd)
                             .await
-                            .map(|name| name.trim().to_string())
+                            .map(|name| name.trim().to_owned())
                             .filter(|name| !name.is_empty());
 
                         if let (Some(base_branch), Some(current_branch)) =
@@ -390,28 +390,28 @@ impl ChatWidget<'_> {
                                 return;
                             }
 
-                        let prompt = "Review the current workspace changes and highlight bugs, regressions, risky patterns, and missing tests before merge.".to_string();
+                        let prompt = "Review the current workspace changes and highlight bugs, regressions, risky patterns, and missing tests before merge.".to_owned();
                         tx.send(crate::app_event::AppEvent::RunReviewWithScope {
                             target: ReviewTarget::Custom { instructions: prompt.clone() },
                             prompt,
-                            hint: Some("current workspace changes".to_string()),
-                            preparation_label: Some("Preparing code review request...".to_string()),
+                            hint: Some("current workspace changes".to_owned()),
+                            preparation_label: Some("Preparing code review request...".to_owned()),
                             auto_resolve: auto_flag,
                         });
                     });
                     return;
                 }
 
-            let prompt = "Review the current workspace changes and highlight bugs, regressions, risky patterns, and missing tests before merge.".to_string();
+            let prompt = "Review the current workspace changes and highlight bugs, regressions, risky patterns, and missing tests before merge.".to_owned();
             self.start_review_with_scope(
                 ReviewTarget::Custom { instructions: prompt.clone() },
                 prompt,
-                Some("current workspace changes".to_string()),
-                Some("Preparing code review request...".to_string()),
+                Some("current workspace changes".to_owned()),
+                Some("Preparing code review request...".to_owned()),
                 auto_resolve,
             );
         } else {
-            let value = trimmed.to_string();
+            let value = trimmed.to_owned();
             let preparation = format!("Preparing code review for {value}");
             self.start_review_with_scope(
                 ReviewTarget::Custom { instructions: value.clone() },
@@ -460,7 +460,7 @@ impl ChatWidget<'_> {
         let trimmed_hint = hint.as_deref().unwrap_or("").trim();
         let preparation_notice = preparation_label.unwrap_or_else(|| {
             if trimmed_hint.is_empty() {
-                "Preparing code review request...".to_string()
+                "Preparing code review request...".to_owned()
             } else {
                 format!("Preparing code review for {trimmed_hint}")
             }
@@ -480,7 +480,7 @@ impl ChatWidget<'_> {
                 self.submit_op(Op::Review { review_request });
             }
             Ok(None) => {
-                self.push_background_tail("Review skipped: another review is already running.".to_string());
+                self.push_background_tail("Review skipped: another review is already running.".to_owned());
             }
             Err(err) => {
                 self.push_background_tail(format!("Review skipped: could not acquire review lock ({err})"));
@@ -504,7 +504,7 @@ impl ChatWidget<'_> {
                 let trimmed = h.trim();
                 format!("**Review summary — {trimmed}**")
             }
-            _ => "**Review summary**".to_string(),
+            _ => "**Review summary**".to_owned(),
         };
         sections.push(title);
 
@@ -517,10 +517,10 @@ impl ChatWidget<'_> {
 
         let explanation = output.overall_explanation.trim();
         if !explanation.is_empty() {
-            sections.push(explanation.to_string());
+            sections.push(explanation.to_owned());
         }
         if !output.findings.is_empty() {
-            sections.push(format_review_findings_block(&output.findings, None).trim().to_string());
+            sections.push(format_review_findings_block(&output.findings, None).trim().to_owned());
         }
         let correctness = output.overall_correctness.trim();
         if !correctness.is_empty() {
@@ -531,12 +531,12 @@ impl ChatWidget<'_> {
             sections.push(format!("**Confidence score:** {score:.1}"));
         }
         if sections.len() == 1 {
-            sections.push("No detailed findings were provided.".to_string());
+            sections.push("No detailed findings were provided.".to_owned());
         }
 
         let markdown = sections
             .into_iter()
-            .map(|part| part.trim().to_string())
+            .map(|part| part.trim().to_owned())
             .filter(|part| !part.is_empty())
             .collect::<Vec<_>>()
             .join("\n\n");

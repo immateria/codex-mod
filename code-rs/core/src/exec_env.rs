@@ -67,7 +67,7 @@ where
         ("GIT_PAGER", "cat"),
         ("GH_PAGER", "cat"),
     ] {
-        env_map.entry(key.to_string()).or_insert_with(|| val.to_string());
+        env_map.entry(key.to_owned()).or_insert_with(|| val.to_owned());
     }
 
     // Step 4.6 – Non-interactive defaults to reduce hangs and environment
@@ -79,14 +79,14 @@ where
         ("LANG", "C.UTF-8"),
         ("LC_ALL", "C.UTF-8"),
     ] {
-        env_map.entry(key.to_string()).or_insert_with(|| val.to_string());
+        env_map.entry(key.to_owned()).or_insert_with(|| val.to_owned());
     }
 
     #[cfg(unix)]
     {
         env_map
-            .entry("GIT_ASKPASS".to_string())
-            .or_insert_with(|| "true".to_string());
+            .entry("GIT_ASKPASS".to_owned())
+            .or_insert_with(|| "true".to_owned());
     }
 
     // Step 5 – If include_only is non-empty, keep *only* the matching vars.

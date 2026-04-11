@@ -6,10 +6,10 @@ pub(super) fn truncate_middle_bytes(
     max_bytes: usize,
 ) -> (String, bool, usize, usize) {
     if s.len() <= max_bytes {
-        return (s.to_string(), false, s.len(), s.len());
+        return (s.to_owned(), false, s.len(), s.len());
     }
     if max_bytes == 0 {
-        return (TRUNCATION_MARKER.trim_end().to_string(), true, 0, s.len());
+        return (TRUNCATION_MARKER.trim_end().to_owned(), true, 0, s.len());
     }
 
     // Try to keep some head/tail, favoring newline boundaries when possible.

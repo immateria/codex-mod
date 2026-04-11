@@ -163,7 +163,7 @@ impl ChatWidget<'_> {
 
         // Update overall task status based on agent states
         let status = Self::overall_task_status_for(&self.active_agents);
-        self.overall_task_status = status.to_string();
+        self.overall_task_status = status.to_owned();
 
         let agents_still_active = self
             .active_agents
@@ -189,9 +189,9 @@ impl ChatWidget<'_> {
                 "preparing" => format!("agents: preparing ({count} ready)"),
                 "running" => format!("agents: running ({count})"),
                 "complete" => format!("agents: complete ({count} ok)"),
-                "failed" => "agents: failed".to_string(),
-                "cancelled" => "agents: cancelled".to_string(),
-                _ => "agents: planning".to_string(),
+                "failed" => "agents: failed".to_owned(),
+                "cancelled" => "agents: cancelled".to_owned(),
+                _ => "agents: planning".to_owned(),
             };
             self.bottom_pane.update_status_text(&msg);
         } else if has_running_auto_review {
@@ -295,7 +295,7 @@ impl ChatWidget<'_> {
             .unwrap_or("")
             .trim();
         let banner = if hint.is_empty() {
-            ">> Code review started <<".to_string()
+            ">> Code review started <<".to_owned()
         } else {
             format!(">> Code review started: {hint} <<")
         };
@@ -312,7 +312,7 @@ impl ChatWidget<'_> {
             )]));
             lines.push(Line::from(""));
             for line in prompt_text.lines() {
-                lines.push(Line::from(line.to_string()));
+                lines.push(Line::from(line.to_owned()));
             }
             let state = history_cell::plain_message_state_from_lines(
                 lines,
@@ -346,7 +346,7 @@ impl ChatWidget<'_> {
                     let trimmed = h.trim();
                     format!("<< Code review finished: {trimmed} >>")
                 }
-                _ => "<< Code review finished >>".to_string(),
+                _ => "<< Code review finished >>".to_owned(),
             };
             self.push_background_tail(finish_banner);
         } else {
@@ -355,11 +355,11 @@ impl ChatWidget<'_> {
                     let trimmed = h.trim();
                     format!("<< Code review finished without a final response ({trimmed}) >>")
                 }
-                _ => "<< Code review finished without a final response >>".to_string(),
+                _ => "<< Code review finished without a final response >>".to_owned(),
             };
             self.push_background_tail(banner);
             self.history_push_plain_state(history_cell::new_warning_event(
-                "Review session ended without returning findings. Try `/review` again if you still need feedback.".to_string(),
+                "Review session ended without returning findings. Try `/review` again if you still need feedback.".to_owned(),
             ));
         }
         if self.auto_state.is_active() && self.auto_state.awaiting_review() {

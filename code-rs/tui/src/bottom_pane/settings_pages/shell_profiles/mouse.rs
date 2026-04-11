@@ -37,7 +37,7 @@ pub(super) fn handle_mouse_event_direct_in_chrome(
                                 view.stage_pending_profile_from_fields();
                                 view.dirty = true;
                                 view.status = Some(
-                                    "Changes staged. Select Apply to persist.".to_string(),
+                                    "Changes staged. Select Apply to persist.".to_owned(),
                                 );
                                 mode_guard.disarm();
                                 return true;

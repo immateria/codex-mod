@@ -83,7 +83,7 @@ pub(super) async fn handle_task_complete_event(
                     .await;
                 }
                 if let Some(base) = state.auto_resolve_base_snapshot.as_ref() {
-                    let base_id = base.id().to_string();
+                    let base_id = base.id().to_owned();
                     if !head_is_ancestor_of_base(&config.cwd, base.id()) {
                         return abort_auto_resolve_and_continue(
                             conversation,
@@ -172,7 +172,7 @@ pub(super) async fn handle_task_complete_event(
                     resolve_state.phase = AutoResolvePhase::WaitingForReview;
                 }
                 if let Some(base) = state.auto_resolve_base_snapshot.as_ref() {
-                    let base_id = base.id().to_string();
+                    let base_id = base.id().to_owned();
                     if !head_is_ancestor_of_base(&config.cwd, base.id()) {
                         return abort_auto_resolve_and_continue(
                             conversation,

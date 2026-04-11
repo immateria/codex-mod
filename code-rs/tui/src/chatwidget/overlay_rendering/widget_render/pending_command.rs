@@ -149,7 +149,7 @@ fn command_line_index_for_cursor(lines: &[CommandDisplayLine], cursor: usize) ->
 
 fn split_line_for_cursor(text: &str, cursor_offset: usize) -> (String, Option<String>, Option<String>) {
     if cursor_offset >= text.len() {
-        return (text.to_string(), None, None);
+        return (text.to_owned(), None, None);
     }
 
     let (before, remainder) = text.split_at(cursor_offset);
@@ -157,12 +157,12 @@ fn split_line_for_cursor(text: &str, cursor_offset: usize) -> (String, Option<St
     if let Some(first) = graphemes.next() {
         let after = graphemes.collect::<String>();
         (
-            before.to_string(),
-            Some(first.to_string()),
+            before.to_owned(),
+            Some(first.to_owned()),
             if after.is_empty() { None } else { Some(after) },
         )
     } else {
-        (before.to_string(), None, None)
+        (before.to_owned(), None, None)
     }
 }
 
@@ -178,7 +178,7 @@ pub(super) fn render_text_box(
         .style(crate::colors::style_on_background())
         .border_style(Style::default().fg(border_color))
         .title(ratatui::text::Span::styled(
-            title.to_string(),
+            title.to_owned(),
             Style::default().fg(border_color),
         ));
     block.render(area, buf);

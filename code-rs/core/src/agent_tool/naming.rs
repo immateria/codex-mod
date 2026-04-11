@@ -1,5 +1,5 @@
 pub(crate) fn normalize_agent_name(name: Option<String>) -> Option<String> {
-    let name = name.map(|value| value.trim().to_string())?;
+    let name = name.map(|value| value.trim().to_owned())?;
 
     if name.is_empty() {
         return None;

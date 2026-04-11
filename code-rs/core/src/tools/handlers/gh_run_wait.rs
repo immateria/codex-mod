@@ -79,8 +79,8 @@ pub(crate) async fn handle_gh_run_wait(
             .await
             .map_err(|err| format!("failed to run gh {}: {err}", display_args.join(" ")))?;
         if !output.status.success() {
-            let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
-            let stdout = String::from_utf8_lossy(&output.stdout).trim().to_string();
+            let stderr = String::from_utf8_lossy(&output.stderr).trim().to_owned();
+            let stdout = String::from_utf8_lossy(&output.stdout).trim().to_owned();
             let message = if stderr.is_empty() { stdout } else { stderr };
             return Err(format!(
                 "gh {} failed{}",
@@ -92,7 +92,7 @@ pub(crate) async fn handle_gh_run_wait(
                 }
             ));
         }
-        Ok(String::from_utf8_lossy(&output.stdout).trim().to_string())
+        Ok(String::from_utf8_lossy(&output.stdout).trim().to_owned())
     }
 
     async fn run_git(cwd: &Path, args: &[&str]) -> Option<String> {
@@ -106,7 +106,7 @@ pub(crate) async fn handle_gh_run_wait(
             return None;
         }
         let value = String::from_utf8(output.stdout).ok()?;
-        let trimmed = value.trim().to_string();
+        let trimmed = value.trim().to_owned();
         if trimmed.is_empty() {
             None
         } else {
@@ -126,7 +126,7 @@ pub(crate) async fn handle_gh_run_wait(
             && let Some((_, name)) = symref.rsplit_once('/')
             && !name.is_empty()
         {
-            return name.to_string();
+            return name.to_owned();
         }
 
         if let Some(show) = run_git(cwd, &["remote", "show", "origin"]).await {
@@ -135,13 +135,13 @@ pub(crate) async fn handle_gh_run_wait(
                 if let Some(rest) = line.strip_prefix("HEAD branch:") {
                     let name = rest.trim();
                     if !name.is_empty() {
-                        return name.to_string();
+                        return name.to_owned();
                     }
                 }
             }
         }
 
-        "main".to_string()
+        "main".to_owned()
     }
 
     let params_for_event = serde_json::from_str::<Value>(&arguments).ok();
@@ -209,10 +209,10 @@ pub(crate) async fn handle_gh_run_wait(
                 "queued_names": self.queued_names,
                 "failed_jobs": self.failed_jobs.iter().map(|job| {
                     let mut obj = serde_json::Map::new();
-                    obj.insert("name".to_string(), Value::String(job.name.clone()));
-                    obj.insert("conclusion".to_string(), Value::String(job.conclusion.clone()));
+                    obj.insert("name".to_owned(), Value::String(job.name.clone()));
+                    obj.insert("conclusion".to_owned(), Value::String(job.conclusion.clone()));
                     if let Some(step) = job.step.as_ref() {
-                        obj.insert("step".to_string(), Value::String(step.clone()));
+                        obj.insert("step".to_owned(), Value::String(step.clone()));
                     }
                     Value::Object(obj)
                 }).collect::<Vec<_>>(),
@@ -232,8 +232,7 @@ pub(crate) async fn handle_gh_run_wait(
             let status = v
                 .get("status")
                 .and_then(Value::as_str)
-                .unwrap_or("unknown")
-                .to_string();
+                .unwrap_or("unknown").to_owned();
             let conclusion = v
                 .get("conclusion")
                 .and_then(Value::as_str)
@@ -309,7 +308,7 @@ pub(crate) async fn handle_gh_run_wait(
     let ctx_clone = ctx.clone();
     let ctx_for_updates = ctx_clone.clone();
     let call_id = ctx.call_id.clone();
-    let tool_name = "gh_run_wait".to_string();
+    let tool_name = "gh_run_wait".to_owned();
     let (initial_wait_epoch, _) = sess.wait_interrupt_snapshot();
 
     execute_custom_tool(
@@ -333,7 +332,7 @@ pub(crate) async fn handle_gh_run_wait(
                 let branch = wait_state
                     .branch
                     .clone()
-                    .unwrap_or_else(|| "main".to_string());
+                    .unwrap_or_else(|| "main".to_owned());
                 let workflow_filter = wait_state.workflow.clone();
 
                 let mut args = vec!["run", "list", "--json", "databaseId,displayTitle,headBranch,status,conclusion,createdAt,updatedAt,url", "--limit", "20"];
@@ -485,8 +484,7 @@ pub(crate) async fn handle_gh_run_wait(
                     let name = job
                         .get("name")
                         .and_then(Value::as_str)
-                        .unwrap_or("")
-                        .to_string();
+                        .unwrap_or("").to_owned();
                     let status = job
                         .get("status")
                         .and_then(Value::as_str)
@@ -505,7 +503,7 @@ pub(crate) async fn handle_gh_run_wait(
                                     job_summary.failure += 1;
                                     job_summary.failed_jobs.push(JobFailure {
                                         name: name.clone(),
-                                        conclusion: conclusion.to_string(),
+                                        conclusion: conclusion.to_owned(),
                                         step: None,
                                     });
                                 }
@@ -551,7 +549,7 @@ pub(crate) async fn handle_gh_run_wait(
                     let conclusion = summary
                         .conclusion
                         .clone()
-                        .unwrap_or_else(|| "unknown".to_string());
+                        .unwrap_or_else(|| "unknown".to_owned());
                     let success = if conclusion.is_empty() {
                         None
                     } else {
@@ -582,15 +580,15 @@ pub(crate) async fn handle_gh_run_wait(
                     if last_update.as_ref() != Some(&snapshot) {
                         last_update = Some(snapshot.clone());
                         let mut update_params = serde_json::Map::new();
-                        update_params.insert("jobs".to_string(), snapshot.jobs.to_json());
+                        update_params.insert("jobs".to_owned(), snapshot.jobs.to_json());
                         if let Some(url) = snapshot.url.clone() {
-                            update_params.insert("url".to_string(), Value::String(url));
+                            update_params.insert("url".to_owned(), Value::String(url));
                         }
                         let update_msg =
                             EventMsg::CustomToolCallUpdate(CustomToolCallUpdateEvent {
                                 call_id: call_id.clone(),
                                 parent_call_id: ctx_for_updates.parent_call_id.clone(),
-                                tool_name: "gh_run_wait".to_string(),
+                                tool_name: "gh_run_wait".to_owned(),
                                 parameters: Some(Value::Object(update_params)),
                             });
                         sess.send_background_ordered_from_ctx(&ctx_for_updates, update_msg)
@@ -608,12 +606,12 @@ pub(crate) async fn handle_gh_run_wait(
                 if current_epoch != initial_wait_epoch {
                     let message = match reason {
                         Some(WaitInterruptReason::UserMessage) => {
-                            "wait ended due to new user message".to_string()
+                            "wait ended due to new user message".to_owned()
                         }
                         Some(WaitInterruptReason::SessionAborted) => {
-                            "wait ended due to session abort".to_string()
+                            "wait ended due to session abort".to_owned()
                         }
-                        None => "wait ended".to_string(),
+                        None => "wait ended".to_owned(),
                     };
                     return tool_error(call_id.clone(), format!(
                         "{message}\n\nRun {run_id} still in progress. Call gh_run_wait again to continue."

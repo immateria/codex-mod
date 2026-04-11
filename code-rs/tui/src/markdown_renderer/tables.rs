@@ -113,14 +113,14 @@ fn parse_markdown_table(lines: &[&str]) -> Option<(usize, Vec<Line<'static>>)> {
             }
 
             if ch == '|' {
-                parts.push(cur.trim().to_string());
+                parts.push(cur.trim().to_owned());
                 cur.clear();
                 continue;
             }
 
             cur.push(ch);
         }
-        parts.push(cur.trim().to_string());
+        parts.push(cur.trim().to_owned());
 
         // Trim empty edge cells introduced by leading/trailing '|'
         if parts.first().is_some_and(std::string::String::is_empty) {
@@ -154,7 +154,7 @@ fn parse_markdown_table(lines: &[&str]) -> Option<(usize, Vec<Line<'static>>)> {
             }
             if space_run >= 2 {
                 if !cur.trim().is_empty() {
-                    segs.push(cur.trim().to_string());
+                    segs.push(cur.trim().to_owned());
                 }
                 cur.clear();
                 space_run = 0;
@@ -163,7 +163,7 @@ fn parse_markdown_table(lines: &[&str]) -> Option<(usize, Vec<Line<'static>>)> {
             }
         }
         if !cur.trim().is_empty() {
-            segs.push(cur.trim().to_string());
+            segs.push(cur.trim().to_owned());
         }
         (segs, false)
     };
@@ -244,7 +244,7 @@ fn parse_markdown_table(lines: &[&str]) -> Option<(usize, Vec<Line<'static>>)> {
     fn pad_cell(s: &str, w: usize, align: Align) -> String {
         let len = display_width_approx(s);
         if len >= w {
-            return s.to_string();
+            return s.to_owned();
         }
         let pad = w - len;
         match align {

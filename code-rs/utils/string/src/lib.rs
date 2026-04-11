@@ -53,10 +53,10 @@ pub fn sanitize_metric_tag_value(value: &str) -> String {
         .collect();
     let trimmed = sanitized.trim_matches('_');
     if trimmed.is_empty() || trimmed.chars().all(|ch| !ch.is_ascii_alphanumeric()) {
-        return "unspecified".to_string();
+        return "unspecified".to_owned();
     }
     if trimmed.len() <= MAX_LEN {
-        trimmed.to_string()
+        trimmed.to_owned()
     } else {
         trimmed[..MAX_LEN].to_string()
     }
@@ -73,7 +73,7 @@ pub fn find_uuids(s: &str) -> Vec<String> {
         .unwrap() // Unwrap is safe thanks to the tests.
     });
 
-    re.find_iter(s).map(|m| m.as_str().to_string()).collect()
+    re.find_iter(s).map(|m| m.as_str().to_owned()).collect()
 }
 
 /// Convert a markdown-style `#L..` location suffix into a terminal-friendly

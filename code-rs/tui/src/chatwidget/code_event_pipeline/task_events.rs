@@ -119,7 +119,7 @@ impl ChatWidget<'_> {
         web_search_sessions::finalize_all_failed(self, "Search cancelled before completion");
         if had_running_execs {
             self.insert_background_event_with_placement(
-                "Running commands finalized after turn end.".to_string(),
+                "Running commands finalized after turn end.".to_owned(),
                 BackgroundPlacement::Tail,
                 order,
             );

@@ -88,7 +88,7 @@ impl Drop for AutoDrivePidFile {
 fn truncate_goal(goal: &str) -> String {
     let trimmed = goal.trim();
     if trimmed.len() <= crate::util::MAX_SNIPPET_CHARS {
-        return trimmed.to_string();
+        return trimmed.to_owned();
     }
 
     trimmed.chars().take(crate::util::MAX_SNIPPET_CHARS).collect()

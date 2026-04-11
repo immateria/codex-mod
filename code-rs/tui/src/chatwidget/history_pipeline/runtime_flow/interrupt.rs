@@ -45,7 +45,7 @@ impl ChatWidget<'_> {
         self.stream_state.drop_streaming = true;
         // Surface an explicit notice in history so users see confirmation.
         if !has_wait_running {
-            self.push_background_tail("Cancelled by user.".to_string());
+            self.push_background_tail("Cancelled by user.".to_owned());
         }
         self.submit_op(Op::Interrupt);
         // Immediately drop the running status so the next message can be typed/run,

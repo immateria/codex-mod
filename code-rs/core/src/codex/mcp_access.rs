@@ -36,36 +36,36 @@ fn mcp_access_prompt_options(
 
     let mut options: Vec<RequestUserInputQuestionOption> = Vec::new();
     options.push(RequestUserInputQuestionOption {
-        label: "Allow once".to_string(),
-        description: "Allow this server for the current turn only.".to_string(),
+        label: "Allow once".to_owned(),
+        description: "Allow this server for the current turn only.".to_owned(),
     });
     options.push(RequestUserInputQuestionOption {
-        label: "Allow for session".to_string(),
-        description: "Allow this server until you restart the app.".to_string(),
-    });
-    if style_active {
-        options.push(RequestUserInputQuestionOption {
-            label: "Allow and persist for style".to_string(),
-            description: "Update the active shell style MCP include/exclude filters.".to_string(),
-        });
-    }
-    options.push(RequestUserInputQuestionOption {
-        label: "Deny".to_string(),
-        description: "Keep it blocked for now.".to_string(),
-    });
-    options.push(RequestUserInputQuestionOption {
-        label: "Deny for session (don't ask again)".to_string(),
-        description: "Keep it blocked for this session and skip future prompts.".to_string(),
+        label: "Allow for session".to_owned(),
+        description: "Allow this server until you restart the app.".to_owned(),
     });
     if style_active {
         options.push(RequestUserInputQuestionOption {
-            label: "Deny and persist for style".to_string(),
-            description: "Add this server to the active shell style MCP exclude list.".to_string(),
+            label: "Allow and persist for style".to_owned(),
+            description: "Update the active shell style MCP include/exclude filters.".to_owned(),
         });
     }
     options.push(RequestUserInputQuestionOption {
-        label: "Cancel".to_string(),
-        description: "Abort this prompt without changing settings.".to_string(),
+        label: "Deny".to_owned(),
+        description: "Keep it blocked for now.".to_owned(),
+    });
+    options.push(RequestUserInputQuestionOption {
+        label: "Deny for session (don't ask again)".to_owned(),
+        description: "Keep it blocked for this session and skip future prompts.".to_owned(),
+    });
+    if style_active {
+        options.push(RequestUserInputQuestionOption {
+            label: "Deny and persist for style".to_owned(),
+            description: "Add this server to the active shell style MCP exclude list.".to_owned(),
+        });
+    }
+    options.push(RequestUserInputQuestionOption {
+        label: "Cancel".to_owned(),
+        description: "Abort this prompt without changing settings.".to_owned(),
     });
     options
 }
@@ -75,8 +75,8 @@ pub(crate) fn mcp_access_question(
     style_active: bool,
 ) -> code_protocol::request_user_input::RequestUserInputQuestion {
     code_protocol::request_user_input::RequestUserInputQuestion {
-        id: "mcp_access".to_string(),
-        header: "MCP access".to_string(),
+        id: "mcp_access".to_owned(),
+        header: "MCP access".to_owned(),
         question,
         is_other: false,
         is_secret: false,
@@ -220,7 +220,7 @@ pub(crate) async fn ensure_mcp_server_access_for_turn(
             }
         }
         if out.is_empty() {
-            "mcp".to_string()
+            "mcp".to_owned()
         } else if out.len() > 64 {
             out.truncate(64);
             out
@@ -276,14 +276,14 @@ pub(crate) async fn ensure_mcp_server_access_for_turn(
         .await;
 
         let response = rx_response.await.map_err(|_| {
-            "MCP access prompt was cancelled before receiving a response.".to_string()
+            "MCP access prompt was cancelled before receiving a response.".to_owned()
         })?;
 
         let selection = response
             .answers
             .get("mcp_access")
             .and_then(|answer| answer.answers.first())
-            .map(|value| value.trim().to_string())
+            .map(|value| value.trim().to_owned())
             .unwrap_or_default();
 
         apply_mcp_access_selection(
@@ -357,7 +357,7 @@ pub(super) async fn ensure_skill_mcp_access_for_turn(
         required_by_server
             .entry(server)
             .or_default()
-            .insert(skill.to_string());
+            .insert(skill.to_owned());
     }
 
     if required_by_server.is_empty() {
@@ -408,7 +408,7 @@ pub(super) async fn ensure_skill_mcp_access_for_turn(
         question_text.push_str("\n\nHow do you want to proceed?");
 
         let call_id = format!("mcp_access:{turn_id}:{}", server_id.as_str());
-        let rx_response = match sess.register_pending_user_input(turn_id.to_string()) {
+        let rx_response = match sess.register_pending_user_input(turn_id.to_owned()) {
             Ok(rx) => rx,
             Err(err) => {
                 send_warning_event(sess.as_ref(), turn_id, err).await;
@@ -420,7 +420,7 @@ pub(super) async fn ensure_skill_mcp_access_for_turn(
             turn_id,
             EventMsg::RequestUserInput(RequestUserInputEvent {
                 call_id: call_id.clone(),
-                turn_id: turn_id.to_string(),
+                turn_id: turn_id.to_owned(),
                 questions: vec![mcp_access_question(
                     question_text,
                     mcp_access.style.is_some(),
@@ -436,7 +436,7 @@ pub(super) async fn ensure_skill_mcp_access_for_turn(
             .answers
             .get("mcp_access")
             .and_then(|answer| answer.answers.first())
-            .map(|value| value.trim().to_string())
+            .map(|value| value.trim().to_owned())
             .unwrap_or_default();
 
         apply_mcp_access_selection(
@@ -546,7 +546,7 @@ pub(super) async fn preflight_turn_skill_input(
             .paths
         {
             if let Some(name) = path.strip_prefix("plugin://").filter(|name| !name.is_empty()) {
-                mentioned_plugins.insert(name.to_string());
+                mentioned_plugins.insert(name.to_owned());
             }
         }
 
@@ -557,7 +557,7 @@ pub(super) async fn preflight_turn_skill_input(
         .paths
         {
             if let Some(name) = path.strip_prefix("plugin://").filter(|name| !name.is_empty()) {
-                mentioned_plugins.insert(name.to_string());
+                mentioned_plugins.insert(name.to_owned());
             }
         }
     }

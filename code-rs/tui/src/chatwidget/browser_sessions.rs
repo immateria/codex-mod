@@ -74,7 +74,7 @@ fn browser_anchor_line(tracker: &BrowserSessionTracker) -> Line<'static> {
         title = url
             .as_ref()
             .cloned()
-            .unwrap_or_else(|| "browser session".to_string());
+            .unwrap_or_else(|| "browser session".to_owned());
     }
     spans.push(Span::styled(title.clone(), Style::new().bold()));
 
@@ -119,7 +119,7 @@ pub(super) fn handle_custom_tool_begin(
     if let Some(Value::Object(json)) = params.as_ref()
         && tool_name == "browser_open" {
             if let Some(url) = json.get("url").and_then(|v| v.as_str()) {
-                tracker.cell.set_url(url.to_string());
+                tracker.cell.set_url(url.to_owned());
             }
             if let Some(headless) = json.get("headless").and_then(serde_json::Value::as_bool) {
                 tracker.cell.set_headless(Some(headless));
@@ -138,7 +138,7 @@ pub(super) fn handle_custom_tool_begin(
     chat
         .tools_state
         .browser_session_by_call
-        .insert(call_id.to_string(), key.clone());
+        .insert(call_id.to_owned(), key.clone());
     if let Some(meta) = order {
         chat
             .tools_state
@@ -194,7 +194,7 @@ pub(super) fn handle_custom_tool_end(
     if tool_name == "browser_open"
         && let Some(Value::Object(json)) = params_to_use
             && let Some(url) = json.get("url").and_then(|v| v.as_str()) {
-                tracker.cell.set_url(url.to_string());
+                tracker.cell.set_url(url.to_owned());
             }
 
     let summary = summarize_action(tool_name, params_to_use, result);
@@ -311,7 +311,7 @@ pub(super) fn handle_screenshot_update(
         .map_or(tracker.slot.order_key, |meta| chat.provider_order_key_from_order_meta(meta));
     tracker.slot.set_order_key(order_key);
 
-    tracker.cell.set_url(url.to_string());
+    tracker.cell.set_url(url.to_owned());
 
     let now = Instant::now();
     let base = tracker
@@ -329,7 +329,7 @@ pub(super) fn handle_screenshot_update(
         .record_screenshot(
             relative,
             screenshot_path.to_path_buf(),
-            Some(url.to_string()),
+            Some(url.to_owned()),
         );
 
     ensure_cell_picker(chat, &tracker.cell);
@@ -432,7 +432,7 @@ fn summarize_action(
     match tool_name {
         "browser_open" => {
             if let Some(url) = params.and_then(|value| value.get("url")).and_then(Value::as_str) {
-                summary.target = Some(url.to_string());
+                summary.target = Some(url.to_owned());
             }
             if let Some(headless) = params
                 .and_then(|value| value.get("headless"))
@@ -491,7 +491,7 @@ fn summarize_action(
                 .and_then(|value| value.get("selector"))
                 .and_then(Value::as_str)
             {
-                summary.target = Some(selector.to_string());
+                summary.target = Some(selector.to_owned());
             }
         }
         "browser_key" => {
@@ -499,7 +499,7 @@ fn summarize_action(
                 .and_then(|value| value.get("key"))
                 .and_then(Value::as_str)
             {
-                summary.value = Some(key.to_string());
+                summary.value = Some(key.to_owned());
             }
         }
         "browser_history" => {
@@ -507,7 +507,7 @@ fn summarize_action(
                 .and_then(|value| value.get("direction"))
                 .and_then(Value::as_str)
             {
-                summary.value = Some(direction.to_string());
+                summary.value = Some(direction.to_owned());
             }
         }
         "browser_move" => {
@@ -544,7 +544,7 @@ fn summarize_action(
                 .and_then(|value| value.get("method"))
                 .and_then(Value::as_str)
             {
-                summary.target = Some(method.to_string());
+                summary.target = Some(method.to_owned());
             }
         }
         "browser_inspect" => {
@@ -554,7 +554,7 @@ fn summarize_action(
                 .map(ToString::to_string);
         }
         "browser_close" => {
-            summary.action = "Close".to_string();
+            summary.action = "Close".to_owned();
         }
         _ => {
             summary.target = params
@@ -577,20 +577,20 @@ fn summarize_action(
 
 fn summarize_action_label(tool_name: &str) -> String {
     match tool_name {
-        "browser_open" => "Nav".to_string(),
-        "browser_click" => "Click".to_string(),
-        "browser_scroll" => "Scroll".to_string(),
-        "browser_type" => "Type".to_string(),
-        "browser_key" => "Key".to_string(),
-        "browser_move" => "Move".to_string(),
-        "browser_history" => "History".to_string(),
-        "browser_console" => "Console".to_string(),
-        "browser_javascript" => "Script".to_string(),
-        "browser_cdp" => "CDP".to_string(),
-        "browser_status" => "Status".to_string(),
-        "browser_inspect" => "Inspect".to_string(),
-        "browser_cleanup" => "Cleanup".to_string(),
-        "browser_close" => "Close".to_string(),
+        "browser_open" => "Nav".to_owned(),
+        "browser_click" => "Click".to_owned(),
+        "browser_scroll" => "Scroll".to_owned(),
+        "browser_type" => "Type".to_owned(),
+        "browser_key" => "Key".to_owned(),
+        "browser_move" => "Move".to_owned(),
+        "browser_history" => "History".to_owned(),
+        "browser_console" => "Console".to_owned(),
+        "browser_javascript" => "Script".to_owned(),
+        "browser_cdp" => "CDP".to_owned(),
+        "browser_status" => "Status".to_owned(),
+        "browser_inspect" => "Inspect".to_owned(),
+        "browser_cleanup" => "Cleanup".to_owned(),
+        "browser_close" => "Close".to_owned(),
         other => other
             .trim_start_matches("browser_")
             .split('_')
@@ -713,7 +713,7 @@ fn format_console_entries(entries: &[Value]) -> Vec<String> {
                 if trimmed.is_empty() {
                     None
                 } else {
-                    Some(trimmed.to_string())
+                    Some(trimmed.to_owned())
                 }
             }
             _ => None,
@@ -780,14 +780,14 @@ fn normalize_console_line(line: &str) -> String {
     if is_warning {
         format_warning_line(trimmed)
     } else {
-        trimmed.to_string()
+        trimmed.to_owned()
     }
 }
 
 fn format_warning_line(line: &str) -> String {
     let trimmed = line.trim_start();
     if trimmed.starts_with("WARN:") || trimmed.starts_with("ERROR:") {
-        return line.to_string();
+        return line.to_owned();
     }
     format!("WARN: {line}")
 }

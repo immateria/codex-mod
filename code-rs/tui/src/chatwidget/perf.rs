@@ -185,7 +185,7 @@ impl PerfStats {
         e.ns = e.ns.saturating_add(ns);
         let ek = self
             .per_kind_render
-            .entry(kind.to_string())
+            .entry(kind.to_owned())
             .or_default();
         ek.calls = ek.calls.saturating_add(1);
         ek.ns = ek.ns.saturating_add(ns);

@@ -31,19 +31,19 @@ impl CloudBackend for MockClient {
         };
         let environment_id = _env.map(str::to_string);
         let environment_label = match _env {
-            Some("env-A") => Some("Env A".to_string()),
-            Some("env-B") => Some("Env B".to_string()),
-            Some(other) => Some(other.to_string()),
-            None => Some("Global".to_string()),
+            Some("env-A") => Some("Env A".to_owned()),
+            Some("env-B") => Some("Env B".to_owned()),
+            Some(other) => Some(other.to_owned()),
+            None => Some("Global".to_owned()),
         };
         let mut out = Vec::new();
         for (id_str, title, status) in rows {
-            let id = TaskId(id_str.to_string());
+            let id = TaskId(id_str.to_owned());
             let diff = mock_diff_for(&id);
             let (a, d) = count_from_unified(&diff);
             out.push(TaskSummary {
                 id,
-                title: title.to_string(),
+                title: title.to_owned(),
                 status,
                 updated_at: Utc::now(),
                 environment_id: environment_id.clone(),
@@ -66,15 +66,15 @@ impl CloudBackend for MockClient {
 
     async fn get_task_messages(&self, _id: TaskId) -> Result<Vec<String>> {
         Ok(vec![
-            "Mock assistant output: this task contains no diff.".to_string(),
+            "Mock assistant output: this task contains no diff.".to_owned(),
         ])
     }
 
     async fn get_task_text(&self, _id: TaskId) -> Result<TaskText> {
         Ok(TaskText {
-            prompt: Some("Why is there no diff?".to_string()),
-            messages: vec!["Mock assistant output: this task contains no diff.".to_string()],
-            turn_id: Some("mock-turn".to_string()),
+            prompt: Some("Why is there no diff?".to_owned()),
+            messages: vec!["Mock assistant output: this task contains no diff.".to_owned()],
+            turn_id: Some("mock-turn".to_owned()),
             sibling_turn_ids: Vec::new(),
             attempt_placement: Some(0),
             attempt_status: AttemptStatus::Completed,
@@ -112,12 +112,12 @@ impl CloudBackend for MockClient {
     ) -> Result<Vec<TurnAttempt>> {
         if task.0 == "T-1000" {
             return Ok(vec![TurnAttempt {
-                turn_id: "T-1000-attempt-2".to_string(),
+                turn_id: "T-1000-attempt-2".to_owned(),
                 attempt_placement: Some(1),
                 created_at: Some(Utc::now()),
                 status: AttemptStatus::Completed,
                 diff: Some(mock_diff_for(&task)),
-                messages: vec!["Mock alternate attempt".to_string()],
+                messages: vec!["Mock alternate attempt".to_owned()],
             }]);
         }
         Ok(Vec::new())
@@ -140,13 +140,13 @@ impl CloudBackend for MockClient {
 fn mock_diff_for(id: &TaskId) -> String {
     match id.0.as_str() {
         "T-1000" => {
-            "diff --git a/README.md b/README.md\nindex 000000..111111 100644\n--- a/README.md\n+++ b/README.md\n@@ -1,2 +1,3 @@\n Intro\n-Hello\n+Hello, world!\n+Task: T-1000\n".to_string()
+            "diff --git a/README.md b/README.md\nindex 000000..111111 100644\n--- a/README.md\n+++ b/README.md\n@@ -1,2 +1,3 @@\n Intro\n-Hello\n+Hello, world!\n+Task: T-1000\n".to_owned()
         }
         "T-1001" => {
-            "diff --git a/core/src/lib.rs b/core/src/lib.rs\nindex 000000..111111 100644\n--- a/core/src/lib.rs\n+++ b/core/src/lib.rs\n@@ -1,2 +1,1 @@\n-use foo;\n use bar;\n".to_string()
+            "diff --git a/core/src/lib.rs b/core/src/lib.rs\nindex 000000..111111 100644\n--- a/core/src/lib.rs\n+++ b/core/src/lib.rs\n@@ -1,2 +1,1 @@\n-use foo;\n use bar;\n".to_owned()
         }
         _ => {
-            "diff --git a/CONTRIBUTING.md b/CONTRIBUTING.md\nindex 000000..111111 100644\n--- /dev/null\n+++ b/CONTRIBUTING.md\n@@ -0,0 +1,3 @@\n+## Contributing\n+Please open PRs.\n+Thanks!\n".to_string()
+            "diff --git a/CONTRIBUTING.md b/CONTRIBUTING.md\nindex 000000..111111 100644\n--- /dev/null\n+++ b/CONTRIBUTING.md\n@@ -0,0 +1,3 @@\n+## Contributing\n+Please open PRs.\n+Thanks!\n".to_owned()
         }
     }
 }

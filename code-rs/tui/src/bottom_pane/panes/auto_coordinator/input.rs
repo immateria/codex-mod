@@ -13,7 +13,7 @@ impl AutoCoordinatorView {
         if trimmed.is_empty() {
             None
         } else {
-            Some(trimmed.to_string())
+            Some(trimmed.to_owned())
         }
     }
 

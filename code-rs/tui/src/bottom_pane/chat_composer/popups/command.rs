@@ -51,7 +51,7 @@ impl CommandPopup {
         let exclude: HashSet<String> = self
             .builtins
             .iter()
-            .map(|(n, _)| (*n).to_string())
+            .map(|(n, _)| (*n).to_owned())
             .collect();
         prompts.retain(|p| !exclude.contains(&p.name));
         prompts.sort_by(|a, b| a.name.cmp(&b.name));
@@ -93,7 +93,7 @@ impl CommandPopup {
 
             // Update the filter keeping the original case (commands are all
             // lower-case for now but this may change in the future).
-            self.command_filter = cmd_token.to_string();
+            self.command_filter = cmd_token.to_owned();
         } else {
             // The composer no longer starts with '/'. Reset the filter so the
             // popup shows the *full* command list if it is still displayed
@@ -255,7 +255,7 @@ impl WidgetRef for CommandPopup {
                     let (name, desc) = match cmd_item {
                         CommandItem::Builtin(cmd) => (
                             format!("/{}", cmd.command()),
-                            Some(cmd.description().to_string()),
+                            Some(cmd.description().to_owned()),
                         ),
                         CommandItem::UserPrompt(i) => {
                             let prompt = &self.prompts[i];
@@ -274,7 +274,7 @@ impl WidgetRef for CommandPopup {
                         }
                         CommandItem::Subagent(i) => (
                             format!("/{}", self.subagents[i]),
-                            Some("custom subagent".to_string()),
+                            Some("custom subagent".to_owned()),
                         ),
                     };
                     GenericDisplayRow {

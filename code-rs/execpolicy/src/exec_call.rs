@@ -11,7 +11,7 @@ pub struct ExecCall {
 impl ExecCall {
     pub fn new(program: &str, args: &[&str]) -> Self {
         Self {
-            program: program.to_string(),
+            program: program.to_owned(),
             args: args.iter().map(|&s| s.into()).collect(),
         }
     }

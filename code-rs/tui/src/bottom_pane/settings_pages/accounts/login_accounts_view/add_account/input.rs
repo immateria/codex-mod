@@ -28,7 +28,7 @@ pub(super) fn handle_key_event(state: &mut LoginAddAccountState, key_event: KeyE
             KeyCode::Enter => {
                 if *selected == 0 {
                     state.feedback = Some(Feedback {
-                        message: "Opening browser for ChatGPT sign-in…".to_string(),
+                        message: "Opening browser for ChatGPT sign-in…".to_owned(),
                         is_error: false,
                     });
                     state.step = AddStep::Waiting { auth_url: None };
@@ -49,10 +49,10 @@ pub(super) fn handle_key_event(state: &mut LoginAddAccountState, key_event: KeyE
                 true
             }
             KeyCode::Enter => {
-                let key = field.text().trim().to_string();
+                let key = field.text().trim().to_owned();
                 if key.is_empty() {
                     state.feedback = Some(Feedback {
-                        message: "API key cannot be empty".to_string(),
+                        message: "API key cannot be empty".to_owned(),
                         is_error: true,
                     });
                 } else {
@@ -63,10 +63,10 @@ pub(super) fn handle_key_event(state: &mut LoginAddAccountState, key_event: KeyE
                     ) {
                         Ok(()) => {
                             state.feedback = Some(Feedback {
-                                message: "API key connected".to_string(),
+                                message: "API key connected".to_owned(),
                                 is_error: false,
                             });
-                            state.send_tail("Added API key account".to_string());
+                            state.send_tail("Added API key account".to_owned());
                             state.app_event_tx.send(AppEvent::LoginUsingChatGptChanged {
                                 using_chatgpt_auth: false,
                             });
@@ -91,7 +91,7 @@ pub(super) fn handle_key_event(state: &mut LoginAddAccountState, key_event: KeyE
             }
             KeyCode::Char('c' | 'C') => {
                 state.feedback = Some(Feedback {
-                    message: "Switching to code authentication…".to_string(),
+                    message: "Switching to code authentication…".to_owned(),
                     is_error: false,
                 });
                 state.step = AddStep::DeviceCode(DeviceCodeStep::Generating);
@@ -125,7 +125,7 @@ pub(super) fn acknowledge_chatgpt_started(state: &mut LoginAddAccountState, auth
         auth_url: Some(auth_url),
     };
     state.feedback = Some(Feedback {
-        message: "Browser opened. Complete sign-in to finish.".to_string(),
+        message: "Browser opened. Complete sign-in to finish.".to_owned(),
         is_error: false,
     });
 }
@@ -143,7 +143,7 @@ pub(super) fn begin_device_code_flow(state: &mut LoginAddAccountState) {
         state.step = AddStep::DeviceCode(DeviceCodeStep::Generating);
     }
     state.feedback = Some(Feedback {
-        message: "Use the on-screen code to finish signing in.".to_string(),
+        message: "Use the on-screen code to finish signing in.".to_owned(),
         is_error: false,
     });
 }
@@ -158,7 +158,7 @@ pub(super) fn set_device_code_ready(
         user_code,
     });
     state.feedback = Some(Feedback {
-        message: "Enter the code in your browser to continue.".to_string(),
+        message: "Enter the code in your browser to continue.".to_owned(),
         is_error: false,
     });
 }
@@ -175,10 +175,10 @@ pub(super) fn on_chatgpt_complete(state: &mut LoginAddAccountState, result: Resu
     match result {
         Ok(()) => {
             state.feedback = Some(Feedback {
-                message: "ChatGPT account connected".to_string(),
+                message: "ChatGPT account connected".to_owned(),
                 is_error: false,
             });
-            state.send_tail("ChatGPT account connected".to_string());
+            state.send_tail("ChatGPT account connected".to_owned());
             state.app_event_tx
                 .send(AppEvent::LoginUsingChatGptChanged { using_chatgpt_auth: true });
             finish_and_show_accounts(state);
@@ -201,7 +201,7 @@ pub(super) fn cancel_active_flow(state: &mut LoginAddAccountState) {
     };
     state.step = AddStep::Choose { selected: 0 };
     state.feedback = Some(Feedback {
-        message: message.to_string(),
+        message: message.to_owned(),
         is_error: false,
     });
 }

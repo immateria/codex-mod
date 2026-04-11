@@ -90,7 +90,7 @@ impl ChatWidget<'_> {
             let title = account_ref
                 .map(account_display_label)
                 .or_else(|| active_id.clone())
-                .unwrap_or_else(|| "Current session".to_string());
+                .unwrap_or_else(|| "Current session".to_owned());
             let header = Self::account_header_lines(account_ref, snapshot_ref, summary_ref);
             let is_api_key_account = matches!(
                 account_ref.map(|acc| acc.mode),

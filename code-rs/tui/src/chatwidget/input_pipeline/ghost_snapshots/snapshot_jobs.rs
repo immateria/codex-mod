@@ -58,7 +58,7 @@ impl ChatWidget<'_> {
         for (idx, message) in messages.iter().enumerate() {
             if idx > 0 && !combined_items.is_empty() && !message.ordered_items.is_empty() {
                 combined_items.push(InputItem::Text {
-                    text: "\n\n".to_string(),
+                    text: "\n\n".to_owned(),
                 });
             }
             combined_items.extend(message.ordered_items.clone());
@@ -306,13 +306,13 @@ impl ChatWidget<'_> {
                 self.ghost_snapshots_disabled = true;
                 let (message, hint) = match &err {
                     GitToolingError::NotAGitRepository { .. } => (
-                        "Snapshots disabled: this workspace is not inside a Git repository.".to_string(),
+                        "Snapshots disabled: this workspace is not inside a Git repository.".to_owned(),
                         None,
                     ),
                     _ => (
                         format!("Snapshots disabled after Git error: {err}"),
                         Some(
-                            "Restart Code after resolving the issue to re-enable snapshots.".to_string(),
+                            "Restart Code after resolving the issue to re-enable snapshots.".to_owned(),
                         ),
                     ),
                 };

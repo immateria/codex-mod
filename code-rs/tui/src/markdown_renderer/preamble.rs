@@ -141,7 +141,7 @@ impl MarkdownRenderer {
             use ratatui::text::Span;
             let target_w = max_width; // no extra horizontal padding
             // Emit hidden sentinel with language for border/title downstream
-            let label = lang_owned.unwrap_or_else(|| "text".to_string());
+            let label = lang_owned.unwrap_or_else(|| "text".to_owned());
             self.lines.push(Line::from(Span::styled(
                 format!("⟦LANG:{label}⟧"),
                 Style::default().fg(code_bg).bg(code_bg),
@@ -176,7 +176,7 @@ impl MarkdownRenderer {
             self.code_block_lang = if lang.is_empty() {
                 None
             } else {
-                Some(lang.to_string())
+                Some(lang.to_owned())
             };
             self.code_block_buf.clear();
         }
@@ -214,7 +214,7 @@ impl MarkdownRenderer {
 
         // Headings: strip the leading #'s and render in bold (no special color).
         let style = Style::default().add_modifier(Modifier::BOLD);
-        Some(Line::from(Span::styled(heading_text.to_string(), style)))
+        Some(Line::from(Span::styled(heading_text.to_owned(), style)))
     }
 
     fn parse_list_item(&self, line: &str) -> Option<Line<'static>> {
@@ -408,7 +408,7 @@ impl MarkdownRenderer {
                     }
                     // Render label and make the target URL visible next to it.
                     let lbl = if label.is_empty() {
-                        "Image".to_string()
+                        "Image".to_owned()
                     } else {
                         label
                     };
@@ -701,7 +701,7 @@ impl MarkdownRenderer {
                 .unwrap_or(0);
             let target_w = max_w; // no extra horizontal padding
             // Emit hidden sentinel with language for border/title downstream
-            let label = lang_owned.unwrap_or_else(|| "text".to_string());
+            let label = lang_owned.unwrap_or_else(|| "text".to_owned());
             self.lines.push(Line::from(Span::styled(
                 format!("⟦LANG:{label}⟧"),
                 Style::default().fg(code_bg).bg(code_bg),

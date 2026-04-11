@@ -117,7 +117,7 @@ impl ChatWidget<'_> {
             self.config.github.actionlint_on_patch = enable;
             if let Err(err) = self
                 .code_op_tx
-                .send(Op::UpdateValidationTool { name: name.to_string(), enable })
+                .send(Op::UpdateValidationTool { name: name.to_owned(), enable })
             {
                 tracing::warn!("failed to send validation tool update: {err}");
             }
@@ -150,7 +150,7 @@ impl ChatWidget<'_> {
         *flag = Some(enable);
         if let Err(err) = self
             .code_op_tx
-            .send(Op::UpdateValidationTool { name: name.to_string(), enable })
+            .send(Op::UpdateValidationTool { name: name.to_owned(), enable })
         {
             tracing::warn!("failed to send validation tool update: {err}");
         }
@@ -172,7 +172,7 @@ impl ChatWidget<'_> {
 
     fn build_validation_status_message(&self) -> String {
         let mut lines = Vec::new();
-        lines.push("Validation groups:".to_string());
+        lines.push("Validation groups:".to_owned());
         for group in [ValidationGroup::Functional, ValidationGroup::Stylistic] {
             let enabled = self.validation_group_enabled(group);
             lines.push(format!(
@@ -182,14 +182,14 @@ impl ChatWidget<'_> {
             ));
         }
         lines.push(String::new());
-        lines.push("Tools:".to_string());
+        lines.push("Tools:".to_owned());
         for status in crate::bottom_pane::settings_pages::validation::detect_tools() {
             let requested = self.validation_tool_requested(status.name);
             let effective = self.validation_tool_enabled(status.name);
             let mut state = if requested {
-                if effective { "enabled".to_string() } else { "disabled (group off)".to_string() }
+                if effective { "enabled".to_owned() } else { "disabled (group off)".to_owned() }
             } else {
-                "disabled".to_string()
+                "disabled".to_owned()
             };
             if !status.installed {
                 state.push_str(" (not installed)");
@@ -235,7 +235,7 @@ impl ChatWidget<'_> {
             }
             group @ ("functional" | "stylistic") => {
                 let Some(state) = parts.next() else {
-                    self.push_background_tail("Usage: /validation <tool|group> on|off".to_string());
+                    self.push_background_tail("Usage: /validation <tool|group> on|off".to_owned());
                     return;
                 };
                 let group = if group == "functional" {
@@ -253,7 +253,7 @@ impl ChatWidget<'_> {
             }
             tool => {
                 let Some(state) = parts.next() else {
-                    self.push_background_tail("Usage: /validation <tool|group> on|off".to_string());
+                    self.push_background_tail("Usage: /validation <tool|group> on|off".to_owned());
                     return;
                 };
                 match state {
@@ -275,7 +275,7 @@ impl ChatWidget<'_> {
 
     fn format_mcp_status_report(rows: &[McpServerRow]) -> String {
         if rows.is_empty() {
-            return "No MCP servers configured. Use /mcp add … to add one.".to_string();
+            return "No MCP servers configured. Use /mcp add … to add one.".to_owned();
         }
 
         let mut out = String::new();
@@ -313,12 +313,12 @@ impl ChatWidget<'_> {
             );
         }
 
-        out.trim_end().to_string()
+        out.trim_end().to_owned()
     }
 
     fn format_mcp_tool_status(&self, name: &str, enabled: bool) -> String {
         if !enabled {
-            return "Tools: disabled".to_string();
+            return "Tools: disabled".to_owned();
         }
 
         if let Some(failure) = self.mcp_server_failures.get(name) {
@@ -330,7 +330,7 @@ impl ChatWidget<'_> {
             return format!("Tools: {list}");
         }
 
-        "Tools: pending".to_string()
+        "Tools: pending".to_owned()
     }
 
     fn format_mcp_tool_list(tools: &[String]) -> String {
@@ -338,7 +338,7 @@ impl ChatWidget<'_> {
         const MAX_CHARS: usize = 120;
 
         if tools.is_empty() {
-            return "none".to_string();
+            return "none".to_owned();
         }
 
         let mut display = tools
@@ -409,7 +409,7 @@ impl ChatWidget<'_> {
                                             {
                                                 self.config
                                                     .mcp_servers
-                                                    .insert(name.to_string(), cfg);
+                                                    .insert(name.to_owned(), cfg);
                                             }
                                     }
                                     let msg = format!(
@@ -445,7 +445,7 @@ impl ChatWidget<'_> {
                 //   2) /mcp add <command> [args…] [ENV=VAL…]   (name derived)
                 let tail_tokens: Vec<String> = parts.map(ToString::to_string).collect();
                 if tail_tokens.is_empty() {
-                    let msg = "Usage: /mcp add <name> <command> [args…] [ENV=VAL…]\n       or: /mcp add <command> [args…] [ENV=VAL…]".to_string();
+                    let msg = "Usage: /mcp add <name> <command> [args…] [ENV=VAL…]\n       or: /mcp add <command> [args…] [ENV=VAL…]".to_owned();
                     self.history_push_plain_state(history_cell::new_error_event(msg));
                     return;
                 }
@@ -469,10 +469,9 @@ impl ChatWidget<'_> {
                             // Common convention: server-<name>
                             after_slash
                                 .strip_prefix("server-")
-                                .unwrap_or(after_slash)
-                                .to_string()
+                                .unwrap_or(after_slash).to_owned()
                         }
-                        None => command.to_string(),
+                        None => command.to_owned(),
                     };
 
                     // Sanitize: keep [a-zA-Z0-9_-], map others to '-'
@@ -498,9 +497,9 @@ impl ChatWidget<'_> {
                     }
                     // Ensure non-empty; fall back to "server"
                     if out.trim_matches('-').is_empty() {
-                        "server".to_string()
+                        "server".to_owned()
                     } else {
-                        out.trim_matches('-').to_string()
+                        out.trim_matches('-').to_owned()
                     }
                 }
 
@@ -524,7 +523,7 @@ impl ChatWidget<'_> {
                 };
 
                 if command.is_empty() {
-                    let msg = "Usage: /mcp add <name> <command> [args…] [ENV=VAL…]".to_string();
+                    let msg = "Usage: /mcp add <name> <command> [args…] [ENV=VAL…]".to_owned();
                     self.history_push_plain_state(history_cell::new_error_event(msg));
                     return;
                 }
@@ -536,7 +535,7 @@ impl ChatWidget<'_> {
                 for tok in rest_tokens {
                     if let Some((k, v)) = tok.split_once('=') {
                         if !k.is_empty() {
-                            env.insert(k.to_string(), v.to_string());
+                            env.insert(k.to_owned(), v.to_owned());
                         }
                     } else {
                         args.push(tok);

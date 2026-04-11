@@ -32,7 +32,7 @@ impl BrowserSessionCell {
             if let Some(url) = self.url.as_ref() {
                 let time_label =
                     format!(" {}", format_duration_digital(Duration::ZERO));
-                entries.push((time_label, "Opened".to_string(), url.clone()));
+                entries.push((time_label, "Opened".to_owned(), url.clone()));
             }
             return entries;
         }
@@ -56,7 +56,7 @@ impl BrowserSessionCell {
             && let Some(url) = self.url.as_ref()
         {
             entries.push(ActionEntry {
-                label: "Opened".to_string(),
+                label: "Opened".to_owned(),
                 detail: url.clone(),
                 time_label: format!(
                     " {}",
@@ -131,16 +131,16 @@ fn format_action_entry(action: &BrowserAction, time_label: String) -> ActionEntr
             let detail = if target.starts_with('(') && target.ends_with(')') {
                 format!("at {target}")
             } else if !target.is_empty() {
-                target.to_string()
+                target.to_owned()
             } else if let Some(value) = action.value.as_deref() {
-                value.trim().to_string()
+                value.trim().to_owned()
             } else if let Some(outcome) = action.outcome.as_deref() {
-                outcome.trim().to_string()
+                outcome.trim().to_owned()
             } else {
                 String::new()
             };
             ActionEntry {
-                label: "Clicked".to_string(),
+                label: "Clicked".to_owned(),
                 detail,
                 time_label,
             }
@@ -155,7 +155,7 @@ fn format_action_entry(action: &BrowserAction, time_label: String) -> ActionEntr
                 .trim();
             let key = sanitize_pressed_detail(key_raw);
             ActionEntry {
-                label: "Pressed".to_string(),
+                label: "Pressed".to_owned(),
                 detail: key,
                 time_label,
             }
@@ -166,10 +166,9 @@ fn format_action_entry(action: &BrowserAction, time_label: String) -> ActionEntr
                 .as_deref()
                 .or(action.outcome.as_deref())
                 .unwrap_or("?")
-                .trim()
-                .to_string();
+                .trim().to_owned();
             ActionEntry {
-                label: "Typed".to_string(),
+                label: "Typed".to_owned(),
                 detail: typed,
                 time_label,
             }
@@ -196,7 +195,7 @@ fn format_action_entry(action: &BrowserAction, time_label: String) -> ActionEntr
                 })
                 .unwrap_or_default();
             ActionEntry {
-                label: "Opened".to_string(),
+                label: "Opened".to_owned(),
                 detail: dest,
                 time_label,
             }
@@ -206,20 +205,20 @@ fn format_action_entry(action: &BrowserAction, time_label: String) -> ActionEntr
                 .value
                 .as_deref()
                 .filter(|v| !v.trim().is_empty())
-                .map(|v| v.trim().to_string())
+                .map(|v| v.trim().to_owned())
                 .or_else(|| {
                     action
                         .outcome
                         .as_deref()
                         .filter(|o| !o.trim().is_empty())
-                        .map(|o| o.trim().to_string())
+                        .map(|o| o.trim().to_owned())
                 })
                 .or_else(|| {
                     action
                         .target
                         .as_deref()
                         .filter(|t| !t.trim().is_empty())
-                        .map(|t| t.trim().to_string())
+                        .map(|t| t.trim().to_owned())
                 })
                 .unwrap_or_else(|| {
                     format_action_summary(action)
@@ -228,7 +227,7 @@ fn format_action_entry(action: &BrowserAction, time_label: String) -> ActionEntr
                         .filter(|suffix| !suffix.is_empty()).map_or_else(|| format_action_summary(action), ToString::to_string)
                 });
             ActionEntry {
-                label: "Scrolled".to_string(),
+                label: "Scrolled".to_owned(),
                 detail,
                 time_label,
             }
@@ -266,7 +265,7 @@ fn titleize_action(raw: &str) -> String {
         }
     }
     if result.is_empty() {
-        raw.to_string()
+        raw.to_owned()
     } else {
         result
     }
@@ -283,9 +282,9 @@ fn sanitize_pressed_detail(raw: &str) -> String {
     }
     let cleaned = candidate.trim();
     if cleaned.is_empty() {
-        raw.trim().to_string()
+        raw.trim().to_owned()
     } else {
-        cleaned.to_string()
+        cleaned.to_owned()
     }
 }
 
@@ -305,7 +304,7 @@ fn sanitize_nav_text(raw: &str) -> String {
         }
     }
     let cleaned = candidate.trim().trim_start_matches(':').trim();
-    cleaned.to_string()
+    cleaned.to_owned()
 }
 
 fn strip_prefix_ignore_case<'a>(text: &'a str, prefix: &str) -> Option<&'a str> {
@@ -336,7 +335,7 @@ pub(super) fn format_action_line(action: &BrowserAction) -> String {
             } else if !display.is_empty() {
                 format!("Clicked {display}")
             } else {
-                "Clicked".to_string()
+                "Clicked".to_owned()
             }
         }
         "press_key" | "key" | "press" => {
@@ -354,7 +353,7 @@ pub(super) fn format_action_line(action: &BrowserAction) -> String {
         other => {
             let summary = format_action_summary(action);
             if summary.is_empty() {
-                other.to_string()
+                other.to_owned()
             } else {
                 summary
             }
@@ -364,9 +363,9 @@ pub(super) fn format_action_line(action: &BrowserAction) -> String {
 
 fn outcome_for_display(outcome: &str, value: &str) -> String {
     if outcome == "value set" {
-        value.to_string()
+        value.to_owned()
     } else {
-        outcome.to_string()
+        outcome.to_owned()
     }
 }
 

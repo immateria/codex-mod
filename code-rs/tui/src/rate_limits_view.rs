@@ -40,7 +40,7 @@ fn label_indent() -> String {
 }
 
 fn chart_indent() -> String {
-    CHART_LINE_PREFIX.to_string()
+    CHART_LINE_PREFIX.to_owned()
 }
 
 fn chart_indent_width() -> usize {
@@ -291,7 +291,7 @@ fn build_hourly_window_line(
         return Line::from(vec![
             Span::raw(prefix),
             Span::styled(
-                "window length unavailable".to_string(),
+                "window length unavailable".to_owned(),
                 Style::default().fg(colors::dim()),
             ),
         ]);
@@ -354,7 +354,7 @@ fn build_hourly_reset_line(
         return Line::from(vec![
             Span::raw(prefix),
             Span::styled(
-                "timing updating…".to_string(),
+                "timing updating…".to_owned(),
                 Style::default().fg(colors::dim()),
             ),
         ]);
@@ -362,7 +362,7 @@ fn build_hourly_reset_line(
     let spans: Vec<Span<'static>> = vec![
         Span::raw(field_prefix("Resets")),
         Span::styled(
-            "awaiting reset timing…".to_string(),
+            "awaiting reset timing…".to_owned(),
             Style::default().fg(colors::dim()),
         ),
     ];
@@ -378,7 +378,7 @@ fn build_weekly_window_line(
         return Line::from(vec![
             Span::raw(prefix),
             Span::styled(
-                "window length unavailable".to_string(),
+                "window length unavailable".to_owned(),
                 Style::default().fg(colors::dim()),
             ),
         ]);
@@ -439,7 +439,7 @@ fn build_weekly_reset_line(
         return Line::from(vec![
             Span::raw(prefix),
             Span::styled(
-                "timing updating…".to_string(),
+                "timing updating…".to_owned(),
                 Style::default().fg(colors::dim()),
             ),
         ]);
@@ -447,7 +447,7 @@ fn build_weekly_reset_line(
     let spans: Vec<Span<'static>> = vec![
         Span::raw(field_prefix("Resets")),
         Span::styled(
-            "awaiting reset timing…".to_string(),
+            "awaiting reset timing…".to_owned(),
             Style::default().fg(colors::dim()),
         ),
     ];
@@ -549,7 +549,7 @@ fn build_compact_status_line(used: u64, limit: u64) -> Line<'static> {
         return Line::from(vec![
             Span::raw(field_prefix("Status")),
             Span::styled(
-                "Auto-compact will trigger on the next turn".to_string(),
+                "Auto-compact will trigger on the next turn".to_owned(),
                 Style::default().fg(colors::warning()),
             ),
         ]);
@@ -617,7 +617,7 @@ fn build_context_status_line(
         return Line::from(vec![
             Span::raw(field_prefix("Status")),
             Span::styled(
-                "Auto-compact will trigger on the next turn".to_string(),
+                "Auto-compact will trigger on the next turn".to_owned(),
                 Style::default().fg(colors::warning()),
             ),
         ]);
@@ -759,13 +759,13 @@ fn build_legend_lines(show_gauge: bool) -> Vec<Line<'static>> {
             Style::default().fg(colors::dim()),
         ),
         Span::styled(
-            WEEKLY_CELL.to_string(),
+            WEEKLY_CELL.to_owned(),
             Style::default()
                 .fg(colors::text())
                 .add_modifier(Modifier::BOLD),
         ),
         Span::styled(
-            " weekly usage".to_string(),
+            " weekly usage".to_owned(),
             Style::default().fg(colors::dim()),
         ),
     ]));
@@ -775,13 +775,13 @@ fn build_legend_lines(show_gauge: bool) -> Vec<Line<'static>> {
             Style::default().fg(colors::dim()),
         ),
         Span::styled(
-            HOURLY_CELL.to_string(),
+            HOURLY_CELL.to_owned(),
             Style::default()
                 .fg(colors::primary())
                 .add_modifier(Modifier::BOLD),
         ),
         Span::styled(
-            " hourly headroom".to_string(),
+            " hourly headroom".to_owned(),
             Style::default().fg(colors::dim()),
         ),
     ]));
@@ -791,13 +791,13 @@ fn build_legend_lines(show_gauge: bool) -> Vec<Line<'static>> {
             Style::default().fg(colors::dim()),
         ),
         Span::styled(
-            UNUSED_CELL.to_string(),
+            UNUSED_CELL.to_owned(),
             Style::default()
                 .fg(colors::info())
                 .add_modifier(Modifier::BOLD),
         ),
         Span::styled(
-            " unused weekly".to_string(),
+            " unused weekly".to_owned(),
             Style::default().fg(colors::dim()),
         ),
     ]));
@@ -865,7 +865,7 @@ fn format_percent(percent: f64) -> String {
 
 fn format_minutes_round_units(minutes: u64) -> String {
     if minutes == 0 {
-        return "0 minutes".to_string();
+        return "0 minutes".to_owned();
     }
 
     if minutes >= 1_440 {
@@ -1035,17 +1035,17 @@ impl GridLayout {
                 let slot = total_cells - 1 - linear_index as isize;
                 let span = if slot < counts.dark_cells {
                     Span::styled(
-                        WEEKLY_CELL.to_string(),
+                        WEEKLY_CELL.to_owned(),
                         Style::default().fg(colors::text()),
                     )
                 } else if slot < counts.dark_cells + counts.green_cells {
                     Span::styled(
-                        HOURLY_CELL.to_string(),
+                        HOURLY_CELL.to_owned(),
                         Style::default().fg(colors::primary()),
                     )
                 } else {
                     Span::styled(
-                        UNUSED_CELL.to_string(),
+                        UNUSED_CELL.to_owned(),
                         Style::default().fg(colors::info()),
                     )
                 };

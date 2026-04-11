@@ -117,7 +117,7 @@ pub(super) fn current_completion_token(textarea: &TextArea) -> Option<String> {
     let token_stripped = token.strip_prefix('@').unwrap_or(token);
 
     if token_stripped.starts_with("./") {
-        return Some(token_stripped.to_string());
+        return Some(token_stripped.to_owned());
     }
 
     None
@@ -152,7 +152,7 @@ pub(super) fn insert_selected_path(view: &mut ChatComposer, path: &str) {
     let inserted = if needs_quotes {
         format!("\"{}\"", path.replace('"', "\\\""))
     } else {
-        path.to_string()
+        path.to_owned()
     };
 
     // Replace the slice `[start_idx, end_idx)` with the chosen path and a trailing space.

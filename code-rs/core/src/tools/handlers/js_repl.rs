@@ -30,9 +30,9 @@ struct JsReplFunctionArgs {
 
 fn join_outputs(stdout: &str, stderr: &str) -> String {
     if stdout.is_empty() {
-        stderr.to_string()
+        stderr.to_owned()
     } else if stderr.is_empty() {
-        stdout.to_string()
+        stdout.to_owned()
     } else {
         format!("{stdout}\n{stderr}")
     }
@@ -41,13 +41,12 @@ fn join_outputs(stdout: &str, stderr: &str) -> String {
 fn parse_freeform_args(input: &str) -> Result<crate::tools::js_repl::JsReplArgs, String> {
     if input.trim().is_empty() {
         return Err(
-            "js_repl expects raw JavaScript tool input (non-empty). Provide JS source text, optionally with first-line `// codex-js-repl: ...`."
-                .to_string(),
+            "js_repl expects raw JavaScript tool input (non-empty). Provide JS source text, optionally with first-line `// codex-js-repl: ...`.".to_owned(),
         );
     }
 
     let mut args = crate::tools::js_repl::JsReplArgs {
-        code: input.to_string(),
+        code: input.to_owned(),
         timeout_ms: None,
         runtime: None,
     };
@@ -74,7 +73,7 @@ fn parse_freeform_args(input: &str) -> Result<crate::tools::js_repl::JsReplArgs,
             match key {
                 "timeout_ms" => {
                     if timeout_ms.is_some() {
-                        return Err("js_repl pragma specifies timeout_ms more than once".to_string());
+                        return Err("js_repl pragma specifies timeout_ms more than once".to_owned());
                     }
                     let parsed = value.parse::<u64>().map_err(|_| {
                         format!("js_repl pragma timeout_ms must be an integer; got `{value}`")
@@ -83,7 +82,7 @@ fn parse_freeform_args(input: &str) -> Result<crate::tools::js_repl::JsReplArgs,
                 }
                 "runtime" => {
                     if runtime.is_some() {
-                        return Err("js_repl pragma specifies runtime more than once".to_string());
+                        return Err("js_repl pragma specifies runtime more than once".to_owned());
                     }
                     let normalized = value.trim().to_ascii_lowercase();
                     runtime = match normalized.as_str() {
@@ -106,11 +105,11 @@ fn parse_freeform_args(input: &str) -> Result<crate::tools::js_repl::JsReplArgs,
     }
 
     if rest.trim().is_empty() {
-        return Err("js_repl pragma must be followed by JavaScript source on subsequent lines".to_string());
+        return Err("js_repl pragma must be followed by JavaScript source on subsequent lines".to_owned());
     }
 
     reject_json_or_quoted_source(rest)?;
-    args.code = rest.to_string();
+    args.code = rest.to_owned();
     args.timeout_ms = timeout_ms;
     args.runtime = runtime;
     Ok(args)
@@ -120,8 +119,7 @@ fn reject_json_or_quoted_source(code: &str) -> Result<(), String> {
     let trimmed = code.trim();
     if trimmed.starts_with("```") {
         return Err(
-            "js_repl expects raw JavaScript source, not markdown code fences. Resend plain JS only (optional first line `// codex-js-repl: ...`)."
-                .to_string(),
+            "js_repl expects raw JavaScript source, not markdown code fences. Resend plain JS only (optional first line `// codex-js-repl: ...`).".to_owned(),
         );
     }
     let Ok(value) = serde_json::from_str::<JsonValue>(trimmed) else {
@@ -129,8 +127,7 @@ fn reject_json_or_quoted_source(code: &str) -> Result<(), String> {
     };
     match value {
         JsonValue::Object(_) | JsonValue::String(_) => Err(
-            "js_repl is a freeform tool and expects raw JavaScript source. Resend plain JS only (optional first line `// codex-js-repl: ...`); do not send JSON (`{\"code\":...}`), quoted code, or markdown fences."
-                .to_string(),
+            "js_repl is a freeform tool and expects raw JavaScript source. Resend plain JS only (optional first line `// codex-js-repl: ...`); do not send JSON (`{\"code\":...}`), quoted code, or markdown fences.".to_owned(),
         ),
         _ => Ok(()),
     }
@@ -147,9 +144,9 @@ async fn emit_js_repl_exec_begin(
         ctx,
         EventMsg::JsReplExecBegin(JsReplExecBeginEvent {
             call_id: ctx.call_id.clone(),
-            code: code.to_string(),
-            runtime_kind: manager.runtime_kind_str().to_string(),
-            runtime_version: manager.runtime_version().to_string(),
+            code: code.to_owned(),
+            runtime_kind: manager.runtime_kind_str().to_owned(),
+            runtime_version: manager.runtime_version().to_owned(),
             cwd: sess.get_cwd().to_path_buf(),
             timeout_ms,
         }),
@@ -198,7 +195,7 @@ impl ToolHandler for JsReplToolHandler {
             return unsupported_tool_call_output(
                 &ctx.call_id,
                 outputs_custom,
-                "js_repl is disabled (set `[tools].js_repl=true`)".to_string(),
+                "js_repl is disabled (set `[tools].js_repl=true`)".to_owned(),
             );
         }
 
@@ -317,7 +314,7 @@ impl ToolHandler for JsReplResetToolHandler {
             return unsupported_tool_call_output(
                 &inv.ctx.call_id,
                 outputs_custom,
-                "js_repl is disabled (set `[tools].js_repl=true`)".to_string(),
+                "js_repl is disabled (set `[tools].js_repl=true`)".to_owned(),
             );
         }
 

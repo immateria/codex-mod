@@ -419,7 +419,7 @@ fn slice_line_spans(
             let slice = &content[local_start..local_end];
             acc.push(Span {
                 style: *style,
-                content: std::borrow::Cow::Owned(slice.to_string()),
+                content: std::borrow::Cow::Owned(slice.to_owned()),
             });
         }
         if *e >= end_byte {

@@ -48,7 +48,7 @@ impl ChatWidget<'_> {
         let view = UpdateSettingsView::new(UpdateSettingsInit {
             app_event_tx: self.app_event_tx.clone(),
             ticket: self.make_background_tail_ticket(),
-            current_version: code_version::version().to_string(),
+            current_version: code_version::version().to_owned(),
             auto_enabled: self.config.auto_upgrade_enabled,
             command,
             command_display: display,

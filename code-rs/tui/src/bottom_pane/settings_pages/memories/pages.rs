@@ -124,7 +124,7 @@ impl MemoriesSettingsView {
     fn main_footer_lines(&self) -> Vec<Line<'static>> {
         let footer_text = self
             .status
-            .as_ref().map_or_else(|| self.row_description(self.selected_row()).to_string(), |(text, _)| text.clone());
+            .as_ref().map_or_else(|| self.row_description(self.selected_row()).to_owned(), |(text, _)| text.clone());
         let footer_style = if self.status.as_ref().is_some_and(|(_, is_error)| *is_error) {
             Style::default().fg(colors::error())
         } else {
@@ -155,7 +155,7 @@ impl MemoriesSettingsView {
         };
         let post_field_lines = match error {
             Some(message) => vec![Line::from(Span::styled(
-                message.to_string(),
+                message.to_owned(),
                 Style::default().fg(colors::warning()),
             ))],
             None => vec![Line::from(Span::styled(

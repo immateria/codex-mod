@@ -75,7 +75,7 @@ impl ChatWidget<'_> {
             self.auto_ensure_intro_timing();
         }
         self.auto_goal_escape_state = AutoGoalEscState::Inactive;
-        let hint = "Let's do this! What's your goal?".to_string();
+        let hint = "Let's do this! What's your goal?".to_owned();
         let status_lines = vec![hint];
         let model = AutoCoordinatorViewModel::Active(AutoActiveViewModel {
             status_lines,
@@ -237,9 +237,9 @@ impl ChatWidget<'_> {
         };
 
         let mut auto_config = self.config.clone();
-        auto_config.model = self.config.auto_drive.model.trim().to_string();
+        auto_config.model = self.config.auto_drive.model.trim().to_owned();
         if auto_config.model.is_empty() {
-            auto_config.model = code_auto_drive_core::MODEL_SLUG.to_string();
+            auto_config.model = code_auto_drive_core::MODEL_SLUG.to_owned();
         }
         auto_config.model_reasoning_effort = self.config.auto_drive.model_reasoning_effort;
 
@@ -260,7 +260,7 @@ impl ChatWidget<'_> {
             Ok(handle) => {
                 self.auto_handle = Some(handle);
                 self.auto_drive_pid_guard = pid_guard.take();
-                let placeholder = auto_drive_strings::next_auto_drive_phrase().to_string();
+                let placeholder = auto_drive_strings::next_auto_drive_phrase().to_owned();
                 let effects = self
                     .auto_state
                     .launch_succeeded(goal, Some(placeholder), Instant::now());
@@ -292,8 +292,7 @@ impl ChatWidget<'_> {
 
         if !(full_auto_enabled || (trimmed.is_empty() && self.auto_state.is_active())) {
             self.push_background_tail(
-                "Please use Shift+Tab to switch to Full Auto before using Auto Drive"
-                    .to_string(),
+                "Please use Shift+Tab to switch to Full Auto before using Auto Drive".to_owned(),
             );
             self.request_redraw();
             return;
@@ -312,7 +311,7 @@ impl ChatWidget<'_> {
             return;
         }
 
-        let goal_text = trimmed.to_string();
+        let goal_text = trimmed.to_owned();
 
         if self.auto_state.is_active() {
             self.auto_stop(None);
@@ -450,7 +449,7 @@ impl ChatWidget<'_> {
             .send(AutoCoordinatorCommand::UpdateConversation(conversation))
             .is_err()
         {
-            self.auto_stop(Some("Coordinator stopped unexpectedly.".to_string()));
+            self.auto_stop(Some("Coordinator stopped unexpectedly.".to_owned()));
         } else {
             self.bottom_pane.set_standard_terminal_hint(None);
             self.auto_state.on_prompt_submitted();
@@ -467,7 +466,7 @@ impl ChatWidget<'_> {
             self.auto_state.current_display_is_summary = false;
             self.auto_state.current_reasoning_title = None;
             self.auto_state.placeholder_phrase =
-                Some(auto_drive_strings::next_auto_drive_phrase().to_string());
+                Some(auto_drive_strings::next_auto_drive_phrase().to_owned());
             self.auto_state.thinking_prefix_stripped = false;
             self.auto_rebuild_live_ring();
             self.request_redraw();
@@ -489,7 +488,7 @@ impl ChatWidget<'_> {
             .send(AutoCoordinatorCommand::UpdateConversation(conversation))
             .is_err()
         {
-            self.auto_stop(Some("Coordinator stopped unexpectedly.".to_string()));
+            self.auto_stop(Some("Coordinator stopped unexpectedly.".to_owned()));
         } else {
             self.bottom_pane.set_standard_terminal_hint(None);
             self.auto_state.on_prompt_submitted();
@@ -506,7 +505,7 @@ impl ChatWidget<'_> {
             self.auto_state.current_display_is_summary = false;
             self.auto_state.current_reasoning_title = None;
             self.auto_state.placeholder_phrase =
-                Some(auto_drive_strings::next_auto_drive_phrase().to_string());
+                Some(auto_drive_strings::next_auto_drive_phrase().to_owned());
             self.auto_state.thinking_prefix_stripped = false;
             self.auto_rebuild_live_ring();
             self.request_redraw();
@@ -530,7 +529,7 @@ impl ChatWidget<'_> {
                 self.auto_state.on_prompt_submitted();
                 self.auto_state.set_coordinator_waiting(true);
                 self.auto_state.placeholder_phrase =
-                    Some(auto_drive_strings::next_auto_drive_phrase().to_string());
+                    Some(auto_drive_strings::next_auto_drive_phrase().to_owned());
                 self.auto_rebuild_live_ring();
                 self.request_redraw();
                 true

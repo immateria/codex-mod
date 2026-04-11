@@ -63,7 +63,7 @@ mod imp {
         }
 
         fn source_label(&self) -> String {
-            "StaticNetworkProxyReloader".to_string()
+            "StaticNetworkProxyReloader".to_owned()
         }
     }
 

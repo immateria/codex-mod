@@ -98,13 +98,13 @@ impl ShellProfilesSettingsView {
         let mut available_skills: Vec<SkillOption> = available_skills
             .into_iter()
             .map(|(name, description)| SkillOption {
-                name: name.trim().to_string(),
+                name: name.trim().to_owned(),
                 description: {
                     let d = description.trim();
                     if d.is_empty() {
                         None
                     } else {
-                        Some(d.to_string())
+                        Some(d.to_owned())
                     }
                 },
             })
@@ -121,7 +121,7 @@ impl ShellProfilesSettingsView {
 
         let mut available_mcp_servers: Vec<String> = available_mcp_servers
             .into_iter()
-            .map(|name| name.trim().to_string())
+            .map(|name| name.trim().to_owned())
             .filter(|name| !name.is_empty())
             .collect();
         available_mcp_servers.sort_by(|a, b| {

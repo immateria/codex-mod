@@ -496,12 +496,12 @@ impl UserApprovalWidget<'_> {
                 }
             }
             ApprovalRequest::Permissions { .. } => match decision {
-                ReviewDecision::Approved => "granted additional permissions (this time)".to_string(),
+                ReviewDecision::Approved => "granted additional permissions (this time)".to_owned(),
                 ReviewDecision::ApprovedForSession => {
-                    "granted additional permissions (this session)".to_string()
+                    "granted additional permissions (this session)".to_owned()
                 }
-                ReviewDecision::Denied => "did not grant additional permissions".to_string(),
-                ReviewDecision::Abort => "canceled permissions request".to_string(),
+                ReviewDecision::Denied => "did not grant additional permissions".to_owned(),
+                ReviewDecision::Abort => "canceled permissions request".to_owned(),
             },
             ApprovalRequest::ApplyPatch { .. } => {
                 format!("patch approval decision: {decision:?}")
@@ -609,7 +609,7 @@ impl UserApprovalWidget<'_> {
                 self.send_decision(ReviewDecision::Denied);
                 self.app_event_tx.send(AppEvent::DispatchCommand(
                     SlashCommand::Settings,
-                    "/settings network".to_string(),
+                    "/settings network".to_owned(),
                 ));
             }
             SelectAction::Abort => {
@@ -710,8 +710,8 @@ fn build_exec_select_options(command: &[String]) -> Vec<SelectOption> {
     let mut options = Vec::with_capacity(4);
 
     options.push(SelectOption {
-        label: "Yes".to_string(),
-        description: "Approve and run the command".to_string(),
+        label: "Yes".to_owned(),
+        description: "Approve and run the command".to_owned(),
         hotkey: KeyCode::Char('y'),
         action: SelectAction::ApproveOnce,
     });
@@ -719,7 +719,7 @@ fn build_exec_select_options(command: &[String]) -> Vec<SelectOption> {
     let full_display = strip_bash_lc_and_escape(command);
     options.push(SelectOption {
         label: format!("Always allow '{full_display}' for this project"),
-        description: "Approve this exact command automatically next time".to_string(),
+        description: "Approve this exact command automatically next time".to_owned(),
         hotkey: KeyCode::Char('a'),
         action: SelectAction::ApproveCommandForSession {
             command: command.to_vec(),
@@ -737,7 +737,7 @@ fn build_exec_select_options(command: &[String]) -> Vec<SelectOption> {
             let prefix_with_wildcard = format!("{prefix_display} *");
         options.push(SelectOption {
             label: format!("Always allow '{prefix_with_wildcard}' for this project"),
-            description: "Approve any command starting with this prefix".to_string(),
+            description: "Approve any command starting with this prefix".to_owned(),
             hotkey: KeyCode::Char('p'),
             action: SelectAction::ApproveCommandForSession {
                 command: prefix.clone(),
@@ -749,8 +749,8 @@ fn build_exec_select_options(command: &[String]) -> Vec<SelectOption> {
     }
 
     options.push(SelectOption {
-        label: "No, provide feedback".to_string(),
-        description: "Do not run the command; provide feedback".to_string(),
+        label: "No, provide feedback".to_owned(),
+        description: "Do not run the command; provide feedback".to_owned(),
         hotkey: KeyCode::Char('n'),
         action: SelectAction::Abort,
     });
@@ -761,28 +761,26 @@ fn build_exec_select_options(command: &[String]) -> Vec<SelectOption> {
 fn build_network_select_options() -> Vec<SelectOption> {
     vec![
         SelectOption {
-            label: "Allow once".to_string(),
-            description: "Allow this host for this run".to_string(),
+            label: "Allow once".to_owned(),
+            description: "Allow this host for this run".to_owned(),
             hotkey: KeyCode::Char('y'),
             action: SelectAction::ApproveOnce,
         },
         SelectOption {
-            label: "Allow for session".to_string(),
-            description: "Allow this host for the rest of this session".to_string(),
+            label: "Allow for session".to_owned(),
+            description: "Allow this host for the rest of this session".to_owned(),
             hotkey: KeyCode::Char('s'),
             action: SelectAction::ApproveForSession,
         },
         SelectOption {
-            label: "Deny network for this run".to_string(),
-            description: "Deny all future network prompts for the remainder of this command run"
-                .to_string(),
+            label: "Deny network for this run".to_owned(),
+            description: "Deny all future network prompts for the remainder of this command run".to_owned(),
             hotkey: KeyCode::Char('n'),
             action: SelectAction::Deny,
         },
         SelectOption {
-            label: "Deny and open Settings -> Network".to_string(),
-            description: "Deny this request, then open Network settings to edit allow/deny lists"
-                .to_string(),
+            label: "Deny and open Settings -> Network".to_owned(),
+            description: "Deny this request, then open Network settings to edit allow/deny lists".to_owned(),
             hotkey: KeyCode::Char('o'),
             action: SelectAction::DenyAndOpenNetworkSettings,
         },
@@ -792,20 +790,20 @@ fn build_network_select_options() -> Vec<SelectOption> {
 fn build_permissions_select_options() -> Vec<SelectOption> {
     vec![
         SelectOption {
-            label: "Yes, grant these permissions".to_string(),
-            description: "Grant the requested permissions for this run".to_string(),
+            label: "Yes, grant these permissions".to_owned(),
+            description: "Grant the requested permissions for this run".to_owned(),
             hotkey: KeyCode::Char('y'),
             action: SelectAction::ApproveOnce,
         },
         SelectOption {
-            label: "Yes, grant these permissions for this session".to_string(),
-            description: "Grant the requested permissions for the rest of this session".to_string(),
+            label: "Yes, grant these permissions for this session".to_owned(),
+            description: "Grant the requested permissions for the rest of this session".to_owned(),
             hotkey: KeyCode::Char('a'),
             action: SelectAction::ApproveForSession,
         },
         SelectOption {
-            label: "No, continue without permissions".to_string(),
-            description: "Deny this request and continue without additional permissions".to_string(),
+            label: "No, continue without permissions".to_owned(),
+            description: "Deny this request and continue without additional permissions".to_owned(),
             hotkey: KeyCode::Char('n'),
             action: SelectAction::Deny,
         },
@@ -815,14 +813,14 @@ fn build_permissions_select_options() -> Vec<SelectOption> {
 fn build_patch_select_options() -> Vec<SelectOption> {
     vec![
         SelectOption {
-            label: "Yes".to_string(),
-            description: "Approve and apply the changes".to_string(),
+            label: "Yes".to_owned(),
+            description: "Approve and apply the changes".to_owned(),
             hotkey: KeyCode::Char('y'),
             action: SelectAction::ApproveOnce,
         },
         SelectOption {
-            label: "No, provide feedback".to_string(),
-            description: "Do not apply the changes; provide feedback".to_string(),
+            label: "No, provide feedback".to_owned(),
+            description: "Do not apply the changes; provide feedback".to_owned(),
             hotkey: KeyCode::Char('n'),
             action: SelectAction::Abort,
         },
@@ -832,14 +830,14 @@ fn build_patch_select_options() -> Vec<SelectOption> {
 fn build_terminal_select_options() -> Vec<SelectOption> {
     vec![
         SelectOption {
-            label: "Yes".to_string(),
-            description: "Approve and run the command".to_string(),
+            label: "Yes".to_owned(),
+            description: "Approve and run the command".to_owned(),
             hotkey: KeyCode::Char('y'),
             action: SelectAction::ApproveOnce,
         },
         SelectOption {
-            label: "No".to_string(),
-            description: "Dismiss without running the command".to_string(),
+            label: "No".to_owned(),
+            description: "Dismiss without running the command".to_owned(),
             hotkey: KeyCode::Char('n'),
             action: SelectAction::Abort,
         },

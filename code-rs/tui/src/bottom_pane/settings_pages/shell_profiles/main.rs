@@ -64,10 +64,10 @@ impl ShellProfilesSettingsView {
             RowKind::Summary => {
                 let summary = self.summary_field.text().trim();
                 if summary.is_empty() {
-                    Some("unset".to_string())
+                    Some("unset".to_owned())
                 } else {
                     let first_line = summary.lines().next().unwrap_or(summary).trim();
-                    Some(first_line.to_string())
+                    Some(first_line.to_owned())
                 }
             }
             RowKind::References => {
@@ -82,7 +82,7 @@ impl ShellProfilesSettingsView {
                     .get(&self.selected_style)
                     .map_or(0, |profile| profile.skills.len());
                 if count == 0 {
-                    Some("all (no filter)".to_string())
+                    Some("all (no filter)".to_owned())
                 } else {
                     Some(format!("{count} selected"))
                 }
@@ -99,7 +99,7 @@ impl ShellProfilesSettingsView {
                     .get(&self.selected_style)
                     .map_or(0, |profile| profile.mcp_servers.include.len());
                 if count == 0 {
-                    Some("all (no filter)".to_string())
+                    Some("all (no filter)".to_owned())
                 } else {
                     Some(format!("{count} selected"))
                 }
@@ -152,7 +152,7 @@ impl ShellProfilesSettingsView {
             .cloned()
             .unwrap_or_default();
 
-        self.status = Some("Generating summary...".to_string());
+        self.status = Some("Generating summary...".to_owned());
         self.app_event_tx
             .send(AppEvent::RequestGenerateShellStyleProfileSummary {
                 style: self.selected_style,
@@ -161,7 +161,7 @@ impl ShellProfilesSettingsView {
     }
 
     pub(crate) fn apply_generated_summary(&mut self, style: ShellScriptStyle, summary: String) {
-        let normalized = summary.trim().to_string();
+        let normalized = summary.trim().to_owned();
         if style == self.selected_style {
             self.summary_field.set_text(normalized.as_str());
         }
@@ -177,7 +177,7 @@ impl ShellProfilesSettingsView {
         }
 
         self.dirty = true;
-        self.status = Some("Summary staged. Select Apply to persist.".to_string());
+        self.status = Some("Summary staged. Select Apply to persist.".to_owned());
     }
 
     pub(crate) fn set_summary_generation_error(
@@ -212,7 +212,7 @@ impl ShellProfilesSettingsView {
             .filter(|path| !path.is_empty())
             .unwrap_or("auto");
         let active_style = self
-            .active_style.map_or_else(|| "auto".to_string(), |style| style.to_string());
+            .active_style.map_or_else(|| "auto".to_owned(), |style| style.to_string());
         let selected_style = self.selected_style.to_string();
         let styles_summary = if selected_style == active_style {
             format!("style: {active_style}")
@@ -222,7 +222,7 @@ impl ShellProfilesSettingsView {
         let mut spans = vec![
             Span::styled("shell: ", crate::colors::style_text_dim()),
             Span::styled(
-                shell.to_string(),
+                shell.to_owned(),
                 crate::colors::style_text(),
             ),
             Span::styled("  •  ", crate::colors::style_text_dim()),
@@ -230,7 +230,7 @@ impl ShellProfilesSettingsView {
         ];
         if self.dirty {
             spans.push(Span::styled(
-                "  •  unsaved".to_string(),
+                "  •  unsaved".to_owned(),
                 Style::default()
                     .fg(crate::colors::warning())
                     .add_modifier(Modifier::BOLD),

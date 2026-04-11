@@ -277,10 +277,10 @@ pub(crate) async fn handle_agent_tool(
             };
 
             let mut create_event = serde_json::Map::new();
-            create_event.insert("task".to_string(), serde_json::Value::String(task));
+            create_event.insert("task".to_owned(), serde_json::Value::String(task));
             if !models.is_empty() {
                 create_event.insert(
-                    "models".to_string(),
+                    "models".to_owned(),
                     serde_json::Value::Array(
                         models
                             .iter()
@@ -292,16 +292,16 @@ pub(crate) async fn handle_agent_tool(
             }
             if let Some(ref ctx_str) = context
                 && !ctx_str.is_empty() {
-                    create_event.insert("context".to_string(), serde_json::Value::String(ctx_str.clone()));
+                    create_event.insert("context".to_owned(), serde_json::Value::String(ctx_str.clone()));
                 }
             if let Some(ref output_str) = output
                 && !output_str.is_empty() {
-                    create_event.insert("output".to_string(), serde_json::Value::String(output_str.clone()));
+                    create_event.insert("output".to_owned(), serde_json::Value::String(output_str.clone()));
                 }
             if let Some(ref files_vec) = files
                 && !files_vec.is_empty() {
                     create_event.insert(
-                        "files".to_string(),
+                        "files".to_owned(),
                         serde_json::Value::Array(
                             files_vec
                                 .iter()
@@ -312,19 +312,19 @@ pub(crate) async fn handle_agent_tool(
                     );
                 }
             if let Some(flag) = write {
-                create_event.insert("write".to_string(), serde_json::Value::Bool(flag));
+                create_event.insert("write".to_owned(), serde_json::Value::Bool(flag));
             }
             if let Some(flag) = read_only {
-                create_event.insert("read_only".to_string(), serde_json::Value::Bool(flag));
+                create_event.insert("read_only".to_owned(), serde_json::Value::Bool(flag));
             }
             if let Some(ref name_str) = normalized_name
                 && !name_str.is_empty() {
-                    create_event.insert("name".to_string(), serde_json::Value::String(name_str.clone()));
+                    create_event.insert("name".to_owned(), serde_json::Value::String(name_str.clone()));
                 }
 
             let mut event_root = serde_json::Map::new();
-            event_root.insert("action".to_string(), serde_json::Value::String("create".to_string()));
-            event_root.insert("create".to_string(), serde_json::Value::Object(create_event));
+            event_root.insert("action".to_owned(), serde_json::Value::String("create".to_owned()));
+            event_root.insert("create".to_owned(), serde_json::Value::Object(create_event));
             let event_payload = serde_json::Value::Object(event_root);
 
             match serde_json::to_string(&run_params) {
@@ -362,11 +362,11 @@ pub(crate) async fn handle_agent_tool(
                 batch_id: batch_id.clone(),
             };
             let mut status_event = serde_json::Map::new();
-            status_event.insert("agent_id".to_string(), serde_json::Value::String(agent_id));
-            status_event.insert("batch_id".to_string(), serde_json::Value::String(batch_id));
+            status_event.insert("agent_id".to_owned(), serde_json::Value::String(agent_id));
+            status_event.insert("batch_id".to_owned(), serde_json::Value::String(batch_id));
             let mut status_event_root = serde_json::Map::new();
-            status_event_root.insert("action".to_string(), serde_json::Value::String("status".to_string()));
-            status_event_root.insert("status".to_string(), serde_json::Value::Object(status_event));
+            status_event_root.insert("action".to_owned(), serde_json::Value::String("status".to_owned()));
+            status_event_root.insert("status".to_owned(), serde_json::Value::Object(status_event));
             let status_event_payload = serde_json::Value::Object(status_event_root);
             match serde_json::to_string(&params) {
                 Ok(json) => handle_check_agent_status(sess, ctx, json, status_event_payload).await,
@@ -403,11 +403,11 @@ pub(crate) async fn handle_agent_tool(
                 batch_id: batch_id.clone(),
             };
             let mut result_event = serde_json::Map::new();
-            result_event.insert("agent_id".to_string(), serde_json::Value::String(agent_id));
-            result_event.insert("batch_id".to_string(), serde_json::Value::String(batch_id));
+            result_event.insert("agent_id".to_owned(), serde_json::Value::String(agent_id));
+            result_event.insert("batch_id".to_owned(), serde_json::Value::String(batch_id));
             let mut result_event_root = serde_json::Map::new();
-            result_event_root.insert("action".to_string(), serde_json::Value::String("result".to_string()));
-            result_event_root.insert("result".to_string(), serde_json::Value::Object(result_event));
+            result_event_root.insert("action".to_owned(), serde_json::Value::String("result".to_owned()));
+            result_event_root.insert("result".to_owned(), serde_json::Value::Object(result_event));
             let result_event_payload = serde_json::Value::Object(result_event_root);
             match serde_json::to_string(&params) {
                 Ok(json) => handle_get_agent_result(sess, ctx, json, result_event_payload).await,
@@ -437,12 +437,12 @@ pub(crate) async fn handle_agent_tool(
             };
             let mut cancel_event = serde_json::Map::new();
             if let Some(id) = cancel_agent_id {
-                cancel_event.insert("agent_id".to_string(), serde_json::Value::String(id));
+                cancel_event.insert("agent_id".to_owned(), serde_json::Value::String(id));
             }
-            cancel_event.insert("batch_id".to_string(), serde_json::Value::String(cancel_batch_id));
+            cancel_event.insert("batch_id".to_owned(), serde_json::Value::String(cancel_batch_id));
             let mut cancel_event_root = serde_json::Map::new();
-            cancel_event_root.insert("action".to_string(), serde_json::Value::String("cancel".to_string()));
-            cancel_event_root.insert("cancel".to_string(), serde_json::Value::Object(cancel_event));
+            cancel_event_root.insert("action".to_owned(), serde_json::Value::String("cancel".to_owned()));
+            cancel_event_root.insert("cancel".to_owned(), serde_json::Value::Object(cancel_event));
             let cancel_event_payload = serde_json::Value::Object(cancel_event_root);
             match serde_json::to_string(&params) {
                 Ok(json) => handle_cancel_agent(sess, ctx, json, cancel_event_payload).await,
@@ -476,18 +476,18 @@ pub(crate) async fn handle_agent_tool(
             };
             let mut wait_event = serde_json::Map::new();
             if let Some(id) = wait_agent_id {
-                wait_event.insert("agent_id".to_string(), serde_json::Value::String(id));
+                wait_event.insert("agent_id".to_owned(), serde_json::Value::String(id));
             }
-            wait_event.insert("batch_id".to_string(), serde_json::Value::String(wait_batch_id));
+            wait_event.insert("batch_id".to_owned(), serde_json::Value::String(wait_batch_id));
             if let Some(timeout) = wait_timeout {
-                wait_event.insert("timeout_seconds".to_string(), serde_json::Value::from(timeout));
+                wait_event.insert("timeout_seconds".to_owned(), serde_json::Value::from(timeout));
             }
             if let Some(return_all) = wait_return_all {
-                wait_event.insert("return_all".to_string(), serde_json::Value::Bool(return_all));
+                wait_event.insert("return_all".to_owned(), serde_json::Value::Bool(return_all));
             }
             let mut wait_event_root = serde_json::Map::new();
-            wait_event_root.insert("action".to_string(), serde_json::Value::String("wait".to_string()));
-            wait_event_root.insert("wait".to_string(), serde_json::Value::Object(wait_event));
+            wait_event_root.insert("action".to_owned(), serde_json::Value::String("wait".to_owned()));
+            wait_event_root.insert("wait".to_owned(), serde_json::Value::Object(wait_event));
             let wait_event_payload = serde_json::Value::Object(wait_event_root);
             match serde_json::to_string(&params) {
                 Ok(json) => handle_wait_for_agent(sess, ctx, json, wait_event_payload).await,
@@ -520,15 +520,15 @@ pub(crate) async fn handle_agent_tool(
             let mut list_event = serde_json::Map::new();
             if let Some(ref status) = status_filter
                 && !status.is_empty() {
-                    list_event.insert("status_filter".to_string(), serde_json::Value::String(status.clone()));
+                    list_event.insert("status_filter".to_owned(), serde_json::Value::String(status.clone()));
                 }
-            list_event.insert("batch_id".to_string(), serde_json::Value::String(batch_id));
+            list_event.insert("batch_id".to_owned(), serde_json::Value::String(batch_id));
             if let Some(recent) = recent_only {
-                list_event.insert("recent_only".to_string(), serde_json::Value::Bool(recent));
+                list_event.insert("recent_only".to_owned(), serde_json::Value::Bool(recent));
             }
             let mut list_event_root = serde_json::Map::new();
-            list_event_root.insert("action".to_string(), serde_json::Value::String("list".to_string()));
-            list_event_root.insert("list".to_string(), serde_json::Value::Object(list_event));
+            list_event_root.insert("action".to_owned(), serde_json::Value::String("list".to_owned()));
+            list_event_root.insert("list".to_owned(), serde_json::Value::Object(list_event));
             let list_event_payload = serde_json::Value::Object(list_event_root);
             match serde_json::to_string(&params) {
                 Ok(json) => handle_list_agents(sess, ctx, json, list_event_payload).await,
@@ -551,9 +551,9 @@ fn resolve_agent_command_for_check(
         let (base, _) = split_command_and_args(&c.command);
         let trimmed = base.trim();
         if trimmed.is_empty() {
-            c.command.trim().to_string()
+            c.command.trim().to_owned()
         } else {
-            trimmed.to_string()
+            trimmed.to_owned()
         }
     });
 
@@ -564,7 +564,7 @@ fn resolve_agent_command_for_check(
             .is_none_or(|cmd| cmd.is_empty() || cmd.eq_ignore_ascii_case(spec.cli));
 
         if uses_default_cli {
-            return (spec.cli.to_string(), is_builtin_family);
+            return (spec.cli.to_owned(), is_builtin_family);
         }
     }
 
@@ -575,11 +575,11 @@ fn resolve_agent_command_for_check(
 
     let m = model.to_lowercase();
     match m.as_str() {
-        "code" | "codex" | "cloud" => ("coder".to_string(), true),
-        "claude" => ("claude".to_string(), false),
-        "gemini" => ("gemini".to_string(), false),
-        "qwen" => ("qwen".to_string(), false),
-        other => (other.to_string(), false),
+        "code" | "codex" | "cloud" => ("coder".to_owned(), true),
+        "claude" => ("claude".to_owned(), false),
+        "gemini" => ("gemini".to_owned(), false),
+        "qwen" => ("qwen".to_owned(), false),
+        other => (other.to_owned(), false),
     }
 }
 
@@ -595,7 +595,7 @@ pub(crate) async fn handle_run_agent(
     let payload_with_batch = match event_payload {
         serde_json::Value::Object(mut map) => {
             map.insert(
-                "batch_id".to_string(),
+                "batch_id".to_owned(),
                 serde_json::Value::String(generated_batch_id.clone()),
             );
             serde_json::Value::Object(map)
@@ -606,13 +606,13 @@ pub(crate) async fn handle_run_agent(
     execute_custom_tool(
         sess,
         ctx,
-        "agent".to_string(),
+        "agent".to_owned(),
         Some(payload_with_batch),
         move || async move {
             let batch_id = closure_batch_id.clone();
     match serde_json::from_str::<RunAgentParams>(&arguments_clone) {
         Ok(mut params) => {
-            let trimmed_task = params.task.trim().to_string();
+            let trimmed_task = params.task.trim().to_owned();
             let word_count = trimmed_task
                 .split_whitespace()
                 .filter(|segment| !segment.is_empty())
@@ -692,14 +692,14 @@ pub(crate) async fn handle_run_agent(
                     }
                     let dedupe_key = trimmed.to_lowercase();
                     if seen_models.insert(dedupe_key) {
-                        models.push(trimmed.to_string());
+                        models.push(trimmed.to_owned());
                     }
                 }
             }
 
             if models.is_empty() {
                 if sess.tools_config.agent_model_allowed_values.is_empty() {
-                    models.push("code".to_string());
+                    models.push("code".to_owned());
                 } else {
                     models.extend(
                         sess
@@ -727,7 +727,7 @@ pub(crate) async fn handle_run_agent(
                             Some(value.clone())
                         }
                     })
-                    .unwrap_or_else(|| model.to_string())
+                    .unwrap_or_else(|| model.to_owned())
             };
 
             let mut agent_ids = Vec::new();
@@ -820,15 +820,15 @@ pub(crate) async fn handle_run_agent(
                 if explicit_models {
                     let mut response_map = serde_json::Map::new();
                     response_map.insert(
-                        "batch_id".to_string(),
+                        "batch_id".to_owned(),
                         serde_json::Value::String(batch_id.clone()),
                     );
                     response_map.insert(
-                        "status".to_string(),
-                        serde_json::Value::String("failed".to_string()),
+                        "status".to_owned(),
+                        serde_json::Value::String("failed".to_owned()),
                     );
                     let message = if skipped.is_empty() {
-                        "No runnable agents matched the requested models.".to_string()
+                        "No runnable agents matched the requested models.".to_owned()
                     } else {
                         format!(
                             "No runnable agents matched the requested models. Skipped: {}",
@@ -836,11 +836,11 @@ pub(crate) async fn handle_run_agent(
                         )
                     };
                     response_map.insert(
-                        "message".to_string(),
+                        "message".to_owned(),
                         serde_json::Value::String(message),
                     );
                     response_map.insert(
-                        "skipped".to_string(),
+                        "skipped".to_owned(),
                         if skipped.is_empty() {
                             serde_json::Value::Null
                         } else {
@@ -866,7 +866,7 @@ pub(crate) async fn handle_run_agent(
                 let read_only = resolve_agent_read_only(params.write, params.read_only, None);
                 let agent_id = manager
                     .create_agent(crate::agent_tool::AgentCreateRequest {
-                        model: "code".to_string(),
+                        model: "code".to_owned(),
                         name: agent_name.clone(),
                         prompt: params.task.clone(),
                         context: params.context.clone(),
@@ -920,11 +920,11 @@ pub(crate) async fn handle_run_agent(
 
             let mut response_map = serde_json::Map::new();
             response_map.insert(
-                "batch_id".to_string(),
+                "batch_id".to_owned(),
                 serde_json::Value::String(batch_id.clone()),
             );
             response_map.insert(
-                "agent_ids".to_string(),
+                "agent_ids".to_owned(),
                 serde_json::Value::Array(
                     agent_ids
                         .iter()
@@ -934,34 +934,34 @@ pub(crate) async fn handle_run_agent(
                 ),
             );
             response_map.insert(
-                "status".to_string(),
-                serde_json::Value::String("started".to_string()),
+                "status".to_owned(),
+                serde_json::Value::String("started".to_owned()),
             );
             let message = if agent_ids.len() > 1 {
                 format!("Started {} agents", agent_labels.len())
             } else {
-                "Agent started successfully".to_string()
+                "Agent started successfully".to_owned()
             };
             response_map.insert(
-                "message".to_string(),
+                "message".to_owned(),
                 serde_json::Value::String(message),
             );
             response_map.insert(
-                "next_steps".to_string(),
+                "next_steps".to_owned(),
                 serde_json::Value::String(launch_hint),
             );
             if agent_ids.len() == 1
                 && let Some(first) = agent_ids.first() {
                     response_map.insert(
-                        "agent_id".to_string(),
+                        "agent_id".to_owned(),
                         serde_json::Value::String(first.clone()),
                     );
                 }
             if skipped.is_empty() {
-                response_map.insert("skipped".to_string(), serde_json::Value::Null);
+                response_map.insert("skipped".to_owned(), serde_json::Value::Null);
             } else {
                 response_map.insert(
-                    "skipped".to_string(),
+                    "skipped".to_owned(),
                     serde_json::Value::Array(
                         skipped
                             .into_iter()
@@ -1027,7 +1027,7 @@ async fn handle_check_agent_status(
     execute_custom_tool(
         sess,
         ctx,
-        "agent".to_string(),
+        "agent".to_owned(),
         Some(event_payload),
         || async move {
     match serde_json::from_str::<CheckAgentStatusParams>(&arguments_clone) {
@@ -1159,7 +1159,7 @@ async fn handle_get_agent_result(
     execute_custom_tool(
         sess,
         ctx,
-        "agent".to_string(),
+        "agent".to_owned(),
         Some(event_payload),
         || async move {
     match serde_json::from_str::<GetAgentResultParams>(&arguments_clone) {
@@ -1210,12 +1210,12 @@ async fn handle_get_agent_result(
                             "status": agent.status,
                         });
                         if let Some(obj) = response.as_object_mut() {
-                            obj.insert(meta.preview_key.to_string(), serde_json::Value::String(meta.preview));
+                            obj.insert(meta.preview_key.to_owned(), serde_json::Value::String(meta.preview));
                             obj.insert(
                                 format!("{}_total_lines", meta.preview_key.trim_end_matches("_preview")),
                                 serde_json::Value::Number(meta.total_lines.into()),
                             );
-                            obj.insert(meta.file_key.to_string(), serde_json::Value::String(meta.file_path));
+                            obj.insert(meta.file_key.to_owned(), serde_json::Value::String(meta.file_path));
                         }
                         let success = matches!(agent.status, AgentStatus::Completed);
                         ResponseInputItem::FunctionCallOutput {
@@ -1232,7 +1232,7 @@ async fn handle_get_agent_result(
                             body: FunctionCallOutputBody::Text(format!(
                                 "Agent is still {}: cannot get result yet",
                                 serde_json::to_string(&agent.status)
-                                    .unwrap_or_else(|_| "running".to_string())
+                                    .unwrap_or_else(|_| "running".to_owned())
                             )),
                             success: Some(false),
                         },
@@ -1271,7 +1271,7 @@ async fn handle_cancel_agent(
     execute_custom_tool(
         sess,
         ctx,
-        "agent".to_string(),
+        "agent".to_owned(),
         Some(event_payload),
         || async move {
     match serde_json::from_str::<CancelAgentParams>(&arguments_clone) {
@@ -1283,7 +1283,7 @@ async fn handle_cancel_agent(
                     return ResponseInputItem::FunctionCallOutput {
                         call_id: call_id_clone,
                         output: FunctionCallOutputPayload {
-                            body: FunctionCallOutputBody::Text("action=cancel requires 'cancel.batch_id'".to_string()),
+                            body: FunctionCallOutputBody::Text("action=cancel requires 'cancel.batch_id'".to_owned()),
                             success: Some(false),
                         },
                     };
@@ -1330,7 +1330,7 @@ async fn handle_cancel_agent(
                 ResponseInputItem::FunctionCallOutput {
                     call_id: call_id_clone,
                     output: FunctionCallOutputPayload {
-                        body: FunctionCallOutputBody::Text("Either agent_id or batch_id must be provided".to_string()),
+                        body: FunctionCallOutputBody::Text("Either agent_id or batch_id must be provided".to_owned()),
                         success: Some(false),
                     },
                 }
@@ -1359,7 +1359,7 @@ async fn handle_wait_for_agent(
     execute_custom_tool(
         sess,
         ctx,
-        "agent".to_string(),
+        "agent".to_owned(),
         Some(event_payload),
         || async move {
             let (initial_wait_epoch, _) = sess.wait_interrupt_snapshot();
@@ -1371,7 +1371,7 @@ async fn handle_wait_for_agent(
                             return ResponseInputItem::FunctionCallOutput {
                                 call_id: call_id_clone,
                                 output: FunctionCallOutputPayload {
-                                    body: FunctionCallOutputBody::Text("action=wait requires 'wait.batch_id'".to_string()),
+                                    body: FunctionCallOutputBody::Text("action=wait requires 'wait.batch_id'".to_owned()),
                                     success: Some(false),
                                 },
                             };
@@ -1387,7 +1387,7 @@ async fn handle_wait_for_agent(
                             return ResponseInputItem::FunctionCallOutput {
                                 call_id: call_id_clone,
                                 output: FunctionCallOutputPayload {
-                                    body: FunctionCallOutputBody::Text("Timeout waiting for agent completion".to_string()),
+                                    body: FunctionCallOutputBody::Text("Timeout waiting for agent completion".to_owned()),
                                     success: Some(false),
                                 },
                             };
@@ -1453,8 +1453,8 @@ async fn handle_wait_for_agent(
                                 "agent_result_params": { "action": "result", "result": { "agent_id": agent.id, "batch_id": batch_id } },
                             });
                             if let Some(obj) = response.as_object_mut() {
-                                obj.insert(meta.preview_key.to_string(), serde_json::Value::String(meta.preview));
-                                obj.insert(meta.file_key.to_string(), serde_json::Value::String(meta.file_path));
+                                obj.insert(meta.preview_key.to_owned(), serde_json::Value::String(meta.preview));
+                                obj.insert(meta.file_key.to_owned(), serde_json::Value::String(meta.file_path));
                             }
                             return ResponseInputItem::FunctionCallOutput {
                                 call_id: call_id_clone,
@@ -1526,8 +1526,8 @@ async fn handle_wait_for_agent(
                                 "agent_result_params": { "action": "result", "result": { "agent_id": a.id, "batch_id": batch_id } },
                                 });
                                 if let Some(map) = obj.as_object_mut() {
-                                    map.insert(meta.preview_key.to_string(), serde_json::Value::String(meta.preview));
-                                    map.insert(meta.file_key.to_string(), serde_json::Value::String(meta.file_path));
+                                    map.insert(meta.preview_key.to_owned(), serde_json::Value::String(meta.preview));
+                                    map.insert(meta.file_key.to_owned(), serde_json::Value::String(meta.file_path));
                                 }
                                 summaries.push(obj);
                             }
@@ -1623,8 +1623,8 @@ async fn handle_wait_for_agent(
                                 "agent_result_params": { "action": "result", "result": { "agent_id": unseen.id, "batch_id": batch_id } },
                             });
                             if let Some(obj) = response.as_object_mut() {
-                                obj.insert(meta.preview_key.to_string(), serde_json::Value::String(meta.preview));
-                                obj.insert(meta.file_key.to_string(), serde_json::Value::String(meta.file_path));
+                                obj.insert(meta.preview_key.to_owned(), serde_json::Value::String(meta.preview));
+                                obj.insert(meta.file_key.to_owned(), serde_json::Value::String(meta.file_path));
                             }
                             return ResponseInputItem::FunctionCallOutput {
                                 call_id: call_id_clone,
@@ -1689,9 +1689,9 @@ async fn handle_wait_for_agent(
                 if current_epoch != initial_wait_epoch {
                     let message = match reason {
                         Some(WaitInterruptReason::UserMessage) => {
-                            "wait ended due to new user message".to_string()
+                            "wait ended due to new user message".to_owned()
                         }
-                        _ => "wait ended because the session was interrupted".to_string(),
+                        _ => "wait ended because the session was interrupted".to_owned(),
                     };
                     return ResponseInputItem::FunctionCallOutput {
                         call_id: call_id_clone,
@@ -1727,7 +1727,7 @@ async fn handle_list_agents(
     execute_custom_tool(
         sess,
         ctx,
-        "agent".to_string(),
+        "agent".to_owned(),
         Some(event_payload),
         || async move {
     match serde_json::from_str::<ListAgentsParams>(&arguments_clone) {
@@ -1740,7 +1740,7 @@ async fn handle_list_agents(
                     return ResponseInputItem::FunctionCallOutput {
                         call_id: call_id_clone,
                         output: FunctionCallOutputPayload {
-                            body: FunctionCallOutputBody::Text("action=list requires 'list.batch_id'".to_string()),
+                            body: FunctionCallOutputBody::Text("action=list requires 'list.batch_id'".to_owned()),
                             success: Some(false),
                         },
                     };
@@ -1878,17 +1878,17 @@ pub(super) async fn capture_browser_screenshot(
 ) -> Result<(PathBuf, String), String> {
     let browser_manager = code_browser::global::get_browser_manager()
         .await
-        .ok_or_else(|| "No browser manager available".to_string())?;
+        .ok_or_else(|| "No browser manager available".to_owned())?;
 
     if !browser_manager.is_enabled().await {
-        return Err("Browser manager is not enabled".to_string());
+        return Err("Browser manager is not enabled".to_owned());
     }
 
     // Get current URL first
     let url = browser_manager
         .get_current_url()
         .await
-        .unwrap_or_else(|| "Browser".to_string());
+        .unwrap_or_else(|| "Browser".to_owned());
     tracing::debug!("Attempting to capture screenshot at URL: {}", url);
 
     match browser_manager.capture_screenshot().await {
@@ -1940,7 +1940,7 @@ fn build_agent_completion_wake_message(batch_id: &str) -> ResponseInputItem {
         "Agents in batch {batch_id} have completed. Call agent {{\"action\":\"wait\",\"wait\":{{\"batch_id\":\"{batch_id}\",\"return_all\":true}}}} to collect their results, then continue the task.",
     );
     ResponseInputItem::Message {
-        role: "developer".to_string(),
+        role: "developer".to_owned(),
         content: vec![ContentItem::InputText { text }],
     }
 }
@@ -1963,7 +1963,7 @@ pub(super) fn agent_completion_wake_messages(
             continue;
         }
 
-        let status = batches.entry(trimmed.to_string()).or_default();
+        let status = batches.entry(trimmed.to_owned()).or_default();
         if is_terminal_agent_status(agent.status.as_str()) {
             status.has_terminal = true;
         } else {
@@ -2005,7 +2005,7 @@ pub(super) async fn enqueue_agent_completion_wake(
         let turn_context = sess.make_turn_context();
         let sub_id = sess.next_internal_sub_id();
         let sentinel_input = vec![InputItem::Text {
-            text: PENDING_ONLY_SENTINEL.to_string(),
+            text: PENDING_ONLY_SENTINEL.to_owned(),
         }];
         let agent = AgentTask::spawn(Arc::clone(sess), turn_context, sub_id, sentinel_input);
         sess.set_task(agent);
@@ -2109,11 +2109,11 @@ pub(super) async fn send_agent_status_update(sess: &Session) {
                 id: agent.id.clone(),
                 name: agent.model.clone(), // Use model name as the display name
                 status: match agent.status {
-                    AgentStatus::Pending => "pending".to_string(),
-                    AgentStatus::Running => "running".to_string(),
-                    AgentStatus::Completed => "completed".to_string(),
-                    AgentStatus::Failed => "failed".to_string(),
-                    AgentStatus::Cancelled => "cancelled".to_string(),
+                    AgentStatus::Pending => "pending".to_owned(),
+                    AgentStatus::Running => "running".to_owned(),
+                    AgentStatus::Completed => "completed".to_owned(),
+                    AgentStatus::Failed => "failed".to_owned(),
+                    AgentStatus::Cancelled => "cancelled".to_owned(),
                 },
                 batch_id: agent.batch_id.clone(),
                 model: Some(agent.model.clone()),

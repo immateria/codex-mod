@@ -29,7 +29,7 @@ pub(super) fn extract_frontmatter(body: &str) -> Option<String> {
 pub(super) fn strip_frontmatter(body: &str) -> String {
     let mut lines = body.lines();
     if lines.next().map(str::trim) != Some("---") {
-        return body.to_string();
+        return body.to_owned();
     }
 
     for line in lines.by_ref() {
@@ -41,7 +41,7 @@ pub(super) fn strip_frontmatter(body: &str) -> String {
                 }
                 rest.push_str(l);
             }
-            let rest = rest.trim_start_matches('\n').to_string();
+            let rest = rest.trim_start_matches('\n').to_owned();
             return if body.ends_with('\n') && !rest.ends_with('\n') {
                 format!("{rest}\n")
             } else {
@@ -50,7 +50,7 @@ pub(super) fn strip_frontmatter(body: &str) -> String {
         }
     }
 
-    body.to_string()
+    body.to_owned()
 }
 
 fn yaml_escape(value: &str) -> String {
@@ -107,7 +107,7 @@ pub(super) fn compose_skill_document(
 
 pub(super) fn filter_frontmatter_excluding_keys(frontmatter: &str, excluded_keys: &[&str]) -> String {
     if excluded_keys.is_empty() {
-        return frontmatter.to_string();
+        return frontmatter.to_owned();
     }
 
     let mut out: Vec<&str> = Vec::new();
@@ -162,7 +162,7 @@ pub(super) fn frontmatter_value(body: &str, key: &str) -> Option<String> {
                 .unwrap_or(value)
                 .trim();
             if !value.is_empty() {
-                return Some(value.to_string());
+                return Some(value.to_owned());
             }
         }
     }
@@ -202,7 +202,7 @@ where
         }
         let normalized = normalize_profile_skill_name(trimmed);
         if seen.insert(normalized) {
-            deduped.push(trimmed.to_string());
+            deduped.push(trimmed.to_owned());
         }
     }
     deduped

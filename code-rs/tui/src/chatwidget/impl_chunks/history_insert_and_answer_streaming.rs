@@ -129,7 +129,7 @@ impl ChatWidget<'_> {
                 let explicit_id = id.clone();
                 let stream_identifier = explicit_id.clone().unwrap_or_else(|| {
                     self.stream
-                        .current_stream_id().map_or_else(|| "stream-preview".to_string(), ToString::to_string)
+                        .current_stream_id().map_or_else(|| "stream-preview".to_owned(), ToString::to_string)
                 });
 
                 let fallback_preview = self
@@ -258,9 +258,9 @@ impl ChatWidget<'_> {
         if !preview.is_empty() && !preview.ends_with('\n') {
             preview.push('\n');
         }
-        let mut stream_id_string = stream_id.map_or_else(|| "stream-preview".to_string(), str::to_owned);
+        let mut stream_id_string = stream_id.map_or_else(|| "stream-preview".to_owned(), str::to_owned);
         if stream_id_string.is_empty() {
-            stream_id_string = "stream-preview".to_string();
+            stream_id_string = "stream-preview".to_owned();
         }
         AssistantStreamState {
             id: HistoryId::ZERO,
@@ -345,7 +345,7 @@ impl ChatWidget<'_> {
         let state = self
             .stream_state
             .answer_markup
-            .entry(stream_id.to_string())
+            .entry(stream_id.to_owned())
             .or_insert_with(|| internals::state::AnswerMarkupState {
                 parser: stream_parser::AssistantTextStreamParser::new(plan_mode),
                 citations: Vec::new(),
@@ -367,7 +367,7 @@ impl ChatWidget<'_> {
         stream_id: Option<&str>,
     ) -> (Vec<String>, Option<String>) {
         let key = if let Some(stream_id) = stream_id {
-            Some(stream_id.to_string())
+            Some(stream_id.to_owned())
         } else if self.stream_state.answer_markup.len() == 1 {
             self.stream_state.answer_markup.keys().next().cloned()
         } else {
@@ -457,7 +457,7 @@ impl ChatWidget<'_> {
             None
         } else {
             Some(AssistantStreamDelta {
-                delta: delta.to_string(),
+                delta: delta.to_owned(),
                 sequence: seq,
                 received_at: SystemTime::now(),
             })
@@ -465,7 +465,7 @@ impl ChatWidget<'_> {
         let metadata = self.answer_stream_metadata(stream_id, None);
         let mutation = self.history_state.apply_domain_event(
             HistoryDomainEvent::UpsertAssistantStream {
-                stream_id: stream_id.to_string(),
+                stream_id: stream_id.to_owned(),
                 preview_markdown: preview,
                 delta,
                 metadata,
@@ -507,7 +507,7 @@ impl ChatWidget<'_> {
                 self.mid_turn_answer_ids_in_turn.insert(prev.clone());
                 self.maybe_mark_finalized_answer_mid_turn(&prev);
             }
-        self.last_seen_answer_stream_id_in_turn = Some(new_stream_id.to_string());
+        self.last_seen_answer_stream_id_in_turn = Some(new_stream_id.to_owned());
     }
 
     fn maybe_mark_finalized_answer_mid_turn(&mut self, prev_stream_id: &str) {
@@ -632,7 +632,7 @@ impl ChatWidget<'_> {
         
         self.history_state.finalize_assistant_stream_state(
             stream_id,
-            source.to_string(),
+            source.to_owned(),
             metadata.as_ref(),
             token_usage.as_ref(),
         )
@@ -725,7 +725,7 @@ impl ChatWidget<'_> {
                             self.auto_state.last_completion_explanation = None;
                         } else {
                             self.auto_state.last_completion_explanation =
-                                Some(explanation.to_string());
+                                Some(explanation.to_owned());
                         }
                         let pending = self.auto_state.pending_stop_message.take();
                         if let Some(idx) = self.history_cells.iter().rposition(|c| {

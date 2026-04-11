@@ -19,13 +19,13 @@ impl NotificationsSettingsView {
             }
             NotificationsMode::Custom { entries } => {
                 let filters = if entries.is_empty() {
-                    "<none>".to_string()
+                    "<none>".to_owned()
                 } else {
                     entries.join(", ")
                 };
                 SettingsMenuRow::new(0usize, "Notifications")
                     .with_value(StyledText::new(
-                        "Custom filter".to_string(),
+                        "Custom filter".to_owned(),
                         Style::new().fg(colors::info()).bold(),
                     ))
                     .with_detail(StyledText::new(filters, Style::new().fg(colors::dim())))

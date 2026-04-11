@@ -38,7 +38,7 @@ impl NullableString {
 
 impl JsonSchema for NullableString {
     fn schema_name() -> String {
-        "NullableString".to_string()
+        "NullableString".to_owned()
     }
 
     fn json_schema(_gen: &mut SchemaGenerator) -> Schema {
@@ -244,7 +244,7 @@ impl SessionStartCommandInput {
             session_id: session_id.into(),
             transcript_path: NullableString::from_path(transcript_path),
             cwd: cwd.into(),
-            hook_event_name: "SessionStart".to_string(),
+            hook_event_name: "SessionStart".to_owned(),
             model: model.into(),
             permission_mode: permission_mode.into(),
             source: source.into(),
@@ -417,7 +417,7 @@ fn string_const_schema(value: &str) -> Schema {
         instance_type: Some(InstanceType::String.into()),
         ..Default::default()
     };
-    schema.const_value = Some(Value::String(value.to_string()));
+    schema.const_value = Some(Value::String(value.to_owned()));
     Schema::Object(schema)
 }
 
@@ -429,7 +429,7 @@ fn string_enum_schema(values: &[&str]) -> Schema {
     schema.enum_values = Some(
         values
             .iter()
-            .map(|value| Value::String((*value).to_string()))
+            .map(|value| Value::String((*value).to_owned()))
             .collect(),
     );
     Schema::Object(schema)

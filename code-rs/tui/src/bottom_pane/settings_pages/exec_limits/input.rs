@@ -186,7 +186,7 @@ impl ExecLimitsSettingsView {
                     (KeyCode::Char('s'), KeyModifiers::CONTROL) | (KeyCode::Enter, _) => {
                         let text = field.text().trim();
                         if text.is_empty() {
-                            *error = Some("Enter a number, or \"auto\"/\"disabled\"".to_string());
+                            *error = Some("Enter a number, or \"auto\"/\"disabled\"".to_owned());
                             return true;
                         }
 
@@ -215,12 +215,12 @@ impl ExecLimitsSettingsView {
                         let parsed: u64 = match text.parse() {
                             Ok(v) if v >= 1 => v,
                             Ok(_) => {
-                                *error = Some("Value must be >= 1 (or \"disabled\")".to_string());
+                                *error = Some("Value must be >= 1 (or \"disabled\")".to_owned());
                                 return true;
                             }
                             Err(_) => {
                                 *error = Some(
-                                    "Value must be an integer (or \"auto\"/\"disabled\")".to_string(),
+                                    "Value must be an integer (or \"auto\"/\"disabled\")".to_owned(),
                                 );
                                 return true;
                             }

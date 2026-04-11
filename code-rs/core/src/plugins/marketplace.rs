@@ -169,7 +169,7 @@ pub fn resolve_marketplace_plugin(
 
     let Some(plugin) = plugin else {
         return Err(MarketplaceError::PluginNotFound {
-            plugin_name: plugin_name.to_string(),
+            plugin_name: plugin_name.to_owned(),
             marketplace_name,
         });
     };
@@ -360,13 +360,13 @@ fn resolve_plugin_source_path(
             let Some(path) = path.strip_prefix("./") else {
                 return Err(MarketplaceError::InvalidMarketplaceFile {
                     path: marketplace_path.to_path_buf(),
-                    message: "local plugin source path must start with `./`".to_string(),
+                    message: "local plugin source path must start with `./`".to_owned(),
                 });
             };
             if path.is_empty() {
                 return Err(MarketplaceError::InvalidMarketplaceFile {
                     path: marketplace_path.to_path_buf(),
-                    message: "local plugin source path must not be empty".to_string(),
+                    message: "local plugin source path must not be empty".to_owned(),
                 });
             }
 
@@ -377,8 +377,7 @@ fn resolve_plugin_source_path(
             {
                 return Err(MarketplaceError::InvalidMarketplaceFile {
                     path: marketplace_path.to_path_buf(),
-                    message: "local plugin source path must stay within the marketplace root"
-                        .to_string(),
+                    message: "local plugin source path must stay within the marketplace root".to_owned(),
                 });
             }
 
@@ -400,19 +399,19 @@ fn marketplace_root_dir(
     let Some(plugins_dir) = marketplace_path.parent() else {
         return Err(MarketplaceError::InvalidMarketplaceFile {
             path: marketplace_path.to_path_buf(),
-            message: "marketplace file must live under `<root>/.agents/plugins/`".to_string(),
+            message: "marketplace file must live under `<root>/.agents/plugins/`".to_owned(),
         });
     };
     let Some(dot_agents_dir) = plugins_dir.parent() else {
         return Err(MarketplaceError::InvalidMarketplaceFile {
             path: marketplace_path.to_path_buf(),
-            message: "marketplace file must live under `<root>/.agents/plugins/`".to_string(),
+            message: "marketplace file must live under `<root>/.agents/plugins/`".to_owned(),
         });
     };
     let Some(marketplace_root) = dot_agents_dir.parent() else {
         return Err(MarketplaceError::InvalidMarketplaceFile {
             path: marketplace_path.to_path_buf(),
-            message: "marketplace file must live under `<root>/.agents/plugins/`".to_string(),
+            message: "marketplace file must live under `<root>/.agents/plugins/`".to_owned(),
         });
     };
 
@@ -425,7 +424,7 @@ fn marketplace_root_dir(
     {
         return Err(MarketplaceError::InvalidMarketplaceFile {
             path: marketplace_path.to_path_buf(),
-            message: "marketplace file must live under `<root>/.agents/plugins/`".to_string(),
+            message: "marketplace file must live under `<root>/.agents/plugins/`".to_owned(),
         });
     }
 

@@ -13,11 +13,11 @@ impl ChatWidget<'_> {
             let question_count = pending.questions.len();
             let mut lines: Vec<String> = raw
                 .lines()
-                .map(|line| line.trim_end().to_string())
+                .map(|line| line.trim_end().to_owned())
                 .collect();
 
             if question_count <= 1 {
-                lines = vec![raw.trim().to_string()];
+                lines = vec![raw.trim().to_owned()];
             } else if lines.len() > question_count {
                 let tail = lines.split_off(question_count - 1);
                 lines.push(tail.join("\n"));
@@ -83,11 +83,11 @@ impl ChatWidget<'_> {
             };
 
             if questions.len() == 1 {
-                lines.push(value.to_string());
+                lines.push(value.to_owned());
             } else {
                 let header = question.header.trim();
                 if header.is_empty() {
-                    lines.push(value.to_string());
+                    lines.push(value.to_owned());
                 } else {
                     lines.push(format!("{header}: {value}"));
                 }
@@ -122,7 +122,7 @@ impl ChatWidget<'_> {
                 .answers
                 .get("mcp_elicitation")
                 .and_then(|answer| answer.answers.first())
-                .map(|value| value.trim().to_string())
+                .map(|value| value.trim().to_owned())
                 .unwrap_or_default();
 
             let action = match selected.to_ascii_lowercase().as_str() {
@@ -132,9 +132,9 @@ impl ChatWidget<'_> {
             };
 
             let display_text = match action {
-                code_protocol::approvals::ElicitationAction::Accept => "Accept".to_string(),
-                code_protocol::approvals::ElicitationAction::Decline => "Decline".to_string(),
-                code_protocol::approvals::ElicitationAction::Cancel => "Cancel".to_string(),
+                code_protocol::approvals::ElicitationAction::Accept => "Accept".to_owned(),
+                code_protocol::approvals::ElicitationAction::Decline => "Decline".to_owned(),
+                code_protocol::approvals::ElicitationAction::Cancel => "Cancel".to_owned(),
             };
             let key = Self::order_key_successor(pending.anchor_key);
             let state = history_cell::new_user_prompt(display_text);

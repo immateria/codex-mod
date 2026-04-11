@@ -94,7 +94,7 @@ pub(crate) async fn apply_patch(
 
                 let mut lines: Vec<String> = Vec::new();
                 if total_issues == 0 {
-                    lines.push("Validate New Code: no issues".to_string());
+                    lines.push("Validate New Code: no issues".to_owned());
                 } else {
                     lines.push(format!("Validate New Code: {total_issues} issue(s)"));
                     for finding in &findings {
@@ -121,7 +121,7 @@ pub(crate) async fn apply_patch(
                     }
                 }
                 if ran_checks.is_empty() {
-                    lines.push("Checks run: none".to_string());
+                    lines.push("Checks run: none".to_owned());
                 } else {
                     ran_checks.sort();
                     lines.push(format!("Checks run: {}", ran_checks.join(", ")));
@@ -155,7 +155,7 @@ pub(crate) async fn apply_patch(
                     return ApplyPatchResult::Reply(ResponseInputItem::FunctionCallOutput {
                         call_id: call_id.to_owned(),
                         output: FunctionCallOutputPayload {
-                            body: code_protocol::models::FunctionCallOutputBody::Text("patch rejected by user".to_string()),
+                            body: code_protocol::models::FunctionCallOutputBody::Text("patch rejected by user".to_owned()),
                             success: Some(false)},
                     });
                 }

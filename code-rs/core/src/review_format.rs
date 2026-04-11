@@ -26,9 +26,9 @@ pub fn format_review_findings_block(
 
     // Header
     if findings.len() > 1 {
-        lines.push("Full review comments:".to_string());
+        lines.push("Full review comments:".to_owned());
     } else {
-        lines.push("Review comment:".to_string());
+        lines.push("Review comment:".to_owned());
     }
 
     for (idx, item) in findings.iter().enumerate() {

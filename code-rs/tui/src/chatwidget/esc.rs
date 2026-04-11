@@ -66,7 +66,7 @@ impl ChatWidget<'_> {
             AUTO_ESC_EXIT_HINT
         };
         self.bottom_pane
-            .set_standard_terminal_hint(Some(hint.to_string()));
+            .set_standard_terminal_hint(Some(hint.to_owned()));
     }
 
     fn auto_stop_via_escape(&mut self, message: Option<String>) {
@@ -206,13 +206,13 @@ impl ChatWidget<'_> {
             EscIntent::AutoStopDuringApproval => {
                 self.bottom_pane
                     .update_status_text("Auto Drive stopped during approval.");
-                self.auto_stop_via_escape(Some("Auto Drive stopped during approval.".to_string()));
+                self.auto_stop_via_escape(Some("Auto Drive stopped during approval.".to_owned()));
                 true
             }
             EscIntent::AutoStopActive => {
                 self.bottom_pane
                     .update_status_text("Stopping Auto Drive…");
-                self.auto_stop_via_escape(Some("Auto Drive stopped by user.".to_string()));
+                self.auto_stop_via_escape(Some("Auto Drive stopped by user.".to_owned()));
                 true
             }
             EscIntent::AutoGoalEnableEdit => {
@@ -247,7 +247,7 @@ impl ChatWidget<'_> {
                         "Auto Drive stopped by user."
                     };
                     self.bottom_pane.update_status_text(status);
-                    self.auto_stop_via_escape(Some("Auto Drive stopped by user.".to_string()));
+                    self.auto_stop_via_escape(Some("Auto Drive stopped by user.".to_owned()));
                 } else if had_running {
                     self.bottom_pane
                         .update_status_text("Command cancelled.");

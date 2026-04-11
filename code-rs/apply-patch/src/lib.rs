@@ -132,7 +132,7 @@ pub enum ApplyPatchError {
 impl From<std::io::Error> for ApplyPatchError {
     fn from(err: std::io::Error) -> Self {
         ApplyPatchError::IoError(IoError {
-            context: "I/O error".to_string(),
+            context: "I/O error".to_owned(),
             source: err,
         })
     }
@@ -141,7 +141,7 @@ impl From<std::io::Error> for ApplyPatchError {
 impl From<&std::io::Error> for ApplyPatchError {
     fn from(err: &std::io::Error) -> Self {
         ApplyPatchError::IoError(IoError {
-            context: "I/O error".to_string(),
+            context: "I/O error".to_owned(),
             source: std::io::Error::new(err.kind(), err.to_string()),
         })
     }
@@ -499,16 +499,14 @@ fn extract_apply_patch_from_bash(
                         .node
                         .utf8_text(bytes)
                         .map_err(ExtractHeredocError::HeredocNotUtf8)?
-                        .trim_end_matches('\n')
-                        .to_string();
+                        .trim_end_matches('\n').to_owned();
                     heredoc_text = Some(text);
                 }
                 "cd_path" => {
                     let text = capture
                         .node
                         .utf8_text(bytes)
-                        .map_err(ExtractHeredocError::HeredocNotUtf8)?
-                        .to_string();
+                        .map_err(ExtractHeredocError::HeredocNotUtf8)?.to_owned();
                     cd_path = Some(text);
                 }
                 "cd_raw_string" => {
@@ -520,7 +518,7 @@ fn extract_apply_patch_from_bash(
                         .strip_prefix('\'')
                         .and_then(|s| s.strip_suffix('\''))
                         .unwrap_or(raw);
-                    cd_path = Some(trimmed.to_string());
+                    cd_path = Some(trimmed.to_owned());
                 }
                 _ => {}
             }
@@ -752,7 +750,7 @@ fn derive_new_contents_from_chunks(
     let line_ending = LineEnding::detect(&original_contents);
     let mut original_lines: Vec<String> = original_contents
         .split('\n')
-        .map(|line| normalize_line_ending(line).to_string())
+        .map(|line| normalize_line_ending(line).to_owned())
         .collect();
 
     // Drop the trailing empty element that results from the final newline so
@@ -816,7 +814,7 @@ fn compute_replacements(
             let normalized_new_lines: Vec<String> = chunk
                 .new_lines
                 .iter()
-                .map(|line| normalize_line_ending(line).to_string())
+                .map(|line| normalize_line_ending(line).to_owned())
                 .collect();
             replacements.push((insertion_idx, 0, normalized_new_lines));
             continue;
@@ -836,12 +834,12 @@ fn compute_replacements(
         let normalized_old_lines: Vec<String> = chunk
             .old_lines
             .iter()
-            .map(|line| normalize_line_ending(line).to_string())
+            .map(|line| normalize_line_ending(line).to_owned())
             .collect();
         let normalized_new_lines: Vec<String> = chunk
             .new_lines
             .iter()
-            .map(|line| normalize_line_ending(line).to_string())
+            .map(|line| normalize_line_ending(line).to_owned())
             .collect();
 
         let mut pattern: &[String] = &normalized_old_lines;

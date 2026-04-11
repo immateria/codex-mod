@@ -52,11 +52,11 @@ impl ToolHandler for ApplyPatchToolHandler {
             return unsupported_tool_call_output(
                 &inv.ctx.call_id,
                 outputs_custom,
-                "apply_patch input must not be empty".to_string(),
+                "apply_patch input must not be empty".to_owned(),
             );
         }
 
-        let command = vec!["apply_patch".to_string(), patch_input];
+        let command = vec!["apply_patch".to_owned(), patch_input];
         match sess
             .maybe_parse_apply_patch_verified(&command, sess.get_cwd())
             .await
@@ -100,7 +100,7 @@ impl ToolHandler for ApplyPatchToolHandler {
             code_apply_patch::MaybeApplyPatchVerified::NotApplyPatch => unsupported_tool_call_output(
                 &inv.ctx.call_id,
                 outputs_custom,
-                "not a valid apply_patch payload".to_string(),
+                "not a valid apply_patch payload".to_owned(),
             ),
         }
     }

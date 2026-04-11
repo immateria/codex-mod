@@ -129,7 +129,7 @@ impl FileSearchManager {
         let search_dir = self.search_dir.clone();
         let tx_clone = self.app_tx.clone();
         if let Err(err) = thread::Builder::new()
-            .name("file-search-debounce".to_string())
+            .name("file-search-debounce".to_owned())
             .spawn(move || {
                 // Always do a minimum debounce, but then poll until the
                 // `active_search` is cleared.
@@ -178,10 +178,10 @@ impl FileSearchManager {
     ) {
         let compute_indices = true;
         if let Err(err) = std::thread::Builder::new()
-            .name("file-search-runner".to_string())
+            .name("file-search-runner".to_owned())
             .spawn(move || {
                 // Normalize the query: strip leading "./" so it matches repo-relative paths.
-                let search_query = query.strip_prefix("./").unwrap_or(&query).to_string();
+                let search_query = query.strip_prefix("./").unwrap_or(&query).to_owned();
                 // Create a streaming channel for partial updates.
                 let (part_tx, part_rx) = std::sync::mpsc::channel::<Vec<file_search::FileMatch>>();
 
@@ -190,7 +190,7 @@ impl FileSearchManager {
                 let rx_query = query.clone();
                 let rx_cancel = cancellation_token.clone();
                 if let Err(err) = std::thread::Builder::new()
-                    .name("file-search-forwarder".to_string())
+                    .name("file-search-forwarder".to_owned())
                     .spawn(move || {
                         while let Ok(matches) = part_rx.recv() {
                             if rx_cancel.load(Ordering::Relaxed) {

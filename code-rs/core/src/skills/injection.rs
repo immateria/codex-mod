@@ -228,7 +228,7 @@ fn parse_skill_mcp_dependencies(
         };
         if dedupe.insert((server.as_str().to_owned(), None)) {
             out.push(SkillMcpDependency {
-                skill_name: skill_name.to_string(),
+                skill_name: skill_name.to_owned(),
                 server: server.as_str().to_owned(),
                 tool: None,
             });
@@ -247,16 +247,16 @@ fn parse_skill_mcp_dependencies(
             },
             McpToolDepSpec::Map { server, tool } => {
                 let server = McpServerId::parse(server.as_str())
-                    .ok_or_else(|| "mcp_tools.server cannot be empty".to_string())?;
+                    .ok_or_else(|| "mcp_tools.server cannot be empty".to_owned())?;
                 McpToolId::parse(server.as_str(), tool.as_str())
-                    .ok_or_else(|| "mcp_tools.tool cannot be empty".to_string())?
+                    .ok_or_else(|| "mcp_tools.tool cannot be empty".to_owned())?
                     .into_parts()
             }
         };
 
         if dedupe.insert((server.clone(), Some(tool.clone()))) {
             out.push(SkillMcpDependency {
-                skill_name: skill_name.to_string(),
+                skill_name: skill_name.to_owned(),
                 server,
                 tool: Some(tool),
             });

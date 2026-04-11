@@ -203,7 +203,7 @@ pub(crate) fn parse_read_line_annotation_with_range(
         && !lower.contains("-n")
         && cmd.split_whitespace().any(|part| part == "head")
     {
-        return (Some("(lines 1 to 10)".to_string()), Some((1, 10)));
+        return (Some("(lines 1 to 10)".to_owned()), Some((1, 10)));
     }
     // tail -n +K => from K to end; tail -n N => last N lines
     if lower.contains("tail") && lower.contains("-n") {
@@ -238,7 +238,7 @@ pub(crate) fn parse_read_line_annotation_with_range(
         && !lower.contains("-n")
         && cmd.split_whitespace().any(|part| part == "tail")
     {
-        return (Some("(last 10 lines)".to_string()), None);
+        return (Some("(last 10 lines)".to_owned()), None);
     }
     (None, None)
 }

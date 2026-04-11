@@ -34,7 +34,7 @@ impl ShellEscalationSettingsView {
             )),
             Line::from(Span::styled(
                 self.active_profile
-                    .as_deref().map_or_else(|| "Profile: (none)".to_string(), |p| format!("Profile: {p}")),
+                    .as_deref().map_or_else(|| "Profile: (none)".to_owned(), |p| format!("Profile: {p}")),
                 s_text_dim,
             )),
             Line::from(""),
@@ -51,7 +51,7 @@ impl ShellEscalationSettingsView {
 
     fn shell_label(&self) -> String {
         let Some(shell) = &self.shell else {
-            return "Shell: auto".to_string();
+            return "Shell: auto".to_owned();
         };
         if shell.args.is_empty() {
             format!("Shell: {}", shell.path)
@@ -86,12 +86,12 @@ impl ShellEscalationSettingsView {
             unsafe {
                 let pw = getpwuid(getuid());
                 if pw.is_null() {
-                    return Some("Could not detect login shell (need zsh)".to_string());
+                    return Some("Could not detect login shell (need zsh)".to_owned());
                 }
 
                 let shell_ptr = (*pw).pw_shell;
                 if shell_ptr.is_null() {
-                    return Some("Could not detect login shell (need zsh)".to_string());
+                    return Some("Could not detect login shell (need zsh)".to_owned());
                 }
 
                 let shell_path = CStr::from_ptr(shell_ptr)
@@ -158,7 +158,7 @@ impl ShellEscalationSettingsView {
             }
         }
 
-        (None, None, Some("Wrapper binary not found (sibling or PATH)".to_string()))
+        (None, None, Some("Wrapper binary not found (sibling or PATH)".to_owned()))
     }
 
     fn zsh_path_problem(&self) -> Option<String> {
@@ -168,7 +168,7 @@ impl ShellEscalationSettingsView {
             .map(str::trim)
             .filter(|value| !value.is_empty())
         else {
-            return Some("zsh_path is not set".to_string());
+            return Some("zsh_path is not set".to_owned());
         };
 
         let zsh_path = std::path::Path::new(zsh_path);
@@ -186,10 +186,10 @@ impl ShellEscalationSettingsView {
         let mut reasons = Vec::<String>::new();
 
         if !cfg!(unix) {
-            reasons.push("zsh-fork escalation is Unix-only".to_string());
+            reasons.push("zsh-fork escalation is Unix-only".to_owned());
         }
         if !self.enabled {
-            reasons.push("Disabled (toggle is off)".to_string());
+            reasons.push("Disabled (toggle is off)".to_owned());
         }
         if let Some(reason) = self.shell_readiness_problem() {
             reasons.push(reason);
@@ -220,7 +220,7 @@ impl ShellEscalationSettingsView {
             (Some(path), Some(source)) => {
                 format!("Wrapper: {} ({})", path.display(), source.label())
             }
-            _ => "Wrapper: (not found)".to_string(),
+            _ => "Wrapper: (not found)".to_owned(),
         };
 
         let mut lines = vec![

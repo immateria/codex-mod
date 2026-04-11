@@ -18,7 +18,7 @@ impl ChatWidget<'_> {
         }
         self.resume_picker_loading = true;
         self.bottom_pane.flash_footer_notice_for(
-            "Loading past sessions…".to_string(),
+            "Loading past sessions…".to_owned(),
             std::time::Duration::from_secs(30),
         );
         self.request_redraw();
@@ -84,9 +84,9 @@ impl ChatWidget<'_> {
                 if mins >= 1 {
                     return format!("{mins}m ago");
                 }
-                return "just now".to_string();
+                return "just now".to_owned();
             }
-            ts.to_string()
+            ts.to_owned()
         }
 
         candidates
@@ -96,12 +96,12 @@ impl ChatWidget<'_> {
                 let created = human_ago(&c.created_ts.unwrap_or_default());
                 let user_message_count = c.user_message_count;
                 let user_msgs = user_message_count.to_string();
-                let branch = c.branch.unwrap_or_else(|| "-".to_string());
+                let branch = c.branch.unwrap_or_else(|| "-".to_owned());
                 let nickname = c
                     .nickname
                     .and_then(|name| {
                         let trimmed = name.trim();
-                        (!trimmed.is_empty()).then(|| trimmed.to_string())
+                        (!trimmed.is_empty()).then(|| trimmed.to_owned())
                     });
                 let snippet = c.snippet.or(c.subtitle);
                 let mut summary = match (nickname, snippet) {

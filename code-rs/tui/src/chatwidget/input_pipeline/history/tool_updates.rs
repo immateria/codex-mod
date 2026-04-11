@@ -27,7 +27,7 @@ impl ChatWidget<'_> {
         let running_entry = self
             .tools_state
             .running_custom_tools
-            .get(&ToolCallId(call_id.to_string()))
+            .get(&ToolCallId(call_id.to_owned()))
             .copied();
         let resolved_idx = running_entry
             .as_ref()
@@ -51,7 +51,7 @@ impl ChatWidget<'_> {
         let mut state = running_cell.state().clone();
         Self::merge_tool_arguments(&mut state.arguments, updates);
         let mut updated_cell = history_cell::RunningToolCallCell::from_state(state.clone());
-        updated_cell.state_mut().call_id = Some(call_id.to_string());
+        updated_cell.state_mut().call_id = Some(call_id.to_owned());
         updated_cell.set_details_collapsed(collapsed_details);
         self.history_replace_with_record(
             idx,

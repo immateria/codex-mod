@@ -79,10 +79,10 @@ pub(crate) async fn run(
         turn_id: request.turn_id.clone(),
         transcript_path: crate::schema::NullableString::from_path(request.transcript_path.clone()),
         cwd: request.cwd.display().to_string(),
-        hook_event_name: "PreToolUse".to_string(),
+        hook_event_name: "PreToolUse".to_owned(),
         model: request.model.clone(),
         permission_mode: request.permission_mode.clone(),
-        tool_name: "Bash".to_string(),
+        tool_name: "Bash".to_owned(),
         tool_input: crate::schema::PreToolUseToolInput {
             command: request.command.clone(),
         },
@@ -135,7 +135,7 @@ fn parse_completed(
             status = HookRunStatus::Failed;
             entries.push(HookOutputEntry {
                 kind: HookOutputEntryKind::Error,
-                text: error.to_string(),
+                text: error.to_owned(),
             });
         }
         None => match run_result.exit_code {
@@ -168,7 +168,7 @@ fn parse_completed(
                     status = HookRunStatus::Failed;
                     entries.push(HookOutputEntry {
                         kind: HookOutputEntryKind::Error,
-                        text: "hook returned invalid pre-tool-use JSON output".to_string(),
+                        text: "hook returned invalid pre-tool-use JSON output".to_owned(),
                     });
                 }
             }
@@ -185,7 +185,7 @@ fn parse_completed(
                     status = HookRunStatus::Failed;
                     entries.push(HookOutputEntry {
                         kind: HookOutputEntryKind::Error,
-                        text: "PreToolUse hook exited with code 2 but did not write a blocking reason to stderr".to_string(),
+                        text: "PreToolUse hook exited with code 2 but did not write a blocking reason to stderr".to_owned(),
                     });
                 }
             }
@@ -200,7 +200,7 @@ fn parse_completed(
                 status = HookRunStatus::Failed;
                 entries.push(HookOutputEntry {
                     kind: HookOutputEntryKind::Error,
-                    text: "hook exited without a status code".to_string(),
+                    text: "hook exited without a status code".to_owned(),
                 });
             }
         },

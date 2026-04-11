@@ -22,7 +22,7 @@ pub(super) async fn handle_browser_inspect_selector(
     execute_custom_tool(
         sess,
         ctx,
-        "browser_inspect_selector".to_string(),
+        "browser_inspect_selector".to_owned(),
         params,
         || async move {
             let browser_manager = get_browser_manager_for_session(sess_clone).await;
@@ -153,7 +153,7 @@ pub(super) async fn handle_browser_inspect(
     execute_custom_tool(
         sess,
         ctx,
-        "browser_inspect".to_string(),
+        "browser_inspect".to_owned(),
         params,
         || async move {
             let browser_manager = get_browser_manager_for_session(sess_clone).await;

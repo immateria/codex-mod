@@ -455,7 +455,7 @@ fn derive_resume_command_name(arg0: Option<std::ffi::OsString>) -> String {
             .and_then(|value| value.to_str())
             .filter(|value| !value.is_empty())
         {
-            return name.to_string();
+            return name.to_owned();
         }
 
         let lossy = raw.to_string_lossy();
@@ -471,7 +471,7 @@ fn derive_resume_command_name(arg0: Option<std::ffi::OsString>) -> String {
                 .and_then(|value| value.to_str())
                 .map(str::to_owned)
         })
-        .unwrap_or_else(|| "code".to_string())
+        .unwrap_or_else(|| "code".to_owned())
 }
 
 pub fn resume_command_name() -> &'static str {
@@ -993,7 +993,7 @@ fn reclaim_worktrees_from_file(path: &std::path::Path, label: &str) {
 
         if acquired.is_none() && !lock_is_self {
             let detail = lock_info
-                .as_ref().map_or_else(|| "unknown holder".to_string(), |info| format!("pid {} (intent: {})", info.pid, info.intent));
+                .as_ref().map_or_else(|| "unknown holder".to_owned(), |info| format!("pid {} (intent: {})", info.pid, info.intent));
             tracing::warn!(
                 "Deferring cleanup of {} — cleanup lock busy ({detail}); will retry on next shutdown",
                 worktree.display()
@@ -1080,7 +1080,7 @@ fn maybe_apply_terminal_theme_detection(config: &mut Config, theme_configured_ex
                 term_program,
                 term_program_version,
                 colorfgbg,
-                source: Some(source.to_string()),
+                source: Some(source.to_owned()),
                 rgb: detection
                     .rgb
                     .map(|(r, g, b)| format!("{r:02x}{g:02x}{b:02x}")),

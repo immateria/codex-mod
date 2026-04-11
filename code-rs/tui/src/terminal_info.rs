@@ -316,7 +316,7 @@ fn detect_macos_system_theme() -> Option<bool> {
         .arg("tell application \"System Events\" to tell appearance preferences to get dark mode")
         .output()
         && output.status.success() {
-            let out = String::from_utf8_lossy(&output.stdout).trim().to_string();
+            let out = String::from_utf8_lossy(&output.stdout).trim().to_owned();
             if out.eq_ignore_ascii_case("true") {
                 return Some(true);
             }
@@ -328,7 +328,7 @@ fn detect_macos_system_theme() -> Option<bool> {
     // Fallback to `defaults read -g AppleInterfaceStyle` - returns "Dark" when dark
     if let Ok(output) = Command::new("defaults").arg("read").arg("-g").arg("AppleInterfaceStyle").output()
         && output.status.success() {
-            let out = String::from_utf8_lossy(&output.stdout).trim().to_string();
+            let out = String::from_utf8_lossy(&output.stdout).trim().to_owned();
             if out.eq_ignore_ascii_case("Dark") {
                 return Some(true);
             }

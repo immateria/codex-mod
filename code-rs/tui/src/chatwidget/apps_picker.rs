@@ -176,11 +176,11 @@ impl ChatWidget<'_> {
     fn build_apps_picker_loading_view(&self) -> ListSelectionView {
         ListSelectionView::new_with_id(
             APPS_PICKER_VIEW_ID,
-            "Apps".to_string(),
-            Some("Loading apps directory...".to_string()),
-            Some("Esc close".to_string()),
+            "Apps".to_owned(),
+            Some("Loading apps directory...".to_owned()),
+            Some("Esc close".to_owned()),
             vec![SelectionItem {
-                name: "Loading...".to_string(),
+                name: "Loading...".to_owned(),
                 description: None,
                 is_current: false,
                 actions: Vec::new(),
@@ -193,16 +193,16 @@ impl ChatWidget<'_> {
     fn build_apps_picker_error_view(&self, error: &str) -> ListSelectionView {
         let mut items = Vec::new();
         items.push(SelectionItem {
-            name: "Retry".to_string(),
-            description: Some("Fetch the apps directory again.".to_string()),
+            name: "Retry".to_owned(),
+            description: Some("Fetch the apps directory again.".to_owned()),
             is_current: false,
             actions: vec![Box::new(|tx| {
                 tx.send(AppEvent::FetchAppsDirectory { force_refetch: true });
             })],
         });
         items.push(SelectionItem {
-            name: "Open Apps settings".to_string(),
-            description: Some("Manage connector-source accounts.".to_string()),
+            name: "Open Apps settings".to_owned(),
+            description: Some("Manage connector-source accounts.".to_owned()),
             is_current: false,
             actions: vec![Box::new(|tx| {
                 tx.send(AppEvent::OpenSettings {
@@ -213,9 +213,9 @@ impl ChatWidget<'_> {
 
         ListSelectionView::new_with_id(
             APPS_PICKER_VIEW_ID,
-            "Apps".to_string(),
+            "Apps".to_owned(),
             Some(format!("Failed to load apps directory: {error}")),
-            Some("Enter select • Esc close".to_string()),
+            Some("Enter select • Esc close".to_owned()),
             items,
             self.app_event_tx.clone(),
             12,
@@ -234,8 +234,8 @@ impl ChatWidget<'_> {
 
         let mut items = Vec::with_capacity(apps.len().saturating_add(1));
         items.push(SelectionItem {
-            name: "Open Apps settings".to_string(),
-            description: Some("Pin connector-source accounts.".to_string()),
+            name: "Open Apps settings".to_owned(),
+            description: Some("Pin connector-source accounts.".to_owned()),
             is_current: false,
             actions: vec![Box::new(|tx| {
                 tx.send(AppEvent::OpenSettings {
@@ -275,9 +275,9 @@ impl ChatWidget<'_> {
 
         ListSelectionView::new_with_id(
             APPS_PICKER_VIEW_ID,
-            "Apps".to_string(),
+            "Apps".to_owned(),
             Some(subtitle),
-            Some("Enter select • Esc close".to_string()),
+            Some("Enter select • Esc close".to_owned()),
             items,
             self.app_event_tx.clone(),
             16,

@@ -42,17 +42,17 @@ pub(crate) fn describe_exit_code(code: i32) -> &'static str {
 pub(crate) fn clean_wait_command(raw: &str) -> String {
     let trimmed = raw.trim();
     let Some((first_token, rest)) = split_token(trimmed) else {
-        return trimmed.to_string();
+        return trimmed.to_owned();
     };
     if !looks_like_shell(first_token) {
-        return trimmed.to_string();
+        return trimmed.to_owned();
     }
     let rest = rest.trim_start();
     let Some((second_token, remainder)) = split_token(rest) else {
-        return trimmed.to_string();
+        return trimmed.to_owned();
     };
     if second_token != "-lc" {
-        return trimmed.to_string();
+        return trimmed.to_owned();
     }
     let mut command = remainder.trim_start();
     if command.len() >= 2 {
@@ -64,9 +64,9 @@ pub(crate) fn clean_wait_command(raw: &str) -> String {
         }
     }
     if command.is_empty() {
-        trimmed.to_string()
+        trimmed.to_owned()
     } else {
-        command.to_string()
+        command.to_owned()
     }
 }
 
@@ -291,7 +291,7 @@ pub(crate) fn build_output_lines(text: &str) -> Vec<Line<'static>> {
         return crate::syntax_highlight::highlight_code_block(&pretty, Some("json"));
     }
 
-    let processed = format_json_compact(text).unwrap_or_else(|| text.to_string());
+    let processed = format_json_compact(text).unwrap_or_else(|| text.to_owned());
     let processed = normalize_overwrite_sequences(&processed);
     let (processed, clipped) = clip_preview_text(&processed, EXEC_PREVIEW_MAX_CHARS);
     let processed = sanitize_for_tui(
@@ -339,7 +339,7 @@ fn build_preview_lines_windowed(
     }
 
     // Otherwise, compact valid JSON (without ANSI) to improve wrap, or pass original through.
-    let processed = format_json_compact(text).unwrap_or_else(|| text.to_string());
+    let processed = format_json_compact(text).unwrap_or_else(|| text.to_owned());
     let processed = normalize_overwrite_sequences(&processed);
     let (processed, clipped) = clip_preview_text(&processed, max_chars);
     let processed = sanitize_for_tui(
@@ -397,7 +397,7 @@ fn build_preview_lines_windowed(
 fn clip_preview_text(text: &str, limit: usize) -> (String, bool) {
     let char_count = text.chars().count();
     if char_count <= limit {
-        return (text.to_string(), false);
+        return (text.to_owned(), false);
     }
     let skip = char_count - limit;
     let tail: String = text.chars().skip(skip).collect();
@@ -470,8 +470,7 @@ pub(crate) fn pretty_provider_name(id: &str) -> String {
         "sequential-thinking" => "think",
         "discord-bot" => "discord",
         _ => id,
-    }
-    .to_string()
+    }.to_owned()
 }
 
 pub(crate) fn lines_to_plain_text(lines: &[Line<'_>]) -> String {

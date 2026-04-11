@@ -349,7 +349,7 @@ fn has_force_delete_cmdlet(tokens: &[String]) -> bool {
                 if let Some(msg) = segments.last_mut()
                     && !s.is_empty()
                 {
-                    msg.push(s.to_string());
+                    msg.push(s.to_owned());
                 }
                 cur.clear();
                 if let Some(last) = segments.last()
@@ -365,7 +365,7 @@ fn has_force_delete_cmdlet(tokens: &[String]) -> bool {
         if let Some(segment) = segments.last_mut()
             && !s.is_empty()
         {
-            segment.push(s.to_string());
+            segment.push(s.to_owned());
         }
     }
 

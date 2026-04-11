@@ -213,7 +213,7 @@ impl SessionCatalog {
         let expected_id = rel
             .file_stem()
             .and_then(|s| s.to_str())
-            .and_then(|stem| stem.rsplit_once('-').map(|(_, id)| id.to_string()));
+            .and_then(|stem| stem.rsplit_once('-').map(|(_, id)| id.to_owned()));
         if expected_id
             .as_deref()
             .is_some_and(|id| !session_id.to_string().eq_ignore_ascii_case(id))

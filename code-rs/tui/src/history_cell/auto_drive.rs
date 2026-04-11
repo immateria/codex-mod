@@ -156,7 +156,7 @@ impl AutoDriveCardCell {
         if trimmed.is_empty() {
             None
         } else {
-            Some(trimmed.to_string())
+            Some(trimmed.to_owned())
         }
     }
 
@@ -313,7 +313,7 @@ impl AutoDriveCardCell {
             let mut bold_title = title_style;
             bold_title = bold_title.add_modifier(Modifier::BOLD);
             segments.push(CardSegment::new(
-                title_text.to_string(),
+                title_text.to_owned(),
                 bold_title,
             ));
             segments.push(CardSegment::new(
@@ -447,7 +447,7 @@ impl AutoDriveCardCell {
                 if !current.is_empty() {
                     rows.push(current);
                 }
-                current = word.to_string();
+                current = word.to_owned();
                 current_width = word_width;
             } else {
                 if separator_width > 0 {
@@ -838,7 +838,7 @@ impl AutoDriveCardCell {
 
             if remaining > 0 {
                 let description = match action.kind {
-                    AutoDriveActionKind::Info => action.text.trim().to_string(),
+                    AutoDriveActionKind::Info => action.text.trim().to_owned(),
                     AutoDriveActionKind::Warning => format!("! {}", action.text.trim()),
                     AutoDriveActionKind::Error => format!("{} {}", crate::icons::status_fail(), action.text.trim()),
                 };

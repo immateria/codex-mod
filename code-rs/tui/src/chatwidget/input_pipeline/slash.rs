@@ -18,7 +18,7 @@ impl ChatWidget<'_> {
         if rest.trim().is_empty() {
             return None;
         }
-        Some((command.to_string(), rest.to_string()))
+        Some((command.to_owned(), rest.to_owned()))
     }
 
     pub(in super::super) fn slash_command_from_line(line: &str) -> Option<SlashCommand> {

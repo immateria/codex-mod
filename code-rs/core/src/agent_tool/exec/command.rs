@@ -17,7 +17,7 @@ pub(crate) fn maybe_set_gemini_config_dir(env: &mut HashMap<String, String>, ori
     let host_gem_cfg = std::path::PathBuf::from(&home).join(".gemini");
     if host_gem_cfg.is_dir() {
         env.insert(
-            "GEMINI_CONFIG_DIR".to_string(),
+            "GEMINI_CONFIG_DIR".to_owned(),
             host_gem_cfg.to_string_lossy().into_owned(),
         );
     }

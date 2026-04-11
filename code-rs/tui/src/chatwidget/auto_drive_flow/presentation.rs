@@ -15,14 +15,14 @@ impl ChatWidget<'_> {
                 if let Some(msg) = summary.message.as_ref() {
                     let trimmed = msg.trim();
                     if !trimmed.is_empty() {
-                        status_lines.push(trimmed.to_string());
+                        status_lines.push(trimmed.to_owned());
                     }
                 }
                 if status_lines.is_empty() {
                     if let Some(goal) = summary.goal.as_ref() {
                         status_lines.push(format!("Auto Drive completed: {goal}"));
                     } else {
-                        status_lines.push("Auto Drive completed.".to_string());
+                        status_lines.push("Auto Drive completed.".to_owned());
                     }
                 }
                 let model = AutoCoordinatorViewModel::Active(AutoActiveViewModel {
@@ -37,7 +37,7 @@ impl ChatWidget<'_> {
                     countdown: None,
                     button: None,
                     manual_hint: None,
-                    ctrl_switch_hint: "Esc to exit Auto Drive".to_string(),
+                    ctrl_switch_hint: "Esc to exit Auto Drive".to_owned(),
                     cli_running: false,
                     turns_completed: summary.turns_completed,
                     started_at: None,
@@ -76,7 +76,7 @@ impl ChatWidget<'_> {
     }
 
         let status_text = if self.auto_state.awaiting_review() {
-            "waiting for code review...".to_string()
+            "waiting for code review...".to_owned()
         } else if let Some(line) = self
             .auto_state
             .current_display_line
@@ -88,7 +88,7 @@ impl ChatWidget<'_> {
             self
                 .auto_state
                 .placeholder_phrase
-                .get_or_insert_with(|| auto_drive_strings::next_auto_drive_phrase().to_string())
+                .get_or_insert_with(|| auto_drive_strings::next_auto_drive_phrase().to_owned())
                 .clone()
         };
 
@@ -197,7 +197,7 @@ impl ChatWidget<'_> {
             let label = if countdown_active {
                 format!("{base_label} ({}s)", self.auto_state.seconds_remaining)
             } else {
-                base_label.to_string()
+                base_label.to_owned()
             };
             Some(AutoCoordinatorButton {
                 label,
@@ -209,25 +209,25 @@ impl ChatWidget<'_> {
 
         let manual_hint = if self.auto_state.awaiting_coordinator_submit() {
             if self.auto_state.is_paused_manual() {
-                Some("Edit the prompt, then press Enter to continue.".to_string())
+                Some("Edit the prompt, then press Enter to continue.".to_owned())
             } else if bootstrap_pending {
                 None
             } else if has_cli_prompt {
                 if countdown_active {
-                    Some("Enter to send now • Esc to edit".to_string())
+                    Some("Enter to send now • Esc to edit".to_owned())
                 } else {
-                    Some("Enter to send • Esc to edit".to_string())
+                    Some("Enter to send • Esc to edit".to_owned())
                 }
             } else if continue_cta_active {
                 if countdown_active {
-                    Some("Enter to continue now • Esc to stop".to_string())
+                    Some("Enter to continue now • Esc to stop".to_owned())
                 } else {
-                    Some("Enter to continue • Esc to stop".to_string())
+                    Some("Enter to continue • Esc to stop".to_owned())
                 }
             } else if countdown_active {
-                Some("Enter to send now • Esc to stop".to_string())
+                Some("Enter to send now • Esc to stop".to_owned())
             } else {
-                Some("Enter to send • Esc to stop".to_string())
+                Some("Enter to send • Esc to stop".to_owned())
             }
         } else {
             None
@@ -235,13 +235,13 @@ impl ChatWidget<'_> {
 
         let ctrl_switch_hint = if self.auto_state.awaiting_coordinator_submit() {
             if self.auto_state.is_paused_manual() {
-                "Esc to cancel".to_string()
+                "Esc to cancel".to_owned()
             } else if bootstrap_pending {
-                "Esc enter new goal".to_string()
+                "Esc enter new goal".to_owned()
             } else if has_cli_prompt {
-                "Esc to edit".to_string()
+                "Esc to edit".to_owned()
             } else {
-                "Esc to stop".to_string()
+                "Esc to stop".to_owned()
             }
         } else {
             String::new()
@@ -302,7 +302,7 @@ impl ChatWidget<'_> {
         }
 
         if self.auto_state.current_display_is_summary {
-            return trimmed.to_string();
+            return trimmed.to_owned();
         }
 
         let show_summary_without_ellipsis = self.auto_state.awaiting_coordinator_submit()
@@ -314,7 +314,7 @@ impl ChatWidget<'_> {
                 .is_some_and(|summary| !summary.trim().is_empty());
 
         if show_summary_without_ellipsis {
-            trimmed.to_string()
+            trimmed.to_owned()
         } else {
             append_thought_ellipsis(trimmed)
         }
@@ -386,7 +386,7 @@ impl ChatWidget<'_> {
         let display_text = extract_latest_bold_title(raw).or_else(|| {
             raw.lines().find_map(|line| {
                 let trimmed = line.trim();
-                (!trimmed.is_empty()).then_some(trimmed.to_string())
+                (!trimmed.is_empty()).then_some(trimmed.to_owned())
             })
         });
 
@@ -422,18 +422,18 @@ impl ChatWidget<'_> {
                 self.auto_state.current_display_line = None;
                 self.auto_state.current_display_is_summary = false;
                 self.auto_state.placeholder_phrase =
-                    Some(auto_drive_strings::next_auto_drive_phrase().to_string());
+                    Some(auto_drive_strings::next_auto_drive_phrase().to_owned());
                 needs_refresh = true;
             }
 
         let cleaned_delta = if self.auto_state.thinking_prefix_stripped {
-            delta.to_string()
+            delta.to_owned()
         } else {
             let (without_prefix, stripped) = strip_role_prefix_if_present(delta);
             if stripped {
                 self.auto_state.thinking_prefix_stripped = true;
             }
-            without_prefix.to_string()
+            without_prefix.to_owned()
         };
 
         if !self.auto_state.thinking_prefix_stripped && !cleaned_delta.trim().is_empty() {
@@ -497,7 +497,7 @@ impl ChatWidget<'_> {
         }
 
         self.auto_state.current_reasoning_title = None;
-        self.auto_state.current_summary = Some(text.to_string());
+        self.auto_state.current_summary = Some(text.to_owned());
         self.auto_state.thinking_prefix_stripped = true;
         self.auto_state.current_summary_index = None;
         self.auto_update_display_title();
@@ -515,7 +515,7 @@ impl ChatWidget<'_> {
             if trimmed.is_empty() {
                 None
             } else {
-                Some(trimmed.to_string())
+                Some(trimmed.to_owned())
             }
         })
     }
@@ -530,14 +530,14 @@ impl ChatWidget<'_> {
             .map(|value| value.trim())
             .filter(|value| !value.is_empty())
         {
-            parts.push(title.to_string());
+            parts.push(title.to_owned());
         }
         if let Some(sent) = status_sent_to_user
             .as_ref()
             .map(|value| value.trim())
             .filter(|value| !value.is_empty())
             && !parts.iter().any(|existing| existing.eq_ignore_ascii_case(sent)) {
-                parts.push(sent.to_string());
+                parts.push(sent.to_owned());
             }
 
         match parts.len() {

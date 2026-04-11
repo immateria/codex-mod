@@ -38,7 +38,7 @@ impl ChatWidget<'_> {
                 mcp_types::ToolInputSchema {
                     properties: None,
                     required: None,
-                    r#type: "object".to_string(),
+                    r#type: "object".to_owned(),
                 }
             }
         };
@@ -402,7 +402,7 @@ impl ChatWidget<'_> {
                 // If we inserted during streaming, keep the reasoning ellipsis visible.
                 self.restore_reasoning_in_progress_if_streaming();
                 let desired_title = if plan_active {
-                    Some(plan_title.unwrap_or_else(|| "Plan".to_string()))
+                    Some(plan_title.unwrap_or_else(|| "Plan".to_owned()))
                 } else {
                     None
                 };
@@ -536,7 +536,7 @@ impl ChatWidget<'_> {
                 self.refresh_settings_overview_rows();
             }
             EventMsg::ShutdownComplete => {
-                self.push_background_tail("ShutdownComplete".to_string());
+                self.push_background_tail("ShutdownComplete".to_owned());
                 self.app_event_tx.send(AppEvent::ExitRequest);
             }
             EventMsg::TurnDiff(TurnDiffEvent { unified_diff }) => {

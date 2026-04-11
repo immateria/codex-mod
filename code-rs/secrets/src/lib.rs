@@ -33,7 +33,7 @@ impl SecretName {
                 .all(|ch| ch.is_ascii_uppercase() || ch.is_ascii_digit() || ch == '_'),
             "secret name must contain only A-Z, 0-9, or _"
         );
-        Ok(Self(trimmed.to_string()))
+        Ok(Self(trimmed.to_owned()))
     }
 
     pub fn as_str(&self) -> &str {
@@ -58,7 +58,7 @@ impl SecretScope {
         let env_id = environment_id.into();
         let trimmed = env_id.trim();
         anyhow::ensure!(!trimmed.is_empty(), "environment id must not be empty");
-        Ok(Self::Environment(trimmed.to_string()))
+        Ok(Self::Environment(trimmed.to_owned()))
     }
 
     pub fn canonical_key(&self, name: &SecretName) -> String {
@@ -160,7 +160,7 @@ pub fn environment_id_from_cwd(cwd: &Path) -> String {
     if let Some(repo_root) = get_git_repo_root(cwd)
         && let Some(name) = repo_root.file_name()
     {
-        let name = name.to_string_lossy().trim().to_string();
+        let name = name.to_string_lossy().trim().to_owned();
         if !name.is_empty() {
             return name;
         }

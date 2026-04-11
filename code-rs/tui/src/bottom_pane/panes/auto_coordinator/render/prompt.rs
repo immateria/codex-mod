@@ -195,7 +195,7 @@ pub(super) fn status_message_line(
 
     Some(Line::from(vec![
         Span::raw("   "),
-        Span::styled(trimmed.to_string(), style),
+        Span::styled(trimmed.to_owned(), style),
     ]))
 }
 
@@ -254,7 +254,7 @@ pub(super) fn cli_prompt_lines(model: &AutoActiveViewModel) -> Option<Vec<Line<'
             } else {
                 lines.push(Line::from(vec![
                     Span::raw(indent),
-                    Span::styled(trimmed.to_string(), context_style),
+                    Span::styled(trimmed.to_owned(), context_style),
                 ]));
             }
         }
@@ -271,7 +271,7 @@ pub(super) fn cli_prompt_lines(model: &AutoActiveViewModel) -> Option<Vec<Line<'
             } else {
                 lines.push(Line::from(vec![
                     Span::raw(indent),
-                    Span::styled(trimmed.to_string(), prompt_style),
+                    Span::styled(trimmed.to_owned(), prompt_style),
                 ]));
             }
         }

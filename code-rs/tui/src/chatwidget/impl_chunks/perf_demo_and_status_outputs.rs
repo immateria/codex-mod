@@ -5,24 +5,24 @@ impl ChatWidget<'_> {
             "on" => {
                 self.perf_state.enabled = true;
                 self.perf_state.pending_scroll_rows.set(0);
-                self.add_perf_output("performance tracing: on".to_string());
+                self.add_perf_output("performance tracing: on".to_owned());
             }
             "off" => {
                 self.perf_state.enabled = false;
                 self.perf_state.pending_scroll_rows.set(0);
-                self.add_perf_output("performance tracing: off".to_string());
+                self.add_perf_output("performance tracing: off".to_owned());
             }
             "reset" => {
                 self.perf_state.stats.borrow_mut().reset();
                 self.perf_state.pending_scroll_rows.set(0);
-                self.add_perf_output("performance stats reset".to_string());
+                self.add_perf_output("performance stats reset".to_owned());
             }
             "show" | "" => {
                 let summary = self.perf_state.stats.borrow().summary();
                 self.add_perf_output(summary);
             }
             _ => {
-                self.add_perf_output("usage: /perf on | off | show | reset".to_string());
+                self.add_perf_output("usage: /perf on | off | show | reset".to_owned());
             }
         }
         self.request_redraw();
@@ -85,19 +85,19 @@ impl ChatWidget<'_> {
                     content: "fn main() {\n    println!(\"demo\");\n}\n",
                 }),
                 UpdatePlanArgs {
-                    name: Some("Demo Scroll Plan".to_string()),
+                    name: Some("Demo Scroll Plan".to_owned()),
                     explanation: None,
                     plan: vec![
                         PlanItemArg {
-                            step: "Create reproducible builds".to_string(),
+                            step: "Create reproducible builds".to_owned(),
                             status: StepStatus::InProgress,
                         },
                         PlanItemArg {
-                            step: "Verify validations".to_string(),
+                            step: "Verify validations".to_owned(),
                             status: StepStatus::Pending,
                         },
                         PlanItemArg {
-                            step: "Document follow-up tasks".to_string(),
+                            step: "Document follow-up tasks".to_owned(),
                             status: StepStatus::Completed,
                         },
                     ],
@@ -133,23 +133,23 @@ impl ChatWidget<'_> {
                     new_content: "pub fn release() {\n    println!(\"drafting release\");\n}\n",
                 }),
                 UpdatePlanArgs {
-                    name: Some("Release Gate Plan".to_string()),
+                    name: Some("Release Gate Plan".to_owned()),
                     explanation: None,
                     plan: vec![
                         PlanItemArg {
-                            step: "Finalize changelog".to_string(),
+                            step: "Finalize changelog".to_owned(),
                             status: StepStatus::Completed,
                         },
                         PlanItemArg {
-                            step: "Run smoke tests".to_string(),
+                            step: "Run smoke tests".to_owned(),
                             status: StepStatus::InProgress,
                         },
                         PlanItemArg {
-                            step: "Tag release".to_string(),
+                            step: "Tag release".to_owned(),
                             status: StepStatus::Pending,
                         },
                         PlanItemArg {
-                            step: "Notify stakeholders".to_string(),
+                            step: "Notify stakeholders".to_owned(),
                             status: StepStatus::Pending,
                         },
                     ],
@@ -185,7 +185,7 @@ impl ChatWidget<'_> {
                 label
             ));
 
-            self.history_push_plain_state(history_cell::new_user_prompt((*prompt).to_string()));
+            self.history_push_plain_state(history_cell::new_user_prompt((*prompt).to_owned()));
 
             let mut reasoning_lines: Vec<Line<'static>> = reasoning_steps
                 .iter()
@@ -213,7 +213,7 @@ impl ChatWidget<'_> {
 
             let preview_lines: Vec<ratatui::text::Line<'static>> = stream_lines
                 .iter()
-                .map(|line| Line::from((*line).to_string()))
+                .map(|line| Line::from((*line).to_owned()))
                 .collect();
             let state = self.synthesize_stream_state_from_lines(None, &preview_lines, false);
             let streaming_preview = history_cell::new_streaming_content(state, &self.config);
@@ -222,7 +222,7 @@ impl ChatWidget<'_> {
             let assistant_state = AssistantMessageState {
                 id: HistoryId::ZERO,
                 stream_id: None,
-                markdown: (*assistant_body).to_string(),
+                markdown: (*assistant_body).to_owned(),
                 citations: Vec::new(),
                 metadata: None,
                 token_usage: None,
@@ -265,7 +265,7 @@ impl ChatWidget<'_> {
                         patch_changes.insert(
                             PathBuf::from(path),
                             code_core::protocol::FileChange::Add {
-                                content: (*content).to_string(),
+                                content: (*content).to_owned(),
                             },
                         );
                         format!("patch: simulated failure while applying {path}")
@@ -279,10 +279,10 @@ impl ChatWidget<'_> {
                         patch_changes.insert(
                             PathBuf::from(path),
                             code_core::protocol::FileChange::Update {
-                                unified_diff: (*unified_diff).to_string(),
+                                unified_diff: (*unified_diff).to_owned(),
                                 move_path: None,
-                                original_content: (*original).to_string(),
-                                new_content: (*new_content).to_string(),
+                                original_content: (*original).to_owned(),
+                                new_content: (*new_content).to_owned(),
                             },
                         );
                         format!("patch: simulated failure while applying {path}")
@@ -299,15 +299,15 @@ impl ChatWidget<'_> {
 
             let (tool_name, url, result) = tool_call;
             self.history_push(history_cell::new_completed_custom_tool_call(
-                (*tool_name).to_string(),
-                Some((*url).to_string()),
+                (*tool_name).to_owned(),
+                Some((*url).to_owned()),
                 Duration::from_millis(420 + (idx as u64 * 150)),
                 true,
-                (*result).to_string(),
+                (*result).to_owned(),
             ));
 
-            self.history_push_plain_state(history_cell::new_warning_event((*warning_text).to_string()));
-            self.history_push_plain_state(history_cell::new_error_event((*error_text).to_string()));
+            self.history_push_plain_state(history_cell::new_warning_event((*warning_text).to_owned()));
+            self.history_push_plain_state(history_cell::new_error_event((*error_text).to_owned()));
 
             self.history_push_plain_state(history_cell::new_model_output("gpt-5.1-codex", *effort));
             self.history_push_plain_state(history_cell::new_reasoning_output(*effort));
@@ -334,22 +334,22 @@ impl ChatWidget<'_> {
 
         self.push_background_tail("demo: rendering sample tool cards for theme review…");
 
-        let mut agent_card = history_cell::AgentRunCell::new("Demo Agent Batch".to_string());
-        agent_card.set_batch_label(Some("Demo Agents".to_string()));
-        agent_card.set_task(Some("Draft a release checklist".to_string()));
-        agent_card.set_context(Some("Context: codex workspace demo run".to_string()));
+        let mut agent_card = history_cell::AgentRunCell::new("Demo Agent Batch".to_owned());
+        agent_card.set_batch_label(Some("Demo Agents".to_owned()));
+        agent_card.set_task(Some("Draft a release checklist".to_owned()));
+        agent_card.set_context(Some("Context: codex workspace demo run".to_owned()));
         agent_card.set_plan(vec![
-            "Collect recent commits".to_string(),
-            "Summarize blockers".to_string(),
-            "Draft announcement".to_string(),
+            "Collect recent commits".to_owned(),
+            "Summarize blockers".to_owned(),
+            "Draft announcement".to_owned(),
         ]);
         let completed_preview = history_cell::AgentStatusPreview {
-            id: "demo-completed".to_string(),
-            name: "Docs Scout".to_string(),
-            status: "Completed".to_string(),
-            model: Some("gpt-5.1-large".to_string()),
+            id: "demo-completed".to_owned(),
+            name: "Docs Scout".to_owned(),
+            status: "Completed".to_owned(),
+            model: Some("gpt-5.1-large".to_owned()),
             details: vec![history_cell::AgentDetail::Result(
-                "Summarized API changes".to_string(),
+                "Summarized API changes".to_owned(),
             )],
             status_kind: history_cell::AgentStatusKind::Completed,
             step_progress: Some(history_cell::StepProgress {
@@ -357,16 +357,16 @@ impl ChatWidget<'_> {
                 total: 3,
             }),
             elapsed: Some(Duration::from_secs(32)),
-            last_update: Some("Wrapped up summary".to_string()),
+            last_update: Some("Wrapped up summary".to_owned()),
             ..history_cell::AgentStatusPreview::default()
         };
         let running_preview = history_cell::AgentStatusPreview {
-            id: "demo-running".to_string(),
-            name: "Lint Fixer".to_string(),
-            status: "Running".to_string(),
-            model: Some("code-gpt-5.2".to_string()),
+            id: "demo-running".to_owned(),
+            name: "Lint Fixer".to_owned(),
+            status: "Running".to_owned(),
+            model: Some("code-gpt-5.2".to_owned()),
             details: vec![history_cell::AgentDetail::Progress(
-                "Refining suggested fixes".to_string(),
+                "Refining suggested fixes".to_owned(),
             )],
             status_kind: history_cell::AgentStatusKind::Running,
             step_progress: Some(history_cell::StepProgress {
@@ -374,11 +374,11 @@ impl ChatWidget<'_> {
                 total: 3,
             }),
             elapsed: Some(Duration::from_secs(18)),
-            last_update: Some("Step 2 of 3".to_string()),
+            last_update: Some("Step 2 of 3".to_owned()),
             ..history_cell::AgentStatusPreview::default()
         };
         agent_card.set_agent_overview(vec![completed_preview, running_preview]);
-        agent_card.set_latest_result(vec!["Generated release briefing".to_string()]);
+        agent_card.set_latest_result(vec!["Generated release briefing".to_owned()]);
         agent_card.record_action("Collecting changelog entries");
         agent_card.record_action("Writing release notes");
         agent_card.set_duration(Some(Duration::from_secs(96)));
@@ -387,32 +387,32 @@ impl ChatWidget<'_> {
         agent_card.mark_completed();
         self.history_push(agent_card);
 
-        let mut agent_read_card = history_cell::AgentRunCell::new("Demo Read Batch".to_string());
-        agent_read_card.set_batch_label(Some("Read Agents".to_string()));
-        agent_read_card.set_task(Some("Survey docs for regression notes".to_string()));
-        agent_read_card.set_context(Some("Scope: analyze docs, no writes".to_string()));
+        let mut agent_read_card = history_cell::AgentRunCell::new("Demo Read Batch".to_owned());
+        agent_read_card.set_batch_label(Some("Read Agents".to_owned()));
+        agent_read_card.set_task(Some("Survey docs for regression notes".to_owned()));
+        agent_read_card.set_context(Some("Scope: analyze docs, no writes".to_owned()));
         agent_read_card.set_plan(vec![
-            "Gather doc highlights".to_string(),
-            "Verify changelog snippets".to_string(),
+            "Gather doc highlights".to_owned(),
+            "Verify changelog snippets".to_owned(),
         ]);
         let pending_preview = history_cell::AgentStatusPreview {
-            id: "demo-read-pending".to_string(),
-            name: "Doc Harvester".to_string(),
-            status: "Pending".to_string(),
-            model: Some("gpt-4.5".to_string()),
+            id: "demo-read-pending".to_owned(),
+            name: "Doc Harvester".to_owned(),
+            status: "Pending".to_owned(),
+            model: Some("gpt-4.5".to_owned()),
             details: vec![history_cell::AgentDetail::Info(
-                "Waiting for search index".to_string(),
+                "Waiting for search index".to_owned(),
             )],
             status_kind: history_cell::AgentStatusKind::Pending,
             ..history_cell::AgentStatusPreview::default()
         };
         let running_read = history_cell::AgentStatusPreview {
-            id: "demo-read-running".to_string(),
-            name: "Spec Parser".to_string(),
-            status: "Running".to_string(),
-            model: Some("code-gpt-3.5".to_string()),
+            id: "demo-read-running".to_owned(),
+            name: "Spec Parser".to_owned(),
+            status: "Running".to_owned(),
+            model: Some("code-gpt-3.5".to_owned()),
             details: vec![history_cell::AgentDetail::Progress(
-                "Scanning RFC summaries".to_string(),
+                "Scanning RFC summaries".to_owned(),
             )],
             status_kind: history_cell::AgentStatusKind::Running,
             step_progress: Some(history_cell::StepProgress {
@@ -435,34 +435,34 @@ impl ChatWidget<'_> {
         browser_card.record_action(
             Duration::ZERO,
             Duration::from_millis(420),
-            "open".to_string(),
-            Some("https://example.dev/releases".to_string()),
+            "open".to_owned(),
+            Some("https://example.dev/releases".to_owned()),
             None,
-            Some("status=200".to_string()),
+            Some("status=200".to_owned()),
         );
         browser_card.record_action(
             Duration::from_millis(620),
             Duration::from_millis(380),
-            "scroll".to_string(),
-            Some("main timeline".to_string()),
-            Some("dy=512".to_string()),
+            "scroll".to_owned(),
+            Some("main timeline".to_owned()),
+            Some("dy=512".to_owned()),
             None,
         );
         browser_card.record_action(
             Duration::from_millis(1280),
             Duration::from_millis(520),
-            "click".to_string(),
-            Some(".release-card".to_string()),
-            Some("index=2".to_string()),
-            Some("status=OK".to_string()),
+            "click".to_owned(),
+            Some(".release-card".to_owned()),
+            Some("index=2".to_owned()),
+            Some("status=OK".to_owned()),
         );
-        browser_card.add_console_message("Loaded demo assets".to_string());
-        browser_card.add_console_message("Fetched changelog via XHR".to_string());
-        browser_card.set_status_code(Some("200 OK".to_string()));
+        browser_card.add_console_message("Loaded demo assets".to_owned());
+        browser_card.add_console_message("Fetched changelog via XHR".to_owned());
+        browser_card.set_status_code(Some("200 OK".to_owned()));
         self.history_push(browser_card);
 
         let mut search_card = history_cell::WebSearchSessionCell::new();
-        search_card.set_query(Some("rust async cancellation strategy".to_string()));
+        search_card.set_query(Some("rust async cancellation strategy".to_owned()));
         search_card.ensure_started_message();
         search_card.record_info(Duration::from_millis(120), "Searching documentation index");
         search_card.record_success(Duration::from_millis(620), "Found tokio.rs guides");
@@ -472,7 +472,7 @@ impl ChatWidget<'_> {
         self.history_push(search_card);
 
         let mut auto_drive_card =
-            history_cell::AutoDriveCardCell::new(Some("Stabilize nightly CI pipeline".to_string()));
+            history_cell::AutoDriveCardCell::new(Some("Stabilize nightly CI pipeline".to_owned()));
         auto_drive_card.push_action(
             "Queued smoke tests across agents",
             history_cell::AutoDriveActionKind::Info,
@@ -488,14 +488,14 @@ impl ChatWidget<'_> {
         auto_drive_card.set_status(history_cell::AutoDriveStatus::Paused);
         self.history_push(auto_drive_card);
 
-        let goal = "Stabilize nightly CI pipeline".to_string();
+        let goal = "Stabilize nightly CI pipeline".to_owned();
         self.auto_state.last_run_summary = Some(AutoRunSummary {
             duration: Duration::from_secs(95),
             turns_completed: 4,
-            message: Some("Auto Drive completed demo run.".to_string()),
+            message: Some("Auto Drive completed demo run.".to_owned()),
             goal: Some(goal),
         });
-        let celebration_message = "Diagnostics report: all demo checks passed.".to_string();
+        let celebration_message = "Diagnostics report: all demo checks passed.".to_owned();
         self.auto_state.last_completion_explanation = Some(celebration_message.clone());
         self.schedule_auto_drive_card_celebration(Duration::from_secs(2), Some(celebration_message));
 
@@ -517,7 +517,7 @@ impl ChatWidget<'_> {
                     "Theme context: {theme_label} (based on current /theme background)",
                 )),
                 ratatui::text::Line::from(
-                    "Tip: switch /theme (dark/light) and rerun to compare.".to_string(),
+                    "Tip: switch /theme (dark/light) and rerun to compare.".to_owned(),
                 ),
             ],
             HistoryCellType::Notice,
@@ -595,7 +595,7 @@ impl ChatWidget<'_> {
         let mut lines: Vec<ratatui::text::Line<'static>> = Vec::new();
         lines.push(ratatui::text::Line::from("performance".dim()));
         for l in text.lines() {
-            lines.push(ratatui::text::Line::from(l.to_string()));
+            lines.push(ratatui::text::Line::from(l.to_owned()));
         }
         let state = history_cell::plain_message_state_from_lines(
             lines,

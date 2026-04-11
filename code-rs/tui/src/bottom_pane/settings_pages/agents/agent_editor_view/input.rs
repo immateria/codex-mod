@@ -33,15 +33,15 @@ impl AgentEditorView {
         let ro_opt = if ro.is_empty() { None } else { Some(ro) };
         let wr_opt = if wr.is_empty() { None } else { Some(wr) };
         let instr_opt = {
-            let t = self.instr.text().trim().to_string();
+            let t = self.instr.text().trim().to_owned();
             if t.is_empty() { None } else { Some(t) }
         };
         let desc_opt = {
-            let t = self.description_field.text().trim().to_string();
+            let t = self.description_field.text().trim().to_owned();
             if t.is_empty() {
                 if require_description {
                     self.description_error =
-                        Some("Describe what this agent is good at before saving.".to_string());
+                        Some("Describe what this agent is good at before saving.".to_owned());
                     return false;
                 }
                 self.description_error = None;
@@ -54,20 +54,20 @@ impl AgentEditorView {
 
         let trimmed_name = self.name_field.text().trim();
         if self.name_editable && trimmed_name.is_empty() {
-            self.name_error = Some("Agent ID is required.".to_string());
+            self.name_error = Some("Agent ID is required.".to_owned());
             return false;
         }
         self.name_error = None;
         let final_name = if trimmed_name.is_empty() {
             self.name.clone()
         } else {
-            trimmed_name.to_string()
+            trimmed_name.to_owned()
         };
         let command_value = self.command_field.text().trim();
         let final_command = if command_value.is_empty() {
             self.command.clone()
         } else {
-            command_value.to_string()
+            command_value.to_owned()
         };
         self.app_event_tx.send(AppEvent::UpdateAgentConfig {
             name: final_name,
@@ -83,7 +83,7 @@ impl AgentEditorView {
 
     fn paste_into_field(field: &mut FormTextField, text: &str) -> bool {
         let before = field.text().len();
-        field.handle_paste(text.to_string());
+        field.handle_paste(text.to_owned());
         field.text().len() != before
     }
 

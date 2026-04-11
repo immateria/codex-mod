@@ -112,7 +112,7 @@ impl JsReplSettingsView {
         if !crate::platform_caps::supports_native_picker() {
             self.app_event_tx.send_background_event_with_ticket(
                 &self.ticket,
-                "Native picker not supported on Android; type the path.".to_string(),
+                "Native picker not supported on Android; type the path.".to_owned(),
             );
             return;
         }
@@ -141,7 +141,7 @@ impl JsReplSettingsView {
         if !crate::platform_caps::supports_native_picker() {
             self.app_event_tx.send_background_event_with_ticket(
                 &self.ticket,
-                "Native picker not supported on Android; type the path.".to_string(),
+                "Native picker not supported on Android; type the path.".to_owned(),
             );
             return;
         }
@@ -174,7 +174,7 @@ impl JsReplSettingsView {
             .send(AppEvent::SetJsReplSettings(self.settings.clone()));
         self.app_event_tx.send_background_event_with_ticket(
             &self.ticket,
-            "JS REPL: applying…".to_string(),
+            "JS REPL: applying…".to_owned(),
         );
         self.dirty = false;
     }

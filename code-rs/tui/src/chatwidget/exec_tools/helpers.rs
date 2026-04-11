@@ -59,7 +59,7 @@ pub(super) fn stream_chunks_tail_to_text(chunks: &[ExecStreamChunk], max_bytes: 
         let remaining = max_bytes - total_bytes;
         let content = chunk.content.as_str();
         if content.len() <= remaining {
-            pieces.push(content.to_string());
+            pieces.push(content.to_owned());
             total_bytes = total_bytes.saturating_add(content.len());
             continue;
         }
@@ -321,16 +321,16 @@ pub(super) fn stream_tail(full: &str, streamed: &str) -> Option<String> {
         return None;
     }
     if streamed.is_empty() {
-        return Some(full.to_string());
+        return Some(full.to_owned());
     }
     if let Some(tail) = full.strip_prefix(streamed) {
         if tail.is_empty() {
             None
         } else {
-            Some(tail.to_string())
+            Some(tail.to_owned())
         }
     } else {
-        Some(full.to_string())
+        Some(full.to_owned())
     }
 }
 

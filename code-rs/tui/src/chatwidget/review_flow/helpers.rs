@@ -10,7 +10,7 @@ fn git_stdout_trimmed(cwd: &std::path::Path, args: &[&str]) -> Option<String> {
     if !output.status.success() {
         return None;
     }
-    let s = String::from_utf8_lossy(&output.stdout).trim().to_string();
+    let s = String::from_utf8_lossy(&output.stdout).trim().to_owned();
     if s.is_empty() { None } else { Some(s) }
 }
 
@@ -81,13 +81,13 @@ impl ChatWidget<'_> {
     pub(in crate::chatwidget) fn turn_context_block(&self) -> Option<String> {
         let mut lines: Vec<String> = Vec::new();
         let mut any = false;
-        lines.push("<context>".to_string());
-        lines.push("Below are the most recent messages related to this code change.".to_string());
+        lines.push("<context>".to_owned());
+        lines.push("Below are the most recent messages related to this code change.".to_owned());
         if let Some(user) = self
             .last_user_message
             .as_ref()
             .map(|msg| Self::strip_context_sections(msg))
-            .map(|msg| msg.trim().to_string())
+            .map(|msg| msg.trim().to_owned())
             .filter(|msg| !msg.is_empty())
         {
             any = true;
@@ -97,7 +97,7 @@ impl ChatWidget<'_> {
             .last_developer_message
             .as_ref()
             .map(|msg| Self::strip_context_sections(msg))
-            .map(|msg| msg.trim().to_string())
+            .map(|msg| msg.trim().to_owned())
             .filter(|msg| !msg.is_empty())
         {
             any = true;
@@ -107,13 +107,13 @@ impl ChatWidget<'_> {
             .last_assistant_message
             .as_ref()
             .map(|msg| Self::strip_context_sections(msg))
-            .map(|msg| msg.trim().to_string())
+            .map(|msg| msg.trim().to_owned())
             .filter(|msg| !msg.is_empty())
         {
             any = true;
             lines.push(format!("<assistant>{assistant}</assistant>"));
         }
-        lines.push("</context>".to_string());
+        lines.push("</context>".to_owned());
 
         if any {
             Some(lines.join("\n"))

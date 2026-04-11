@@ -34,8 +34,8 @@ const SPINNERS_JSON: &str = include_str!("../assets/spinners.json");
 
 lazy_static! {
     static ref FALLBACK_SPINNER: Spinner = Spinner {
-        name: "fallback".to_string(),
-        label: "Fallback".to_string(),
+        name: "fallback".to_owned(),
+        label: "Fallback".to_owned(),
         interval_ms: 120,
         frames: vec!["-".into(), "\\".into(), "|".into(), "/".into()],
     };
@@ -102,7 +102,7 @@ pub(crate) fn switch_spinner(name: &str) {
     if ALL_SPINNERS.is_empty() { return; }
     let raw = name.trim();
     // Update the canonical current name (custom or built‑in)
-    *write_lock(&CURRENT_NAME) = raw.to_string();
+    *write_lock(&CURRENT_NAME) = raw.to_owned();
     // Keep CURRENT_INDEX aligned when the name is an all‑spinners entry (for fallbacks)
     let mut idx = ALL_SPINNERS.iter().position(|s| s.name == raw);
     if idx.is_none() {
@@ -191,7 +191,7 @@ fn humanize(name: &str) -> String {
 
 fn vpush(out: &mut Vec<Spinner>, name: &str, sj: SpinnerJson) {
     let label = sj.label.clone().unwrap_or_else(|| humanize(name));
-    out.push(Spinner { name: name.to_string(), label, interval_ms: sj.interval, frames: sj.frames });
+    out.push(Spinner { name: name.to_owned(), label, interval_ms: sj.interval, frames: sj.frames });
 }
 
 pub(crate) fn global_max_frame_len() -> usize {

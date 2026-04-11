@@ -52,7 +52,7 @@ pub fn apply_git_patch(req: &ApplyGitRequest) -> io::Result<ApplyGitResult> {
                 continue;
             }
             cfg_parts.push("-c".into());
-            cfg_parts.push(p.to_string());
+            cfg_parts.push(p.to_owned());
         }
     }
 
@@ -60,9 +60,9 @@ pub fn apply_git_patch(req: &ApplyGitRequest) -> io::Result<ApplyGitResult> {
 
     // Optional preflight: dry-run only; do not modify working tree
     if req.preflight {
-        let mut check_args = vec!["apply".to_string(), "--check".to_string()];
+        let mut check_args = vec!["apply".to_owned(), "--check".to_owned()];
         if req.revert {
-            check_args.push("-R".to_string());
+            check_args.push("-R".to_owned());
         }
         check_args.push(patch_path.to_string_lossy().into_owned());
         let rendered = render_command_for_log(&git_root, &cfg_parts, &check_args);
@@ -123,7 +123,7 @@ fn resolve_git_root(cwd: &Path) -> io::Result<PathBuf> {
             String::from_utf8_lossy(&out.stderr)
         )));
     }
-    let root = String::from_utf8_lossy(&out.stdout).trim().to_string();
+    let root = String::from_utf8_lossy(&out.stdout).trim().to_owned();
     Ok(PathBuf::from(root))
 }
 
@@ -154,7 +154,7 @@ fn quote_shell(s: &str) -> String {
         .chars()
         .all(|c| c.is_ascii_alphanumeric() || "-_.:/@%+".contains(c));
     if simple {
-        s.to_string()
+        s.to_owned()
     } else {
         format!("'{}'", s.replace('\'', "'\\''"))
     }
@@ -162,7 +162,7 @@ fn quote_shell(s: &str) -> String {
 
 fn render_command_for_log(cwd: &Path, git_cfg: &[String], args: &[String]) -> String {
     let mut parts: Vec<String> = Vec::new();
-    parts.push("git".to_string());
+    parts.push("git".to_owned());
     for a in git_cfg {
         parts.push(quote_shell(a));
     }
@@ -187,13 +187,13 @@ pub fn extract_paths_from_patch(diff_text: &str) -> Vec<String> {
             && a != "/dev/null"
             && !a.trim().is_empty()
         {
-            set.insert(a.to_string());
+            set.insert(a.to_owned());
         }
         if let Some(b) = caps.get(2).map(|m| m.as_str())
             && b != "/dev/null"
             && !b.trim().is_empty()
         {
-            set.insert(b.to_string());
+            set.insert(b.to_owned());
         }
     }
     set.into_iter().collect()
@@ -254,7 +254,7 @@ pub fn parse_git_apply_output(
             trimmed
         };
         if !unquoted.is_empty() {
-            set.insert(unquoted.to_string());
+            set.insert(unquoted.to_owned());
         }
     }
 
@@ -328,7 +328,7 @@ pub fn parse_git_apply_output(
         // === "Checking patch <path>..." tracking ===
         if let Some(c) = CHECKING_PATCH.captures(line) {
             if let Some(m) = c.name("path") {
-                last_seen_path = Some(m.as_str().to_string());
+                last_seen_path = Some(m.as_str().to_owned());
             }
             continue;
         }
@@ -393,7 +393,7 @@ pub fn parse_git_apply_output(
                 && let Some(m) = c.name("path")
             {
                 add(&mut skipped, m.as_str());
-                last_seen_path = Some(m.as_str().to_string());
+                last_seen_path = Some(m.as_str().to_owned());
             }
             continue;
         }

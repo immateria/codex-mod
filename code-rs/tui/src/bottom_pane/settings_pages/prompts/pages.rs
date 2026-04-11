@@ -125,8 +125,7 @@ impl PromptsSettingsView {
                     .lines()
                     .next()
                     .unwrap_or("")
-                    .trim()
-                    .to_string();
+                    .trim().to_owned();
                 let name = prompt.name.as_str();
                 let mut row = SettingsMenuRow::new(idx, format!("/{name}"));
                 if !preview.is_empty() {

@@ -74,7 +74,7 @@ pub(crate) fn paste_image_as_png() -> Result<(Vec<u8>, PastedImageInfo), PasteIm
 #[cfg(not(feature = "clipboard"))]
 pub(crate) fn paste_image_as_png() -> Result<(Vec<u8>, PastedImageInfo), PasteImageError> {
     Err(PasteImageError::ClipboardUnavailable(
-        "clipboard feature not enabled for this platform".to_string(),
+        "clipboard feature not enabled for this platform".to_owned(),
     ))
 }
 
@@ -104,7 +104,7 @@ pub(crate) fn try_decode_base64_image_to_temp_png(pasted: &str) -> Result<(PathB
             if !head.contains(";base64") {
                 return Err(PasteImageError::DecodeFailed("data URL without base64".into()));
             }
-            (Some(head.split(';').next().unwrap_or("").to_string()), &tail[1..])
+            (Some(head.split(';').next().unwrap_or("").to_owned()), &tail[1..])
         } else {
             return Err(PasteImageError::DecodeFailed("malformed data URL".into()));
         }

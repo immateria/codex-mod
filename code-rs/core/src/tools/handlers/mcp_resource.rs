@@ -48,12 +48,12 @@ struct ReadResourceArgs {
 
 fn normalize_optional_string(value: Option<String>) -> Option<String> {
     value
-        .map(|value| value.trim().to_string())
+        .map(|value| value.trim().to_owned())
         .filter(|value| !value.is_empty())
 }
 
 fn normalize_required_string(name: &str, value: String) -> std::result::Result<String, String> {
-    let trimmed = value.trim().to_string();
+    let trimmed = value.trim().to_owned();
     if trimmed.is_empty() {
         Err(format!("{name} must not be empty"))
     } else {
@@ -188,8 +188,8 @@ struct ReadResourcePayload {
 fn call_tool_result_from_content(content: &str, is_error: bool) -> CallToolResult {
     let content = ContentBlock::TextContent(TextContent {
         annotations: None,
-        text: content.to_string(),
-        r#type: "text".to_string(),
+        text: content.to_owned(),
+        r#type: "text".to_owned(),
     });
     CallToolResult {
         content: vec![content],
@@ -267,8 +267,7 @@ impl ToolHandler for McpResourceToolHandler {
             .and_then(JsonValue::as_str)
             .map(str::trim)
             .filter(|value| !value.is_empty())
-            .unwrap_or("mcp")
-            .to_string();
+            .unwrap_or("mcp").to_owned();
 
         let invocation = McpInvocation {
             server: server_for_event,
@@ -356,7 +355,7 @@ impl McpResourceToolHandler {
             serde_json::to_string(&payload).map_err(|err| format!("failed to encode output: {err}"))
         } else {
             if cursor.is_some() {
-                return Err("cursor can only be used when a server is specified".to_string());
+                return Err("cursor can only be used when a server is specified".to_owned());
             }
 
             let mcp_access = sess.mcp_access_snapshot();
@@ -433,7 +432,7 @@ impl McpResourceToolHandler {
             serde_json::to_string(&payload).map_err(|err| format!("failed to encode output: {err}"))
         } else {
             if cursor.is_some() {
-                return Err("cursor can only be used when a server is specified".to_string());
+                return Err("cursor can only be used when a server is specified".to_owned());
             }
 
             let mcp_access = sess.mcp_access_snapshot();

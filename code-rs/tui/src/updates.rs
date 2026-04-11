@@ -112,7 +112,7 @@ pub(crate) async fn check_for_updates_now(config: &Config) -> anyhow::Result<Upd
     let version_file = version_filepath(config);
     let originator = config.responses_originator_header.clone();
     let info = check_for_update(&version_file, &originator).await?;
-    let current_version = code_version::version().to_string();
+    let current_version = code_version::version().to_owned();
     let latest_version = if is_newer(&info.latest_version, &current_version).unwrap_or(false) {
         Some(info.latest_version)
     } else {
@@ -176,7 +176,7 @@ fn version_filepath(config: &Config) -> PathBuf {
 pub(crate) fn resolve_upgrade_resolution(config: &Config) -> UpgradeResolution {
     if cfg!(target_os = "android") {
         return UpgradeResolution::Manual {
-            instructions: "On Android/Termux, upgrade by rebuilding from source and replacing the installed binary.".to_string(),
+            instructions: "On Android/Termux, upgrade by rebuilding from source and replacing the installed binary.".to_owned(),
         };
     }
 
@@ -432,9 +432,9 @@ async fn execute_upgrade_command(command: &[String]) -> anyhow::Result<CommandCa
 #[cfg(any(target_os = "macos", target_os = "linux"))]
 fn wrap_with_sudo(command: &[String]) -> Vec<String> {
     let mut out = Vec::with_capacity(command.len() + 3);
-    out.push("sudo".to_string());
-    out.push("-n".to_string());
-    out.push("--".to_string());
+    out.push("sudo".to_owned());
+    out.push("-n".to_owned());
+    out.push("--".to_owned());
     out.extend(command.iter().cloned());
     out
 }
@@ -498,7 +498,7 @@ fn read_version_info(version_file: &Path) -> anyhow::Result<Option<VersionInfo>>
 
     info
         .release_repo
-        .get_or_insert_with(|| CURRENT_RELEASE_REPO.to_string());
+        .get_or_insert_with(|| CURRENT_RELEASE_REPO.to_owned());
     Ok(Some(info))
 }
 
@@ -561,9 +561,9 @@ async fn fetch_latest_version(originator: &str) -> anyhow::Result<VersionInfo> {
     // - "rust-vX.Y.Z" (legacy Rust-release workflow)
     // - "vX.Y.Z" (general release workflow)
     let latest_version = if let Some(v) = latest_tag_name.strip_prefix("rust-v") {
-        v.to_string()
+        v.to_owned()
     } else if let Some(v) = latest_tag_name.strip_prefix('v') {
-        v.to_string()
+        v.to_owned()
     } else {
         // As a last resort, accept the raw tag if it looks like semver
         // so we can recover from unexpected tag formats.
@@ -578,7 +578,7 @@ async fn fetch_latest_version(originator: &str) -> anyhow::Result<VersionInfo> {
     Ok(VersionInfo {
         latest_version,
         last_checked_at: Utc::now(),
-        release_repo: Some(CURRENT_RELEASE_REPO.to_string()),
+        release_repo: Some(CURRENT_RELEASE_REPO.to_owned()),
     })
 }
 

@@ -129,7 +129,7 @@ impl DebugLogger {
         });
 
         if let (Some(headers), Some(obj)) = (headers, request_entry.as_object_mut()) {
-            obj.insert("headers".to_string(), headers.clone());
+            obj.insert("headers".to_owned(), headers.clone());
         }
 
         // Write pretty-printed JSON to request file
@@ -320,7 +320,7 @@ impl DebugLogger {
         let entry = match payload_value {
             Value::Object(mut map) => {
                 map.insert(
-                    "timestamp".to_string(),
+                    "timestamp".to_owned(),
                     Value::String(Local::now().to_rfc3339()),
                 );
                 Value::Object(map)

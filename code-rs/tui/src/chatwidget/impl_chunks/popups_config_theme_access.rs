@@ -138,7 +138,7 @@ impl ChatWidget<'_> {
             RtLine::from(vec![
                 RtSpan::styled(format!("{k:<12}"), t_fg),
                 RtSpan::raw("  —  "),
-                RtSpan::styled(v.to_string(), t_dim),
+                RtSpan::styled(v.to_owned(), t_dim),
             ])
         };
         let ctrl = |key: &str| crate::icons::ctrl_combo(key);
@@ -170,7 +170,7 @@ impl ChatWidget<'_> {
             lines.push(kv(network_hotkey.as_ref(), "Network settings"));
             let history_label = |hk: code_core::config_types::TuiHotkey, legacy_key: &str| -> String {
                 if hk.is_legacy() {
-                    legacy_key.to_string()
+                    legacy_key.to_owned()
                 } else {
                     hk.display_name().into_owned()
                 }
@@ -340,7 +340,7 @@ impl ChatWidget<'_> {
         } else {
             "Automatic upgrades disabled"
         };
-        self.bottom_pane.flash_footer_notice(notice.to_string());
+        self.bottom_pane.flash_footer_notice(notice.to_owned());
 
         let should_refresh_updates = matches!(
             self.settings
@@ -384,7 +384,7 @@ impl ChatWidget<'_> {
         } else {
             "Auto-switch accounts disabled"
         };
-        self.bottom_pane.flash_footer_notice(notice.to_string());
+        self.bottom_pane.flash_footer_notice(notice.to_owned());
 
         let should_refresh_accounts = matches!(
             self.settings
@@ -429,7 +429,7 @@ impl ChatWidget<'_> {
         } else {
             "API key fallback disabled"
         };
-        self.bottom_pane.flash_footer_notice(notice.to_string());
+        self.bottom_pane.flash_footer_notice(notice.to_owned());
 
         let should_refresh_accounts = matches!(
             self.settings
@@ -572,7 +572,7 @@ impl ChatWidget<'_> {
         self.push_system_cell(
             Box::new(cell),
             placement,
-            Some("ui:theme".to_string()),
+            Some("ui:theme".to_owned()),
             None,
             "background",
             Some(record),
@@ -602,7 +602,7 @@ impl ChatWidget<'_> {
         self.push_system_cell(
             Box::new(cell),
             placement,
-            Some("ui:spinner".to_string()),
+            Some("ui:spinner".to_owned()),
             None,
             "background",
             Some(record),
@@ -616,14 +616,14 @@ impl ChatWidget<'_> {
         use code_core::protocol::AskForApproval;
         use code_core::protocol::SandboxPolicy;
         let label = match (&self.config.sandbox_policy, self.config.approval_policy) {
-            (SandboxPolicy::ReadOnly, _) => Some("Read Only".to_string()),
+            (SandboxPolicy::ReadOnly, _) => Some("Read Only".to_owned()),
             (
                 SandboxPolicy::WorkspaceWrite {
                     network_access: false,
                     ..
                 },
                 AskForApproval::UnlessTrusted,
-            ) => Some("Write with Approval".to_string()),
+            ) => Some("Write with Approval".to_owned()),
             _ => None,
         };
         self.bottom_pane.set_access_mode_label(label);
@@ -748,7 +748,7 @@ impl ChatWidget<'_> {
         // Footer indicator: persistent for RO/Approval; ephemeral for Full Access
         if next == 2 {
             self.bottom_pane.set_access_mode_label_ephemeral(
-                "Full Access".to_string(),
+                "Full Access".to_owned(),
                 std::time::Duration::from_secs(4),
             );
         } else {
@@ -758,7 +758,7 @@ impl ChatWidget<'_> {
                 "Write with Approval"
             };
             self.bottom_pane
-                .set_access_mode_label(Some(persistent.to_string()));
+                .set_access_mode_label(Some(persistent.to_owned()));
         }
 
         // Announce in history: replace the last access-mode status, inserting early

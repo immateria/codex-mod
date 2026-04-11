@@ -54,7 +54,7 @@
                         let tx = self.app_event_tx.clone();
                         let prefill_clone = prefill.clone();
                         if let Err(err) = std::thread::Builder::new()
-                            .name("jump-back-fork".to_string())
+                            .name("jump-back-fork".to_owned())
                             .spawn(move || {
                                 let rt = match tokio::runtime::Builder::new_multi_thread()
                                     .enable_all()
@@ -158,7 +158,7 @@
                     // Replay prefix to the UI
                     if emit_prefix {
                         let ev = code_core::protocol::Event {
-                            id: "fork".to_string(),
+                            id: "fork".to_owned(),
                             event_seq: 0,
                             msg: code_core::protocol::EventMsg::ReplayHistory(
                                 code_core::protocol::ReplayHistoryEvent {

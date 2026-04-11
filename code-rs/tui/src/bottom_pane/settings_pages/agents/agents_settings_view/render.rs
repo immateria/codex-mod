@@ -27,11 +27,11 @@ impl SubagentEditorView {
 
     fn header_lines(&self) -> Vec<Line<'static>> {
         let title = if self.is_new {
-            "New agent command".to_string()
+            "New agent command".to_owned()
         } else {
             let id = self.name_field.text();
             if id.trim().is_empty() {
-                "Edit agent command".to_string()
+                "Edit agent command".to_owned()
             } else {
                 format!("Edit agent command: {id}")
             }
@@ -41,7 +41,7 @@ impl SubagentEditorView {
 
     fn action_status_text(&self) -> Option<StyledText<'static>> {
         self.confirm_delete.then_some(StyledText::new(
-            "Confirm delete: this removes the command from config.".to_string(),
+            "Confirm delete: this removes the command from config.".to_owned(),
             Style::new().fg(colors::error()).bold(),
         ))
     }

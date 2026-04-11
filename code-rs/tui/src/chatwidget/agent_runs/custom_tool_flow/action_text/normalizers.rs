@@ -11,13 +11,13 @@ pub(super) fn normalize_begin_action_text(
     }
 
     if action.starts_with("Waiting for agents") {
-        return Some("Waiting for agents".to_string());
+        return Some("Waiting for agents".to_owned());
     }
 
     if action.starts_with("Requested results for ") {
         let names = friendly_agent_names(metadata, tracker);
         if names.is_empty() {
-            return Some("Requested results".to_string());
+            return Some("Requested results".to_owned());
         }
         return Some(format!("Requested results for {}", names.join(", ")));
     }
@@ -25,7 +25,7 @@ pub(super) fn normalize_begin_action_text(
     if action.starts_with("Cancelling agent batch for ") {
         let names = friendly_agent_names(metadata, tracker);
         if names.is_empty() {
-            return Some("Cancelling agent batch".to_string());
+            return Some("Cancelling agent batch".to_owned());
         }
         return Some(format!("Cancelling agents {}", names.join(", ")));
     }
@@ -33,7 +33,7 @@ pub(super) fn normalize_begin_action_text(
     if action.starts_with("Checking agent status for ") {
         let names = friendly_agent_names(metadata, tracker);
         if names.is_empty() {
-            return Some("Checking agent status".to_string());
+            return Some("Checking agent status".to_owned());
         }
         return Some(format!("Checking agent status for {}", names.join(", ")));
     }

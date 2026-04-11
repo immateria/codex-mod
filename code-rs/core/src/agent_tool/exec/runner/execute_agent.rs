@@ -8,10 +8,10 @@ async fn get_git_root() -> Result<PathBuf, String> {
         .map_err(|e| format!("Git not installed or not in a git repository: {e}"))?;
 
     if output.status.success() {
-        let path = String::from_utf8_lossy(&output.stdout).trim().to_string();
+        let path = String::from_utf8_lossy(&output.stdout).trim().to_owned();
         Ok(PathBuf::from(path))
     } else {
-        Err("Not in a git repository".to_string())
+        Err("Not in a git repository".to_owned())
     }
 }
 
@@ -31,8 +31,7 @@ fn generate_branch_id(model: &str, agent: &str) -> String {
             .to_string()
             .split('-')
             .next()
-            .unwrap_or("agent")
-            .to_string()
+            .unwrap_or("agent").to_owned()
     } else {
         words.join("-")
     };
@@ -44,9 +43,9 @@ fn generate_branch_id(model: &str, agent: &str) -> String {
     // Constrain length to keep branch names readable
     if suffix_s.len() > 40 {
         suffix_s.truncate(40);
-        suffix_s = suffix_s.trim_matches('-').to_string();
+        suffix_s = suffix_s.trim_matches('-').to_owned();
         if suffix_s.is_empty() {
-            suffix_s = "agent".to_string();
+            suffix_s = "agent".to_owned();
         }
     }
 

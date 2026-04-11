@@ -11,7 +11,7 @@ pub(super) fn apply_terminal_title_inner(app: &App<'_>) {
         .unwrap_or(App::DEFAULT_TERMINAL_TITLE);
     let _ = crossterm::execute!(
         std::io::stdout(),
-        crossterm::terminal::SetTitle(title.to_string())
+        crossterm::terminal::SetTitle(title.to_owned())
     );
 }
 

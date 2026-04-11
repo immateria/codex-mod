@@ -181,8 +181,7 @@ impl Client {
             .headers()
             .get(CONTENT_TYPE)
             .and_then(|v| v.to_str().ok())
-            .unwrap_or("")
-            .to_string();
+            .unwrap_or("").to_owned();
         let body = res.text().await.unwrap_or_default();
         if !status.is_success() {
             anyhow::bail!("{method} {url} failed: {status}; content-type={ct}; body={body}");
@@ -202,13 +201,12 @@ impl Client {
             .headers()
             .get(CONTENT_TYPE)
             .and_then(|v| v.to_str().ok())
-            .unwrap_or("")
-            .to_string();
+            .unwrap_or("").to_owned();
         let body = res.text().await.unwrap_or_default();
         if !status.is_success() {
             return Err(RequestError::UnexpectedStatus {
-                method: method.to_string(),
-                url: url.to_string(),
+                method: method.to_owned(),
+                url: url.to_owned(),
                 status,
                 content_type,
                 body,
@@ -334,9 +332,9 @@ impl Client {
                     .and_then(|t| t.get("id"))
                     .and_then(|s| s.as_str())
                 {
-                    Ok(id.to_string())
+                    Ok(id.to_owned())
                 } else if let Some(id) = v.get("id").and_then(|s| s.as_str()) {
-                    Ok(id.to_string())
+                    Ok(id.to_owned())
                 } else {
                     anyhow::bail!(
                         "POST {url} succeeded but no task id found; content-type={ct}; body={body}"

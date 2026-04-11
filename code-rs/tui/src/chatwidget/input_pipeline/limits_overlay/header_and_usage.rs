@@ -43,11 +43,11 @@ impl ChatWidget<'_> {
 
         lines.push(RtLine::from(vec![
             RtSpan::raw(status_field_prefix("Type")),
-            RtSpan::styled(account_type.to_string(), value_style),
+            RtSpan::styled(account_type.to_owned(), value_style),
         ]));
         lines.push(RtLine::from(vec![
             RtSpan::raw(status_field_prefix("Plan")),
-            RtSpan::styled(plan.to_string(), value_style),
+            RtSpan::styled(plan.to_owned(), value_style),
         ]));
         let tokens_prefix = status_field_prefix("Tokens");
         let tokens_summary = format!("{formatted_total} total {cost_suffix}");

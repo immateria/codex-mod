@@ -171,7 +171,7 @@ impl MessageProcessor {
                         if session.initialized {
                             let error = JSONRPCErrorError {
                                 code: INVALID_REQUEST_ERROR_CODE,
-                                message: "Already initialized".to_string(),
+                                message: "Already initialized".to_owned(),
                                 data: None,
                             };
                             self.outgoing
@@ -220,7 +220,7 @@ impl MessageProcessor {
 
             let error = JSONRPCErrorError {
                 code: INVALID_REQUEST_ERROR_CODE,
-                message: "Invalid request".to_string(),
+                message: "Invalid request".to_owned(),
                 data: None,
             };
             self.outgoing
@@ -248,7 +248,7 @@ impl MessageProcessor {
                     if !session.initialized {
                         let error = JSONRPCErrorError {
                             code: INVALID_REQUEST_ERROR_CODE,
-                            message: "Not initialized".to_string(),
+                            message: "Not initialized".to_owned(),
                             data: None,
                         };
                         self.outgoing
@@ -272,7 +272,7 @@ impl MessageProcessor {
                     if !session.initialized {
                         let error = JSONRPCErrorError {
                             code: INVALID_REQUEST_ERROR_CODE,
-                            message: "Not initialized".to_string(),
+                            message: "Not initialized".to_owned(),
                             data: None,
                         };
                         self.outgoing
@@ -291,7 +291,7 @@ impl MessageProcessor {
 
         let error = JSONRPCErrorError {
             code: INVALID_REQUEST_ERROR_CODE,
-            message: "Invalid request".to_string(),
+            message: "Invalid request".to_owned(),
             data: None,
         };
         self.outgoing
@@ -311,7 +311,7 @@ impl MessageProcessor {
                 .send_notification_to_connection(
                     connection_id,
                     crate::outgoing_message::OutgoingNotification {
-                        method: "configWarning".to_string(),
+                        method: "configWarning".to_owned(),
                         params: Some(params),
                     },
                 )
@@ -340,7 +340,7 @@ impl MessageProcessor {
         let JSONRPCResponse { id, result, .. } = response;
         self.outgoing
             .notify_client_response_for_connection(Some(connection_id), id, result)
-            .await
+            .await;
     }
 
     /// Handle an error object received from the peer.
@@ -362,7 +362,7 @@ impl MessageProcessor {
         if !session_initialized {
             let error = JSONRPCErrorError {
                 code: INVALID_REQUEST_ERROR_CODE,
-                message: "Not initialized".to_string(),
+                message: "Not initialized".to_owned(),
                 data: None,
             };
             self.outgoing
@@ -451,12 +451,12 @@ impl MessageProcessor {
                     Ok(response) => {
                         self.outgoing
                             .send_response_to_connection(connection_id, request_id, response)
-                            .await
+                            .await;
                     }
                     Err(error) => {
                         self.outgoing
                             .send_error_to_connection(connection_id, request_id, error)
-                            .await
+                            .await;
                     }
                 }
             }
@@ -465,12 +465,12 @@ impl MessageProcessor {
                     Ok(response) => {
                         self.outgoing
                             .send_response_to_connection(connection_id, request_id, response)
-                            .await
+                            .await;
                     }
                     Err(error) => {
                         self.outgoing
                             .send_error_to_connection(connection_id, request_id, error)
-                            .await
+                            .await;
                     }
                 }
             }
@@ -479,12 +479,12 @@ impl MessageProcessor {
                     Ok(response) => {
                         self.outgoing
                             .send_response_to_connection(connection_id, request_id, response)
-                            .await
+                            .await;
                     }
                     Err(error) => {
                         self.outgoing
                             .send_error_to_connection(connection_id, request_id, error)
-                            .await
+                            .await;
                     }
                 }
             }
@@ -493,12 +493,12 @@ impl MessageProcessor {
                     Ok(response) => {
                         self.outgoing
                             .send_response_to_connection(connection_id, request_id, response)
-                            .await
+                            .await;
                     }
                     Err(error) => {
                         self.outgoing
                             .send_error_to_connection(connection_id, request_id, error)
-                            .await
+                            .await;
                     }
                 }
             }
@@ -511,12 +511,12 @@ impl MessageProcessor {
                     Ok(response) => {
                         self.outgoing
                             .send_response_to_connection(connection_id, request_id, response)
-                            .await
+                            .await;
                     }
                     Err(error) => {
                         self.outgoing
                             .send_error_to_connection(connection_id, request_id, error)
-                            .await
+                            .await;
                     }
                 }
             }
@@ -525,12 +525,12 @@ impl MessageProcessor {
                     Ok(response) => {
                         self.outgoing
                             .send_response_to_connection(connection_id, request_id, response)
-                            .await
+                            .await;
                     }
                     Err(error) => {
                         self.outgoing
                             .send_error_to_connection(connection_id, request_id, error)
-                            .await
+                            .await;
                     }
                 }
             }
@@ -539,12 +539,12 @@ impl MessageProcessor {
                     Ok(response) => {
                         self.outgoing
                             .send_response_to_connection(connection_id, request_id, response)
-                            .await
+                            .await;
                     }
                     Err(error) => {
                         self.outgoing
                             .send_error_to_connection(connection_id, request_id, error)
-                            .await
+                            .await;
                     }
                 }
             }
@@ -553,12 +553,12 @@ impl MessageProcessor {
                     Ok(response) => {
                         self.outgoing
                             .send_response_to_connection(connection_id, request_id, response)
-                            .await
+                            .await;
                     }
                     Err(error) => {
                         self.outgoing
                             .send_error_to_connection(connection_id, request_id, error)
-                            .await
+                            .await;
                     }
                 }
             }
@@ -567,12 +567,12 @@ impl MessageProcessor {
                     Ok(response) => {
                         self.outgoing
                             .send_response_to_connection(connection_id, request_id, response)
-                            .await
+                            .await;
                     }
                     Err(error) => {
                         self.outgoing
                             .send_error_to_connection(connection_id, request_id, error)
-                            .await
+                            .await;
                     }
                 }
             }
@@ -1002,7 +1002,7 @@ fn set_toml_path(root: &mut TomlValue, key_path: &str, value: TomlValue) -> Resu
                 "internal error: expected table after conversion",
             ))?;
         current = table
-            .entry((*segment).to_string())
+            .entry((*segment).to_owned())
             .or_insert_with(|| TomlValue::Table(Default::default()));
     }
 
@@ -1054,7 +1054,7 @@ fn upsert_toml_path(
                 "internal error: expected table after conversion",
             ))?;
         current = table
-            .entry((*segment).to_string())
+            .entry((*segment).to_owned())
             .or_insert_with(|| TomlValue::Table(Default::default()));
     }
 

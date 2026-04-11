@@ -127,7 +127,7 @@ fn default_shell_command() -> Command {
 
     #[cfg(not(windows))]
     {
-        let shell = std::env::var("SHELL").unwrap_or_else(|_| "/bin/sh".to_string());
+        let shell = std::env::var("SHELL").unwrap_or_else(|_| "/bin/sh".to_owned());
         let mut command = Command::new(shell);
         command.arg("-lc");
         command

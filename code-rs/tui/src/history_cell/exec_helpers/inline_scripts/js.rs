@@ -58,7 +58,7 @@ fn build_js_script_block(script: &str) -> Option<String> {
     let lines: Vec<String> = if normalized.contains('\n') {
         normalized
             .lines()
-            .map(|line| line.trim_end().to_string())
+            .map(|line| line.trim_end().to_owned())
             .collect()
     } else {
         split_js_statements(&normalized)
@@ -66,7 +66,7 @@ fn build_js_script_block(script: &str) -> Option<String> {
 
     let meaningful: Vec<String> = lines
         .into_iter()
-        .map(|line| line.trim().to_string())
+        .map(|line| line.trim().to_owned())
         .filter(|line| !line.is_empty())
         .collect();
 
@@ -149,7 +149,7 @@ fn split_js_statements(script: &str) -> Vec<String> {
                 }
                 ';' if brace_depth == 0 && paren_depth == 0 && bracket_depth == 0 => {
                     current.push(ch);
-                    let seg = current.trim().to_string();
+                    let seg = current.trim().to_owned();
                     if !seg.is_empty() {
                         segments.push(seg);
                     }
@@ -157,7 +157,7 @@ fn split_js_statements(script: &str) -> Vec<String> {
                     continue;
                 }
                 '\n' if brace_depth == 0 && paren_depth == 0 && bracket_depth == 0 => {
-                    let seg = current.trim().to_string();
+                    let seg = current.trim().to_owned();
                     if !seg.is_empty() {
                         segments.push(seg);
                     }
@@ -171,7 +171,7 @@ fn split_js_statements(script: &str) -> Vec<String> {
         current.push(ch);
     }
 
-    let seg = current.trim().to_string();
+    let seg = current.trim().to_owned();
     if !seg.is_empty() {
         segments.push(seg);
     }

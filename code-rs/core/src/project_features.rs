@@ -94,7 +94,7 @@ pub fn load_project_commands(configs: &[ProjectCommandConfig], project_root: &Pa
             continue;
         }
         let entry = ProjectCommand {
-            name: name.to_string(),
+            name: name.to_owned(),
             command: cfg.command.clone(),
             description: cfg.description.clone(),
             cwd: resolve_optional_path(&cfg.cwd, project_root),

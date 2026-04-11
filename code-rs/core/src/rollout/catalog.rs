@@ -674,7 +674,7 @@ pub async fn update_catalog_entry(
 
     // If entry exists, update last_event_at
         if let Some(mut entry) = catalog.entries.remove(&session_id) {
-            entry.last_event_at = last_timestamp.to_string();
+            entry.last_event_at = last_timestamp.to_owned();
             if let Some(memory_mode) = memory_mode
                 && entry.memory_mode == SessionMemoryMode::Enabled {
                     entry.memory_mode = memory_mode;

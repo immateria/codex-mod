@@ -35,7 +35,7 @@ impl EventProcessor for EventProcessorWithJsonOutput {
     fn print_config_summary(&mut self, config: &Config, prompt: &str) {
         let entries = create_config_summary_entries(config)
             .into_iter()
-            .map(|(key, value)| (key.to_string(), value))
+            .map(|(key, value)| (key.to_owned(), value))
             .collect::<HashMap<String, String>>();
         let config_json = match serde_json::to_string(&entries) {
             Ok(config_json) => config_json,

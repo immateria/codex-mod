@@ -6,7 +6,7 @@ impl ChatWidget<'_> {
         let available_agents: Vec<String> = if self.config.agents.is_empty() {
             enabled_agent_model_specs()
                 .into_iter()
-                .map(|spec| spec.slug.to_string())
+                .map(|spec| spec.slug.to_owned())
                 .collect()
         } else {
             self.config
@@ -43,7 +43,7 @@ impl ChatWidget<'_> {
         let available_agents: Vec<String> = if self.config.agents.is_empty() {
             enabled_agent_model_specs()
                 .into_iter()
-                .map(|spec| spec.slug.to_string())
+                .map(|spec| spec.slug.to_owned())
                 .collect()
         } else {
             self.config
@@ -455,9 +455,9 @@ impl ChatWidget<'_> {
                 return resolved;
             }
         if let Some(spec) = spec {
-            return spec.cli.to_string();
+            return spec.cli.to_owned();
         }
-        name.to_string()
+        name.to_owned()
     }
 
     fn normalize_agent_command(
@@ -470,13 +470,13 @@ impl ChatWidget<'_> {
         }
         if let Some(spec) = spec {
             if candidate.eq_ignore_ascii_case(name) && !spec.cli.eq_ignore_ascii_case(name) {
-                return Some(spec.cli.to_string());
+                return Some(spec.cli.to_owned());
             }
             if candidate.eq_ignore_ascii_case(spec.slug) && !spec.cli.eq_ignore_ascii_case(spec.slug) {
-                return Some(spec.cli.to_string());
+                return Some(spec.cli.to_owned());
             }
         }
-        Some(candidate.to_string())
+        Some(candidate.to_owned())
     }
 
 }

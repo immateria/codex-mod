@@ -35,7 +35,7 @@ pub fn ansi_escape(s: &str) -> Text<'static> {
                 }
             }
             // Return the raw string as plain text instead of crashing.
-            Text::raw(s.to_string())
+            Text::raw(s.to_owned())
         }
     }
 }

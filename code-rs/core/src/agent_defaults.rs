@@ -347,12 +347,12 @@ fn model_guide_intro(active_agents: &[String]) -> String {
         .filter_map(|id| {
             agent_model_spec(id)
                 .filter(|spec| spec.is_frontline)
-                .map(|spec| spec.slug.to_string())
+                .map(|spec| spec.slug.to_owned())
         })
         .collect();
 
     if present_frontline.is_empty() {
-        present_frontline.push("code-gpt-5.4".to_string());
+        present_frontline.push("code-gpt-5.4".to_owned());
     }
     let frontline_str = present_frontline.join(", ");
 
@@ -462,8 +462,8 @@ pub fn default_agent_configs() -> Vec<AgentConfig> {
 
 pub fn agent_config_from_spec(spec: &AgentModelSpec) -> AgentConfig {
     AgentConfig {
-        name: spec.slug.to_string(),
-        command: spec.cli.to_string(),
+        name: spec.slug.to_owned(),
+        command: spec.cli.to_owned(),
         args: Vec::new(),
         read_only: false,
         enabled: spec.is_enabled(),
@@ -479,7 +479,7 @@ fn some_args(args: &[&str]) -> Option<Vec<String>> {
     if args.is_empty() {
         None
     } else {
-        Some(args.iter().map(|arg| (*arg).to_string()).collect())
+        Some(args.iter().map(|arg| (*arg).to_owned()).collect())
     }
 }
 
@@ -493,7 +493,7 @@ pub fn default_params_for(name: &str, read_only: bool) -> Vec<String> {
         return spec
             .default_args(read_only)
             .iter()
-            .map(|arg| (*arg).to_string())
+            .map(|arg| (*arg).to_owned())
             .collect();
     }
     Vec::new()

@@ -65,8 +65,7 @@ pub(super) fn format_secs_for_edit(duration: Duration) -> String {
         // Keep enough precision for sub-second limits without being noisy.
         format!("{secs:.3}")
             .trim_end_matches('0')
-            .trim_end_matches('.')
-            .to_string()
+            .trim_end_matches('.').to_owned()
     }
 }
 
@@ -172,7 +171,7 @@ impl ServerSchedulingEditor {
         }
 
         Self {
-            server: server.to_string(),
+            server: server.to_owned(),
             scheduling,
             selected_row: 0,
             editing: None,
@@ -288,8 +287,8 @@ impl ToolSchedulingEditor {
         }
 
         Self {
-            server: server.to_string(),
-            tool: tool.to_string(),
+            server: server.to_owned(),
+            tool: tool.to_owned(),
             server_scheduling,
             selected_row: 0,
             editing: None,
@@ -406,11 +405,11 @@ impl ToolSchedulingEditor {
         let min_interval_sec = if self.override_min_interval {
             let raw = self.min_interval_field.text().trim();
             if raw.is_empty() {
-                return Err("Min interval: enter a value or toggle override off".to_string());
+                return Err("Min interval: enter a value or toggle override off".to_owned());
             }
             let parsed = parse_secs_field("Min interval", raw)?;
             let Some(value) = parsed else {
-                return Err("Min interval: enter a value or toggle override off".to_string());
+                return Err("Min interval: enter a value or toggle override off".to_owned());
             };
             Some(value)
         } else {

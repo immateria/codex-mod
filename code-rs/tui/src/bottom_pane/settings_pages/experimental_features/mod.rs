@@ -113,7 +113,7 @@ impl ExperimentalFeaturesSettingsView {
         let mut updates: BTreeMap<String, bool> = BTreeMap::new();
         for (idx, row) in self.rows.iter().enumerate() {
             let enabled = self.draft_enabled.get(idx).copied().unwrap_or(row.default_enabled);
-            updates.insert(row.key.to_string(), enabled);
+            updates.insert(row.key.to_owned(), enabled);
         }
         self.app_event_tx
             .send(crate::app_event::AppEvent::UpdateFeatureFlags { updates });

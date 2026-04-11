@@ -86,8 +86,8 @@ pub(super) fn build_sections(
     if let Some(hint) = &view.standard_terminal_hint {
         if view.auto_drive_active {
             let (left_hint, right_hint) = match hint.split_once('\t') {
-                Some((left, right)) => (left.trim().to_string(), Some(right.trim().to_string())),
-                None => (hint.trim().to_string(), None),
+                Some((left, right)) => (left.trim().to_owned(), Some(right.trim().to_owned())),
+                None => (hint.trim().to_owned(), None),
             };
 
             let auto_label_style = crate::colors::style_text_dim();

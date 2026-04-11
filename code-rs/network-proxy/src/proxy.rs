@@ -325,7 +325,7 @@ pub fn has_proxy_url_env_vars(env: &HashMap<String, String>) -> bool {
 
 fn set_env_keys(env: &mut HashMap<String, String>, keys: &[&str], value: &str) {
     for key in keys {
-        env.insert((*key).to_string(), value.to_string());
+        env.insert((*key).to_owned(), value.to_owned());
     }
 }
 
@@ -343,11 +343,11 @@ fn apply_proxy_env_overrides(
         .unwrap_or_else(|| format!("http://{http_addr}"));
     let socks_proxy_url = format!("socks5h://{socks_addr}");
     env.insert(
-        ALLOW_LOCAL_BINDING_ENV_KEY.to_string(),
+        ALLOW_LOCAL_BINDING_ENV_KEY.to_owned(),
         if allow_local_binding {
-            "1".to_string()
+            "1".to_owned()
         } else {
-            "0".to_string()
+            "0".to_owned()
         },
     );
 
@@ -379,7 +379,7 @@ fn apply_proxy_env_overrides(
     // Keep local/private targets direct so local IPC and metadata endpoints avoid the proxy.
     set_env_keys(env, NO_PROXY_ENV_KEYS, DEFAULT_NO_PROXY_VALUE);
 
-    env.insert("ELECTRON_GET_USE_PROXY".to_string(), "true".to_string());
+    env.insert("ELECTRON_GET_USE_PROXY".to_owned(), "true".to_owned());
 
     // Keep HTTP_PROXY/HTTPS_PROXY as HTTP endpoints. A lot of clients break if
     // those vars contain SOCKS URLs. We only switch ALL_PROXY here.
@@ -398,7 +398,7 @@ fn apply_proxy_env_overrides(
     if socks_enabled {
         // Preserve existing SSH wrappers (for example: Secretive/Teleport setups)
         // and only provide a SOCKS ProxyCommand fallback when one is not present.
-        env.entry("GIT_SSH_COMMAND".to_string())
+        env.entry("GIT_SSH_COMMAND".to_owned())
             .or_insert_with(|| format!("ssh -o ProxyCommand='nc -X 5 -x {socks_addr} %h %p'"));
     }
 }

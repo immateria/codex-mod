@@ -33,7 +33,7 @@ pub(super) fn render_dynamic_header_line(input: &DynamicHeaderLayoutInput<'_>) -
         let push_text =
             |spans: &mut Vec<Span<'static>>, width: &mut usize, text: &str, style: Style| {
                 *width += text.width();
-                spans.push(Span::styled(text.to_string(), style));
+                spans.push(Span::styled(text.to_owned(), style));
             };
 
         let push_separator = |spans: &mut Vec<Span<'static>>, width: &mut usize| {

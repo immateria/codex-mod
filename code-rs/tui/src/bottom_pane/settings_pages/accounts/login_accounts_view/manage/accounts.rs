@@ -147,9 +147,9 @@ impl LoginAccountsState {
             Ok(()) => {
                 self.feedback = Some(Feedback {
                     message: if mode.is_chatgpt() {
-                        "ChatGPT account selected".to_string()
+                        "ChatGPT account selected".to_owned()
                     } else {
-                        "API key selected".to_string()
+                        "API key selected".to_owned()
                     },
                     is_error: false,
                 });
@@ -187,7 +187,7 @@ impl LoginAccountsState {
                     );
                 }
                 self.feedback = Some(Feedback {
-                    message: "Account disconnected".to_string(),
+                    message: "Account disconnected".to_owned(),
                     is_error: false,
                 });
                 self.mode = super::ViewMode::List;
@@ -210,7 +210,7 @@ impl LoginAccountsState {
             }
             Ok(None) => {
                 self.feedback = Some(Feedback {
-                    message: "Account no longer exists".to_string(),
+                    message: "Account no longer exists".to_owned(),
                     is_error: true,
                 });
                 self.mode = super::ViewMode::List;

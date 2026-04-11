@@ -12,12 +12,12 @@ pub(crate) fn format_inline_script_for_display(command_escaped: &str) -> String 
     if let Some(formatted) = shell::format_inline_shell_for_display(command_escaped) {
         return formatted;
     }
-    command_escaped.to_string()
+    command_escaped.to_owned()
 }
 
 fn escape_token_for_display(token: &str) -> String {
     if is_shell_word(token) {
-        token.to_string()
+        token.to_owned()
     } else {
         let mut escaped = String::from("'");
         for ch in token.chars() {

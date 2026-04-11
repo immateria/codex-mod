@@ -46,21 +46,21 @@ struct BridgeControlArgs {
 fn normalise_level(level: &str) -> Option<String> {
     let l = level.trim().to_lowercase();
     match l.as_str() {
-        "errors" | "error" => Some("errors".to_string()),
-        "warn" | "warning" => Some("warn".to_string()),
-        "info" => Some("info".to_string()),
-        "trace" | "debug" => Some("trace".to_string()),
+        "errors" | "error" => Some("errors".to_owned()),
+        "warn" | "warning" => Some("warn".to_owned()),
+        "info" => Some("info".to_owned()),
+        "trace" | "debug" => Some("trace".to_owned()),
         _ => None,
     }
 }
 
 fn full_capabilities() -> Vec<String> {
     vec![
-        "console".to_string(),
-        "error".to_string(),
-        "pageview".to_string(),
-        "screenshot".to_string(),
-        "control".to_string(),
+        "console".to_owned(),
+        "error".to_owned(),
+        "pageview".to_owned(),
+        "screenshot".to_owned(),
+        "control".to_owned(),
     ]
 }
 
@@ -95,7 +95,7 @@ async fn handle_code_bridge_with_cwd(
             let mut sub = get_effective_subscription();
             sub.levels = vec![level];
             sub.capabilities = full_capabilities();
-            sub.llm_filter = "off".to_string();
+            sub.llm_filter = "off".to_owned();
 
             set_session_subscription(Some(sub.clone()));
             if let Err(e) = persist_workspace_subscription(cwd, Some(sub.clone())) {

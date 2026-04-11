@@ -154,9 +154,9 @@ impl EscalateServer {
         let command = vec![
             self.shell_path.to_string_lossy().into_owned(),
             if params.login == Some(false) {
-                "-c".to_string()
+                "-c".to_owned()
             } else {
-                "-lc".to_string()
+                "-lc".to_owned()
             },
             params.command,
         ];
@@ -203,11 +203,11 @@ impl EscalateServer {
         ));
         let mut env = HashMap::new();
         env.insert(
-            ESCALATE_SOCKET_ENV_VAR.to_string(),
+            ESCALATE_SOCKET_ENV_VAR.to_owned(),
             client_socket_fd.to_string(),
         );
         env.insert(
-            EXEC_WRAPPER_ENV_VAR.to_string(),
+            EXEC_WRAPPER_ENV_VAR.to_owned(),
             self.execve_wrapper.to_string_lossy().into_owned(),
         );
         Ok(EscalationSession {

@@ -125,19 +125,18 @@ impl AppLinkView {
             .map(str::trim)
             .filter(|s| !s.is_empty())
         {
-            lines.push(desc.to_string());
+            lines.push(desc.to_owned());
             lines.push(String::new());
         }
 
         match self.screen {
             AppLinkScreen::Link => {
-                lines.push("This app is not installed yet.".to_string());
-                lines.push("Open ChatGPT to install it, then refresh the Apps list.".to_string());
+                lines.push("This app is not installed yet.".to_owned());
+                lines.push("Open ChatGPT to install it, then refresh the Apps list.".to_owned());
             }
             AppLinkScreen::InstallConfirmation => {
                 lines.push(
-                    "After installing the app on ChatGPT, choose \"I already installed it\" to refresh."
-                        .to_string(),
+                    "After installing the app on ChatGPT, choose \"I already installed it\" to refresh.".to_owned(),
                 );
             }
         }

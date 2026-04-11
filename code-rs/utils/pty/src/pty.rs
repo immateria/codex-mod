@@ -87,7 +87,7 @@ pub async fn spawn_process(
     let pty_system = platform_native_pty_system();
     let pair = pty_system.openpty(size.into())?;
 
-    let mut command_builder = CommandBuilder::new(arg0.as_ref().unwrap_or(&program.to_string()));
+    let mut command_builder = CommandBuilder::new(arg0.as_ref().unwrap_or(&program.to_owned()));
     command_builder.cwd(cwd);
     command_builder.env_clear();
     for arg in args {

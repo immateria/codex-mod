@@ -121,7 +121,7 @@ impl ChatWidget<'_> {
                     {
                         self.auto_history.append_raw(std::slice::from_ref(&item));
                     }
-                    let lines = vec!["AUTO DRIVE RESPONSE".to_string(), notice_text];
+                    let lines = vec!["AUTO DRIVE RESPONSE".to_owned(), notice_text];
                     self.history_push_plain_paragraphs(PlainMessageKind::Notice, lines);
                 }
 
@@ -220,7 +220,7 @@ impl ChatWidget<'_> {
         if let Some(first) = original_text.trim().strip_prefix('/') {
             let mut parts = first.splitn(2, ' ');
             let cmd_name = parts.next().unwrap_or("").trim();
-            let args = parts.next().unwrap_or("").trim().to_string();
+            let args = parts.next().unwrap_or("").trim().to_owned();
             if !cmd_name.is_empty() {
                 let has_custom = self
                     .config
@@ -253,7 +253,7 @@ impl ChatWidget<'_> {
                     // Acknowledge configuration
                     let mode = if res.read_only { "read-only" } else { "write" };
                     let agents = if res.models.is_empty() {
-                        "<none>".to_string()
+                        "<none>".to_owned()
                     } else {
                         res.models.join(", ")
                     };
@@ -284,11 +284,11 @@ impl ChatWidget<'_> {
                 // without echoing an additional acknowledgement cell.
                 let trimmed = original_trimmed;
                 let (cmd_name, args_opt) = if let Some(rest) = trimmed.strip_prefix("/plan ") {
-                    ("plan", Some(rest.trim().to_string()))
+                    ("plan", Some(rest.trim().to_owned()))
                 } else if let Some(rest) = trimmed.strip_prefix("/solve ") {
-                    ("solve", Some(rest.trim().to_string()))
+                    ("solve", Some(rest.trim().to_owned()))
                 } else if let Some(rest) = trimmed.strip_prefix("/code ") {
-                    ("code", Some(rest.trim().to_string()))
+                    ("code", Some(rest.trim().to_owned()))
                 } else {
                     ("", None)
                 };
@@ -429,7 +429,7 @@ impl ChatWidget<'_> {
                         // Save the first screenshot path and URL for display in the TUI
                         if let Some(first_path) = screenshot_paths.first()
                             && let Ok(mut latest) = latest_browser_screenshot_clone.lock() {
-                                let url_string = url.clone().unwrap_or_else(|| "Browser".to_string());
+                                let url_string = url.clone().unwrap_or_else(|| "Browser".to_owned());
                                 *latest = Some((first_path.clone(), url_string));
                             }
 

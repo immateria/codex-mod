@@ -106,7 +106,7 @@ pub(crate) async fn handle_web_fetch(sess: &Session, ctx: &ToolCallCtx, argument
         && let Some(serde_json::Value::String(cid)) = map.get("call_id")
         && let Some(display) = sess.background_exec_cmd_display(cid)
     {
-        map.insert("for".to_string(), serde_json::Value::String(display));
+        map.insert("for".to_owned(), serde_json::Value::String(display));
     }
     let arguments_clone = arguments.clone();
     let call_id_clone = ctx.call_id.clone();
@@ -116,7 +116,7 @@ pub(crate) async fn handle_web_fetch(sess: &Session, ctx: &ToolCallCtx, argument
     execute_custom_tool(
         sess,
         ctx,
-        "web_fetch".to_string(),
+        "web_fetch".to_owned(),
         params_for_event,
         || async move {
             #[derive(serde::Deserialize)]
@@ -174,7 +174,7 @@ pub(crate) async fn handle_web_fetch(sess: &Session, ctx: &ToolCallCtx, argument
                     }
                     Err(_) => {
                         let _ = manager.stop().await;
-                        return Err("Headless goto timed out".to_string());
+                        return Err("Headless goto timed out".to_owned());
                     }
                 };
 
@@ -188,13 +188,13 @@ pub(crate) async fn handle_web_fetch(sess: &Session, ctx: &ToolCallCtx, argument
                     }
                     Err(_) => {
                         let _ = manager.stop().await;
-                        return Err("Headless HTML extraction timed out".to_string());
+                        return Err("Headless HTML extraction timed out".to_owned());
                     }
                 };
 
-                let html = if let Some(h) = extract_html(&html_value) { h.to_string() } else {
+                let html = if let Some(h) = extract_html(&html_value) { h.to_owned() } else {
                     let _ = manager.stop().await;
-                    return Err("Headless browser returned empty HTML".to_string());
+                    return Err("Headless browser returned empty HTML".to_owned());
                 };
 
                 let final_url = Some(goto_result.url);
@@ -226,7 +226,7 @@ pub(crate) async fn handle_web_fetch(sess: &Session, ctx: &ToolCallCtx, argument
                                         Ok(Ok(val)) => {
                                             if let Some(html) = extract_html(&val) {
                                                     return Some(BrowserFetchOutcome {
-                                                        html: html.to_string(),
+                                                        html: html.to_owned(),
                                                         final_url: Some(res.url.clone()),
                                                         headless: false,
                                                     });
@@ -463,7 +463,7 @@ pub(crate) async fn handle_web_fetch(sess: &Session, ctx: &ToolCallCtx, argument
                     if let Some(rest) = line.trim_start().strip_prefix("```") {
                         in_fence = !in_fence;
                         let _lang = in_fence.then(|| rest.trim());
-                        out.push(line.to_string());
+                        out.push(line.to_owned());
                         empty_run = 0;
                         continue;
                     }
@@ -490,7 +490,7 @@ pub(crate) async fn handle_web_fetch(sess: &Session, ctx: &ToolCallCtx, argument
                         }
                         empty_run += 1;
                     } else {
-                        out.push(line.to_string());
+                        out.push(line.to_owned());
                         empty_run = 0;
                     }
                 }
@@ -498,7 +498,7 @@ pub(crate) async fn handle_web_fetch(sess: &Session, ctx: &ToolCallCtx, argument
                 let s = out.join("\n");
                 let s = s.trim_start_matches('\n');
                 let s = s.trim_end_matches('\n');
-                s.to_string()
+                s.to_owned()
             }
 
             // Domain-specific: extract rich content from GitHub issue/PR pages
@@ -613,11 +613,11 @@ pub(crate) async fn handle_web_fetch(sess: &Session, ctx: &ToolCallCtx, argument
                                                 let options = htmd::options::Options { heading_style: htmd::options::HeadingStyle::Atx, code_block_style: htmd::options::CodeBlockStyle::Fenced, link_style: htmd::options::LinkStyle::Inlined, ..Default::default() };
                                                 let conv = htmd::HtmlToMarkdown::builder().options(options).build();
                                                 if let Ok(md) = conv.convert(body_html) {
-                                                    comments.push((author.to_string(), created.to_string(), md));
+                                                    comments.push((author.to_owned(), created.to_owned(), md));
                                                 }
                                             }
                                         } else {
-                                            comments.push((author.to_string(), created.to_string(), body.to_string()));
+                                            comments.push((author.to_owned(), created.to_owned(), body.to_owned()));
                                         }
                                     }
                                 }
@@ -725,7 +725,7 @@ pub(crate) async fn handle_web_fetch(sess: &Session, ctx: &ToolCallCtx, argument
                         attempt_id.clone(),
                         sub_id_clone.clone(),
                         call_id_clone.clone(),
-                        vec!["web_fetch".to_string(), params.url.clone()],
+                        vec!["web_fetch".to_owned(), params.url.clone()],
                         cwd_clone.clone(),
                     )
                     .await;
@@ -852,8 +852,7 @@ pub(crate) async fn handle_web_fetch(sess: &Session, ctx: &ToolCallCtx, argument
             let content_type = headers
                 .get(reqwest::header::CONTENT_TYPE)
                 .and_then(|v| v.to_str().ok())
-                .unwrap_or("")
-                .to_string();
+                .unwrap_or("").to_owned();
 
             // Provide structured diagnostics if blocked by WAF (even if HTTP 200)
             if !matches!(params.mode.as_deref(), Some("http")) && (detect_block_vendor(status, &body_text).is_some() || headers_indicate_block(&headers)) {

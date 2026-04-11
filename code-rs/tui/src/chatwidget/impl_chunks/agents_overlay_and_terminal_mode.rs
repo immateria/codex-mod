@@ -197,14 +197,14 @@ impl ChatWidget<'_> {
             .add_modifier(ratatui::style::Modifier::BOLD);
         lines.push(ratatui::text::Line::from(vec![
             ratatui::text::Span::raw(" "),
-            ratatui::text::Span::styled(title.to_string(), header_style),
+            ratatui::text::Span::styled(title.to_owned(), header_style),
         ]));
         for raw_line in trimmed.lines() {
             let content = raw_line.trim_end();
             lines.push(ratatui::text::Line::from(vec![
                 ratatui::text::Span::raw("   "),
                 ratatui::text::Span::styled(
-                    content.to_string(),
+                    content.to_owned(),
                     crate::colors::style_text(),
                 ),
             ]));
@@ -217,9 +217,9 @@ impl ChatWidget<'_> {
             .collect::<Vec<_>>()
             .join(" ");
         let normalized = if collapsed.trim().is_empty() {
-            text.trim().to_string()
+            text.trim().to_owned()
         } else {
-            collapsed.trim().to_string()
+            collapsed.trim().to_owned()
         };
 
         if normalized.chars().count() <= limit {
@@ -265,12 +265,12 @@ impl ChatWidget<'_> {
                     let plural = if findings_count == 1 { "issue" } else { "issues" };
                     format!("Auto Review: {findings_count} {plural} found")
                 } else if matches!(entry.status, AgentStatus::Completed) {
-                    "Auto Review: no issues found".to_string()
+                    "Auto Review: no issues found".to_owned()
                 } else {
                     String::new()
                 };
                 if label.is_empty() {
-                    label = "Auto Review".to_string();
+                    label = "Auto Review".to_owned();
                 }
 
                 if has_findings || matches!(entry.status, AgentStatus::Completed) {
@@ -311,7 +311,7 @@ impl ChatWidget<'_> {
             AgentStatus::Failed => {
                 if entry.error.is_none() {
                     bullets.push((
-                        "Failed".to_string(),
+                        "Failed".to_owned(),
                         s_error,
                     ));
                 }
@@ -319,7 +319,7 @@ impl ChatWidget<'_> {
             AgentStatus::Cancelled => {
                 if entry.error.is_none() {
                     bullets.push((
-                        "Cancelled".to_string(),
+                        "Cancelled".to_owned(),
                         s_warning,
                     ));
                 }
@@ -628,7 +628,7 @@ impl ChatWidget<'_> {
 
             let AgentBatchMetadata { label, prompt: meta_prompt, context: meta_context } = batch_metadata;
             let auto_review_label = matches!(entry.source_kind, Some(AgentSourceKind::AutoReview))
-                .then(|| "Auto Review".to_string());
+                .then(|| "Auto Review".to_owned());
             let previous_label = entry.batch_label.clone();
             entry.batch_label = label
                 .or(auto_review_label)
@@ -906,7 +906,7 @@ impl ChatWidget<'_> {
                     .find(|a| a.id == agent_id)
                     .map(|a| a.name.clone())
             })
-            .unwrap_or_else(|| agent_id.to_string());
+            .unwrap_or_else(|| agent_id.to_owned());
 
         self.push_background_tail(format!("Cancelling agent {agent_name}…"));
         self.bottom_pane
@@ -916,7 +916,7 @@ impl ChatWidget<'_> {
 
         self.submit_op(Op::CancelAgents {
             batch_ids: Vec::new(),
-            agent_ids: vec![agent_id.to_string()],
+            agent_ids: vec![agent_id.to_owned()],
         });
 
         for agent in &mut self.active_agents {
@@ -924,7 +924,7 @@ impl ChatWidget<'_> {
                 && matches!(agent.status, AgentStatus::Pending | AgentStatus::Running)
             {
                 agent.status = AgentStatus::Cancelled;
-                agent.error.get_or_insert_with(|| "Cancelled by user".to_string());
+                agent.error.get_or_insert_with(|| "Cancelled by user".to_owned());
             }
         }
 
@@ -1005,7 +1005,7 @@ impl ChatWidget<'_> {
             .find(|a| a.name.eq_ignore_ascii_case(agent_name))
             .map(|cfg| cfg.command.clone())
             .filter(|s| !s.trim().is_empty())
-            .unwrap_or_else(|| agent_name.to_string());
+            .unwrap_or_else(|| agent_name.to_owned());
         if cmd.trim().is_empty() {
             return None;
         }
@@ -1031,7 +1031,7 @@ impl ChatWidget<'_> {
         {
             let brew_formula = macos_brew_formula_for_command(&cmd);
             let script = format!("brew install {brew_formula}");
-            let command = vec!["/bin/bash".to_string(), "-lc".to_string(), script.clone()];
+            let command = vec!["/bin/bash".to_owned(), "-lc".to_owned(), script.clone()];
             return Some((command, script));
         }
 
@@ -1143,7 +1143,7 @@ fi\n\
             id,
             title: format!("Install {name}"),
             command: Vec::new(),
-            command_display: "Preparing install assistant…".to_string(),
+            command_display: "Preparing install assistant…".to_owned(),
             controller: Some(controller),
             auto_close_on_success: false,
             start_running: true,
@@ -1197,7 +1197,7 @@ fi\n\
             let prompt = rest.trim();
             if prompt.is_empty() {
                 self.history_push_plain_state(history_cell::new_error_event(
-                    "No prompt provided after '$$'.".to_string(),
+                    "No prompt provided after '$$'.".to_owned(),
                 ));
                 self.app_event_tx.send(AppEvent::RequestRedraw);
             } else {
@@ -1221,7 +1221,7 @@ fi\n\
         let id = self.terminal.alloc_id();
         let launch = TerminalLaunch {
             id,
-            title: "Shell".to_string(),
+            title: "Shell".to_owned(),
             command: Vec::new(),
             command_display: String::new(),
             controller: None,
@@ -1234,7 +1234,7 @@ fi\n\
     fn run_terminal_command(&mut self, command: &str) {
         if wrap_command(command).is_empty() {
             self.history_push_plain_state(history_cell::new_error_event(
-                "Unable to build shell command for execution.".to_string(),
+                "Unable to build shell command for execution.".to_owned(),
             ));
             self.app_event_tx.send(AppEvent::RequestRedraw);
             return;
@@ -1262,7 +1262,7 @@ fi\n\
         start_direct_terminal_session(
             self.app_event_tx.clone(),
             id,
-            command.to_string(),
+            command.to_owned(),
             Some(cwd),
             controller,
             controller_rx,
@@ -1295,7 +1295,7 @@ fi\n\
         start_prompt_terminal_session(
             self.app_event_tx.clone(),
             id,
-            prompt.to_string(),
+            prompt.to_owned(),
             Some(cwd),
             controller,
             controller_rx,

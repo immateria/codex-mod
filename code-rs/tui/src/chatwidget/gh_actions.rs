@@ -58,7 +58,7 @@ pub(super) fn get_github_token(config: &Config) -> Option<(String, TokenSource)>
     // Fallback: use GitHub CLI if installed and logged in.
     if let Ok(out) = Command::new("gh").args(["auth", "token"]).output()
         && out.status.success() {
-            let token = String::from_utf8_lossy(&out.stdout).trim().to_string();
+            let token = String::from_utf8_lossy(&out.stdout).trim().to_owned();
             if !token.is_empty() { return Some((token, TokenSource::GhCli)); }
         }
     None
@@ -197,16 +197,16 @@ fn parse_owner_repo(url: &str) -> Option<(String, String)> {
     if let Some(rest) = url.strip_prefix("git@github.com:") {
         let s = rest.trim_end_matches(".git");
         let mut parts = s.splitn(2, '/');
-        let owner = parts.next()?.to_string();
-        let repo = parts.next()?.to_string();
+        let owner = parts.next()?.to_owned();
+        let repo = parts.next()?.to_owned();
         return Some((owner, repo));
     }
     if let Some(pos) = url.find("github.com/") {
         let s = &url[pos + "github.com/".len()..];
         let s = s.trim_end_matches(".git");
         let mut parts = s.splitn(2, '/');
-        let owner = parts.next()?.to_string();
-        let repo = parts.next()?.to_string();
+        let owner = parts.next()?.to_owned();
+        let repo = parts.next()?.to_owned();
         return Some((owner, repo));
     }
     None

@@ -96,7 +96,7 @@ pub(crate) async fn run(
         request.cwd.display().to_string(),
         request.model.clone(),
         request.permission_mode.clone(),
-        request.source.as_str().to_string(),
+        request.source.as_str().to_owned(),
     )) {
         Ok(input_json) => input_json,
         Err(error) => {
@@ -152,7 +152,7 @@ fn parse_completed(
             status = HookRunStatus::Failed;
             entries.push(HookOutputEntry {
                 kind: HookOutputEntryKind::Error,
-                text: error.to_string(),
+                text: error.to_owned(),
             });
         }
         None => match run_result.exit_code {
@@ -191,10 +191,10 @@ fn parse_completed(
                     status = HookRunStatus::Failed;
                     entries.push(HookOutputEntry {
                         kind: HookOutputEntryKind::Error,
-                        text: "hook returned invalid session start JSON output".to_string(),
+                        text: "hook returned invalid session start JSON output".to_owned(),
                     });
                 } else {
-                    let additional_context = trimmed_stdout.to_string();
+                    let additional_context = trimmed_stdout.to_owned();
                     common::append_additional_context(
                         &mut entries,
                         &mut additional_contexts_for_model,
@@ -213,7 +213,7 @@ fn parse_completed(
                 status = HookRunStatus::Failed;
                 entries.push(HookOutputEntry {
                     kind: HookOutputEntryKind::Error,
-                    text: "hook exited without a status code".to_string(),
+                    text: "hook exited without a status code".to_owned(),
                 });
             }
         },

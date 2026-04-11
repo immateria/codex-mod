@@ -7,9 +7,9 @@ impl ChatWidget<'_> {
         self.run_git_command(["rev-parse", "--show-toplevel"], |stdout| {
             let root = stdout.lines().next().unwrap_or("").trim();
             if root.is_empty() {
-                Err("auto review git root unavailable".to_string())
+                Err("auto review git root unavailable".to_owned())
             } else {
-                Ok(root.to_string())
+                Ok(root.to_owned())
             }
         })
         .ok()
@@ -41,7 +41,7 @@ impl ChatWidget<'_> {
         if commit_id.is_empty() {
             return;
         }
-        self.auto_review_reviewed_marker = Some(GhostCommit::new(commit_id.to_string(), None));
+        self.auto_review_reviewed_marker = Some(GhostCommit::new(commit_id.to_owned(), None));
     }
 
     pub(in crate::chatwidget) fn persist_auto_review_baseline_marker(&self, commit_id: &str) {
@@ -127,7 +127,7 @@ impl ChatWidget<'_> {
                 let mut paths = HashSet::new();
                 for line in stdout.lines().map(str::trim) {
                     if !line.is_empty() {
-                        paths.insert(line.to_string());
+                        paths.insert(line.to_owned());
                     }
                 }
                 Ok(paths)
@@ -588,7 +588,7 @@ impl ChatWidget<'_> {
                 summary = Some(match summary {
                     Some(existing) if existing.contains(tail) => existing,
                     Some(existing) => format!("{existing} \n{tail}"),
-                    None => tail.to_string(),
+                    None => tail.to_owned(),
                 });
             }
         }
@@ -602,7 +602,7 @@ impl ChatWidget<'_> {
 
         let mut summary_parts: Vec<String> = Vec::new();
         if !output.overall_explanation.trim().is_empty() {
-            summary_parts.push(output.overall_explanation.trim().to_string());
+            summary_parts.push(output.overall_explanation.trim().to_owned());
         }
         if findings_len > 0 {
             let titles: Vec<String> = output
@@ -610,7 +610,7 @@ impl ChatWidget<'_> {
                 .iter()
                 .filter_map(|f| {
                     let title = f.title.trim();
-                    (!title.is_empty()).then_some(title.to_string())
+                    (!title.is_empty()).then_some(title.to_owned())
                 })
                 .collect();
             if !titles.is_empty() {
@@ -673,7 +673,7 @@ impl ChatWidget<'_> {
 
         let summary_text = summary.and_then(|text| {
             let trimmed = text.trim();
-            (!trimmed.is_empty()).then_some(trimmed.to_string())
+            (!trimmed.is_empty()).then_some(trimmed.to_owned())
         });
 
         let mut line = format!("Auto Review: {findings} issue(s) found");
@@ -703,7 +703,7 @@ impl ChatWidget<'_> {
             id: HistoryId::ZERO,
             role: PlainMessageRole::System,
             kind: PlainMessageKind::Notice,
-            header: Some(MessageHeader { label: "Auto Review".to_string(), badge: None }),
+            header: Some(MessageHeader { label: "Auto Review".to_owned(), badge: None }),
             lines: message_lines,
             metadata: None,
         };
@@ -803,7 +803,7 @@ impl ChatWidget<'_> {
         let snapshot_note = inflight_snapshot
             .as_deref()
             .map(str::trim)
-            .filter(|s| !s.is_empty()).map_or_else(|| "Snapshot: (unknown)".to_string(), |s| format!("Snapshot: {s} (review target)"));
+            .filter(|s| !s.is_empty()).map_or_else(|| "Snapshot: (unknown)".to_owned(), |s| format!("Snapshot: {s} (review target)"));
         let agent_note = agent_id
             .as_deref()
             .map(str::trim)
@@ -812,7 +812,7 @@ impl ChatWidget<'_> {
                 let short = &id[..id.len().min(8)];
                 format!("Agent: #{short} (auto-review)")
             })
-            .unwrap_or_else(|| "Agent: (unknown)".to_string());
+            .unwrap_or_else(|| "Agent: (unknown)".to_owned());
         let summary_note = summary
             .as_deref()
             .map(str::trim)
