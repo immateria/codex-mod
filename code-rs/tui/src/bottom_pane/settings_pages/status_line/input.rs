@@ -6,7 +6,7 @@ impl StatusLineSetupView {
     pub(super) fn process_key_event(&mut self, key_event: KeyEvent) -> bool {
         match key_event {
             KeyEvent {
-                code: KeyCode::Up,
+                code: KeyCode::Up | KeyCode::Char('k'),
                 modifiers: KeyModifiers::NONE,
                 ..
             } => {
@@ -14,7 +14,7 @@ impl StatusLineSetupView {
                 true
             }
             KeyEvent {
-                code: KeyCode::Down,
+                code: KeyCode::Down | KeyCode::Char('j'),
                 modifiers: KeyModifiers::NONE,
                 ..
             } => {

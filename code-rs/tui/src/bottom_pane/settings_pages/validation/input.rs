@@ -149,13 +149,33 @@ impl ValidationSettingsView {
             .copied();
 
         let handled = match key_event {
-            KeyEvent { code: KeyCode::Up, .. } => {
+            KeyEvent { code: KeyCode::Up | KeyCode::Char('k'), .. } => {
                 self.state.move_up_wrap(total);
                 self.ensure_selected_visible(&model, body_height_hint);
                 true
             }
-            KeyEvent { code: KeyCode::Down, .. } => {
+            KeyEvent { code: KeyCode::Down | KeyCode::Char('j'), .. } => {
                 self.state.move_down_wrap(total);
+                self.ensure_selected_visible(&model, body_height_hint);
+                true
+            }
+            KeyEvent { code: KeyCode::Home, .. } => {
+                self.state.home(total);
+                self.ensure_selected_visible(&model, body_height_hint);
+                true
+            }
+            KeyEvent { code: KeyCode::End, .. } => {
+                self.state.end(total, body_height_hint);
+                self.ensure_selected_visible(&model, body_height_hint);
+                true
+            }
+            KeyEvent { code: KeyCode::PageUp, .. } => {
+                self.state.page_up(total, body_height_hint);
+                self.ensure_selected_visible(&model, body_height_hint);
+                true
+            }
+            KeyEvent { code: KeyCode::PageDown, .. } => {
+                self.state.page_down(total, body_height_hint);
                 self.ensure_selected_visible(&model, body_height_hint);
                 true
             }

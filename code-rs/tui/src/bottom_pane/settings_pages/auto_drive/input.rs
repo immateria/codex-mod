@@ -10,15 +10,24 @@ impl AutoDriveSettingsView {
                 self.close();
                 true
             }
-            KeyCode::Up => {
+            KeyCode::Up | KeyCode::Char('k') => {
                 self.main_state.move_up_wrap(Self::option_count());
-                // The main list is never scroll-rendered; keep scroll pinned.
                 self.main_state.scroll_top = 0;
                 true
             }
-            KeyCode::Down => {
+            KeyCode::Down | KeyCode::Char('j') => {
                 self.main_state.move_down_wrap(Self::option_count());
-                // The main list is never scroll-rendered; keep scroll pinned.
+                self.main_state.scroll_top = 0;
+                true
+            }
+            KeyCode::Home => {
+                self.main_state.home(Self::option_count());
+                self.main_state.scroll_top = 0;
+                true
+            }
+            KeyCode::End => {
+                let count = Self::option_count();
+                self.main_state.end(count, count);
                 self.main_state.scroll_top = 0;
                 true
             }
@@ -54,18 +63,41 @@ impl AutoDriveSettingsView {
                 self.clear_hovered();
                 true
             }
-            KeyCode::Up => {
+            KeyCode::Up | KeyCode::Char('k') => {
                 let total = self.routing_row_count();
                 self.routing_state.move_up_wrap(total);
                 let visible = self.routing_viewport_rows.get().max(1);
                 self.routing_state.ensure_visible(total, visible);
                 true
             }
-            KeyCode::Down => {
+            KeyCode::Down | KeyCode::Char('j') => {
                 let total = self.routing_row_count();
                 self.routing_state.move_down_wrap(total);
                 let visible = self.routing_viewport_rows.get().max(1);
                 self.routing_state.ensure_visible(total, visible);
+                true
+            }
+            KeyCode::Home => {
+                let total = self.routing_row_count();
+                self.routing_state.home(total);
+                true
+            }
+            KeyCode::End => {
+                let total = self.routing_row_count();
+                let visible = self.routing_viewport_rows.get().max(1);
+                self.routing_state.end(total, visible);
+                true
+            }
+            KeyCode::PageUp => {
+                let total = self.routing_row_count();
+                let visible = self.routing_viewport_rows.get().max(1);
+                self.routing_state.page_up(total, visible);
+                true
+            }
+            KeyCode::PageDown => {
+                let total = self.routing_row_count();
+                let visible = self.routing_viewport_rows.get().max(1);
+                self.routing_state.page_down(total, visible);
                 true
             }
             KeyCode::Enter => {

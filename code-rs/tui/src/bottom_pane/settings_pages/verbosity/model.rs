@@ -21,12 +21,10 @@ impl VerbositySelectionView {
 
     pub(super) fn move_selection_up(&mut self) {
         self.state.move_up_wrap(VERBOSITY_OPTIONS.len());
-        self.state.scroll_top = 0;
     }
 
     pub(super) fn move_selection_down(&mut self) {
         self.state.move_down_wrap(VERBOSITY_OPTIONS.len());
-        self.state.scroll_top = 0;
     }
 
     pub(super) fn menu_rows(&self) -> Vec<SettingsMenuRow<'static, usize>> {

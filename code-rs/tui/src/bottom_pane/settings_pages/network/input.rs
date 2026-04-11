@@ -157,12 +157,28 @@ impl NetworkSettingsView {
         let current_row = rows.get(selected).copied();
 
         let handled = match key_event {
-            KeyEvent { code: KeyCode::Up, modifiers: KeyModifiers::NONE, .. } => {
+            KeyEvent { code: KeyCode::Up | KeyCode::Char('k'), modifiers: KeyModifiers::NONE, .. } => {
                 self.state.move_up_wrap(total);
                 true
             }
-            KeyEvent { code: KeyCode::Down, modifiers: KeyModifiers::NONE, .. } => {
+            KeyEvent { code: KeyCode::Down | KeyCode::Char('j'), modifiers: KeyModifiers::NONE, .. } => {
                 self.state.move_down_wrap(total);
+                true
+            }
+            KeyEvent { code: KeyCode::Home, modifiers: KeyModifiers::NONE, .. } => {
+                self.state.home(total);
+                true
+            }
+            KeyEvent { code: KeyCode::End, modifiers: KeyModifiers::NONE, .. } => {
+                self.state.end(total, visible_budget);
+                true
+            }
+            KeyEvent { code: KeyCode::PageUp, modifiers: KeyModifiers::NONE, .. } => {
+                self.state.page_up(total, visible_budget);
+                true
+            }
+            KeyEvent { code: KeyCode::PageDown, modifiers: KeyModifiers::NONE, .. } => {
+                self.state.page_down(total, visible_budget);
                 true
             }
             KeyEvent { code: KeyCode::Left, modifiers: KeyModifiers::NONE, .. } => {

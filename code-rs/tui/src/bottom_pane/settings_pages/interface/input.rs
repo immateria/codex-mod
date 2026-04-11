@@ -48,14 +48,34 @@ impl InterfaceSettingsView {
         let visible = self.main_viewport_rows.get().max(1);
 
         match key_event {
-            KeyEvent { code: KeyCode::Up, modifiers: KeyModifiers::NONE, .. } => {
+            KeyEvent { code: KeyCode::Up | KeyCode::Char('k'), modifiers: KeyModifiers::NONE, .. } => {
                 self.status = None;
                 self.state.move_up_wrap_visible(total, visible);
                 true
             }
-            KeyEvent { code: KeyCode::Down, modifiers: KeyModifiers::NONE, .. } => {
+            KeyEvent { code: KeyCode::Down | KeyCode::Char('j'), modifiers: KeyModifiers::NONE, .. } => {
                 self.status = None;
                 self.state.move_down_wrap_visible(total, visible);
+                true
+            }
+            KeyEvent { code: KeyCode::Home, modifiers: KeyModifiers::NONE, .. } => {
+                self.status = None;
+                self.state.home(total);
+                true
+            }
+            KeyEvent { code: KeyCode::End, modifiers: KeyModifiers::NONE, .. } => {
+                self.status = None;
+                self.state.end(total, visible);
+                true
+            }
+            KeyEvent { code: KeyCode::PageUp, modifiers: KeyModifiers::NONE, .. } => {
+                self.status = None;
+                self.state.page_up(total, visible);
+                true
+            }
+            KeyEvent { code: KeyCode::PageDown, modifiers: KeyModifiers::NONE, .. } => {
+                self.status = None;
+                self.state.page_down(total, visible);
                 true
             }
             KeyEvent { code: KeyCode::Left, modifiers: KeyModifiers::NONE, .. } => {

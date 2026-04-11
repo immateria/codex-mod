@@ -111,6 +111,14 @@ impl ShellSelectionView {
                 self.move_selection_down();
                 true
             }
+            (KeyCode::Home, _) => {
+                self.selected_index = 0;
+                true
+            }
+            (KeyCode::End, _) => {
+                self.selected_index = self.item_count().saturating_sub(1);
+                true
+            }
             (KeyCode::Char('p'), mods) if mods.contains(KeyModifiers::CONTROL) => {
                 self.open_shell_profiles_settings();
                 true

@@ -73,15 +73,19 @@ impl JsReplSettingsView {
                         true
                     }
                     KeyCode::Home => {
-                        self.state.selected_idx = Some(0);
-                        self.state.scroll_top = 0;
+                        self.state.home(total);
                         true
                     }
                     KeyCode::End => {
-                        if total > 0 {
-                            self.state.selected_idx = Some(total - 1);
-                            self.state.ensure_visible(total, self.visible_budget(total));
-                        }
+                        self.state.end(total, self.visible_budget(total));
+                        true
+                    }
+                    KeyCode::PageUp => {
+                        self.state.page_up(total, self.visible_budget(total));
+                        true
+                    }
+                    KeyCode::PageDown => {
+                        self.state.page_down(total, self.visible_budget(total));
                         true
                     }
                     _ => false,

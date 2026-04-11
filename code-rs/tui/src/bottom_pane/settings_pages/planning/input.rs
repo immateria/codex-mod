@@ -26,12 +26,20 @@ impl PlanningSettingsView {
         self.state.ensure_visible(total, 4);
 
         match key.code {
-            KeyCode::Up => {
+            KeyCode::Up | KeyCode::Char('k') => {
                 self.state.move_up_wrap(total);
                 true
             }
-            KeyCode::Down => {
+            KeyCode::Down | KeyCode::Char('j') => {
                 self.state.move_down_wrap(total);
+                true
+            }
+            KeyCode::Home => {
+                self.state.home(total);
+                true
+            }
+            KeyCode::End => {
+                self.state.end(total, 4);
                 true
             }
             KeyCode::Char(' ') | KeyCode::Enter => {

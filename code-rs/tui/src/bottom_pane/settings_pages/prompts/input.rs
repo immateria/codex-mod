@@ -87,7 +87,7 @@ impl PromptsSettingsView {
 
     fn handle_list_key(&mut self, key: KeyEvent) -> bool {
         match key.code {
-            KeyCode::Up => {
+            KeyCode::Up | KeyCode::Char('k') => {
                 self.list_state.clamp_selection(self.list_row_count());
                 let selected = self.selected_list_idx();
                 if selected > 0 {
@@ -96,7 +96,7 @@ impl PromptsSettingsView {
                 }
                 true
             }
-            KeyCode::Down => {
+            KeyCode::Down | KeyCode::Char('j') => {
                 self.list_state.clamp_selection(self.list_row_count());
                 let selected = self.selected_list_idx();
                 let max_idx = self.prompts.len();
@@ -104,6 +104,16 @@ impl PromptsSettingsView {
                     self.list_state.selected_idx = Some(selected.saturating_add(1));
                     self.clamp_list_state();
                 }
+                true
+            }
+            KeyCode::Home => {
+                self.list_state.selected_idx = Some(0);
+                self.clamp_list_state();
+                true
+            }
+            KeyCode::End => {
+                self.list_state.selected_idx = Some(self.prompts.len());
+                self.clamp_list_state();
                 true
             }
             _ => false,

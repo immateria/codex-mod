@@ -47,18 +47,19 @@ impl SettingsOverviewView {
                 true
             }
             KeyCode::Home => {
-                if !self.rows.is_empty() {
-                    self.scroll.selected_idx = Some(0);
-                    self.scroll.scroll_top = 0;
-                }
+                self.scroll.home(self.rows.len());
                 true
             }
             KeyCode::End => {
-                let len = self.rows.len();
-                if len > 0 {
-                    self.scroll.selected_idx = Some(len - 1);
-                    self.scroll.ensure_visible(len, visible_rows.max(1));
-                }
+                self.scroll.end(self.rows.len(), visible_rows.max(1));
+                true
+            }
+            KeyCode::PageUp => {
+                self.scroll.page_up(self.rows.len(), visible_rows.max(1));
+                true
+            }
+            KeyCode::PageDown => {
+                self.scroll.page_down(self.rows.len(), visible_rows.max(1));
                 true
             }
             _ => false,

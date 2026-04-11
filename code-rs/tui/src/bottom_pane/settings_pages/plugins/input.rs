@@ -43,15 +43,42 @@ impl PluginsSettingsView {
                 self.is_complete = true;
                 true
             }
-            KeyCode::Up => {
+            KeyCode::Up | KeyCode::Char('k') => {
                 let mut state = self.list_state.get();
                 state.move_up_wrap_visible(plugin_count, self.list_viewport_rows.get().max(1));
                 self.list_state.set(state);
                 true
             }
-            KeyCode::Down => {
+            KeyCode::Down | KeyCode::Char('j') => {
                 let mut state = self.list_state.get();
                 state.move_down_wrap_visible(plugin_count, self.list_viewport_rows.get().max(1));
+                self.list_state.set(state);
+                true
+            }
+            KeyCode::Home => {
+                let mut state = self.list_state.get();
+                state.home(plugin_count);
+                self.list_state.set(state);
+                true
+            }
+            KeyCode::End => {
+                let vis = self.list_viewport_rows.get().max(1);
+                let mut state = self.list_state.get();
+                state.end(plugin_count, vis);
+                self.list_state.set(state);
+                true
+            }
+            KeyCode::PageUp => {
+                let vis = self.list_viewport_rows.get().max(1);
+                let mut state = self.list_state.get();
+                state.page_up(plugin_count, vis);
+                self.list_state.set(state);
+                true
+            }
+            KeyCode::PageDown => {
+                let vis = self.list_viewport_rows.get().max(1);
+                let mut state = self.list_state.get();
+                state.page_down(plugin_count, vis);
                 self.list_state.set(state);
                 true
             }
@@ -313,13 +340,13 @@ impl PluginsSettingsView {
                 self.mode = Mode::List;
                 true
             }
-            KeyCode::Up => {
+            KeyCode::Up | KeyCode::Char('k') => {
                 let mut state = self.sources_list_state.get();
                 state.move_up_wrap_visible(row_count, self.sources_list_viewport_rows.get().max(1));
                 self.sources_list_state.set(state);
                 true
             }
-            KeyCode::Down => {
+            KeyCode::Down | KeyCode::Char('j') => {
                 let mut state = self.sources_list_state.get();
                 state.move_down_wrap_visible(row_count, self.sources_list_viewport_rows.get().max(1));
                 self.sources_list_state.set(state);

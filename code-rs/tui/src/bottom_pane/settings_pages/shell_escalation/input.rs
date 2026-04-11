@@ -102,7 +102,7 @@ impl ShellEscalationSettingsView {
                 true
             }
             KeyEvent {
-                code: KeyCode::Up,
+                code: KeyCode::Up | KeyCode::Char('k'),
                 modifiers: KeyModifiers::NONE,
                 ..
             } => {
@@ -110,11 +110,43 @@ impl ShellEscalationSettingsView {
                 true
             }
             KeyEvent {
-                code: KeyCode::Down,
+                code: KeyCode::Down | KeyCode::Char('j'),
                 modifiers: KeyModifiers::NONE,
                 ..
             } => {
                 self.state.move_down_wrap_visible(total, self.visible_budget(total));
+                true
+            }
+            KeyEvent {
+                code: KeyCode::Home,
+                modifiers: KeyModifiers::NONE,
+                ..
+            } => {
+                self.state.home(total);
+                true
+            }
+            KeyEvent {
+                code: KeyCode::End,
+                modifiers: KeyModifiers::NONE,
+                ..
+            } => {
+                self.state.end(total, self.visible_budget(total));
+                true
+            }
+            KeyEvent {
+                code: KeyCode::PageUp,
+                modifiers: KeyModifiers::NONE,
+                ..
+            } => {
+                self.state.page_up(total, self.visible_budget(total));
+                true
+            }
+            KeyEvent {
+                code: KeyCode::PageDown,
+                modifiers: KeyModifiers::NONE,
+                ..
+            } => {
+                self.state.page_down(total, self.visible_budget(total));
                 true
             }
             KeyEvent {

@@ -115,6 +115,54 @@ impl ScrollState {
         self.ensure_visible(len, max_visible_rows.min(len));
     }
 
+    /// Jump selection to the first item and scroll to top.
+    pub fn home(&mut self, len: usize) {
+        if len == 0 {
+            self.selected_idx = None;
+            self.scroll_top = 0;
+            return;
+        }
+        self.selected_idx = Some(0);
+        self.scroll_top = 0;
+    }
+
+    /// Jump selection to the last item and scroll so it's visible.
+    pub fn end(&mut self, len: usize, visible_rows: usize) {
+        if len == 0 {
+            self.selected_idx = None;
+            self.scroll_top = 0;
+            return;
+        }
+        self.selected_idx = Some(len - 1);
+        self.ensure_visible(len, visible_rows.max(1));
+    }
+
+    /// Move selection up by a page (visible_rows) worth of items.
+    pub fn page_up(&mut self, len: usize, visible_rows: usize) {
+        if len == 0 {
+            self.selected_idx = None;
+            self.scroll_top = 0;
+            return;
+        }
+        let step = visible_rows.max(1);
+        let idx = self.selected_idx.unwrap_or(0);
+        self.selected_idx = Some(idx.saturating_sub(step));
+        self.ensure_visible(len, visible_rows.max(1));
+    }
+
+    /// Move selection down by a page (visible_rows) worth of items.
+    pub fn page_down(&mut self, len: usize, visible_rows: usize) {
+        if len == 0 {
+            self.selected_idx = None;
+            self.scroll_top = 0;
+            return;
+        }
+        let step = visible_rows.max(1);
+        let idx = self.selected_idx.unwrap_or(0);
+        self.selected_idx = Some((idx + step).min(len - 1));
+        self.ensure_visible(len, visible_rows.max(1));
+    }
+
     /// Select by visible row index (relative to the current `scroll_top`).
     ///
     /// Returns `true` when `visible_row` maps to a valid item.
@@ -180,6 +228,77 @@ mod tests {
         state.clamp_selection(3);
         assert_eq!(state.selected_idx, Some(0));
         assert_eq!(state.scroll_top, 2);
+    }
+
+    #[test]
+    fn home_jumps_to_first() {
+        let mut state = ScrollState {
+            selected_idx: Some(7),
+            scroll_top: 5,
+        };
+        state.home(10);
+        assert_eq!(state.selected_idx, Some(0));
+        assert_eq!(state.scroll_top, 0);
+    }
+
+    #[test]
+    fn end_jumps_to_last() {
+        let mut state = ScrollState {
+            selected_idx: Some(0),
+            scroll_top: 0,
+        };
+        state.end(10, 3);
+        assert_eq!(state.selected_idx, Some(9));
+        assert!(state.scroll_top >= 7); // 10 - 3
+    }
+
+    #[test]
+    fn page_up_moves_by_page() {
+        let mut state = ScrollState {
+            selected_idx: Some(8),
+            scroll_top: 5,
+        };
+        state.page_up(10, 3);
+        assert_eq!(state.selected_idx, Some(5));
+    }
+
+    #[test]
+    fn page_up_clamps_to_zero() {
+        let mut state = ScrollState {
+            selected_idx: Some(1),
+            scroll_top: 0,
+        };
+        state.page_up(10, 5);
+        assert_eq!(state.selected_idx, Some(0));
+    }
+
+    #[test]
+    fn page_down_moves_by_page() {
+        let mut state = ScrollState {
+            selected_idx: Some(2),
+            scroll_top: 0,
+        };
+        state.page_down(10, 3);
+        assert_eq!(state.selected_idx, Some(5));
+    }
+
+    #[test]
+    fn page_down_clamps_to_last() {
+        let mut state = ScrollState {
+            selected_idx: Some(8),
+            scroll_top: 5,
+        };
+        state.page_down(10, 5);
+        assert_eq!(state.selected_idx, Some(9));
+    }
+
+    #[test]
+    fn home_end_on_empty() {
+        let mut state = ScrollState::new();
+        state.home(0);
+        assert_eq!(state.selected_idx, None);
+        state.end(0, 3);
+        assert_eq!(state.selected_idx, None);
     }
 
     #[test]

@@ -100,12 +100,28 @@ impl ExecLimitsSettingsView {
                 self.is_complete = true;
                 true
             }
-            KeyCode::Up => {
+            KeyCode::Up | KeyCode::Char('k') => {
                 state.move_up_wrap_visible(len, visible);
                 true
             }
-            KeyCode::Down => {
+            KeyCode::Down | KeyCode::Char('j') => {
                 state.move_down_wrap_visible(len, visible);
+                true
+            }
+            KeyCode::Home => {
+                state.home(len);
+                true
+            }
+            KeyCode::End => {
+                state.end(len, visible);
+                true
+            }
+            KeyCode::PageUp => {
+                state.page_up(len, visible);
+                true
+            }
+            KeyCode::PageDown => {
+                state.page_down(len, visible);
                 true
             }
             KeyCode::Enter => {

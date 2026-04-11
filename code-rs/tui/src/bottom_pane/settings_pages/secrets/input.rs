@@ -21,15 +21,42 @@ impl SecretsSettingsView {
                 self.is_complete = true;
                 true
             }
-            KeyCode::Up => {
+            KeyCode::Up | KeyCode::Char('k') => {
                 let mut state = self.list_state.get();
                 state.move_up_wrap_visible(row_count, self.list_viewport_rows.get().max(1));
                 self.list_state.set(state);
                 true
             }
-            KeyCode::Down => {
+            KeyCode::Down | KeyCode::Char('j') => {
                 let mut state = self.list_state.get();
                 state.move_down_wrap_visible(row_count, self.list_viewport_rows.get().max(1));
+                self.list_state.set(state);
+                true
+            }
+            KeyCode::Home => {
+                let mut state = self.list_state.get();
+                state.home(row_count);
+                self.list_state.set(state);
+                true
+            }
+            KeyCode::End => {
+                let vis = self.list_viewport_rows.get().max(1);
+                let mut state = self.list_state.get();
+                state.end(row_count, vis);
+                self.list_state.set(state);
+                true
+            }
+            KeyCode::PageUp => {
+                let vis = self.list_viewport_rows.get().max(1);
+                let mut state = self.list_state.get();
+                state.page_up(row_count, vis);
+                self.list_state.set(state);
+                true
+            }
+            KeyCode::PageDown => {
+                let vis = self.list_viewport_rows.get().max(1);
+                let mut state = self.list_state.get();
+                state.page_down(row_count, vis);
                 self.list_state.set(state);
                 true
             }

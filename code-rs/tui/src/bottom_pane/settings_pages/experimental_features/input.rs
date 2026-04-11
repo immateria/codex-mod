@@ -15,7 +15,7 @@ impl ExperimentalFeaturesSettingsView {
                 self.close();
                 true
             }
-            KeyCode::Up => {
+            KeyCode::Up | KeyCode::Char('k') => {
                 let total = self.feature_count();
                 if total == 0 {
                     return false;
@@ -25,13 +25,44 @@ impl ExperimentalFeaturesSettingsView {
                 self.list_state.set(state);
                 true
             }
-            KeyCode::Down => {
+            KeyCode::Down | KeyCode::Char('j') => {
                 let total = self.feature_count();
                 if total == 0 {
                     return false;
                 }
                 let mut state = self.list_state.get();
                 state.move_down_wrap_visible(total, self.list_viewport_rows.get().max(1));
+                self.list_state.set(state);
+                true
+            }
+            KeyCode::Home => {
+                let total = self.feature_count();
+                let mut state = self.list_state.get();
+                state.home(total);
+                self.list_state.set(state);
+                true
+            }
+            KeyCode::End => {
+                let total = self.feature_count();
+                let vis = self.list_viewport_rows.get().max(1);
+                let mut state = self.list_state.get();
+                state.end(total, vis);
+                self.list_state.set(state);
+                true
+            }
+            KeyCode::PageUp => {
+                let total = self.feature_count();
+                let vis = self.list_viewport_rows.get().max(1);
+                let mut state = self.list_state.get();
+                state.page_up(total, vis);
+                self.list_state.set(state);
+                true
+            }
+            KeyCode::PageDown => {
+                let total = self.feature_count();
+                let vis = self.list_viewport_rows.get().max(1);
+                let mut state = self.list_state.get();
+                state.page_down(total, vis);
                 self.list_state.set(state);
                 true
             }

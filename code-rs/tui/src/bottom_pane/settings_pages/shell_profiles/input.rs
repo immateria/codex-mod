@@ -23,7 +23,7 @@ pub(super) fn handle_key_event_direct(view: &mut ShellProfilesSettingsView, key:
                 true
             }
             KeyEvent {
-                code: KeyCode::Up,
+                code: KeyCode::Up | KeyCode::Char('k'),
                 modifiers: KeyModifiers::NONE,
                 ..
             } => {
@@ -34,7 +34,7 @@ pub(super) fn handle_key_event_direct(view: &mut ShellProfilesSettingsView, key:
                 true
             }
             KeyEvent {
-                code: KeyCode::Down,
+                code: KeyCode::Down | KeyCode::Char('j'),
                 modifiers: KeyModifiers::NONE,
                 ..
             } => {
@@ -42,6 +42,48 @@ pub(super) fn handle_key_event_direct(view: &mut ShellProfilesSettingsView, key:
                 let rows = ShellProfilesSettingsView::rows();
                 let visible = view.viewport_rows.get().max(1);
                 view.scroll.move_down_wrap_visible(rows.len(), visible);
+                true
+            }
+            KeyEvent {
+                code: KeyCode::Home,
+                modifiers: KeyModifiers::NONE,
+                ..
+            } => {
+                view.status = None;
+                view.scroll.home(ShellProfilesSettingsView::rows().len());
+                true
+            }
+            KeyEvent {
+                code: KeyCode::End,
+                modifiers: KeyModifiers::NONE,
+                ..
+            } => {
+                view.status = None;
+                let rows = ShellProfilesSettingsView::rows();
+                let visible = view.viewport_rows.get().max(1);
+                view.scroll.end(rows.len(), visible);
+                true
+            }
+            KeyEvent {
+                code: KeyCode::PageUp,
+                modifiers: KeyModifiers::NONE,
+                ..
+            } => {
+                view.status = None;
+                let rows = ShellProfilesSettingsView::rows();
+                let visible = view.viewport_rows.get().max(1);
+                view.scroll.page_up(rows.len(), visible);
+                true
+            }
+            KeyEvent {
+                code: KeyCode::PageDown,
+                modifiers: KeyModifiers::NONE,
+                ..
+            } => {
+                view.status = None;
+                let rows = ShellProfilesSettingsView::rows();
+                let visible = view.viewport_rows.get().max(1);
+                view.scroll.page_down(rows.len(), visible);
                 true
             }
             KeyEvent {

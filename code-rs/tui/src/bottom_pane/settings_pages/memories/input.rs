@@ -346,6 +346,18 @@ impl MemoriesSettingsView {
             KeyCode::Down | KeyCode::Char('j') => {
                 state.move_down_wrap_visible(rows.len(), visible);
             }
+            KeyCode::Home => {
+                state.home(rows.len());
+            }
+            KeyCode::End => {
+                state.end(rows.len(), visible);
+            }
+            KeyCode::PageUp => {
+                state.page_up(rows.len(), visible);
+            }
+            KeyCode::PageDown => {
+                state.page_down(rows.len(), visible);
+            }
             KeyCode::Left => match self.selected_row() {
                 RowKind::Scope => self.cycle_scope_from_row(false),
                 RowKind::GenerateMemories | RowKind::UseMemories | RowKind::SkipMcpOrWebSearch => {

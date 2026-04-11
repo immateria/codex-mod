@@ -2,7 +2,7 @@ use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
 use crate::app_event::AppEvent;
 
-use super::VerbositySelectionView;
+use super::{VerbositySelectionView, VERBOSITY_OPTIONS};
 
 impl VerbositySelectionView {
     pub(super) fn confirm_selection(&mut self) {
@@ -12,9 +12,10 @@ impl VerbositySelectionView {
     }
 
     pub(super) fn handle_key_event_direct(&mut self, key_event: KeyEvent) -> bool {
+        let len = VERBOSITY_OPTIONS.len();
         match key_event {
             KeyEvent {
-                code: KeyCode::Up,
+                code: KeyCode::Up | KeyCode::Char('k'),
                 modifiers: KeyModifiers::NONE,
                 ..
             } => {
@@ -22,11 +23,27 @@ impl VerbositySelectionView {
                 true
             }
             KeyEvent {
-                code: KeyCode::Down,
+                code: KeyCode::Down | KeyCode::Char('j'),
                 modifiers: KeyModifiers::NONE,
                 ..
             } => {
                 self.move_selection_down();
+                true
+            }
+            KeyEvent {
+                code: KeyCode::Home,
+                modifiers: KeyModifiers::NONE,
+                ..
+            } => {
+                self.state.home(len);
+                true
+            }
+            KeyEvent {
+                code: KeyCode::End,
+                modifiers: KeyModifiers::NONE,
+                ..
+            } => {
+                self.state.end(len, len);
                 true
             }
             KeyEvent {

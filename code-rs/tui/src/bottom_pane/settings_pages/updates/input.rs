@@ -87,12 +87,20 @@ impl UpdateSettingsView {
                 self.is_complete = true;
                 true
             }
-            KeyCode::Tab | KeyCode::Down => {
+            KeyCode::Tab | KeyCode::Down | KeyCode::Char('j') => {
                 self.state.move_down_wrap(Self::ROW_COUNT);
                 true
             }
-            KeyCode::BackTab | KeyCode::Up => {
+            KeyCode::BackTab | KeyCode::Up | KeyCode::Char('k') => {
                 self.state.move_up_wrap(Self::ROW_COUNT);
+                true
+            }
+            KeyCode::Home => {
+                self.state.home(Self::ROW_COUNT);
+                true
+            }
+            KeyCode::End => {
+                self.state.end(Self::ROW_COUNT, Self::ROW_COUNT);
                 true
             }
             KeyCode::Left | KeyCode::Right | KeyCode::Char(' ') if self.selected_row() == 1 => {

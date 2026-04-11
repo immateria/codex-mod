@@ -156,12 +156,20 @@ impl ReviewSettingsView {
             .and_then(|sel| model.selection_kinds.get(sel))
             .copied();
         let handled = match key_event {
-            KeyEvent { code: KeyCode::Up, .. } => {
+            KeyEvent { code: KeyCode::Up | KeyCode::Char('k'), .. } => {
                 self.state.move_up_wrap(total);
                 true
             }
-            KeyEvent { code: KeyCode::Down, .. } => {
+            KeyEvent { code: KeyCode::Down | KeyCode::Char('j'), .. } => {
                 self.state.move_down_wrap(total);
+                true
+            }
+            KeyEvent { code: KeyCode::Home, .. } => {
+                self.state.home(total);
+                true
+            }
+            KeyEvent { code: KeyCode::End, .. } => {
+                self.state.end(total, total);
                 true
             }
             KeyEvent { code: KeyCode::Left, .. } => {

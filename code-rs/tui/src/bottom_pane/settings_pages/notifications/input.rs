@@ -33,7 +33,7 @@ impl NotificationsSettingsView {
     fn process_key_event(&mut self, key_event: KeyEvent) -> bool {
         match key_event {
             KeyEvent {
-                code: KeyCode::Up,
+                code: KeyCode::Up | KeyCode::Char('k'),
                 modifiers: KeyModifiers::NONE,
                 ..
             } => {
@@ -41,11 +41,27 @@ impl NotificationsSettingsView {
                 true
             }
             KeyEvent {
-                code: KeyCode::Down,
+                code: KeyCode::Down | KeyCode::Char('j'),
                 modifiers: KeyModifiers::NONE,
                 ..
             } => {
                 self.state.move_down_wrap(Self::ROW_COUNT);
+                true
+            }
+            KeyEvent {
+                code: KeyCode::Home,
+                modifiers: KeyModifiers::NONE,
+                ..
+            } => {
+                self.state.home(Self::ROW_COUNT);
+                true
+            }
+            KeyEvent {
+                code: KeyCode::End,
+                modifiers: KeyModifiers::NONE,
+                ..
+            } => {
+                self.state.end(Self::ROW_COUNT, Self::ROW_COUNT);
                 true
             }
             KeyEvent {
