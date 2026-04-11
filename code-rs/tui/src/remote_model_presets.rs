@@ -80,9 +80,10 @@ fn model_info_to_preset(info: ModelInfo) -> ModelPreset {
         })
         .collect();
 
+    let slug = info.slug;
     ModelPreset {
-        id: info.slug.clone(),
-        model: info.slug.clone(),
+        id: slug.clone(),
+        model: slug.clone(),
         display_name: info.display_name,
         description: info.description.unwrap_or_default(),
         default_reasoning_effort: map_reasoning_effort(
@@ -95,7 +96,7 @@ fn model_info_to_preset(info: ModelInfo) -> ModelPreset {
         upgrade: info.upgrade.map(|upgrade| ModelUpgrade {
             id: upgrade.model,
             reasoning_effort_mapping: None,
-            migration_config_key: info.slug,
+            migration_config_key: slug,
         }),
         pro_only,
         show_in_picker,

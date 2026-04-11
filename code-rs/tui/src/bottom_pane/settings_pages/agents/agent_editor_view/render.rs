@@ -105,6 +105,12 @@ impl AgentEditorView {
         };
 
         let layout = self.layout(content.width);
+
+        // Adjust scroll to ensure focused field is visible
+        self.ensure_field_visible(&layout, content.height);
+        let scroll = self.scroll_offset.get();
+        let total_height = layout.lines.len() as u16;
+
         let AgentEditorLayout {
             lines,
             name_offset,
@@ -121,14 +127,10 @@ impl AgentEditorView {
             instr_height,
             name_height,
             command_height,
-        } = &layout;
-
-        // Adjust scroll to ensure focused field is visible
-        self.ensure_field_visible(&layout, content.height);
-        let scroll = self.scroll_offset.get();
+        } = layout;
 
         // Render the text lines with scroll offset
-        Paragraph::new(lines.clone())
+        Paragraph::new(lines)
             .alignment(Alignment::Left)
             .scroll((scroll, 0))
             .wrap(ratatui::widgets::Wrap { trim: false })
@@ -136,7 +138,6 @@ impl AgentEditorView {
             .render(content, buf);
 
         // Render scroll indicator if content overflows
-        let total_height = layout.lines.len() as u16;
         if total_height > content.height && content.width > 3 {
             let max_scroll = total_height.saturating_sub(content.height);
             let indicator_x = content.x.saturating_add(content.width);
@@ -186,7 +187,7 @@ impl AgentEditorView {
 
         // Name box
         if let Some(field_inner) = render_field_box(
-            buf, *name_offset, *name_height, "ID", self.field == FIELD_NAME,
+            buf, name_offset, name_height, "ID", self.field == FIELD_NAME,
         ) {
             let mut border_style = if self.field == FIELD_NAME {
                 crate::colors::style_primary_bold()
@@ -196,7 +197,7 @@ impl AgentEditorView {
             if self.name_error.is_some() {
                 border_style = border_style.fg(crate::colors::error());
                 // Re-render with error border
-                if let Some(rect) = Self::scrolled_rect(content, *name_offset, *name_height, scroll) {
+                if let Some(rect) = Self::scrolled_rect(content, name_offset, name_height, scroll) {
                     let blk = Block::default()
                         .borders(Borders::ALL)
                         .title(Line::from(" ID "))
@@ -213,7 +214,7 @@ impl AgentEditorView {
 
         // Command box
         if let Some(field_inner) = render_field_box(
-            buf, *command_offset, *command_height, "Command", self.field == FIELD_COMMAND,
+            buf, command_offset, command_height, "Command", self.field == FIELD_COMMAND,
         ) {
             self.command_field
                 .render(field_inner, buf, self.field == FIELD_COMMAND);
@@ -221,7 +222,7 @@ impl AgentEditorView {
 
         // Read-only params
         if let Some(field_inner) = render_field_box(
-            buf, *ro_offset, *ro_height, "Read-only Params", self.field == FIELD_READ_ONLY,
+            buf, ro_offset, ro_height, "Read-only Params", self.field == FIELD_READ_ONLY,
         ) {
             self.params_ro
                 .render(field_inner, buf, self.field == FIELD_READ_ONLY);
@@ -229,7 +230,7 @@ impl AgentEditorView {
 
         // Write params
         if let Some(field_inner) = render_field_box(
-            buf, *wr_offset, *wr_height, "Write Params", self.field == FIELD_WRITE,
+            buf, wr_offset, wr_height, "Write Params", self.field == FIELD_WRITE,
         ) {
             self.params_wr
                 .render(field_inner, buf, self.field == FIELD_WRITE);
@@ -245,7 +246,7 @@ impl AgentEditorView {
             if self.description_error.is_some() {
                 desc_border_style = desc_border_style.fg(crate::colors::error());
             }
-            if let Some(rect) = Self::scrolled_rect(content, *desc_offset, *desc_height, scroll) {
+            if let Some(rect) = Self::scrolled_rect(content, desc_offset, desc_height, scroll) {
                 let blk = Block::default()
                     .borders(Borders::ALL)
                     .title(Line::from(" What is this agent good at? "))
@@ -261,7 +262,7 @@ impl AgentEditorView {
 
         // Instructions
         if let Some(field_inner) = render_field_box(
-            buf, *instr_offset, *instr_height, "Instructions", self.field == FIELD_INSTRUCTIONS,
+            buf, instr_offset, instr_height, "Instructions", self.field == FIELD_INSTRUCTIONS,
         ) {
             self.instr
                 .render(field_inner, buf, self.field == FIELD_INSTRUCTIONS);

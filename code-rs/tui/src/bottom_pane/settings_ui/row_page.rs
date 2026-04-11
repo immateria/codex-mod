@@ -41,15 +41,6 @@ impl<'a> SettingsRowPage<'a> {
         SettingsRowPageContentOnly { page: self }
     }
 
-    /// Show a "selected/total" position indicator in the title bar (right-aligned).
-    #[allow(dead_code)]
-    pub(crate) fn with_scroll_position(mut self, selected_1based: usize, total: usize) -> Self {
-        if total > 0 {
-            self.frame = self.frame.with_position_text(format!("{selected_1based}/{total}"));
-        }
-        self
-    }
-
     pub(crate) fn layout_in_chrome(&self, chrome: ChromeMode, area: Rect) -> Option<SettingsFrameLayout> {
         match chrome {
             ChromeMode::Framed => self.framed().layout(area),

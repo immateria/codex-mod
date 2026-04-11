@@ -30,11 +30,11 @@ impl PluginsSettingsView {
 
         match &self.mode {
             Mode::List => self.render_list(chrome, area, buf, &snapshot),
-            Mode::Detail { key } => self.render_detail(chrome, area, buf, &snapshot, key.clone()),
+            Mode::Detail { key } => self.render_detail(chrome, area, buf, &snapshot, key),
             Mode::ConfirmUninstall { plugin_id_key: _, key } => {
-                self.render_confirm_uninstall(chrome, area, buf, &snapshot, key.clone());
+                self.render_confirm_uninstall(chrome, area, buf, &snapshot, key);
             }
-            Mode::Sources(mode) => self.render_sources(chrome, area, buf, &snapshot, mode.clone()),
+            Mode::Sources(mode) => self.render_sources(chrome, area, buf, &snapshot, mode),
         }
     }
 
@@ -75,7 +75,7 @@ impl PluginsSettingsView {
         area: Rect,
         buf: &mut Buffer,
         snapshot: &PluginsSharedState,
-        key: PluginDetailKey,
+        key: &PluginDetailKey,
     ) {
         let mut status = snapshot.action_error.as_ref().map(|err| {
             StyledText::new(err.clone(), Style::new().fg(colors::error()))
@@ -87,7 +87,7 @@ impl PluginsSettingsView {
             hint_esc(" back"),
         ];
 
-        let detail_state = snapshot.details.get(&key);
+        let detail_state = snapshot.details.get(key);
         if detail_state.is_none() {
             status = Some(StyledText::new(
                 "Loading plugin details...".to_owned(),
@@ -95,8 +95,7 @@ impl PluginsSettingsView {
             ));
         }
 
-        let title = key.plugin_name.clone();
-        let page = self.detail_page(snapshot, &title, status, &shortcuts);
+        let page = self.detail_page(snapshot, &key.plugin_name, status, &shortcuts);
 
         let (installed, enabled) = detail_state
             .and_then(|state| match state {
@@ -112,7 +111,7 @@ impl PluginsSettingsView {
             return;
         };
 
-        let lines = build_detail_body_lines(detail_state, &key);
+        let lines = build_detail_body_lines(detail_state, key);
         let paragraph = Paragraph::new(lines)
             .style(Style::new().bg(colors::background()).fg(colors::text()))
             .wrap(Wrap { trim: false });
@@ -125,7 +124,7 @@ impl PluginsSettingsView {
         area: Rect,
         buf: &mut Buffer,
         snapshot: &PluginsSharedState,
-        key: PluginDetailKey,
+        key: &PluginDetailKey,
     ) {
         let status = snapshot.action_error.as_ref().map(|err| {
             StyledText::new(err.clone(), Style::new().fg(colors::error()))
@@ -165,15 +164,15 @@ impl PluginsSettingsView {
         area: Rect,
         buf: &mut Buffer,
         snapshot: &PluginsSharedState,
-        mode: SourcesMode,
+        mode: &SourcesMode,
     ) {
         match mode {
             SourcesMode::List => self.render_sources_list(chrome, area, buf, snapshot),
             SourcesMode::EditCurated | SourcesMode::EditMarketplaceRepo { .. } => {
-                self.render_sources_editor(chrome, area, buf, snapshot, &mode);
+                self.render_sources_editor(chrome, area, buf, snapshot, mode);
             }
             SourcesMode::ConfirmRemoveRepo { index } => {
-                self.render_sources_confirm_remove(chrome, area, buf, snapshot, index);
+                self.render_sources_confirm_remove(chrome, area, buf, snapshot, *index);
             }
         }
     }

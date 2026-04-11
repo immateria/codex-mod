@@ -42,12 +42,6 @@ impl<'a> SettingsFrame<'a> {
         }
     }
 
-    #[allow(dead_code)]
-    pub(crate) fn with_position_text(mut self, text: impl Into<Cow<'a, str>>) -> Self {
-        self.position_text = Some(text.into());
-        self
-    }
-
     fn make_block(&self) -> Block<'_> {
         let mut block = Block::bordered()
             .border_style(Style::new().fg(colors::border()))

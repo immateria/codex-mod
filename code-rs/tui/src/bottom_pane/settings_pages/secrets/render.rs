@@ -28,7 +28,7 @@ impl SecretsSettingsView {
         match &self.mode {
             Mode::List => self.render_list(chrome, area, buf, &snapshot),
             Mode::ConfirmDelete { entry } => {
-                self.render_confirm_delete(chrome, area, buf, &snapshot, entry.clone());
+                self.render_confirm_delete(chrome, area, buf, &snapshot, entry);
             }
         }
     }
@@ -70,7 +70,7 @@ impl SecretsSettingsView {
         area: Rect,
         buf: &mut Buffer,
         snapshot: &SecretsSharedState,
-        entry: SecretListEntry,
+        entry: &SecretListEntry,
     ) {
         let page = self.confirm_delete_page(snapshot);
         let buttons = self.confirm_delete_button_specs();

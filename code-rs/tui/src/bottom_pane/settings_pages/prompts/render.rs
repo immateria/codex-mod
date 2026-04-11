@@ -26,7 +26,7 @@ impl PromptsSettingsView {
             Mode::List => self.render_list_in_chrome(chrome, area, buf),
             Mode::Edit => self.render_form_in_chrome(chrome, area, buf),
             Mode::ConfirmDelete { name, .. } => {
-                self.render_confirm_delete_in_chrome(chrome, area, buf, name.clone());
+                self.render_confirm_delete_in_chrome(chrome, area, buf, name);
             }
         }
     }
@@ -64,7 +64,7 @@ impl PromptsSettingsView {
         chrome: ChromeMode,
         area: Rect,
         buf: &mut Buffer,
-        name: String,
+        name: &str,
     ) {
         let page = self.confirm_delete_page();
         let buttons = self.confirm_delete_button_specs();
