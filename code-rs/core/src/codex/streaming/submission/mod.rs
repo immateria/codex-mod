@@ -155,12 +155,9 @@ pub(in crate::codex) async fn submission_loop(
                 items,
                 final_output_json_schema,
             } => {
-                let sess = match sess.as_ref() {
-                    Some(sess) => sess,
-                    None => {
-                        send_no_session_event(sub.id).await;
-                        continue;
-                    }
+                let Some(sess) = sess.as_ref() else {
+                    send_no_session_event(sub.id).await;
+                    continue;
                 };
 
                 // Clean up old status items when new user input arrives
@@ -178,12 +175,9 @@ pub(in crate::codex) async fn submission_loop(
                 sess.set_task(agent);
             }
             Op::QueueUserInput { items } => {
-                let sess = match sess.as_ref() {
-                    Some(sess) => sess,
-                    None => {
-                        send_no_session_event(sub.id).await;
-                        continue;
-                    }
+                let Some(sess) = sess.as_ref() else {
+                    send_no_session_event(sub.id).await;
+                    continue;
                 };
 
                 if sess.has_running_task() {
@@ -205,12 +199,9 @@ pub(in crate::codex) async fn submission_loop(
                 }
             }
             Op::ExecApproval { id, decision, .. } => {
-                let sess = match sess.as_ref() {
-                    Some(sess) => sess,
-                    None => {
-                        send_no_session_event(sub.id).await;
-                        continue;
-                    }
+                let Some(sess) = sess.as_ref() else {
+                    send_no_session_event(sub.id).await;
+                    continue;
                 };
                 match decision {
                     ReviewDecision::Abort => {
@@ -221,22 +212,16 @@ pub(in crate::codex) async fn submission_loop(
                 }
             }
             Op::UserInputAnswer { id, response } => {
-                let sess = match sess.as_ref() {
-                    Some(sess) => sess,
-                    None => {
-                        send_no_session_event(sub.id).await;
-                        continue;
-                    }
+                let Some(sess) = sess.as_ref() else {
+                    send_no_session_event(sub.id).await;
+                    continue;
                 };
                 sess.notify_user_input_response(&id, response);
             }
             Op::RequestPermissionsResponse { id, response } => {
-                let sess = match sess.as_ref() {
-                    Some(sess) => sess,
-                    None => {
-                        send_no_session_event(sub.id).await;
-                        continue;
-                    }
+                let Some(sess) = sess.as_ref() else {
+                    send_no_session_event(sub.id).await;
+                    continue;
                 };
                 sess.notify_request_permissions_response(&id, response);
             }
@@ -265,12 +250,9 @@ pub(in crate::codex) async fn submission_loop(
                 });
             }
             Op::DynamicToolResponse { id, response } => {
-                let sess = match sess.as_ref() {
-                    Some(sess) => sess,
-                    None => {
-                        send_no_session_event(sub.id).await;
-                        continue;
-                    }
+                let Some(sess) = sess.as_ref() else {
+                    send_no_session_event(sub.id).await;
+                    continue;
                 };
                 sess.notify_dynamic_tool_response(&id, response);
             }
@@ -293,12 +275,9 @@ pub(in crate::codex) async fn submission_loop(
                 }
             }
             Op::PatchApproval { id, decision } => {
-                let sess = match sess.as_ref() {
-                    Some(sess) => sess,
-                    None => {
-                        send_no_session_event(sub.id).await;
-                        continue;
-                    }
+                let Some(sess) = sess.as_ref() else {
+                    send_no_session_event(sub.id).await;
+                    continue;
                 };
                 match decision {
                     ReviewDecision::Abort => {
@@ -360,12 +339,9 @@ pub(in crate::codex) async fn submission_loop(
             }
 
             Op::RunProjectCommand { name } => {
-                let sess = match sess.as_ref() {
-                    Some(sess) => sess,
-                    None => {
-                        send_no_session_event(sub.id).await;
-                        continue;
-                    }
+                let Some(sess) = sess.as_ref() else {
+                    send_no_session_event(sub.id).await;
+                    continue;
                 };
                 let mut tracker = TurnDiffTracker::new();
                 let attempt_req = sess.current_request_ordinal();
@@ -718,12 +694,9 @@ pub(in crate::codex) async fn submission_loop(
                 sess.send_event(event).await;
             }
             Op::Compact => {
-                let sess = match sess.as_ref() {
-                    Some(sess) => sess,
-                    None => {
-                        send_no_session_event(sub.id).await;
-                        continue;
-                    }
+                let Some(sess) = sess.as_ref() else {
+                    send_no_session_event(sub.id).await;
+                    continue;
                 };
 
                 let prompt_text = sess.compact_prompt_text();

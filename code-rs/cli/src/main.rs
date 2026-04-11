@@ -61,9 +61,8 @@ pub(crate) const CODEX_SECURE_MODE_ENV_VAR: &str = "CODEX_SECURE_MODE";
 /// if the CODEX_SECURE_MODE environment variable is set to "1".
 #[ctor::ctor]
 fn pre_main_hardening() {
-    let secure_mode = match std::env::var(CODEX_SECURE_MODE_ENV_VAR) {
-        Ok(value) => value,
-        Err(_) => return,
+    let Ok(secure_mode) = std::env::var(CODEX_SECURE_MODE_ENV_VAR) else {
+        return;
     };
 
     if secure_mode == "1" {

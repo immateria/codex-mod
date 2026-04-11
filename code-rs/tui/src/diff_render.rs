@@ -122,12 +122,13 @@ pub(super) fn create_diff_summary_with_width(
 
     let mut files: Vec<FileSummary> = Vec::with_capacity(changes.len());
     for (path, change) in changes {
+        let path_str = path.display().to_string();
         match change {
             FileChange::Add { content } => {
                 let added = content.lines().count();
                 let empty = added == 0;
                 files.push(FileSummary {
-                    original_path: path.display().to_string(),
+                    original_path: path_str,
                     rename_target: None,
                     added,
                     removed: 0,
@@ -140,7 +141,7 @@ pub(super) fn create_diff_summary_with_width(
                     Err(_) => (0, true),
                 };
                 files.push(FileSummary {
-                    original_path: path.display().to_string(),
+                    original_path: path_str,
                     rename_target: None,
                     added: 0,
                     removed,
@@ -169,7 +170,7 @@ pub(super) fn create_diff_summary_with_width(
                     && tally.added == 0
                     && tally.removed == 0;
                 files.push(FileSummary {
-                    original_path: path.display().to_string(),
+                    original_path: path_str,
                     rename_target,
                     added: tally.added,
                     removed: tally.removed,
@@ -578,9 +579,10 @@ fn push_wrapped_diff_line_with_width(
                 " ".repeat(gap_after_ln),
                 " ".repeat(continuation_indent)
             );
+            let chunk_str = chunk.to_string();
             let content_span = match line_style {
-                Some(style) => RtSpan::styled(chunk.to_string(), style),
-                None => RtSpan::raw(chunk.to_string()),
+                Some(style) => RtSpan::styled(chunk_str, style),
+                None => RtSpan::raw(chunk_str),
             };
             let mut line = RtLine::from(vec![RtSpan::raw(hang_prefix), content_span]);
             if let Some(style) = line_style {

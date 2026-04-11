@@ -54,9 +54,14 @@ fn sanitize_notification_text(input: &str) -> String {
             _ => sanitized.push(ch),
         }
     }
-    sanitized
-        .split_whitespace()
-        .collect::<Vec<_>>()
-        .join(" ")
+    // Collapse runs of whitespace into a single space without intermediate Vec.
+    let mut result = String::with_capacity(sanitized.len());
+    for word in sanitized.split_whitespace() {
+        if !result.is_empty() {
+            result.push(' ');
+        }
+        result.push_str(word);
+    }
+    result
 }
 

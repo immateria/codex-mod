@@ -410,9 +410,8 @@ fn run_git_worktree_remove(worktree_path: &Path) {
         return;
     }
 
-    let worktree_str = match worktree_path.to_str() {
-        Some(path) => path,
-        None => return,
+    let Some(worktree_str) = worktree_path.to_str() else {
+        return;
     };
 
     let output = std::process::Command::new("git")
@@ -469,9 +468,8 @@ fn detect_repo_root(worktree_path: &Path) -> Option<PathBuf> {
 
 fn collect_active_worktrees(session_dir: &Path) -> HashSet<PathBuf> {
     let mut set = HashSet::new();
-    let entries = match fs::read_dir(session_dir) {
-        Ok(entries) => entries,
-        Err(_) => return set,
+    let Ok(entries) = fs::read_dir(session_dir) else {
+        return set;
     };
 
     for entry in entries.flatten() {
@@ -486,18 +484,16 @@ fn collect_active_worktrees(session_dir: &Path) -> HashSet<PathBuf> {
             continue;
         }
 
-        let data = match fs::read_to_string(&file_path) {
-            Ok(data) => data,
-            Err(_) => continue,
+        let Ok(data) = fs::read_to_string(&file_path) else {
+            continue;
         };
 
         for line in data.lines() {
             if line.trim().is_empty() {
                 continue;
             }
-            let worktree = match line.split_once('\t') {
-                Some((_, path)) => path,
-                None => continue,
+            let Some((_, worktree)) = line.split_once('\t') else {
+                continue;
             };
             let path = PathBuf::from(worktree);
             if let Ok(canon) = path.canonicalize() {
@@ -512,9 +508,8 @@ fn collect_active_worktrees(session_dir: &Path) -> HashSet<PathBuf> {
 }
 
 fn purge_session_registry(session_dir: &Path, worktree_path: &Path) {
-    let entries = match fs::read_dir(session_dir) {
-        Ok(entries) => entries,
-        Err(_) => return,
+    let Ok(entries) = fs::read_dir(session_dir) else {
+        return;
     };
     let worktree_str = worktree_path.to_string_lossy().into_owned();
 
@@ -523,9 +518,8 @@ fn purge_session_registry(session_dir: &Path, worktree_path: &Path) {
             continue;
         }
         let file_path = entry.path();
-        let data = match fs::read_to_string(&file_path) {
-            Ok(data) => data,
-            Err(_) => continue,
+        let Ok(data) = fs::read_to_string(&file_path) else {
+            continue;
         };
 
         let mut changed = false;

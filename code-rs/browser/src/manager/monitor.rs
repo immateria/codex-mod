@@ -48,16 +48,13 @@ impl BrowserManager {
 
             loop {
                 // Check if page is still alive.
-                let page = match page_weak.upgrade() {
-                    Some(p) => p,
-                    None => {
-                        debug!(
-                            target_id = %page_target_id,
-                            session_id = %page_session_id,
-                            "Page dropped, stopping navigation monitor"
-                        );
-                        break;
-                    }
+                let Some(page) = page_weak.upgrade() else {
+                    debug!(
+                        target_id = %page_target_id,
+                        session_id = %page_session_id,
+                        "Page dropped, stopping navigation monitor"
+                    );
+                    break;
                 };
 
                 // Get current URL.

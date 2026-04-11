@@ -848,12 +848,11 @@ impl EnvironmentContextTracker {
         reasoning_effort: Option<String>,
         stream_id: Option<&str>,
     ) -> serde_json::Result<Option<(EnvironmentContextEmission, Vec<ResponseItem>)>> {
-        let emission = match self.observe(
+        let Some(emission) = self.observe(
             EnvironmentContextSnapshot::from_context(env_context)
                 .with_metadata(git_project_root, git_branch, reasoning_effort),
-        ) {
-            Some(emission) => emission,
-            None => return Ok(None),
+        ) else {
+            return Ok(None);
         };
 
         let items = emission

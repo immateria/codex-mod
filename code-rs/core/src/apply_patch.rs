@@ -304,24 +304,18 @@ pub(crate) fn guard_apply_patch_outside_branch(
     branch_root: &Path,
     action: &ApplyPatchAction,
 ) -> Option<String> {
-    let branch_norm = match normalize_absolute(branch_root) {
-        Some(path) => path,
-        None => {
-            return Some(format!(
-                "apply_patch blocked: failed to resolve /branch worktree root {}. Stay inside the worktree until you finish with `/merge`.",
-                branch_root.display()
-            ));
-        }
+    let Some(branch_norm) = normalize_absolute(branch_root) else {
+        return Some(format!(
+            "apply_patch blocked: failed to resolve /branch worktree root {}. Stay inside the worktree until you finish with `/merge`.",
+            branch_root.display()
+        ));
     };
-    let action_cwd_norm = match normalize_absolute(&action.cwd) {
-        Some(path) => path,
-        None => {
-            return Some(format!(
-                "apply_patch blocked: the command resolved outside the /branch worktree (cwd {}). Stay inside {} until you finish with `/merge`.",
-                action.cwd.display(),
-                branch_root.display()
-            ));
-        }
+    let Some(action_cwd_norm) = normalize_absolute(&action.cwd) else {
+        return Some(format!(
+            "apply_patch blocked: the command resolved outside the /branch worktree (cwd {}). Stay inside {} until you finish with `/merge`.",
+            action.cwd.display(),
+            branch_root.display()
+        ));
     };
     if !path_within(&action_cwd_norm, &branch_norm) {
         return Some(format!(
@@ -332,15 +326,12 @@ pub(crate) fn guard_apply_patch_outside_branch(
     }
 
     for path in action.changes().keys() {
-        let normalized = match normalize_absolute(path) {
-            Some(value) => value,
-            None => {
-                return Some(format!(
-                    "apply_patch blocked: could not resolve patch target {} inside worktree {}. Keep edits within the /branch directory.",
-                    path.display(),
-                    branch_root.display()
-                ));
-            }
+        let Some(normalized) = normalize_absolute(path) else {
+            return Some(format!(
+                "apply_patch blocked: could not resolve patch target {} inside worktree {}. Keep edits within the /branch directory.",
+                path.display(),
+                branch_root.display()
+            ));
         };
         if !path_within(&normalized, &branch_norm) {
             return Some(format!(

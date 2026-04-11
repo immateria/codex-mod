@@ -491,9 +491,8 @@ fn match_chatgpt_account(existing: &StoredAccount, tokens: &TokenData) -> bool {
         return false;
     }
 
-    let existing_tokens = match &existing.tokens {
-        Some(tokens) => tokens,
-        None => return false,
+    let Some(existing_tokens) = &existing.tokens else {
+        return false;
     };
 
     let account_id_matches = match (&existing_tokens.account_id, &tokens.account_id) {

@@ -46,9 +46,8 @@ pub async fn apply_diff_from_task(
     task_response: GetTaskResponse,
     cwd: Option<PathBuf>,
 ) -> anyhow::Result<()> {
-    let diff_turn = match task_response.current_diff_task_turn {
-        Some(turn) => turn,
-        None => anyhow::bail!("No diff turn found"),
+    let Some(diff_turn) = task_response.current_diff_task_turn else {
+        anyhow::bail!("No diff turn found");
     };
     let output_diff = diff_turn.output_items.iter().find_map(|item| match item {
         OutputItem::Pr(PrOutputItem { output_diff }) => Some(output_diff),

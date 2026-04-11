@@ -1700,12 +1700,9 @@ impl AuthManager {
     }
 
     fn reload_if_account_id_matches(&self, expected_account_id: Option<&str>) -> ReloadOutcome {
-        let expected_account_id = match expected_account_id {
-            Some(account_id) => account_id,
-            None => {
-                tracing::info!("Skipping auth reload because no account id is available.");
-                return ReloadOutcome::Skipped;
-            }
+        let Some(expected_account_id) = expected_account_id else {
+            tracing::info!("Skipping auth reload because no account id is available.");
+            return ReloadOutcome::Skipped;
         };
 
         let preferred = self.preferred_auth_method();
@@ -1810,9 +1807,8 @@ impl AuthManager {
     /// Attempt to refresh the current auth token (if any). On success, reload
     /// the auth state from disk so other components observe refreshed token.
     pub async fn refresh_token_classified(&self) -> Result<Option<String>, RefreshTokenError> {
-        let auth_before_reload = match self.auth() {
-            Some(auth) => auth,
-            None => return Ok(None),
+        let Some(auth_before_reload) = self.auth() else {
+            return Ok(None);
         };
         if auth_before_reload.mode == AuthMode::ApiKey {
             return Ok(None);
@@ -1836,9 +1832,8 @@ impl AuthManager {
             }
         }
 
-        let auth = match self.auth() {
-            Some(auth) => auth,
-            None => return Ok(None),
+        let Some(auth) = self.auth() else {
+            return Ok(None);
         };
 
         if let Some(error) = self.refresh_failure_for_auth(&auth) {

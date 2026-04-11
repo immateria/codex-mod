@@ -237,14 +237,11 @@ pub(crate) async fn handle_agent_tool(
     let action = req.action.to_ascii_lowercase();
     match action.as_str() {
         "create" => {
-            let mut create_opts = match req.create.take() {
-                Some(opts) => opts,
-                None => {
-                    return agent_tool_failure(
-                        ctx,
-                        "action=create requires a 'create' object",
-                    );
-                }
+            let Some(mut create_opts) = req.create.take() else {
+                return agent_tool_failure(
+                    ctx,
+                    "action=create requires a 'create' object",
+                );
             };
 
             let task = match create_opts.task.take() {
@@ -336,14 +333,11 @@ pub(crate) async fn handle_agent_tool(
             }
         }
         "status" => {
-            let mut status_opts = match req.status.take() {
-                Some(opts) => opts,
-                None => {
-                    return agent_tool_failure(
-                        ctx,
-                        "action=status requires a 'status' object",
-                    );
-                }
+            let Some(mut status_opts) = req.status.take() else {
+                return agent_tool_failure(
+                    ctx,
+                    "action=status requires a 'status' object",
+                );
             };
             let agent_id = match status_opts.agent_id.take() {
                 Some(id) if !id.trim().is_empty() => id,
@@ -380,14 +374,11 @@ pub(crate) async fn handle_agent_tool(
             }
         }
         "result" => {
-            let mut result_opts = match req.result.take() {
-                Some(opts) => opts,
-                None => {
-                    return agent_tool_failure(
-                        ctx,
-                        "action=result requires a 'result' object",
-                    );
-                }
+            let Some(mut result_opts) = req.result.take() else {
+                return agent_tool_failure(
+                    ctx,
+                    "action=result requires a 'result' object",
+                );
             };
             let agent_id = match result_opts.agent_id.take() {
                 Some(id) if !id.trim().is_empty() => id,
@@ -424,14 +415,11 @@ pub(crate) async fn handle_agent_tool(
             }
         }
         "cancel" => {
-            let mut cancel_opts = match req.cancel.take() {
-                Some(opts) => opts,
-                None => {
-                    return agent_tool_failure(
-                        ctx,
-                        "action=cancel requires a 'cancel' object",
-                    );
-                }
+            let Some(mut cancel_opts) = req.cancel.take() else {
+                return agent_tool_failure(
+                    ctx,
+                    "action=cancel requires a 'cancel' object",
+                );
             };
             let cancel_agent_id = cancel_opts.agent_id.clone();
             let cancel_batch_id = match cancel_opts.batch_id.take() {
@@ -462,14 +450,11 @@ pub(crate) async fn handle_agent_tool(
             }
         }
         "wait" => {
-            let mut wait_opts = match req.wait.take() {
-                Some(opts) => opts,
-                None => {
-                    return agent_tool_failure(
-                        ctx,
-                        "action=wait requires a 'wait' object",
-                    );
-                }
+            let Some(mut wait_opts) = req.wait.take() else {
+                return agent_tool_failure(
+                    ctx,
+                    "action=wait requires a 'wait' object",
+                );
             };
             let wait_agent_id = wait_opts.agent_id.clone();
             let wait_batch_id = match wait_opts.batch_id.take() {
@@ -510,14 +495,11 @@ pub(crate) async fn handle_agent_tool(
             }
         }
         "list" => {
-            let mut list_opts = match req.list.take() {
-                Some(opts) => opts,
-                None => {
-                    return agent_tool_failure(
-                        ctx,
-                        "action=list requires a 'list' object",
-                    );
-                }
+            let Some(mut list_opts) = req.list.take() else {
+                return agent_tool_failure(
+                    ctx,
+                    "action=list requires a 'list' object",
+                );
             };
             let status_filter = list_opts.status_filter.take();
             let batch_id = match list_opts.batch_id.take() {
@@ -1297,17 +1279,14 @@ async fn handle_cancel_agent(
             let mut manager = AGENT_MANAGER.write().await;
 
             if let Some(agent_id) = params.agent_id {
-                let batch_id = match params.batch_id.as_ref() {
-                    Some(batch) => batch,
-                    None => {
-                        return ResponseInputItem::FunctionCallOutput {
-                            call_id: call_id_clone,
-                            output: FunctionCallOutputPayload {
-                                body: FunctionCallOutputBody::Text("action=cancel requires 'cancel.batch_id'".to_string()),
-                                success: Some(false),
-                            },
-                        };
-                    }
+                let Some(batch_id) = params.batch_id.as_ref() else {
+                    return ResponseInputItem::FunctionCallOutput {
+                        call_id: call_id_clone,
+                        output: FunctionCallOutputPayload {
+                            body: FunctionCallOutputBody::Text("action=cancel requires 'cancel.batch_id'".to_string()),
+                            success: Some(false),
+                        },
+                    };
                 };
                 if let Some(agent) = manager.get_agent(&agent_id)
                     && agent.batch_id.as_deref() != Some(batch_id.as_str()) {

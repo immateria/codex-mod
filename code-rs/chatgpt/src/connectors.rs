@@ -90,9 +90,8 @@ async fn token_data_for_directory_connectors(config: &Config) -> anyhow::Result<
             "connectors_directory",
         )
         .await?;
-        let token_data = match auth.get_token_data().await {
-            Ok(token_data) => token_data,
-            Err(_) => continue,
+        let Ok(token_data) = auth.get_token_data().await else {
+            continue;
         };
         return Ok(Some(token_data));
     }

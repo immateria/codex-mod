@@ -547,11 +547,12 @@ impl ChatWidget<'_> {
             .unwrap_or(text)
             .replace(['\n', '\r'], " ");
 
-        line = line.split_whitespace().fold(String::new(), |mut acc, w| {
-            if !acc.is_empty() { acc.push(' '); }
-            acc.push_str(w);
-            acc
-        });
+        let mut collapsed = String::with_capacity(line.len());
+        for w in line.split_whitespace() {
+            if !collapsed.is_empty() { collapsed.push(' '); }
+            collapsed.push_str(w);
+        }
+        line = collapsed;
         if line.chars().count() <= max_chars {
             return line;
         }

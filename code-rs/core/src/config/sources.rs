@@ -3752,9 +3752,8 @@ pub(crate) fn read_override_file(
     cwd: &Path,
     description: &str,
 ) -> std::io::Result<Option<String>> {
-    let p = match path {
-        None => return Ok(None),
-        Some(p) => p,
+    let Some(p) = path else {
+        return Ok(None);
     };
 
     // Resolve relative paths against the provided cwd to make CLI

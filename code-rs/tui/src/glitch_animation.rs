@@ -404,10 +404,9 @@ fn render_brand_text_lines(brand_title: &str, max_width: usize, max_rows: usize)
         return vec![center_line("Code", max_width)];
     }
 
-    let words: Vec<&str> = normalized.split_whitespace().collect();
     let mut lines: Vec<String> = Vec::new();
     let mut current = String::new();
-    for word in words {
+    for word in normalized.split_whitespace() {
         if current.is_empty() {
             current.push_str(word);
             continue;

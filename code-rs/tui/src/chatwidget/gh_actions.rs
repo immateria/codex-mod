@@ -117,9 +117,9 @@ pub(super) fn maybe_watch_after_push(
             let mut req = client.get(&url);
             if let Some(ref t) = token { req = req.bearer_auth(t); }
 
-            let resp = match req.send().await { Ok(r) => r, Err(_) => { sleep_ms(APPEAR_POLL_INTERVAL_MS).await; continue; } };
+            let Ok(resp) = req.send().await else { sleep_ms(APPEAR_POLL_INTERVAL_MS).await; continue; };
             if !resp.status().is_success() { sleep_ms(APPEAR_POLL_INTERVAL_MS).await; continue; }
-            let body = match resp.json::<serde_json::Value>().await { Ok(v) => v, Err(_) => { sleep_ms(APPEAR_POLL_INTERVAL_MS).await; continue; } };
+            let Ok(body) = resp.json::<serde_json::Value>().await else { sleep_ms(APPEAR_POLL_INTERVAL_MS).await; continue; };
             let runs = body.get("workflow_runs").and_then(|v| v.as_array()).cloned().unwrap_or_default();
             // Look for the run corresponding to this commit.
             for run in runs {
@@ -157,9 +157,9 @@ pub(super) fn maybe_watch_after_push(
                 loop {
                     let mut req = client.get(&run_url);
                     if let Some(ref t) = token { req = req.bearer_auth(t); }
-                    let resp = match req.send().await { Ok(r) => r, Err(_) => { sleep_ms(RUN_POLL_INTERVAL_MS).await; elapsed_ms = elapsed_ms.saturating_add(RUN_POLL_INTERVAL_MS); if elapsed_ms >= RUN_TIMEOUT_MS { return; } continue; } };
+                    let Ok(resp) = req.send().await else { sleep_ms(RUN_POLL_INTERVAL_MS).await; elapsed_ms = elapsed_ms.saturating_add(RUN_POLL_INTERVAL_MS); if elapsed_ms >= RUN_TIMEOUT_MS { return; } continue; };
                     if !resp.status().is_success() { sleep_ms(RUN_POLL_INTERVAL_MS).await; elapsed_ms = elapsed_ms.saturating_add(RUN_POLL_INTERVAL_MS); if elapsed_ms >= RUN_TIMEOUT_MS { return; } continue; }
-                    let run = match resp.json::<serde_json::Value>().await { Ok(v) => v, Err(_) => { sleep_ms(RUN_POLL_INTERVAL_MS).await; elapsed_ms = elapsed_ms.saturating_add(RUN_POLL_INTERVAL_MS); if elapsed_ms >= RUN_TIMEOUT_MS { return; } continue; } };
+                    let Ok(run) = resp.json::<serde_json::Value>().await else { sleep_ms(RUN_POLL_INTERVAL_MS).await; elapsed_ms = elapsed_ms.saturating_add(RUN_POLL_INTERVAL_MS); if elapsed_ms >= RUN_TIMEOUT_MS { return; } continue; };
                     let status = run.get("status").and_then(|v| v.as_str()).unwrap_or("");
                     if status == "completed" {
                         let conclusion = run.get("conclusion").and_then(|v| v.as_str()).unwrap_or("unknown");

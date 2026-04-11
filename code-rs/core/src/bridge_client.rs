@@ -572,9 +572,8 @@ fn find_package_json(start: &Path) -> Option<PathBuf> {
 }
 
 fn workspace_has_code_bridge(start: &Path) -> bool {
-    let pkg = match find_package_json(start) {
-        Some(p) => p,
-        None => return false,
+    let Some(pkg) = find_package_json(start) else {
+        return false;
     };
 
     let Ok(data) = fs::read_to_string(pkg.as_path()) else {

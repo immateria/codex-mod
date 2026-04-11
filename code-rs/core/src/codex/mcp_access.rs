@@ -429,9 +429,8 @@ pub(super) async fn ensure_skill_mcp_access_for_turn(
         ))
         .await;
 
-        let response = match rx_response.await {
-            Ok(response) => response,
-            Err(_) => continue,
+        let Ok(response) = rx_response.await else {
+            continue;
         };
         let selection = response
             .answers

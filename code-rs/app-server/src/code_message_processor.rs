@@ -878,9 +878,8 @@ impl CodexMessageProcessor {
 
         let mut out = Vec::new();
         for item in page.items {
-            let conversation_id = match conversation_id_from_rollout_path(&item.path) {
-                Some(id) => id,
-                None => continue,
+            let Some(conversation_id) = conversation_id_from_rollout_path(&item.path) else {
+                continue;
             };
             let preview = snippet_from_rollout_tail(&item.tail).unwrap_or_default();
             out.push(ConversationSummary {
@@ -2090,9 +2089,8 @@ fn conversation_id_from_rollout_path(path: &std::path::Path) -> Option<Conversat
 
 fn snippet_from_rollout_tail(tail: &[serde_json::Value]) -> Option<String> {
     for value in tail.iter().rev() {
-        let item = match serde_json::from_value::<code_protocol::protocol::RolloutItem>(value.clone()) {
-            Ok(item) => item,
-            Err(_) => continue,
+        let Ok(item) = serde_json::from_value::<code_protocol::protocol::RolloutItem>(value.clone()) else {
+            continue;
         };
         if let code_protocol::protocol::RolloutItem::ResponseItem(
             code_protocol::models::ResponseItem::Message { role, content, .. },

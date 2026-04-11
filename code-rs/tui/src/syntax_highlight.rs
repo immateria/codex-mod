@@ -863,11 +863,11 @@ fn autodetect_lang(content: &str) -> Option<&'static str> {
         }
 
     // Narrow to a small sample for sniffing
-    let sample: String = s.lines().take(24).fold(String::new(), |mut acc, l| {
-        if !acc.is_empty() { acc.push('\n'); }
-        acc.push_str(l);
-        acc
-    });
+    let mut sample = String::new();
+    for l in s.lines().take(24) {
+        if !sample.is_empty() { sample.push('\n'); }
+        sample.push_str(l);
+    }
     let lower = sample.to_ascii_lowercase();
     let trimmed_all = s.trim();
 
