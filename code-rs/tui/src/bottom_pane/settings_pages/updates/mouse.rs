@@ -33,7 +33,6 @@ impl UpdateSettingsView {
             |x, y, scroll_top| selection_menu_id_at(layout.body, x, y, scroll_top, &rows),
             SelectableListMouseConfig {
                 hover_select: false,
-                scroll_select: false,
                 ..SelectableListMouseConfig::default()
             },
         );

@@ -29,7 +29,6 @@ impl VerbositySelectionView {
             },
             SelectableListMouseConfig {
                 hover_select: false,
-                scroll_select: false,
                 ..SelectableListMouseConfig::default()
             },
         );

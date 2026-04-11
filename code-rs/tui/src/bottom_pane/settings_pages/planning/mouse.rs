@@ -1,8 +1,13 @@
-use crossterm::event::{MouseButton, MouseEvent, MouseEventKind};
+use crossterm::event::MouseEvent;
 use ratatui::layout::Rect;
 
 use crate::bottom_pane::chrome::ChromeMode;
-use crate::bottom_pane::settings_ui::menu_page::SettingsMenuPage;
+use crate::bottom_pane::settings_ui::menu_rows::selection_id_at as selection_menu_id_at;
+use crate::bottom_pane::settings_ui::selectable_list_mouse::route_scroll_state_mouse_with_hit_test;
+use crate::ui_interaction::{
+    SelectableListMouseConfig,
+    SelectableListMouseResult,
+};
 
 use super::PlanningSettingsView;
 
@@ -13,27 +18,34 @@ impl PlanningSettingsView {
         mouse_event: MouseEvent,
         area: Rect,
     ) -> bool {
-        let MouseEventKind::Down(MouseButton::Left) = mouse_event.kind else {
-            return false;
-        };
-
         let rows = self.menu_rows();
+        let total = rows.len();
         let Some(layout) = self.page().layout_in_chrome(chrome, area) else {
             return false;
         };
-        let Some(row) = SettingsMenuPage::selection_menu_id_in_body(
-            layout.body,
-            mouse_event.column,
-            mouse_event.row,
-            0,
-            &rows,
-        ) else {
-            return false;
-        };
+        let visible = layout.body.height.max(1) as usize;
 
-        self.state.selected_idx = Some(0);
-        self.handle_enter(row);
-        true
+        let outcome = route_scroll_state_mouse_with_hit_test(
+            mouse_event,
+            &mut self.state,
+            total,
+            visible,
+            |x, y, scroll_top| {
+                let id = selection_menu_id_at(layout.body, x, y, scroll_top, &rows)?;
+                rows.iter().position(|r| r.id == id)
+            },
+            SelectableListMouseConfig {
+                hover_select: false,
+                ..SelectableListMouseConfig::default()
+            },
+        );
+
+        if matches!(outcome.result, SelectableListMouseResult::Activated)
+            && let Some(row) = self.selected_row()
+        {
+            self.handle_enter(row);
+        }
+        outcome.changed
     }
 
     pub(super) fn handle_mouse_event_direct_content_only(
