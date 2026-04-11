@@ -2042,7 +2042,7 @@ fn parse_wrapped_websocket_error_event(payload: &str) -> Option<WrappedWebsocket
 }
 
 fn map_wrapped_websocket_error_event(event: WrappedWebsocketErrorEvent) -> Option<CodexErr> {
-    let status = if let Some(status) = event.status.and_then(|value| StatusCode::from_u16(value).ok()) { status } else {
+    let Some(status) = event.status.and_then(|value| StatusCode::from_u16(value).ok()) else {
         if let Some(error) = event.error {
             let message = error
                 .message

@@ -726,7 +726,7 @@ fn resolve_gitdir_from_file(dot_git: &AbsolutePathBuf) -> Option<AbsolutePathBuf
     };
 
     let trimmed = contents.trim();
-    let (_, gitdir_raw) = if let Some(parts) = trimmed.split_once(':') { parts } else {
+    let Some((_, gitdir_raw)) = trimmed.split_once(':') else {
         error!(
             "Expected {path} to contain a gitdir pointer, but it did not match `gitdir: <path>`.",
             path = dot_git.as_path().display()
@@ -741,7 +741,7 @@ fn resolve_gitdir_from_file(dot_git: &AbsolutePathBuf) -> Option<AbsolutePathBuf
         );
         return None;
     }
-    let base = if let Some(base) = dot_git.as_path().parent() { base } else {
+    let Some(base) = dot_git.as_path().parent() else {
         error!(
             "Unable to resolve parent directory for {path}.",
             path = dot_git.as_path().display()

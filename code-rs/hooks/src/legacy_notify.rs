@@ -50,9 +50,8 @@ pub fn notify_hook(argv: Vec<String>) -> Hook {
         func: Arc::new(move |payload: &HookPayload| {
             let argv = Arc::clone(&argv);
             Box::pin(async move {
-                let mut command = match command_from_argv(&argv) {
-                    Some(command) => command,
-                    None => return HookResult::Success,
+                let Some(mut command) = command_from_argv(&argv) else {
+                    return HookResult::Success;
                 };
                 if let Ok(notify_payload) = legacy_notify_json(payload) {
                     command.arg(notify_payload);

@@ -768,13 +768,11 @@ impl MessageProcessor {
         // Obtain the session_id while holding the first lock, then release.
         let session_id = {
             let map_guard = self.running_requests_id_to_code_uuid.lock().await;
-            match map_guard.get(&request_id) {
-                Some(id) => *id, // Uuid is Copy
-                None => {
-                    tracing::warn!("Session not found for request_id: {}", request_id_string);
-                    return;
-                }
-            }
+            let Some(&id) = map_guard.get(&request_id) else {
+                tracing::warn!("Session not found for request_id: {}", request_id_string);
+                return;
+            };
+            id
         };
         tracing::info!("session_id: {session_id}");
 
@@ -1104,7 +1102,7 @@ impl MessageProcessor {
         };
 
         let mut config_guard = entry.config.lock().await;
-        let selection = if let Some(selection) = resolve_model_selection(&model_id, &config_guard) { selection } else {
+        let Some(selection) = resolve_model_selection(&model_id, &config_guard) else {
             let message = format!("unknown model id: {model_id}");
             return Err(JSONRPCErrorError {
                 code: INVALID_REQUEST_ERROR_CODE,

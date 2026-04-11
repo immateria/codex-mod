@@ -367,9 +367,8 @@ fn discover_skills_under_root(root: &Path, scope: SkillScope, outcome: &mut Skil
 
         for entry in entries {
             let path = entry.path();
-            let file_name = match path.file_name().and_then(|f| f.to_str()) {
-                Some(name) => name,
-                None => continue,
+            let Some(file_name) = path.file_name().and_then(|f| f.to_str()) else {
+                continue;
             };
 
             if file_name.starts_with('.') {

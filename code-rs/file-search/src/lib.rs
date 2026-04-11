@@ -67,7 +67,7 @@ pub async fn run_main<T: Reporter>(
         Some(dir) => dir,
         None => std::env::current_dir()?,
     };
-    let pattern_text = if let Some(pattern) = pattern { pattern } else {
+    let Some(pattern_text) = pattern else {
         reporter.warn_no_search_pattern(&search_directory);
         #[cfg(unix)]
         Command::new("ls")
@@ -200,10 +200,7 @@ pub fn run(
         entry_result: &'a Result<ignore::DirEntry, ignore::Error>,
         search_directory: &std::path::Path,
     ) -> Option<&'a str> {
-        let entry = match entry_result {
-            Ok(e) => e,
-            Err(_) => return None,
-        };
+        let Ok(entry) = entry_result else { return None };
         if entry.file_type().is_some_and(|ft| ft.is_dir()) {
             return None;
         }

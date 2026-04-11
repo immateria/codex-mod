@@ -257,9 +257,8 @@ impl TurnDiffTracker {
                 (PathBuf::new(), FileMode::Regular, ZERO_OID.to_owned())
             }
         };
-        let current_external_path = match self.get_path_for_internal(internal_file_name) {
-            Some(p) => p,
-            None => return aggregated,
+        let Some(current_external_path) = self.get_path_for_internal(internal_file_name) else {
+            return aggregated;
         };
 
         let current_mode = file_mode_for_path(&current_external_path).unwrap_or(FileMode::Regular);

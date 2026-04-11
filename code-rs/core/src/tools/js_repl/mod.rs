@@ -200,14 +200,11 @@ impl JsReplManager {
         cwd: &Path,
         args: JsReplArgs,
     ) -> Result<JsExecResult, JsExecError> {
-        let _permit = match self.exec_lock.acquire().await {
-            Ok(permit) => permit,
-            Err(_) => {
-                return Err(JsExecError {
-                    output: String::new(),
-                    error: "js_repl kernel is unavailable".to_owned(),
-                });
-            }
+        let Ok(_permit) = self.exec_lock.acquire().await else {
+            return Err(JsExecError {
+                output: String::new(),
+                error: "js_repl kernel is unavailable".to_owned(),
+            });
         };
 
         let timeout_ms = args

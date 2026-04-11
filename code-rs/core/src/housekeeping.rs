@@ -620,9 +620,8 @@ fn directory_stats(path: &Path) -> DirStats {
     let mut stack = vec![path.to_path_buf()];
 
     while let Some(current) = stack.pop() {
-        let entries = match fs::read_dir(&current) {
-            Ok(entries) => entries,
-            Err(_) => continue,
+        let Ok(entries) = fs::read_dir(&current) else {
+            continue;
         };
 
         for entry in entries.flatten() {

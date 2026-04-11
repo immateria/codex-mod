@@ -187,9 +187,8 @@ fn is_executable(path: &Path) -> bool {
 }
 
 fn stage_file_with_contents(temp_root: &Path, cwd: &Path, target: &Path, contents: &str) -> bool {
-    let relative = match target.strip_prefix(cwd) {
-        Ok(rel) => rel,
-        Err(_) => return false,
+    let Ok(relative) = target.strip_prefix(cwd) else {
+        return false;
     };
     let destination = temp_root.join(relative);
     if let Some(parent) = destination.parent()

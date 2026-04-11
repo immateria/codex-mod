@@ -1417,9 +1417,8 @@ fn normalize_plugin_mcp_server_value(
     plugin_root: &Path,
     value: JsonValue,
 ) -> JsonMap<String, JsonValue> {
-    let mut object = match value {
-        JsonValue::Object(object) => object,
-        _ => return JsonMap::new(),
+    let JsonValue::Object(mut object) = value else {
+        return JsonMap::new();
     };
 
     if let Some(JsonValue::String(transport_type)) = object.remove("type") {

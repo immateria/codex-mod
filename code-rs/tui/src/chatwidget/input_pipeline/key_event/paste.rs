@@ -39,25 +39,27 @@ impl ChatWidget<'_> {
                 // Simple decoding for common cases (spaces as %20, etc.)
                 unescaped
                     .strip_prefix("file://")
-                    .map(|s| {
-                        s.replace("%20", " ")
-                            .replace("%28", "(")
-                            .replace("%29", ")")
-                            .replace("%5B", "[")
-                            .replace("%5D", "]")
-                            .replace("%2C", ",")
-                            .replace("%27", "'")
-                            .replace("%26", "&")
-                            .replace("%23", "#")
-                            .replace("%40", "@")
-                            .replace("%2B", "+")
-                            .replace("%3D", "=")
-                            .replace("%24", "$")
-                            .replace("%21", "!")
-                            .replace("%2D", "-")
-                            .replace("%2E", ".")
-                    })
-                    .unwrap_or_else(|| unescaped.clone())
+                    .map_or_else(
+                        || unescaped.clone(),
+                        |s| {
+                            s.replace("%20", " ")
+                                .replace("%28", "(")
+                                .replace("%29", ")")
+                                .replace("%5B", "[")
+                                .replace("%5D", "]")
+                                .replace("%2C", ",")
+                                .replace("%27", "'")
+                                .replace("%26", "&")
+                                .replace("%23", "#")
+                                .replace("%40", "@")
+                                .replace("%2B", "+")
+                                .replace("%3D", "=")
+                                .replace("%24", "$")
+                                .replace("%21", "!")
+                                .replace("%2D", "-")
+                                .replace("%2E", ".")
+                        },
+                    )
             } else {
                 unescaped
             };

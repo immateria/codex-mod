@@ -175,18 +175,18 @@ impl ThemeSelectionView {
 
                 // If we received no content at all, surface the transport error explicitly
                 if out.trim().is_empty() {
-                    let err = last_err
-                        .map(|e| format!(
-                            "model stream error: {} | raw_out_len={} think_len={}",
-                            e,
-                            out.len(),
-                            think_sum.len()
-                        ))
-                        .unwrap_or_else(|| format!(
+                    let err = last_err.map_or_else(
+                        || format!(
                             "model stream returned no content | raw_out_len={} think_len={}",
                             out.len(),
                             think_sum.len()
-                        ));
+                        ),
+                        |e| format!(
+                            "model stream error: {e} | raw_out_len={} think_len={}",
+                            out.len(),
+                            think_sum.len()
+                        ),
+                    );
                     let _ = progress_tx.send(ProgressMsg::CompletedErr { error: err, _raw_snippet: String::new() });
                     return;
                 }

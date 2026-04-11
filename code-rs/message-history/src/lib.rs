@@ -147,10 +147,7 @@ pub async fn history_metadata(code_home: &Path) -> (u64, usize) {
     #[cfg(not(unix))]
     let log_id = 0u64;
 
-    let mut file = match fs::File::open(&path).await {
-        Ok(f) => f,
-        Err(_) => return (log_id, 0),
-    };
+    let Ok(mut file) = fs::File::open(&path).await else { return (log_id, 0) };
 
     let mut buf = [0u8; 8192];
     let mut count = 0usize;

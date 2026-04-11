@@ -63,11 +63,8 @@ async fn handle_dynamic_tool_call(
     )
     .await;
 
-    let response = match rx_response.await {
-        Ok(response) => response,
-        Err(_) => {
-            return tool_error(ctx.call_id.clone(), "dynamic tool call was cancelled before receiving a response");
-        }
+    let Ok(response) = rx_response.await else {
+        return tool_error(ctx.call_id.clone(), "dynamic tool call was cancelled before receiving a response");
     };
 
     ResponseInputItem::FunctionCallOutput {

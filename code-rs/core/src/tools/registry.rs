@@ -90,15 +90,12 @@ impl ToolRegistry {
         let tool_name = call.tool_name.clone();
         let outputs_custom = call.payload.outputs_custom();
 
-        let handler = match self.handler(tool_name.as_str()) {
-            Some(handler) => handler,
-            None => {
-                return unsupported_tool_call_output(
-                    &ctx.call_id,
-                    outputs_custom,
-                    format!("unsupported call: {tool_name}"),
-                );
-            }
+        let Some(handler) = self.handler(tool_name.as_str()) else {
+            return unsupported_tool_call_output(
+                &ctx.call_id,
+                outputs_custom,
+                format!("unsupported call: {tool_name}"),
+            );
         };
 
         let inv = ToolInvocation {

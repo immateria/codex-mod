@@ -1638,9 +1638,7 @@ async fn list_all_tools(
     let mut aggregated: Vec<ToolInfo> = Vec::with_capacity(join_set.len());
 
     while let Some(join_res) = join_set.join_next().await {
-        let (server_name, list_result) = if let Ok(result) = join_res {
-            result
-        } else {
+        let Ok((server_name, list_result)) = join_res else {
             warn!("Task panic when listing tools for MCP server: {join_res:#?}");
             continue;
         };

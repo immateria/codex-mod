@@ -105,14 +105,11 @@ async fn handle_request_permissions(
     )
     .await;
 
-    let response = match rx_response.await {
-        Ok(response) => response,
-        Err(_) => {
-            return tool_error(
-                ctx.call_id.clone(),
-                "request_permissions was cancelled before receiving a response",
-            );
-        }
+    let Ok(response) = rx_response.await else {
+        return tool_error(
+            ctx.call_id.clone(),
+            "request_permissions was cancelled before receiving a response",
+        );
     };
 
     let content = match serde_json::to_string(&response) {

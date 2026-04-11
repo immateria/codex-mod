@@ -85,11 +85,8 @@ async fn handle_code_bridge_with_cwd(
 
     match action.as_str() {
         "subscribe" => {
-            let level = match args.level.as_ref().and_then(|l| normalise_level(l)) {
-                Some(lvl) => lvl,
-                None => {
-                    return tool_error(ctx.call_id.clone(), "invalid or missing level (use errors|warn|info|trace)")
-                }
+            let Some(level) = args.level.as_ref().and_then(|l| normalise_level(l)) else {
+                return tool_error(ctx.call_id.clone(), "invalid or missing level (use errors|warn|info|trace)");
             };
 
             let mut sub = get_effective_subscription();
@@ -110,11 +107,8 @@ async fn handle_code_bridge_with_cwd(
             tool_output(ctx.call_id.clone(), "requested screenshot")
         }
         "javascript" => {
-            let code = match args.code.as_ref().map(|c| c.trim()).filter(|c| !c.is_empty()) {
-                Some(c) => c,
-                None => {
-                    return tool_error(ctx.call_id.clone(), "missing code for javascript action")
-                }
+            let Some(code) = args.code.as_ref().map(|c| c.trim()).filter(|c| !c.is_empty()) else {
+                return tool_error(ctx.call_id.clone(), "missing code for javascript action");
             };
             send_bridge_control("javascript", serde_json::json!({ "code": code }));
             tool_output(ctx.call_id.clone(), "sent javascript")

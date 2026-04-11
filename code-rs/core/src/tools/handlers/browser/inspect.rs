@@ -250,11 +250,8 @@ pub(super) async fn handle_browser_inspect(
                         None
                     };
 
-                    let node_id = match node_id_value.and_then(|v| v.as_u64()) {
-                        Some(id) => id,
-                        None => {
-                            return tool_error(call_id_clone, "Failed to resolve target node for inspection");
-                        }
+                    let Some(node_id) = node_id_value.and_then(|v| v.as_u64()) else {
+                        return tool_error(call_id_clone, "Failed to resolve target node for inspection");
                     };
 
                     // Enable CSS domain to get matched rules.

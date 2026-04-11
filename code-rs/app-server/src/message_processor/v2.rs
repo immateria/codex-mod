@@ -2348,14 +2348,16 @@ impl MessageProcessor {
         let thread_cwd = cwd
             .as_deref()
             .map(PathBuf::from)
-            .map(|path| {
-                if path.is_absolute() {
-                    path
-                } else {
-                    self.base_config.cwd.join(path)
-                }
-            })
-            .unwrap_or_else(|| self.base_config.cwd.clone());
+            .map_or_else(
+                || self.base_config.cwd.clone(),
+                |path| {
+                    if path.is_absolute() {
+                        path
+                    } else {
+                        self.base_config.cwd.join(path)
+                    }
+                },
+            );
 
         let dynamic_tools = dynamic_tools.map(|specs| {
             specs

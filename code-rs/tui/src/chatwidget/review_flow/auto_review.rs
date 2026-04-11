@@ -808,11 +808,13 @@ impl ChatWidget<'_> {
             .as_deref()
             .map(str::trim)
             .filter(|s| !s.is_empty())
-            .map(|id| {
-                let short = &id[..id.len().min(8)];
-                format!("Agent: #{short} (auto-review)")
-            })
-            .unwrap_or_else(|| "Agent: (unknown)".to_owned());
+            .map_or_else(
+                || "Agent: (unknown)".to_owned(),
+                |id| {
+                    let short = &id[..id.len().min(8)];
+                    format!("Agent: #{short} (auto-review)")
+                },
+            );
         let summary_note = summary
             .as_deref()
             .map(str::trim)

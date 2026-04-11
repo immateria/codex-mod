@@ -1136,14 +1136,8 @@ fn simplify_once(commands: &[ParsedCommand]) -> Option<Vec<ParsedCommand>> {
 
 /// Validates that this is a `sed -n 123,123p` command.
 fn is_valid_sed_n_arg(arg: Option<&str>) -> bool {
-    let s = match arg {
-        Some(s) => s,
-        None => return false,
-    };
-    let core = match s.strip_suffix('p') {
-        Some(rest) => rest,
-        None => return false,
-    };
+    let Some(s) = arg else { return false };
+    let Some(core) = s.strip_suffix('p') else { return false };
     let parts: Vec<&str> = core.split(',').collect();
     match parts.as_slice() {
         [num] => !num.is_empty() && num.chars().all(|c| c.is_ascii_digit()),

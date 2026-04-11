@@ -105,7 +105,7 @@ pub(super) fn start_terminal_run_inner(
     let master = Arc::new(Mutex::new(master));
 
     let writer = {
-        let guard = if let Ok(guard) = master.lock() { guard } else {
+        let Ok(guard) = master.lock() else {
             let msg = "Failed to acquire terminal writer: poisoned lock\n".to_owned();
             app.app_event_tx.send(AppEvent::TerminalChunk {
                 id,
@@ -161,7 +161,7 @@ pub(super) fn start_terminal_run_inner(
     };
 
     let reader = {
-        let guard = if let Ok(guard) = master.lock() { guard } else {
+        let Ok(guard) = master.lock() else {
             let msg = "Failed to read terminal output: poisoned lock\n".to_owned();
             app.app_event_tx.send(AppEvent::TerminalChunk {
                 id,

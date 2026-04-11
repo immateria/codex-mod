@@ -208,11 +208,8 @@ pub fn host_and_port_from_network_addr(value: &str, default_port: u16) -> String
         return "<missing>".to_owned();
     }
 
-    let parts = match parse_host_port(trimmed, default_port) {
-        Ok(parts) => parts,
-        Err(_) => {
-            return format_host_and_port(trimmed, default_port);
-        }
+    let Ok(parts) = parse_host_port(trimmed, default_port) else {
+        return format_host_and_port(trimmed, default_port);
     };
 
     format_host_and_port(&parts.host, parts.port)

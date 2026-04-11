@@ -181,9 +181,8 @@ fn pid_alive(_pid: u32) -> bool {
 /// Remove a stale review lock if the recorded pid is no longer running.
 /// Returns true if a stale lock was cleared.
 pub fn clear_stale_lock_if_dead(scope: Option<&Path>) -> std::io::Result<bool> {
-    let info = match read_lock_info(scope) {
-        Some(i) => i,
-        None => return Ok(false),
+    let Some(info) = read_lock_info(scope) else {
+        return Ok(false);
     };
     if pid_alive(info.pid) {
         return Ok(false);

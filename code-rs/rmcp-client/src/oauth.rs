@@ -473,10 +473,7 @@ fn save_oauth_tokens_to_file(code_home: &Path, tokens: &StoredOAuthTokens) -> Re
 }
 
 fn delete_oauth_tokens_from_file(code_home: &Path, key: &str) -> Result<bool> {
-    let mut store = match read_fallback_file(code_home)? {
-        Some(store) => store,
-        None => return Ok(false),
-    };
+    let Some(mut store) = read_fallback_file(code_home)? else { return Ok(false) };
 
     let removed = store.remove(key).is_some();
 

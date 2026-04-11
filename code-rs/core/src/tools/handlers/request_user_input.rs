@@ -84,14 +84,11 @@ async fn handle_request_user_input(
     )
     .await;
 
-    let response = match rx_response.await {
-        Ok(response) => response,
-        Err(_) => {
-            return tool_error(
-                ctx.call_id.clone(),
-                "request_user_input was cancelled before receiving a response",
-            );
-        }
+    let Ok(response) = rx_response.await else {
+        return tool_error(
+            ctx.call_id.clone(),
+            "request_user_input was cancelled before receiving a response",
+        );
     };
 
     let content = match serde_json::to_string(&response) {

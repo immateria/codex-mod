@@ -362,7 +362,7 @@ async fn http_plain_proxy(
     policy_decider: Option<Arc<dyn NetworkPolicyDecider>>,
     mut req: Request,
 ) -> Result<Response, Infallible> {
-    let app_state = if let Some(state) = req.extensions().get::<Arc<NetworkProxyState>>().cloned() { state } else {
+    let Some(app_state) = req.extensions().get::<Arc<NetworkProxyState>>().cloned() else {
         error!("missing app state");
         return Ok(text_response(StatusCode::INTERNAL_SERVER_ERROR, "error"));
     };

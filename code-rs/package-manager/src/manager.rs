@@ -313,9 +313,8 @@ impl<P: ManagedPackage> PackageManager<P> {
             return Ok(None);
         }
 
-        let package = match self.config.package.load_installed(install_dir, platform) {
-            Ok(package) => package,
-            Err(_) => return Ok(None),
+        let Ok(package) = self.config.package.load_installed(install_dir, platform) else {
+            return Ok(None);
         };
         if self.config.package.installed_version(&package) != self.config.package.version() {
             return Ok(None);

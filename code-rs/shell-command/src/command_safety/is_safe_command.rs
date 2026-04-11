@@ -181,16 +181,10 @@ Example
 /// Returns true if `arg` matches /^(\d+,)?\d+p$/
 fn is_valid_sed_n_arg(arg: Option<&str>) -> bool {
     // unwrap or bail
-    let s = match arg {
-        Some(s) => s,
-        None => return false,
-    };
+    let Some(s) = arg else { return false };
 
     // must end with 'p', strip it
-    let core = match s.strip_suffix('p') {
-        Some(rest) => rest,
-        None => return false,
-    };
+    let Some(core) = s.strip_suffix('p') else { return false };
 
     // split on ',' and ensure 1 or 2 numeric parts
     let parts: Vec<&str> = core.split(',').collect();

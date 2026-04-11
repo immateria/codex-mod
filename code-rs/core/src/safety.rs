@@ -468,9 +468,8 @@ fn is_write_patch_constrained_to_writable_paths(
         } else {
             cwd.join(p)
         };
-        let abs = match normalize(&abs) {
-            Some(v) => v,
-            None => return false,
+        let Some(abs) = normalize(&abs) else {
+            return false;
         };
 
         writable_roots

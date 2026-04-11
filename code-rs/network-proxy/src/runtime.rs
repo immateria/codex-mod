@@ -288,9 +288,8 @@ impl NetworkProxyState {
 
     pub async fn host_blocked(&self, host: &str, port: u16) -> Result<HostBlockDecision> {
         self.reload_if_needed().await?;
-        let host = match Host::parse(host) {
-            Ok(host) => host,
-            Err(_) => return Ok(HostBlockDecision::Blocked(HostBlockReason::NotAllowed)),
+        let Ok(host) = Host::parse(host) else {
+            return Ok(HostBlockDecision::Blocked(HostBlockReason::NotAllowed));
         };
         let (deny_set, allow_set, allow_local_binding, allowed_domains_empty, allowed_domains) = {
             let guard = self.state.read().await;
@@ -425,9 +424,8 @@ impl NetworkProxyState {
 
         let guard = self.state.read().await;
         // Normalize the path while keeping the absolute-path requirement explicit.
-        let requested_abs = match AbsolutePathBuf::from_absolute_path(requested_path) {
-            Ok(path) => path,
-            Err(_) => return Ok(false),
+        let Ok(requested_abs) = AbsolutePathBuf::from_absolute_path(requested_path) else {
+            return Ok(false);
         };
         let requested_canonical = std::fs::canonicalize(requested_abs.as_path()).ok();
         for allowed in &guard.config.network.allow_unix_sockets {
@@ -531,9 +529,8 @@ async fn host_resolves_to_non_public_ip(host: &str, port: u16) -> bool {
     // If DNS lookup fails, default to "not local/private" rather than blocking. In practice, the
     // subsequent connect attempt will fail anyway, and blocking on transient resolver issues would
     // make the proxy fragile. The allowlist/denylist remains the primary control plane.
-    let addrs = match timeout(DNS_LOOKUP_TIMEOUT, lookup_host((host, port))).await {
-        Ok(Ok(addrs)) => addrs,
-        Ok(Err(_)) | Err(_) => return false,
+    let Ok(Ok(addrs)) = timeout(DNS_LOOKUP_TIMEOUT, lookup_host((host, port))).await else {
+        return false;
     };
 
     for addr in addrs {

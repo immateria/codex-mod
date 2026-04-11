@@ -238,9 +238,8 @@ impl SessionCatalog {
 
     /// Get sessions for a specific working directory, sorted by ordering.
     pub fn by_cwd(&self, cwd: &Path) -> Vec<&SessionIndexEntry> {
-        let session_ids = match self.by_cwd.get(cwd) {
-            Some(ids) => ids,
-            None => return Vec::new(),
+        let Some(session_ids) = self.by_cwd.get(cwd) else {
+            return Vec::new();
         };
 
         let mut entries: Vec<&SessionIndexEntry> = session_ids
@@ -254,9 +253,8 @@ impl SessionCatalog {
 
     /// Get sessions for a specific git project root, sorted by ordering.
     pub fn by_git_root(&self, git_root: &Path) -> Vec<&SessionIndexEntry> {
-        let session_ids = match self.by_git_root.get(git_root) {
-            Some(ids) => ids,
-            None => return Vec::new(),
+        let Some(session_ids) = self.by_git_root.get(git_root) else {
+            return Vec::new();
         };
 
         let mut entries: Vec<&SessionIndexEntry> = session_ids

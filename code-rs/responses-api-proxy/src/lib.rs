@@ -147,10 +147,7 @@ fn forward_request(client: &Client, auth_header: &'static str, mut req: Request)
             continue;
         }
 
-        let header_name = match HeaderName::from_bytes(lower.as_bytes()) {
-            Ok(name) => name,
-            Err(_) => continue,
-        };
+        let Ok(header_name) = HeaderName::from_bytes(lower.as_bytes()) else { continue };
         if let Ok(value) = HeaderValue::from_bytes(header.value.as_bytes()) {
             headers.append(header_name, value);
         }
