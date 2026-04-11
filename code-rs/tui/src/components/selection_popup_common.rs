@@ -87,13 +87,13 @@ pub(crate) fn render_rows(
                 if let Some(color) = *name_color {
                     style = style.fg(color);
                 }
-                spans.push(Span::styled(name.clone(), style));
+                spans.push(Span::styled(name.as_str(), style));
             }
 
             if let Some(desc) = description.as_ref() {
                 spans.push(Span::raw("  "));
                 spans.push(Span::styled(
-                    desc.clone(),
+                    desc.as_str(),
                     Style::default().add_modifier(Modifier::DIM),
                 ));
             }

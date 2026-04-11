@@ -255,7 +255,7 @@ impl SkillsSettingsView {
         if layout.status_row.height > 0
             && let Some((msg, style)) = &self.status
         {
-            Paragraph::new(Line::from(Span::styled(msg.clone(), *style)))
+            Paragraph::new(Line::from(Span::styled(msg.as_str(), *style)))
                 .alignment(Alignment::Left)
                 .render(layout.status_row, buf);
         }
