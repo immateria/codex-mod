@@ -29,8 +29,7 @@ impl ExperimentalFeaturesSettingsView {
         self.list_viewport_rows.set(visible_rows);
 
         let mut state = self.list_state.get();
-        state.clamp_selection(rows.len());
-        state.ensure_visible(rows.len(), visible_rows);
+        state.reconcile(rows.len(), visible_rows);
         self.list_state.set(state);
 
         let _ = page.render_menu_rows_in_chrome(
