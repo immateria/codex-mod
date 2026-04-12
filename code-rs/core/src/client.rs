@@ -1484,22 +1484,9 @@ impl ModelClient {
                     let body_text = res.text().await.unwrap_or_default();
                     let body = serde_json::from_str::<ErrorResponse>(&body_text).ok();
 
-                    if status == StatusCode::TOO_MANY_REQUESTS
-                        && let Some(model) = headers
-                            .get(MODEL_CAP_MODEL_HEADER)
-                            .and_then(|value| value.to_str().ok())
-                            .map(str::to_string)
-                    {
-                        let reset_after_seconds = headers
-                            .get(MODEL_CAP_RESET_AFTER_HEADER)
-                            .and_then(|value| value.to_str().ok())
-                            .and_then(|value| value.parse::<u64>().ok());
-                        return Err(CodexErr::ModelCap(ModelCapError {
-                            model,
-                            reset_after_seconds,
-                        }));
-                    }
-
+                    // Auto-switch must run BEFORE ModelCap so that 429s with
+                    // model-cap headers still trigger account rotation when
+                    // another account is available.
                     if status == StatusCode::TOO_MANY_REQUESTS
                         && self.config.auto_switch_accounts_on_rate_limit
                         && auth_manager.is_some()
@@ -1545,7 +1532,18 @@ impl ModelClient {
                                         true,
                                     )
                                 }
-                                _ => (retry_after_delay.as_ref().map(|info| info.resume_at), false),
+                                _ => {
+                                    // Also incorporate model-cap reset info
+                                    // when the body doesn't carry usage-limit
+                                    // timing but the headers do.
+                                    let model_cap_blocked = headers
+                                        .get(MODEL_CAP_RESET_AFTER_HEADER)
+                                        .and_then(|value| value.to_str().ok())
+                                        .and_then(|value| value.parse::<i64>().ok())
+                                        .map(|seconds| now + ChronoDuration::seconds(seconds));
+                                    let from_retry = retry_after_delay.as_ref().map(|info| info.resume_at);
+                                    (model_cap_blocked.or(from_retry), false)
+                                }
                             };
 
                             rate_limit_switch_state.mark_limited(
@@ -1624,6 +1622,24 @@ impl ModelClient {
                                 }
                             }
                         }
+                    }
+
+                    // ModelCap: only reached when auto-switch was unavailable
+                    // or failed to find another account.
+                    if status == StatusCode::TOO_MANY_REQUESTS
+                        && let Some(model) = headers
+                            .get(MODEL_CAP_MODEL_HEADER)
+                            .and_then(|value| value.to_str().ok())
+                            .map(str::to_string)
+                    {
+                        let reset_after_seconds = headers
+                            .get(MODEL_CAP_RESET_AFTER_HEADER)
+                            .and_then(|value| value.to_str().ok())
+                            .and_then(|value| value.parse::<u64>().ok());
+                        return Err(CodexErr::ModelCap(ModelCapError {
+                            model,
+                            reset_after_seconds,
+                        }));
                     }
 
                     if status == StatusCode::BAD_REQUEST
