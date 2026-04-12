@@ -95,21 +95,21 @@ impl DryRunAnalysis {
         }
 
         match self.key {
-            DryRunGuardKey::CargoFmt => self.suggest_cargo_fmt_dry_run(),
-            DryRunGuardKey::CargoFix => self.suggest_cargo_fix_dry_run(),
-            DryRunGuardKey::CargoClippyFix => self.suggest_cargo_clippy_dry_run(),
-            DryRunGuardKey::Rustfmt => self.suggest_rustfmt_dry_run(),
-            DryRunGuardKey::PackageLint(manager) => self.suggest_package_script_dry_run(manager, "--dry-run", Some("--check")),
-            DryRunGuardKey::PackageFormat(manager) => self.suggest_package_script_dry_run(manager, "--check", Some("--dry-run")),
-            DryRunGuardKey::EslintFix => self.suggest_eslint_fix_dry_run(),
-            DryRunGuardKey::PrettierWrite => self.suggest_prettier_write_dry_run(),
+            DryRunGuardKey::CargoFmt => Some(self.suggest_cargo_fmt_dry_run()),
+            DryRunGuardKey::CargoFix => Some(self.suggest_cargo_fix_dry_run()),
+            DryRunGuardKey::CargoClippyFix => Some(self.suggest_cargo_clippy_dry_run()),
+            DryRunGuardKey::Rustfmt => Some(self.suggest_rustfmt_dry_run()),
+            DryRunGuardKey::PackageLint(manager) => Some(self.suggest_package_script_dry_run(manager, "--dry-run", Some("--check"))),
+            DryRunGuardKey::PackageFormat(manager) => Some(self.suggest_package_script_dry_run(manager, "--check", Some("--dry-run"))),
+            DryRunGuardKey::EslintFix => Some(self.suggest_eslint_fix_dry_run()),
+            DryRunGuardKey::PrettierWrite => Some(self.suggest_prettier_write_dry_run()),
             DryRunGuardKey::Black
             | DryRunGuardKey::RuffFormat
-            | DryRunGuardKey::Rustywind => self.suggest_append_flag("--check"),
-            DryRunGuardKey::Isort => self.suggest_append_flag("--check-only"),
-            DryRunGuardKey::Gofmt => self.suggest_gofmt_dry_run(),
-            DryRunGuardKey::DartFormat => self.suggest_append_flag("--dry-run"),
-            DryRunGuardKey::SwiftFormat => self.suggest_swiftformat_dry_run(),
+            | DryRunGuardKey::Rustywind => Some(self.suggest_append_flag("--check")),
+            DryRunGuardKey::Isort => Some(self.suggest_append_flag("--check-only")),
+            DryRunGuardKey::Gofmt => Some(self.suggest_gofmt_dry_run()),
+            DryRunGuardKey::DartFormat => Some(self.suggest_append_flag("--dry-run")),
+            DryRunGuardKey::SwiftFormat => Some(self.suggest_swiftformat_dry_run()),
         }
     }
 
@@ -117,7 +117,7 @@ impl DryRunAnalysis {
         &self.display_name
     }
 
-    fn suggest_cargo_fmt_dry_run(&self) -> Option<String> {
+    fn suggest_cargo_fmt_dry_run(&self) -> String {
         let mut out = self.tokens.clone();
         if let Some(pos) = out.iter().position(|t| t == "--") {
             if !out.iter().skip(pos + 1).any(|t| equal_ignore_case(t, "--check")) {
@@ -127,19 +127,19 @@ impl DryRunAnalysis {
             out.push("--".to_owned());
             out.push("--check".to_owned());
         }
-        Some(out.join(" "))
+        out.join(" ")
     }
 
-    fn suggest_cargo_fix_dry_run(&self) -> Option<String> {
+    fn suggest_cargo_fix_dry_run(&self) -> String {
         let mut out = self.tokens.clone();
         if !out.iter().any(|t| equal_ignore_case(t, "--dry-run")) {
             let insert_pos = out.iter().position(|t| t == "--").unwrap_or(out.len());
             out.insert(insert_pos, "--dry-run".to_owned());
         }
-        Some(out.join(" "))
+        out.join(" ")
     }
 
-    fn suggest_cargo_clippy_dry_run(&self) -> Option<String> {
+    fn suggest_cargo_clippy_dry_run(&self) -> String {
         let mut removed = false;
         let filtered: Vec<String> = self
             .tokens
@@ -153,15 +153,15 @@ impl DryRunAnalysis {
             })
             .cloned()
             .collect();
-        Some(filtered.join(" "))
+        filtered.join(" ")
     }
 
-    fn suggest_rustfmt_dry_run(&self) -> Option<String> {
+    fn suggest_rustfmt_dry_run(&self) -> String {
         let mut out = self.tokens.clone();
         if !out.iter().any(|t| equal_ignore_case(t, "--check")) {
             out.push("--check".to_owned());
         }
-        Some(out.join(" "))
+        out.join(" ")
     }
 
     fn suggest_package_script_dry_run(
@@ -169,7 +169,7 @@ impl DryRunAnalysis {
         _manager: PackageManager,
         preferred_flag: &str,
         fallback_flag: Option<&str>,
-    ) -> Option<String> {
+    ) -> String {
         let mut out = self.tokens.clone();
         if !out.iter().any(|t| {
             equal_ignore_case(t, preferred_flag)
@@ -178,53 +178,53 @@ impl DryRunAnalysis {
             out.push("--".to_owned());
             out.push(preferred_flag.to_owned());
         }
-        Some(out.join(" "))
+        out.join(" ")
     }
 
-    fn suggest_eslint_fix_dry_run(&self) -> Option<String> {
+    fn suggest_eslint_fix_dry_run(&self) -> String {
         if self
             .tokens
             .iter()
             .any(|t| equal_ignore_case(t, "--fix-dry-run") || equal_ignore_case(t, "--dry-run"))
         {
-            return Some(self.tokens.join(" "));
+            return self.tokens.join(" ");
         }
         let mut out = self.tokens.clone();
         let insert_pos = out.iter().position(|t| t == "--").unwrap_or(out.len());
         out.insert(insert_pos, "--fix-dry-run".to_owned());
-        Some(out.join(" "))
+        out.join(" ")
     }
 
-    fn suggest_prettier_write_dry_run(&self) -> Option<String> {
+    fn suggest_prettier_write_dry_run(&self) -> String {
         if self
             .tokens
             .iter()
             .any(|t| equal_ignore_case(t, "--check") || equal_ignore_case(t, "--list-different"))
         {
-            return Some(self.tokens.join(" "));
+            return self.tokens.join(" ");
         }
 
         let mut out = self.tokens.clone();
         for token in &mut out {
             if equal_ignore_case(token.as_str(), "--write") || token.as_str() == "-w" {
                 *token = "--check".to_owned();
-                return Some(out.join(" "));
+                return out.join(" ");
             }
         }
         out.push("--check".to_owned());
-        Some(out.join(" "))
+        out.join(" ")
     }
 
-    fn suggest_append_flag(&self, flag: &str) -> Option<String> {
+    fn suggest_append_flag(&self, flag: &str) -> String {
         if self.tokens.iter().any(|t| equal_ignore_case(t, flag)) {
-            return Some(self.tokens.join(" "));
+            return self.tokens.join(" ");
         }
         let mut out = self.tokens.clone();
         out.push(flag.to_owned());
-        Some(out.join(" "))
+        out.join(" ")
     }
 
-    fn suggest_gofmt_dry_run(&self) -> Option<String> {
+    fn suggest_gofmt_dry_run(&self) -> String {
         let mut out = Vec::with_capacity(self.tokens.len());
         let mut replaced = false;
         for token in &self.tokens {
@@ -238,20 +238,20 @@ impl DryRunAnalysis {
         if !replaced {
             out.push("-d".to_owned());
         }
-        Some(out.join(" "))
+        out.join(" ")
     }
 
-    fn suggest_swiftformat_dry_run(&self) -> Option<String> {
+    fn suggest_swiftformat_dry_run(&self) -> String {
         if self
             .tokens
             .iter()
             .any(|t| equal_ignore_case(t, "--lint") || equal_ignore_case(t, "--dryrun"))
         {
-            return Some(self.tokens.join(" "));
+            return self.tokens.join(" ");
         }
         let mut out = self.tokens.clone();
         out.push("--lint".to_owned());
-        Some(out.join(" "))
+        out.join(" ")
     }
 }
 
