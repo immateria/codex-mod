@@ -1490,11 +1490,11 @@ fn session_models_from_config(config: &Config) -> Option<acp::SessionModelState>
         let description = if preset.description.is_empty() {
             None
         } else {
-            Some(preset.description.to_string())
+            Some(preset.description.clone())
         };
         available_models.push(acp::ModelInfo {
             model_id: id.clone(),
-            name: preset.display_name.to_string(),
+            name: preset.display_name.clone(),
             description,
             meta: None,
         });
@@ -1558,7 +1558,7 @@ fn resolve_model_selection(model_id: &acp::ModelId, config: &Config) -> Option<M
             || preset.model.eq_ignore_ascii_case(&requested)
         {
             return Some(ModelSelection {
-                model: preset.model.to_string(),
+                model: preset.model.clone(),
                 effort: preset_effort(preset),
             });
         }

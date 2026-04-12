@@ -219,7 +219,8 @@ impl SessionCatalog {
             }
         }
 
-        fs::write(&self.catalog_path, lines.join("\n") + "\n")?;
+        lines.push(String::new()); // trailing newline
+        fs::write(&self.catalog_path, lines.join("\n"))?;
         Ok(())
     }
 

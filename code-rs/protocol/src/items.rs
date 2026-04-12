@@ -156,8 +156,7 @@ impl UserMessageItem {
                 UserInput::Text { text, .. } => text.clone(),
                 _ => String::new(),
             })
-            .collect::<Vec<String>>()
-            .join("")
+            .collect::<String>()
     }
 
     pub fn text_elements(&self) -> Vec<TextElement> {

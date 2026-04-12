@@ -754,7 +754,7 @@ async fn build_turn_status_items_v2(sess: &Session) -> Vec<ResponseItem> {
                 Err(_) => None,
             };
 
-            let browser_type = browser_manager.get_browser_type().await.to_string();
+            let browser_type = browser_manager.get_browser_type().await.clone();
             let (viewport_width, viewport_height) = browser_manager.get_viewport_size().await;
             let cursor_position = browser_manager.get_cursor_position().await.ok();
 

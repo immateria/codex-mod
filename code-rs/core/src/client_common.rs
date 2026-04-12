@@ -17,7 +17,6 @@ use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::borrow::Cow;
-use std::ops::Deref;
 use std::pin::Pin;
 use std::task::Context;
 use std::task::Poll;
@@ -120,7 +119,7 @@ impl Prompt {
         Cow::Borrowed(
             self.base_instructions_override
                 .as_deref()
-                .unwrap_or(effective_model.base_instructions.deref()),
+                .unwrap_or(&*effective_model.base_instructions),
         )
     }
 
@@ -132,7 +131,7 @@ impl Prompt {
         if let Some(custom) = &self.model_descriptions {
             Cow::Owned(PROMPT_CODER_TEMPLATE.replace("{MODEL_DESCRIPTIONS}", custom))
         } else {
-            Cow::Borrowed(DEFAULT_DEVELOPER_PROMPT.deref())
+            Cow::Borrowed(&*DEFAULT_DEVELOPER_PROMPT)
         }
     }
 

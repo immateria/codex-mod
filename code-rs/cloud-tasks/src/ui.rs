@@ -623,7 +623,7 @@ fn style_conversation_lines(
     }
 
     if styled.is_empty() {
-        wrapped.iter().map(|l| Line::from(l.to_string())).collect()
+        wrapped.iter().map(|l| Line::from(l.clone())).collect()
     } else {
         styled
     }
