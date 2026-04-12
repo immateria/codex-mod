@@ -306,6 +306,7 @@ impl MemoriesSettingsView {
         };
         let mut hints: Vec<KeyHint<'static>> = vec![
             hint_nav(" scroll"),
+            KeyHint::new("g/G", " top/end"),
             KeyHint::new("/", " search"),
         ];
         if viewer.search.as_ref().is_some_and(|s| !s.matches.is_empty()) {

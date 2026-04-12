@@ -140,20 +140,21 @@ impl MemoriesSettingsView {
         outcome.changed
     }
 
-    pub(super) fn handle_mouse_event_direct_content_only(
+    fn handle_mouse_event_impl(
         &mut self,
         mouse_event: MouseEvent,
         area: Rect,
+        chrome: ChromeMode,
     ) -> bool {
         match &self.mode {
             ViewMode::Main => {
-                return self.handle_mouse_event_main_impl(mouse_event, area, ChromeMode::ContentOnly);
+                return self.handle_mouse_event_main_impl(mouse_event, area, chrome);
             }
             ViewMode::TextViewer(viewer) => {
                 return Self::handle_mouse_text_viewer(viewer, mouse_event);
             }
             ViewMode::RolloutList(_) => {
-                return self.handle_mouse_rollout_list(mouse_event, area, ChromeMode::ContentOnly);
+                return self.handle_mouse_rollout_list(mouse_event, area, chrome);
             }
             _ => {}
         }
@@ -162,7 +163,7 @@ impl MemoriesSettingsView {
             ViewMode::Edit { target, field, error } => match mouse_event.kind {
                 MouseEventKind::Down(MouseButton::Left) => {
                     let field_area = Self::edit_page(self.scope, *target, error.as_deref())
-                        .layout_in_chrome(ChromeMode::ContentOnly, area)
+                        .layout_in_chrome(chrome, area)
                         .map(|layout| layout.field);
                     if let Some(field_area) = field_area {
                         field.handle_mouse_click(mouse_event.column, mouse_event.row, field_area)
@@ -178,41 +179,19 @@ impl MemoriesSettingsView {
         }
     }
 
+    pub(super) fn handle_mouse_event_direct_content_only(
+        &mut self,
+        mouse_event: MouseEvent,
+        area: Rect,
+    ) -> bool {
+        self.handle_mouse_event_impl(mouse_event, area, ChromeMode::ContentOnly)
+    }
+
     pub(super) fn handle_mouse_event_direct_framed(
         &mut self,
         mouse_event: MouseEvent,
         area: Rect,
     ) -> bool {
-        match &self.mode {
-            ViewMode::Main => {
-                return self.handle_mouse_event_main_impl(mouse_event, area, ChromeMode::Framed);
-            }
-            ViewMode::TextViewer(viewer) => {
-                return Self::handle_mouse_text_viewer(viewer, mouse_event);
-            }
-            ViewMode::RolloutList(_) => {
-                return self.handle_mouse_rollout_list(mouse_event, area, ChromeMode::Framed);
-            }
-            _ => {}
-        }
-
-        match &mut self.mode {
-            ViewMode::Edit { target, field, error } => match mouse_event.kind {
-                MouseEventKind::Down(MouseButton::Left) => {
-                    let field_area = Self::edit_page(self.scope, *target, error.as_deref())
-                        .layout_in_chrome(ChromeMode::Framed, area)
-                        .map(|layout| layout.field);
-                    if let Some(field_area) = field_area {
-                        field.handle_mouse_click(mouse_event.column, mouse_event.row, field_area)
-                    } else {
-                        false
-                    }
-                }
-                MouseEventKind::ScrollDown => field.handle_mouse_scroll(true),
-                MouseEventKind::ScrollUp => field.handle_mouse_scroll(false),
-                _ => false,
-            },
-            ViewMode::Main | ViewMode::Transition | ViewMode::TextViewer(_) | ViewMode::RolloutList(_) | ViewMode::SearchInput { .. } => false,
-        }
+        self.handle_mouse_event_impl(mouse_event, area, ChromeMode::Framed)
     }
 }

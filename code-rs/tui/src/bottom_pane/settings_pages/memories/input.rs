@@ -325,6 +325,7 @@ impl MemoriesSettingsView {
             RowKind::ViewSummary => self.open_summary_viewer(),
             RowKind::ViewRawMemories => self.open_raw_viewer(),
             RowKind::BrowseRollouts => self.open_rollout_list(),
+            RowKind::ViewStatus => self.open_status_viewer(),
             RowKind::RefreshArtifacts => self.trigger_action(MemoriesArtifactsAction::Refresh),
             RowKind::ClearArtifacts => self.trigger_action(MemoriesArtifactsAction::Clear),
             RowKind::OpenDirectory => self.open_memories_directory(),
@@ -492,10 +493,10 @@ impl MemoriesSettingsView {
                     scroll += 1;
                 }
             }
-            KeyCode::Home => {
+            KeyCode::Home | KeyCode::Char('g') => {
                 scroll = 0;
             }
-            KeyCode::End => {
+            KeyCode::End | KeyCode::Char('G') => {
                 scroll = total.saturating_sub(visible);
             }
             KeyCode::PageUp => {

@@ -29,7 +29,7 @@ fn apply_emits_global_memories_settings_event() {
 
     view.handle_key_event_direct(KeyEvent::new(KeyCode::Down, KeyModifiers::NONE));
     view.handle_key_event_direct(KeyEvent::new(KeyCode::Char(' '), KeyModifiers::NONE));
-    for _ in 0..13 {
+    for _ in 0..14 {
         view.handle_key_event_direct(KeyEvent::new(KeyCode::Down, KeyModifiers::NONE));
     }
     view.handle_key_event_direct(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
@@ -53,7 +53,7 @@ fn apply_can_target_project_scope() {
     view.handle_key_event_direct(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
     view.handle_key_event_direct(KeyEvent::new(KeyCode::Down, KeyModifiers::NONE));
     view.handle_key_event_direct(KeyEvent::new(KeyCode::Char(' '), KeyModifiers::NONE));
-    for _ in 0..13 {
+    for _ in 0..14 {
         view.handle_key_event_direct(KeyEvent::new(KeyCode::Down, KeyModifiers::NONE));
     }
     view.handle_key_event_direct(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));

@@ -40,7 +40,7 @@ impl MemoriesSettingsView {
         }
     }
 
-    const ROWS_WITH_FILE_MANAGER: [RowKind; 16] = [
+    const ROWS_WITH_FILE_MANAGER: [RowKind; 17] = [
             RowKind::Scope,
             RowKind::GenerateMemories,
             RowKind::UseMemories,
@@ -52,6 +52,7 @@ impl MemoriesSettingsView {
             RowKind::ViewSummary,
             RowKind::ViewRawMemories,
             RowKind::BrowseRollouts,
+            RowKind::ViewStatus,
             RowKind::RefreshArtifacts,
             RowKind::ClearArtifacts,
             RowKind::OpenDirectory,
@@ -59,7 +60,7 @@ impl MemoriesSettingsView {
             RowKind::Close,
     ];
 
-    const ROWS_NO_FILE_MANAGER: [RowKind; 15] = [
+    const ROWS_NO_FILE_MANAGER: [RowKind; 16] = [
         RowKind::Scope,
         RowKind::GenerateMemories,
         RowKind::UseMemories,
@@ -71,6 +72,7 @@ impl MemoriesSettingsView {
         RowKind::ViewSummary,
         RowKind::ViewRawMemories,
         RowKind::BrowseRollouts,
+        RowKind::ViewStatus,
         RowKind::RefreshArtifacts,
         RowKind::ClearArtifacts,
         RowKind::Apply,
@@ -329,6 +331,18 @@ impl MemoriesSettingsView {
                     _ => "unknown".to_owned(),
                 }
             }
+            RowKind::ViewStatus => {
+                match self.current_status() {
+                    Ok(Some(status)) => {
+                        let sessions = status.db.thread_count;
+                        let pending = status.db.pending_stage1_count;
+                        let dirty = if status.db.artifact_dirty { " · dirty" } else { "" };
+                        format!("{sessions} sessions · {pending} pending{dirty}")
+                    }
+                    Ok(None) => "loading…".to_owned(),
+                    Err(_) => "error".to_owned(),
+                }
+            }
             RowKind::RefreshArtifacts => "Bypass throttle".to_owned(),
             RowKind::ClearArtifacts => "Generated files only".to_owned(),
             RowKind::OpenDirectory => self.code_home.join("memories").display().to_string(),
@@ -356,6 +370,7 @@ impl MemoriesSettingsView {
             RowKind::ViewSummary => "View injected summary",
             RowKind::ViewRawMemories => "View raw memories",
             RowKind::BrowseRollouts => "Browse rollout summaries",
+            RowKind::ViewStatus => "View diagnostic status",
             RowKind::RefreshArtifacts => "Refresh artifacts now",
             RowKind::ClearArtifacts => "Clear generated artifacts",
             RowKind::OpenDirectory => "Open memories directory",
@@ -377,6 +392,7 @@ impl MemoriesSettingsView {
             RowKind::ViewSummary => "View the memory_summary.md that gets injected into developer instructions.",
             RowKind::ViewRawMemories => "View raw_memories.md containing all extracted session memories.",
             RowKind::BrowseRollouts => "Browse individual rollout summary files in rollout_summaries/.",
+            RowKind::ViewStatus => "View detailed memories subsystem status: config sources, artifact freshness, DB stats.",
             RowKind::RefreshArtifacts => "Rebuild memory_summary.md, raw_memories.md, and rollout_summaries/* immediately.",
             RowKind::ClearArtifacts => "Delete generated artifacts only; catalog memory_mode values stay intact.",
             RowKind::OpenDirectory => "Open the memories directory in Finder/Explorer/your file manager.",
@@ -452,6 +468,111 @@ impl MemoriesSettingsView {
                 self.status = Some((format!("Error listing rollouts: {err}"), true));
             }
         }
+    }
+
+    pub(super) fn open_status_viewer(&mut self) {
+        match self.current_status() {
+            Ok(Some(status)) => {
+                let content = Self::format_status_report(&status);
+                self.open_text_viewer(" Diagnostic Status ", content, TextViewerParent::Main);
+            }
+            Ok(None) => {
+                self.status = Some(("Status not loaded yet. Try again in a moment.".to_owned(), true));
+            }
+            Err(err) => {
+                self.status = Some((format!("Error loading status: {err}"), true));
+            }
+        }
+    }
+
+    fn format_status_report(status: &code_core::MemoriesStatus) -> String {
+        fn on_off(v: bool) -> &'static str {
+            if v { "on" } else { "off" }
+        }
+        fn source(s: code_core::MemoriesSettingSource) -> &'static str {
+            match s {
+                code_core::MemoriesSettingSource::Default => "default",
+                code_core::MemoriesSettingSource::Global => "global",
+                code_core::MemoriesSettingSource::Profile => "profile",
+                code_core::MemoriesSettingSource::Project => "project",
+            }
+        }
+        fn artifact(name: &str, a: &code_core::MemoryArtifactStatus) -> String {
+            let modified = a.modified_at.as_deref().unwrap_or("never");
+            let present = if a.exists { "present" } else { "missing" };
+            format!("  {name}: {present} (modified: {modified})")
+        }
+
+        let mut lines = Vec::new();
+        lines.push("── Effective Configuration ──".to_owned());
+        lines.push(format!(
+            "  generate_memories: {} (source: {})",
+            on_off(status.effective.generate_memories),
+            source(status.sources.generate_memories),
+        ));
+        lines.push(format!(
+            "  use_memories:      {} (source: {})",
+            on_off(status.effective.use_memories),
+            source(status.sources.use_memories),
+        ));
+        lines.push(format!(
+            "  skip_mcp_web:      {} (source: {})",
+            on_off(status.effective.no_memories_if_mcp_or_web_search),
+            source(status.sources.no_memories_if_mcp_or_web_search),
+        ));
+        lines.push(String::new());
+        lines.push("── Numeric Limits ──".to_owned());
+        lines.push(format!(
+            "  max_raw_memories:        {} (source: {})",
+            status.effective.max_raw_memories_for_consolidation,
+            source(status.sources.max_raw_memories_for_consolidation),
+        ));
+        lines.push(format!(
+            "  max_rollout_age_days:    {} (source: {})",
+            status.effective.max_rollout_age_days,
+            source(status.sources.max_rollout_age_days),
+        ));
+        lines.push(format!(
+            "  max_rollouts_per_startup:{} (source: {})",
+            status.effective.max_rollouts_per_startup,
+            source(status.sources.max_rollouts_per_startup),
+        ));
+        lines.push(format!(
+            "  min_rollout_idle_hours:  {} (source: {})",
+            status.effective.min_rollout_idle_hours,
+            source(status.sources.min_rollout_idle_hours),
+        ));
+        lines.push(String::new());
+        lines.push("── Artifacts ──".to_owned());
+        lines.push(format!(
+            "  memory_root: {}",
+            status.artifacts.memory_root.display(),
+        ));
+        lines.push(artifact("memory_summary.md", &status.artifacts.summary));
+        lines.push(artifact("raw_memories.md", &status.artifacts.raw_memories));
+        lines.push(format!(
+            "  rollout_summaries/: {} ({} files)",
+            if status.artifacts.rollout_summaries.exists { "present" } else { "missing" },
+            status.artifacts.rollout_summary_count,
+        ));
+        lines.push(String::new());
+        lines.push("── Database ──".to_owned());
+        lines.push(format!(
+            "  sqlite: {}",
+            if status.db.db_exists { "present" } else { "missing" },
+        ));
+        lines.push(format!("  sessions:       {}", status.db.thread_count));
+        lines.push(format!("  stage1 epochs:  {}", status.db.stage1_epoch_count));
+        lines.push(format!("  pending:        {}", status.db.pending_stage1_count));
+        lines.push(format!("  running:        {}", status.db.running_stage1_count));
+        lines.push(format!("  dead-lettered:  {}", status.db.dead_lettered_stage1_count));
+        lines.push(format!("  artifact dirty: {}", on_off(status.db.artifact_dirty)));
+        lines.push(format!("  artifact job:   {}", on_off(status.db.artifact_job_running)));
+        if let Some(ref last_build) = status.db.last_artifact_build_at {
+            lines.push(format!("  last build:     {last_build}"));
+        }
+
+        lines.join("\n")
     }
 
     pub(super) fn open_rollout_detail(

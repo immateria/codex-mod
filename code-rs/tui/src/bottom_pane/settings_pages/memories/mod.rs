@@ -38,6 +38,7 @@ enum RowKind {
     ViewSummary,
     ViewRawMemories,
     BrowseRollouts,
+    ViewStatus,
     RefreshArtifacts,
     ClearArtifacts,
     OpenDirectory,
