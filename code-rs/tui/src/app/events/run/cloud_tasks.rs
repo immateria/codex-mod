@@ -57,7 +57,7 @@
                 AppEvent::FetchCloudTaskDiff { task_id } => {
                     let tx = self.app_event_tx.clone();
                     tokio::spawn(async move {
-                        let task = TaskId(task_id.clone());
+                        let task = TaskId(task_id);
                         match cloud_tasks_service::fetch_task_diff(task.clone()).await {
                             Ok(Some(diff)) => {
                                 tx.send(AppEvent::DiffResult(diff));
@@ -72,18 +72,18 @@
                 AppEvent::FetchCloudTaskMessages { task_id } => {
                     let tx = self.app_event_tx.clone();
                     tokio::spawn(async move {
-                        let task = TaskId(task_id.clone());
-                        match cloud_tasks_service::fetch_task_messages(task).await {
+                        let task_display = task_id.clone();
+                        match cloud_tasks_service::fetch_task_messages(TaskId(task_id)).await {
                             Ok(messages) if !messages.is_empty() => {
                                 let joined = messages.join("\n\n");
                                 tx.send(AppEvent::InsertBackgroundEvent {
-                                    message: format!("Cloud task output for {task_id}:\n{joined}"),
+                                    message: format!("Cloud task output for {task_display}:\n{joined}"),
                                     placement: crate::app_event::BackgroundPlacement::Tail,
                                     order: None,
                                 });
                             }
                             Ok(_) => tx.send(AppEvent::CloudTasksError {
-                                message: format!("Task {task_id} has no assistant messages"),
+                                message: format!("Task {task_display} has no assistant messages"),
                             }),
                             Err(err) => tx.send(AppEvent::CloudTasksError { message: err.to_string() }),
                         }
@@ -120,16 +120,17 @@
                     }
                     let tx = self.app_event_tx.clone();
                     tokio::spawn(async move {
-                        let result = cloud_tasks_service::create_task(env_id.clone(), prompt.clone(), best_of_n).await;
+                        let result_env_id = env_id.clone();
+                        let result = cloud_tasks_service::create_task(env_id, prompt, best_of_n).await;
                         tx.send(AppEvent::CloudTaskCreated {
-                            env_id,
+                            env_id: result_env_id,
                             result: result.map_err(|err| CloudTaskError::Msg(err.to_string())),
                         });
                     });
                 }
                 AppEvent::CloudTaskCreated { env_id, result } => {
                     if let AppState::Chat { widget } = &mut self.app_state {
-                        widget.handle_cloud_task_created(env_id.clone(), result);
+                        widget.handle_cloud_task_created(env_id, result);
                     }
                 }
                 AppEvent::StartReviewCommitPicker => {

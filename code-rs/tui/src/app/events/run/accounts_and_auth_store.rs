@@ -481,7 +481,7 @@
                                 let goal = if command_args.is_empty() {
                                     None
                                 } else {
-                                    Some(command_args.clone())
+                                    Some(command_args)
                                 };
                                 widget.handle_auto_command(goal);
                             }
@@ -530,7 +530,7 @@
                         }
                         SlashCommand::Shell => {
                             if let AppState::Chat { widget } = &mut self.app_state {
-                                widget.handle_shell_command(command_args.clone());
+                                widget.handle_shell_command(command_args);
                             }
                         }
                         SlashCommand::Notifications => {

@@ -78,9 +78,7 @@
                 AppEvent::SetTuiSettingsMenuConfig(settings) => {
                     match code_core::config::set_tui_settings_menu(&self.config.code_home, &settings) {
                         Ok(()) => {
-                            self.config.tui.settings_menu = settings.clone();
                             if let AppState::Chat { widget } = &mut self.app_state {
-                                widget.apply_tui_settings_menu(settings.clone());
                                 let mode = match settings.open_mode {
                                     code_core::config_types::SettingsMenuOpenMode::Auto => {
                                         format!("auto (>= {})", settings.overlay_min_width)
@@ -92,7 +90,11 @@
                                         "bottom".to_owned()
                                     }
                                 };
+                                self.config.tui.settings_menu = settings.clone();
+                                widget.apply_tui_settings_menu(settings);
                                 widget.flash_footer_notice(format!("Settings UI: {mode}"));
+                            } else {
+                                self.config.tui.settings_menu = settings;
                             }
                         }
                         Err(err) => {
@@ -108,10 +110,12 @@
                 AppEvent::SetTuiHotkeysConfig(hotkeys) => {
                     match code_core::config::set_tui_hotkeys(&self.config.code_home, &hotkeys) {
                         Ok(()) => {
-                            self.config.tui.hotkeys = hotkeys.clone();
                             if let AppState::Chat { widget } = &mut self.app_state {
-                                widget.apply_tui_hotkeys(hotkeys.clone());
+                                self.config.tui.hotkeys = hotkeys.clone();
+                                widget.apply_tui_hotkeys(hotkeys);
                                 widget.flash_footer_notice("Hotkeys saved");
+                            } else {
+                                self.config.tui.hotkeys = hotkeys;
                             }
                         }
                         Err(err) => {
@@ -493,10 +497,7 @@
                 }
                 AppEvent::PluginMarketplacesSynced { roots, refresh_list_after, result } => {
                     if let AppState::Chat { widget } = &mut self.app_state {
-                        let error = match result.as_ref() {
-                            Ok(()) => None,
-                            Err(err) => Some(err.clone()),
-                        };
+                        let error = result.as_ref().err().cloned();
                         widget.plugins_set_sources_sync_status(/*in_progress*/ false, error);
                     }
                     if refresh_list_after {
@@ -552,8 +553,8 @@
                                 }
                             }
                             Err(err) => {
-                                widget.plugins_set_action_error(Some(err.clone()));
                                 widget.flash_footer_notice(format!("Plugin install failed: {err}"));
+                                widget.plugins_set_action_error(Some(err));
                             }
                         }
                     }
@@ -618,8 +619,8 @@
                                 }
                             }
                             Err(err) => {
-                                widget.plugins_set_action_error(Some(err.clone()));
                                 widget.flash_footer_notice(format!("Plugin uninstall failed: {err}"));
+                                widget.plugins_set_action_error(Some(err));
                             }
                         }
                     }
@@ -684,8 +685,8 @@
                                 }
                             }
                             Err(err) => {
-                                widget.plugins_set_action_error(Some(err.clone()));
                                 widget.flash_footer_notice(format!("Plugin update failed: {err}"));
+                                widget.plugins_set_action_error(Some(err));
                             }
                         }
                     }
@@ -957,13 +958,14 @@
                     let tx = self.app_event_tx.clone();
                     let code_home = self.config.code_home.clone();
                     tokio::spawn(async move {
-                        let entry_for_delete = entry.clone();
+                        let scope = entry.scope.clone();
+                        let name = entry.name.clone();
                         let result = tokio::task::spawn_blocking(move || {
                             let manager = code_secrets::SecretsManager::new(
                                 code_home,
                                 code_secrets::SecretsBackendKind::Local,
                             );
-                            manager.delete(&entry_for_delete.scope, &entry_for_delete.name)
+                            manager.delete(&scope, &name)
                         })
                         .await
                         .map_err(|err| err.to_string())
@@ -973,9 +975,8 @@
                     });
                 }
                 AppEvent::DeleteSecretFinished { env_id, entry, result } => {
+                    let ok = result.is_ok();
                     if let AppState::Chat { widget } = &mut self.app_state {
-                        widget.secrets_apply_delete_finished(env_id.clone(), entry.clone(), result.clone());
-
                         match &result {
                             Ok(true) => {
                                 widget.flash_footer_notice(format!(
@@ -996,9 +997,10 @@
                                 ));
                             }
                         }
+                        widget.secrets_apply_delete_finished(env_id.clone(), entry, result);
                     }
 
-                    if result.is_ok() {
+                    if ok {
                         self.app_event_tx.send(AppEvent::FetchSecretsList { env_id });
                     }
 

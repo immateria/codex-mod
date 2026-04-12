@@ -32,7 +32,7 @@
                     };
                     match persist_result {
                         Ok(()) => {
-                            let updated_settings = (!settings.is_empty()).then_some(settings.clone());
+                            let updated_settings = if settings.is_empty() { None } else { Some(settings) };
                             let scope_label = match &scope {
                                 crate::app_event::MemoriesSettingsScope::Global => "global",
                                 crate::app_event::MemoriesSettingsScope::Profile { .. } => "profile",
