@@ -6,9 +6,8 @@ use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::collections::HashSet;
-use std::fs::File;
-use std::fs::OpenOptions;
-use std::io::{self, Read, Write};
+use std::fs::{self, OpenOptions};
+use std::io::{self, Write};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::sync::Mutex;
@@ -433,10 +432,8 @@ pub fn migrate_accounts_store_mode(
 }
 
 fn read_accounts_file(path: &Path) -> io::Result<Option<AccountsFile>> {
-    match File::open(path) {
-        Ok(mut file) => {
-            let mut contents = String::new();
-            file.read_to_string(&mut contents)?;
+    match fs::read_to_string(path) {
+        Ok(contents) => {
             let parsed: AccountsFile = serde_json::from_str(&contents)?;
             Ok(Some(parsed))
         }

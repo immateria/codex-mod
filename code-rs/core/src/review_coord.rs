@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
-use std::fs::{self, File, OpenOptions};
-use std::io::{Read, Write};
+use std::fs::{self, OpenOptions};
+use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -152,8 +152,7 @@ pub fn try_acquire_lock(intent: &str, cwd: &Path) -> std::io::Result<Option<Revi
 
 pub fn read_lock_info(scope: Option<&Path>) -> Option<ReviewLockInfo> {
     let path = lock_path(scope).ok()?;
-    let mut buf = String::new();
-    File::open(path).ok()?.read_to_string(&mut buf).ok()?;
+    let buf = fs::read_to_string(path).ok()?;
     serde_json::from_str(&buf).ok()
 }
 
