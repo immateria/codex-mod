@@ -70,6 +70,20 @@ impl TextArea {
         self.insert_str_at(self.cursor_pos, text);
     }
 
+    /// Insert a single character at the cursor position.
+    pub fn insert_char(&mut self, ch: char) {
+        self.push_undo_snapshot();
+        let pos = self.clamp_pos_for_insertion(self.cursor_pos);
+        self.text.insert(pos, ch);
+        self.wrap_cache.replace(None);
+        let char_len = ch.len_utf8();
+        if pos <= self.cursor_pos {
+            self.cursor_pos += char_len;
+        }
+        self.shift_elements(pos, 0, char_len);
+        self.preferred_col = None;
+    }
+
     pub fn insert_str_at(&mut self, pos: usize, text: &str) {
         self.push_undo_snapshot();
         let pos = self.clamp_pos_for_insertion(pos);
@@ -331,7 +345,7 @@ impl TextArea {
                 && !c.is_ascii_control()
                 && !c.is_ascii_alphabetic() =>
             {
-                self.insert_str(&c.to_string());
+                self.insert_char(c);
             }
             KeyEvent {
                 code: KeyCode::Char(c),
@@ -340,7 +354,7 @@ impl TextArea {
                 // for word navigation. Those are handled explicitly below.
                 modifiers: KeyModifiers::NONE | KeyModifiers::SHIFT,
                 ..
-            } => self.insert_str(&c.to_string()),
+            } => self.insert_char(c),
             KeyEvent {
                 code: KeyCode::Char('j' | 'm'),
                 modifiers: KeyModifiers::CONTROL,

@@ -115,7 +115,7 @@ impl FormTextField {
         if let KeyCode::Char(c) = key.code
             && matches!(self.filter, InputFilter::Id) {
                 if Self::id_char_allowed(c) {
-                    self.textarea.insert_str(&c.to_string());
+                    self.textarea.insert_char(c);
                 }
                 return true; // consumed either way
             }
