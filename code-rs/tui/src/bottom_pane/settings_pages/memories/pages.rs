@@ -1,5 +1,6 @@
 use super::*;
 
+use chrono::{DateTime, Utc};
 use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
 
@@ -13,70 +14,77 @@ use crate::bottom_pane::settings_ui::row_page::SettingsRowPage;
 use crate::colors;
 
 impl MemoriesSettingsView {
+    /// Color-code a boolean value: green for on, dim for off.
+    fn bool_span(value: bool) -> Span<'static> {
+        if value {
+            Span::styled("on", Style::default().fg(colors::success()))
+        } else {
+            Span::styled("off", Style::default().fg(colors::text_dim()))
+        }
+    }
+
+    /// Color-code an artifact presence: green for present, warning for missing.
+    fn presence_span(exists: bool) -> Span<'static> {
+        if exists {
+            Span::styled("✓", Style::default().fg(colors::success()))
+        } else {
+            Span::styled("✗", Style::default().fg(colors::warning()))
+        }
+    }
+
     pub(super) fn render_header_lines(&self) -> Vec<Line<'static>> {
         let dim = Style::default().fg(colors::text_dim());
         match self.current_status() {
             Ok(Some(status)) => {
+                let src = |s: code_core::MemoriesSettingSource| -> Span<'static> {
+                    Span::styled(
+                        format!("({})", Self::source_label(s)),
+                        dim,
+                    )
+                };
+
                 let mut lines = vec![
+                    Line::from(vec![
+                        Span::styled("Generate: ", dim),
+                        Self::bool_span(status.effective.generate_memories),
+                        Span::styled(" ", dim),
+                        src(status.sources.generate_memories),
+                        Span::styled("  Use: ", dim),
+                        Self::bool_span(status.effective.use_memories),
+                        Span::styled(" ", dim),
+                        src(status.sources.use_memories),
+                        Span::styled("  Skip MCP/web: ", dim),
+                        Self::bool_span(status.effective.no_memories_if_mcp_or_web_search),
+                        Span::styled(" ", dim),
+                        src(status.sources.no_memories_if_mcp_or_web_search),
+                    ]),
                     Line::from(Span::styled(
                         format!(
-                            "Effective: generate {} ({}) · use {} ({}) · skip {} ({})",
-                            Self::bool_label(status.effective.generate_memories).to_ascii_lowercase(),
-                            Self::source_label(status.sources.generate_memories),
-                            Self::bool_label(status.effective.use_memories).to_ascii_lowercase(),
-                            Self::source_label(status.sources.use_memories),
-                            Self::bool_label(status.effective.no_memories_if_mcp_or_web_search)
-                                .to_ascii_lowercase(),
-                            Self::source_label(status.sources.no_memories_if_mcp_or_web_search),
-                        ),
-                        dim,
-                    )),
-                    Line::from(Span::styled(
-                        format!(
-                            "Limits: retained {} ({}) · age {}d ({}) · scan {} ({}) · idle {}h ({})",
+                            "Limits: retained {} · age {}d · scan {} · idle {}h",
                             status.effective.max_raw_memories_for_consolidation,
-                            Self::source_label(status.sources.max_raw_memories_for_consolidation),
                             status.effective.max_rollout_age_days,
-                            Self::source_label(status.sources.max_rollout_age_days),
                             status.effective.max_rollouts_per_startup,
-                            Self::source_label(status.sources.max_rollouts_per_startup),
                             status.effective.min_rollout_idle_hours,
-                            Self::source_label(status.sources.min_rollout_idle_hours),
                         ),
                         dim,
                     )),
-                    Line::from(Span::styled(
-                        format!(
-                            "Artifacts: summary={} · raw={} · rollout_summaries={} (count={})",
-                            if status.artifacts.summary.exists {
-                                "present"
-                            } else {
-                                "missing"
-                            },
-                            if status.artifacts.raw_memories.exists {
-                                "present"
-                            } else {
-                                "missing"
-                            },
-                            if status.artifacts.rollout_summaries.exists {
-                                "present"
-                            } else {
-                                "missing"
-                            },
-                            status.artifacts.rollout_summary_count,
+                    Line::from(vec![
+                        Span::styled("Artifacts: summary ", dim),
+                        Self::presence_span(status.artifacts.summary.exists),
+                        Span::styled("  raw ", dim),
+                        Self::presence_span(status.artifacts.raw_memories.exists),
+                        Span::styled("  rollouts ", dim),
+                        Self::presence_span(status.artifacts.rollout_summaries.exists),
+                        Span::styled(
+                            format!(" ({})", status.artifacts.rollout_summary_count),
+                            dim,
                         ),
-                        dim,
-                    )),
+                    ]),
                     Line::from(Span::styled(
                         format!(
-                            "SQLite: {} · threads {} · stage1 {} · pending {} · running {} · dead_lettered {} · dirty {}",
-                            if status.db.db_exists { "present" } else { "missing" },
+                            "Database: {} sessions · {} memories",
                             status.db.thread_count,
                             status.db.stage1_epoch_count,
-                            status.db.pending_stage1_count,
-                            status.db.running_stage1_count,
-                            status.db.dead_lettered_stage1_count,
-                            if status.db.artifact_dirty { "yes" } else { "no" },
                         ),
                         dim,
                     )),
@@ -304,6 +312,7 @@ impl MemoriesSettingsView {
     }
 
     pub(super) fn rollout_list_menu_rows(list: &RolloutListState) -> Vec<SettingsMenuRow<'static, usize>> {
+        let now = Utc::now();
         list.entries
             .iter()
             .enumerate()
@@ -313,8 +322,11 @@ impl MemoriesSettingsView {
                 } else {
                     format!("{:.1}KB", entry.size_bytes as f64 / 1024.0)
                 };
-                let detail = match entry.modified_at.as_deref() {
-                    Some(ts) => format!("{size}  {ts}"),
+                let age = entry.modified_at.as_deref()
+                    .and_then(|ts| DateTime::parse_from_rfc3339(ts).ok())
+                    .map(|dt| format_age(dt.with_timezone(&Utc), now));
+                let detail = match age {
+                    Some(age) => format!("{size}  {age}"),
                     None => size,
                 };
                 SettingsMenuRow::new(idx, entry.slug.clone())
@@ -362,5 +374,19 @@ impl MemoriesSettingsView {
             footer,
         )
         .with_scroll_position(idx + 1, total)
+    }
+}
+
+/// Format a past timestamp as a human-friendly relative age.
+fn format_age(when: DateTime<Utc>, now: DateTime<Utc>) -> String {
+    let secs = (now - when).num_seconds().max(0);
+    if secs < 60 {
+        "<1m ago".to_owned()
+    } else if secs < 3600 {
+        format!("{}m ago", secs / 60)
+    } else if secs < 86_400 {
+        format!("{}h ago", secs / 3600)
+    } else {
+        format!("{}d ago", secs / 86_400)
     }
 }

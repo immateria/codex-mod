@@ -521,9 +521,6 @@ impl MemoriesSettingsView {
             .filter(|(_, line)| line.to_ascii_lowercase().contains(&lower))
             .map(|(idx, _)| idx)
             .collect();
-        if matches.is_empty() {
-            return None;
-        }
         Some(TextSearchState {
             query: query.to_owned(),
             matches,

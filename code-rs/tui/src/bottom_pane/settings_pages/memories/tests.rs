@@ -128,7 +128,7 @@ async fn header_shows_cached_snapshot_after_status_load() {
         .collect::<Vec<_>>()
         .join("\n");
     assert!(!rendered.contains("Memories status loading"));
-    assert!(rendered.contains("SQLite: present"));
+    assert!(rendered.contains("Database:"));
 }
 
 #[test]

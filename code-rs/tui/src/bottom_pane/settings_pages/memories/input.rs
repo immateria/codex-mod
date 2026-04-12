@@ -553,14 +553,13 @@ impl MemoriesSettingsView {
                     return false;
                 };
                 viewer.search = Self::execute_search(&viewer.lines, &query);
-                if let Some(ref search) = viewer.search {
+                if let Some(ref search) = viewer.search
+                    && let Some(&line) = search.matches.get(search.current)
+                {
                     let total = viewer.lines.len();
                     let visible = viewer.viewport_rows.get().max(1);
-                    let line = search.matches[search.current];
                     let scroll = line.saturating_sub(visible / 2).min(total.saturating_sub(visible));
                     viewer.scroll_top.set(scroll);
-                } else if !query.is_empty() {
-                    self.status = Some((format!("No matches for \"{query}\""), true));
                 }
                 self.mode = ViewMode::TextViewer(viewer);
                 true
