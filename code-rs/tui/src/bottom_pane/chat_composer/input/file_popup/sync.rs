@@ -1,6 +1,11 @@
 use super::*;
 
 pub(super) fn sync_file_search_popup(view: &mut ChatComposer) {
+    // Don't activate the file popup while browsing input history.
+    if view.history.is_browsing() {
+        return;
+    }
+
     // Determine if there is a token underneath the cursor worth completing.
     if let Some(query) = super::tokens::current_completion_token(&view.textarea) {
         if view.dismissed_file_popup_token.as_ref() == Some(&query) {

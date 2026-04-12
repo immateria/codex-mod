@@ -16,7 +16,9 @@ pub(super) fn sync_command_popup_inner(view: &mut ChatComposer) {
             }
         }
         _ => {
-            if input_starts_with_slash && in_slash_head {
+            // Don't activate the slash popup while browsing input history;
+            // the user is scrolling through past commands, not typing a new one.
+            if input_starts_with_slash && in_slash_head && !view.history.is_browsing() {
                 let mut command_popup = CommandPopup::new_with_filter(view.using_chatgpt_auth);
                 if !view.custom_prompts.is_empty() {
                     command_popup.set_prompts(view.custom_prompts.clone());
