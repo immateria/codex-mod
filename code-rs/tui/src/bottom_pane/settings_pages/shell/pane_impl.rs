@@ -64,6 +64,10 @@ impl<'a> BottomPaneView<'a> for ShellSelectionView {
         self.update_action_hover(area, mouse_pos)
     }
 
+    fn handle_paste(&mut self, text: String) -> ConditionalUpdate {
+        redraw_if(self.handle_paste_direct(text))
+    }
+
     fn is_complete(&self) -> bool {
         self.is_complete
     }

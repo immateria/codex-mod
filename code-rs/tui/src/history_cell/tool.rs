@@ -338,14 +338,17 @@ impl RunningToolCallCell {
             .iter()
             .find(|arg| arg.name == name)
             .and_then(|arg| match &arg.value {
-                ArgumentValue::Text(text) => Some(text.clone()),
+                ArgumentValue::Text(text) => {
+                    let trimmed = text.trim();
+                    (!trimmed.is_empty()).then(|| trimmed.to_owned())
+                }
                 ArgumentValue::Json(json) => {
-                    Some(format_json_value_compact(json))
+                    let formatted = format_json_value_compact(json);
+                    let trimmed = formatted.trim().to_owned();
+                    (!trimmed.is_empty()).then_some(trimmed)
                 }
                 ArgumentValue::Secret => None,
             })
-            .map(|text| text.trim().to_owned())
-            .filter(|text| !text.is_empty())
     }
 
     fn tool_argument_json(&self, name: &str) -> Option<Value> {

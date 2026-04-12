@@ -150,30 +150,31 @@ impl SkillsSettingsView {
     pub(super) fn handle_list_key(&mut self, key: KeyEvent) -> bool {
         let item_count = self.list_item_count();
         self.list_state.clamp_selection(item_count);
+        let vis = self.list_viewport_rows.get().max(1);
 
         match key.code {
-            KeyCode::Up => {
-                if let Some(selected) = self.list_state.selected_idx
-                    && selected > 0
-                {
-                    self.list_state.selected_idx = Some(selected.saturating_sub(1));
-                }
-                self.list_state.ensure_visible(
-                    item_count,
-                    self.list_viewport_rows.get().max(1),
-                );
+            KeyCode::Up | KeyCode::Char('k') => {
+                self.list_state.move_up_wrap_visible(item_count, vis);
                 true
             }
-            KeyCode::Down => {
-                if let Some(selected) = self.list_state.selected_idx
-                    && selected.saturating_add(1) < item_count
-                {
-                    self.list_state.selected_idx = Some(selected.saturating_add(1));
-                }
-                self.list_state.ensure_visible(
-                    item_count,
-                    self.list_viewport_rows.get().max(1),
-                );
+            KeyCode::Down | KeyCode::Char('j') => {
+                self.list_state.move_down_wrap_visible(item_count, vis);
+                true
+            }
+            KeyCode::Home => {
+                self.list_state.home(item_count);
+                true
+            }
+            KeyCode::End => {
+                self.list_state.end(item_count, vis);
+                true
+            }
+            KeyCode::PageUp => {
+                self.list_state.page_up(item_count, vis);
+                true
+            }
+            KeyCode::PageDown => {
+                self.list_state.page_down(item_count, vis);
                 true
             }
             _ => false,

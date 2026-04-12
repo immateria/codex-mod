@@ -237,7 +237,7 @@ impl SkillsSettingsView {
             .saturating_add(standard_button_strip_width(&buttons))
             .saturating_add(4);
         Paragraph::new(Line::from(Span::raw(
-            "Tab cycle - Enter activates - <-/-> mode - Ctrl+G generate",
+            "Tab cycle - Enter activates - Ctrl+S save - Ctrl+G generate",
         )))
         .render(
             Rect::new(

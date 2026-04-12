@@ -42,7 +42,7 @@ pub(super) fn handle_key_event_direct_inner(view: &mut SkillsSettingsView, key: 
                 true
             }
             KeyEvent {
-                code: KeyCode::Enter,
+                code: KeyCode::Enter | KeyCode::Char(' '),
                 modifiers: KeyModifiers::NONE,
                 ..
             } if matches!(
@@ -75,6 +75,14 @@ pub(super) fn handle_key_event_direct_inner(view: &mut SkillsSettingsView, key: 
                 ..
             } if modifiers.contains(KeyModifiers::CONTROL) => {
                 view.start_new_skill();
+                true
+            }
+            KeyEvent {
+                code: KeyCode::Char('s'),
+                modifiers,
+                ..
+            } if modifiers.contains(KeyModifiers::CONTROL) => {
+                view.save_current();
                 true
             }
             KeyEvent {

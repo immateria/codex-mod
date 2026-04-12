@@ -83,4 +83,18 @@ impl PromptsSettingsView {
         let visible = self.list_viewport_rows.get().max(1);
         self.list_state.ensure_visible(total, visible);
     }
+
+    pub(crate) fn handle_paste_direct(&mut self, text: String) -> bool {
+        match (&self.mode, &self.focus) {
+            (Mode::Edit, Focus::Name) => {
+                self.name_field.handle_paste(text);
+                true
+            }
+            (Mode::Edit, Focus::Body) => {
+                self.body_field.handle_paste(text);
+                true
+            }
+            _ => false,
+        }
+    }
 }

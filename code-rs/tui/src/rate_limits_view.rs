@@ -35,12 +35,14 @@ fn header_indent() -> &'static str {
     INDENTS.header
 }
 
-fn label_indent() -> String {
-    format!("{}{}", INDENTS.header, INDENTS.label_extra)
+fn label_indent() -> &'static str {
+    // Equivalent to format!("{}{}", INDENTS.header, INDENTS.label_extra) but
+    // both components are compile-time constants ("" + "   ").
+    INDENTS.label_extra
 }
 
-fn chart_indent() -> String {
-    CHART_LINE_PREFIX.to_owned()
+fn chart_indent() -> &'static str {
+    CHART_LINE_PREFIX
 }
 
 fn chart_indent_width() -> usize {
@@ -52,7 +54,9 @@ fn content_column_width() -> usize {
 }
 
 fn label_text(text: &str) -> String {
-    let mut result = label_indent();
+    let indent = label_indent();
+    let mut result = String::with_capacity(indent.len() + text.len());
+    result.push_str(indent);
     result.push_str(text);
     result
 }
@@ -755,7 +759,7 @@ fn build_legend_lines(show_gauge: bool) -> Vec<Line<'static>> {
     let indent = chart_indent();
     lines.push(Line::from(vec![
         Span::styled(
-            indent.clone(),
+            indent,
             Style::default().fg(colors::dim()),
         ),
         Span::styled(
@@ -771,7 +775,7 @@ fn build_legend_lines(show_gauge: bool) -> Vec<Line<'static>> {
     ]));
     lines.push(Line::from(vec![
         Span::styled(
-            indent.clone(),
+            indent,
             Style::default().fg(colors::dim()),
         ),
         Span::styled(
@@ -811,7 +815,7 @@ fn field_prefix(label: &str) -> String {
     let spaces = " ".repeat(padding);
     let indent = label_indent();
     let mut text = String::with_capacity(indent.len() + label.len() + 1 + spaces.len());
-    text.push_str(&indent);
+    text.push_str(indent);
     text.push_str(label);
     text.push(':');
     text.push_str(&spaces);
@@ -1023,7 +1027,7 @@ impl GridLayout {
         let desired_width = content_column_width();
         for row in 0..self.size {
             let mut spans: Vec<Span<'static>> = Vec::new();
-            spans.push(Span::raw(indent.clone()));
+            spans.push(Span::raw(indent));
             let padding = desired_width.saturating_sub(indent.len());
             spans.push(Span::raw(" ".repeat(padding)));
 

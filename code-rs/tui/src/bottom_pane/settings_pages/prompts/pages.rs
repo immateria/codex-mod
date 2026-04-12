@@ -53,6 +53,7 @@ impl PromptsSettingsView {
             status,
             &[
                 KeyHint::new(crate::bottom_pane::settings_ui::hints::key_tab(), " next"),
+                KeyHint::new(crate::bottom_pane::settings_ui::hints::key_ctrl("S"), " save"),
                 hint_enter(" activate"),
                 hint_esc(" back"),
             ],

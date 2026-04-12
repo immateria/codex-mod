@@ -50,7 +50,9 @@ impl PromptsSettingsView {
                     self.cycle_focus(false);
                     true
                 }
-                KeyEvent { code: KeyCode::Enter, modifiers: KeyModifiers::NONE, .. } => {
+                KeyEvent { code: KeyCode::Enter | KeyCode::Char(' '), modifiers: KeyModifiers::NONE, .. }
+                    if matches!(self.focus, Focus::Save | Focus::Delete | Focus::Cancel) =>
+                {
                     match self.focus {
                         Focus::Save => self.save_current(),
                         Focus::Delete => self.begin_confirm_delete(),
@@ -67,6 +69,12 @@ impl PromptsSettingsView {
                     if modifiers.contains(KeyModifiers::CONTROL) =>
                 {
                     self.start_new_prompt();
+                    true
+                }
+                KeyEvent { code: KeyCode::Char('s'), modifiers, .. }
+                    if modifiers.contains(KeyModifiers::CONTROL) =>
+                {
+                    self.save_current();
                     true
                 }
                 _ => match self.focus {

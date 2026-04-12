@@ -10,9 +10,15 @@ impl SubagentEditorView {
             KeyEvent {
                 code: KeyCode::Esc,
                 ..
+            } if self.confirm_delete => {
+                self.exit_confirm_delete();
+                true
+            }
+            KeyEvent {
+                code: KeyCode::Esc,
+                ..
             } => {
                 self.is_complete = true;
-                self.confirm_delete = false;
                 self.app_event_tx.send(AppEvent::ShowAgentsOverview);
                 true
             }
@@ -114,7 +120,7 @@ impl SubagentEditorView {
                 true
             }
             KeyEvent {
-                code: KeyCode::Enter,
+                code: KeyCode::Char(' ') | KeyCode::Enter,
                 modifiers: KeyModifiers::NONE,
                 ..
             } if self.focus == Focus::Save && !self.confirm_delete => {
@@ -123,7 +129,7 @@ impl SubagentEditorView {
                 true
             }
             KeyEvent {
-                code: KeyCode::Enter,
+                code: KeyCode::Char(' ') | KeyCode::Enter,
                 modifiers: KeyModifiers::NONE,
                 ..
             } if self.focus == Focus::Delete && !self.confirm_delete => {
@@ -131,7 +137,7 @@ impl SubagentEditorView {
                 true
             }
             KeyEvent {
-                code: KeyCode::Enter,
+                code: KeyCode::Char(' ') | KeyCode::Enter,
                 modifiers: KeyModifiers::NONE,
                 ..
             } if self.focus == Focus::Delete && self.confirm_delete => {
@@ -139,7 +145,7 @@ impl SubagentEditorView {
                 true
             }
             KeyEvent {
-                code: KeyCode::Enter,
+                code: KeyCode::Char(' ') | KeyCode::Enter,
                 modifiers: KeyModifiers::NONE,
                 ..
             } if self.focus == Focus::Cancel => {
