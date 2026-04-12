@@ -184,4 +184,21 @@ impl PluginsSettingsView {
                 refresh_list_after,
             });
     }
+
+    pub(crate) fn handle_paste_direct(&mut self, text: String) -> bool {
+        if let Mode::Sources(SourcesMode::EditMarketplaceRepo { .. } | SourcesMode::EditCurated) = &self.mode {
+            match self.sources_editor.selected_row {
+                0 => {
+                    self.sources_editor.url_field.handle_paste(text);
+                    return true;
+                }
+                1 => {
+                    self.sources_editor.ref_field.handle_paste(text);
+                    return true;
+                }
+                _ => {}
+            }
+        }
+        false
+    }
 }

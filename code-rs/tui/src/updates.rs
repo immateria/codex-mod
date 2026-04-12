@@ -342,7 +342,9 @@ impl AutoUpgradeLock {
             }
             Err(err) if err.kind() == ErrorKind::AlreadyExists => {
                 if Self::is_stale(&path)? {
-                    let _ = fs::remove_file(&path);
+                    if let Err(e) = fs::remove_file(&path) {
+                        tracing::debug!("failed to remove stale lock file: {e}");
+                    }
                     match fs::OpenOptions::new()
                         .write(true)
                         .create_new(true)

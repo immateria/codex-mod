@@ -66,6 +66,10 @@ impl<'a> BottomPaneView<'a> for ModelSelectionView {
         self.handle_mouse_event_direct_in_chrome(ChromeMode::Framed, mouse_event, area)
     }
 
+    fn handle_paste(&mut self, text: String) -> ConditionalUpdate {
+        redraw_if(self.handle_paste_direct(text))
+    }
+
     fn update_hover(&mut self, mouse_pos: (u16, u16), _area: Rect) -> bool {
         let _ = mouse_pos;
         false

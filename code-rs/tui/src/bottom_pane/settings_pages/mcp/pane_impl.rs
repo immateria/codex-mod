@@ -266,6 +266,15 @@ impl<'a> BottomPaneView<'a> for McpSettingsView {
         )
     }
 
+    fn handle_paste(&mut self, text: String) -> ConditionalUpdate {
+        let handled = match &mut self.mode {
+            McpSettingsMode::EditServerScheduling(editor) => editor.handle_paste(text),
+            McpSettingsMode::EditToolScheduling(editor) => editor.handle_paste(text),
+            McpSettingsMode::Main => false,
+        };
+        redraw_if(handled)
+    }
+
     fn is_complete(&self) -> bool {
         self.is_complete
     }

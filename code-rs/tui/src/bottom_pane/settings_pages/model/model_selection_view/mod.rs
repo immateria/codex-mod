@@ -74,4 +74,12 @@ impl ModelSelectionView {
     pub(crate) fn has_back_navigation(&self) -> bool {
         !matches!(self.mode, ViewMode::Main)
     }
+
+    pub(crate) fn handle_paste_direct(&mut self, text: String) -> bool {
+        if let ViewMode::Edit { field, .. } = &mut self.mode {
+            field.handle_paste(text);
+            return true;
+        }
+        false
+    }
 }

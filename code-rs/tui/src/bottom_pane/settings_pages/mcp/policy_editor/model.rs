@@ -245,6 +245,17 @@ impl ServerSchedulingEditor {
             max_queue_depth,
         })
     }
+
+    /// Paste text into the currently-editing field, if any.
+    pub(in crate::bottom_pane::settings_pages::mcp) fn handle_paste(&mut self, text: String) -> bool {
+        if let Some(row) = self.editing
+            && let Some(field) = self.field_mut_for_row(row)
+        {
+            field.handle_paste(text);
+            return true;
+        }
+        false
+    }
 }
 
 #[derive(Debug)]
@@ -430,5 +441,16 @@ impl ToolSchedulingEditor {
         } else {
             Ok(Some(cfg))
         }
+    }
+
+    /// Paste text into the currently-editing field, if any.
+    pub(in crate::bottom_pane::settings_pages::mcp) fn handle_paste(&mut self, text: String) -> bool {
+        if let Some(row) = self.editing
+            && let Some(field) = self.field_mut_for_row(row)
+        {
+            field.handle_paste(text);
+            return true;
+        }
+        false
     }
 }
