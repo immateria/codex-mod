@@ -132,11 +132,7 @@ crate::bottom_pane::chrome_view::impl_chrome_view!(MemoriesSettingsView);
 impl MemoriesSettingsView {
     pub(crate) fn handle_paste_direct(&mut self, text: String) -> bool {
         match &mut self.mode {
-            ViewMode::Edit { field, .. } => {
-                field.handle_paste(text);
-                true
-            }
-            ViewMode::SearchInput { field, .. } => {
+            ViewMode::Edit { field, .. } | ViewMode::SearchInput { field, .. } => {
                 field.handle_paste(text);
                 true
             }

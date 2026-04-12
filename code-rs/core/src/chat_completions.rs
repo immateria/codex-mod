@@ -220,10 +220,6 @@ pub(crate) async fn stream_chat_completions(
                     messages.push(json!({"role": role, "content": text}));
                 }
             }
-            ResponseItem::CompactionSummary { .. } => {
-                // Compaction summaries are only meaningful to the Responses API; omit them
-                // when translating to Chat Completions.
-            }
             ResponseItem::FunctionCall {
                 name,
                 arguments,
@@ -324,7 +320,8 @@ pub(crate) async fn stream_chat_completions(
                     "content": output,
                 }));
             }
-            ResponseItem::Reasoning { .. }
+            ResponseItem::CompactionSummary { .. }
+            | ResponseItem::Reasoning { .. }
             | ResponseItem::WebSearchCall { .. }
             | ResponseItem::ImageGenerationCall { .. }
             | ResponseItem::GhostSnapshot { .. }
