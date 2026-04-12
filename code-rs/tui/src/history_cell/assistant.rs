@@ -70,8 +70,8 @@ impl AssistantMarkdownCell {
     ) {
         self.state = state;
         self.file_opener = cfg.file_opener;
-        self.cwd = cfg.cwd.clone();
-        self.model_name = cfg.model.clone();
+        self.cwd.clone_from(&cfg.cwd);
+        self.model_name.clone_from(&cfg.model);
         self.layout_cache.borrow_mut().clear();
         self.rendered_lines_cache.borrow_mut().take();
     }

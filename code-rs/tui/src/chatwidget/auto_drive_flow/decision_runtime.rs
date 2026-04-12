@@ -55,7 +55,7 @@ impl ChatWidget<'_> {
         let cli_context = Self::normalize_status_field(cli_context_raw);
         let cli_prompt = cli.as_ref().map(|action| action.prompt.clone());
 
-        self.auto_state.current_cli_prompt = cli_prompt.clone();
+        self.auto_state.current_cli_prompt.clone_from(&cli_prompt);
         self.auto_state.current_cli_context = cli_context;
         self.auto_state.hide_cli_context_in_ui = planning_turn;
         self.auto_state.suppress_next_cli_display = planning_turn;

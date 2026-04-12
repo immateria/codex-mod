@@ -82,7 +82,7 @@ impl LoginAccountsState {
             if let Some(value) = accounts.get("write_path").and_then(|value| value.as_str()) {
                 let trimmed = value.trim();
                 if !trimmed.is_empty() {
-                    write_path = trimmed.to_owned();
+                    trimmed.clone_into(&mut write_path);
                 }
             }
         }

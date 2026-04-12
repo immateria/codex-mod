@@ -128,7 +128,7 @@ impl ChatWidget<'_> {
         environment: Option<String>,
         tasks: Vec<TaskSummary>,
     ) {
-        self.cloud_tasks_last_tasks = tasks.clone();
+        self.cloud_tasks_last_tasks.clone_from(&tasks);
         let env_label = match environment {
             Some(ref id) => self
                 .cloud_tasks_selected_env
@@ -180,7 +180,7 @@ impl ChatWidget<'_> {
             self.show_cloud_tasks_error("No environments available".to_owned());
             return;
         }
-        self.cloud_tasks_environments = environments.clone();
+        self.cloud_tasks_environments.clone_from(&environments);
 
         let mut items: Vec<SelectionItem> = Vec::with_capacity(environments.len() + 1);
         items.push(SelectionItem {
@@ -227,7 +227,7 @@ impl ChatWidget<'_> {
     }
 
     pub(crate) fn set_cloud_environment(&mut self, environment: Option<CloudEnvironment>) {
-        self.cloud_tasks_selected_env = environment.clone();
+        self.cloud_tasks_selected_env.clone_from(&environment);
         let label = environment
             .as_ref().map_or_else(|| "All environments".to_owned(), |env| self.display_name_for_env(env));
         self.bottom_pane

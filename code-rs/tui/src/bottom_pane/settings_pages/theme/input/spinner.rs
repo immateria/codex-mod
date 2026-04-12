@@ -51,7 +51,7 @@ impl ThemeSelectionView {
         }
         self.selected_spinner_index = next;
         if let Some(name) = names.get(next) {
-            self.current_spinner = name.clone();
+            self.current_spinner.clone_from(name);
             self.app_event_tx
                 .send(AppEvent::PreviewSpinner(self.current_spinner.clone()));
         }

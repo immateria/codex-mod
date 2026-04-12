@@ -344,8 +344,8 @@ pub(in super::super) fn finalize_wait_missing_exec(
         history_id = chat.history_state.history_id_for_exec_call(call_id.as_ref());
         if let Some(id) = history_id {
             if let Some(HistoryRecord::Exec(record)) = chat.history_state.record(id).cloned() {
-                command = record.command.clone();
-                parsed = record.parsed.clone();
+                command.clone_from(&record.command);
+                parsed.clone_from(&record.parsed);
                 wait_total = record.wait_total;
                 wait_notes_pairs = ChatWidget::wait_pairs_from_exec_notes(&record.wait_notes);
             }

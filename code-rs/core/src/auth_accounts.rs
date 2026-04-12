@@ -594,7 +594,7 @@ pub fn set_active_account_id(
     let storage = accounts_storage(code_home);
     let mut data = storage.load()?;
 
-    data.active_account_id = account_id.clone();
+    data.active_account_id.clone_from(&account_id);
 
     let updated = account_id.and_then(|id| {
         data.accounts

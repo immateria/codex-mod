@@ -40,7 +40,7 @@ impl App<'_> {
         )?;
 
         // Preserve CLI-only overrides that don't flow through `ConfigOverrides`.
-        config.demo_developer_message = self.config.demo_developer_message.clone();
+        config.demo_developer_message.clone_from(&self.config.demo_developer_message);
 
         Ok(config)
     }

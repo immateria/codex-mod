@@ -817,10 +817,10 @@ pub(crate) async fn handle_container_exec_with_params(
             if let Some(src_macos) = src.macos.as_ref() {
                 let macos = dst.macos.get_or_insert_with(Default::default);
                 if src_macos.preferences.is_some() {
-                    macos.preferences = src_macos.preferences.clone();
+                    macos.preferences.clone_from(&src_macos.preferences);
                 }
                 if src_macos.automations.is_some() {
-                    macos.automations = src_macos.automations.clone();
+                    macos.automations.clone_from(&src_macos.automations);
                 }
                 if src_macos.accessibility.unwrap_or(false) {
                     macos.accessibility = Some(true);
@@ -1138,7 +1138,7 @@ pub(crate) async fn handle_container_exec_with_params(
                 if trimmed.is_empty() {
                     argv.remove(0);
                 } else {
-                    argv[0] = trimmed.to_owned();
+                    trimmed.clone_into(&mut argv[0]);
                 }
                 return true;
             }

@@ -1592,7 +1592,7 @@ fn apply_model_selection(config: &mut Config, model: &str, effort: ReasoningEffo
         clamp_reasoning_effort_for_model(model, requested_effort).into();
 
     let model_changed = if !config.model.eq_ignore_ascii_case(model) {
-        config.model = model.to_owned();
+        model.clone_into(&mut config.model);
         config.model_family = find_family_for_model(&config.model)
             .unwrap_or_else(|| derive_default_model_family(&config.model));
         true

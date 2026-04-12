@@ -213,7 +213,7 @@ impl ChatWidget<'_> {
         if self.active_plan_title == title {
             return;
         }
-        self.active_plan_title = title.clone();
+        self.active_plan_title.clone_from(&title);
         self.app_event_tx
             .send(AppEvent::SetTerminalTitle { title });
     }

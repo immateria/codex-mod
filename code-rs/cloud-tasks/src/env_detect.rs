@@ -287,7 +287,7 @@ pub async fn list_environments(
                                 });
                         // Merge: keep label if present, or use new; accumulate pinned flag
                         if entry.label.is_none() {
-                            entry.label = e.label.clone();
+                            entry.label.clone_from(&e.label);
                         }
                         entry.is_pinned = entry.is_pinned || e.is_pinned.unwrap_or(false);
                         if entry.repo_hints.is_none() {
@@ -324,7 +324,7 @@ pub async fn list_environments(
                         repo_hints: None,
                     });
                 if entry.label.is_none() {
-                    entry.label = e.label.clone();
+                    entry.label.clone_from(&e.label);
                 }
                 entry.is_pinned = entry.is_pinned || e.is_pinned.unwrap_or(false);
             }

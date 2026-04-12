@@ -45,7 +45,7 @@ fn generate_branch_id(model: &str, agent: &str) -> String {
         suffix_s.truncate(40);
         suffix_s = suffix_s.trim_matches('-').to_owned();
         if suffix_s.is_empty() {
-            suffix_s = "agent".to_owned();
+            "agent".clone_into(&mut suffix_s);
         }
     }
 

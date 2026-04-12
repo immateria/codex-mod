@@ -12,7 +12,7 @@ pub(crate) fn safe_path_component(value: &str, fallback: &str) -> String {
     if slug.is_empty() || slug == "." || slug == ".." {
         slug = build_slug(fallback, MAX_SLUG_LEN);
         if slug.is_empty() || slug == "." || slug == ".." {
-            slug = "id".to_owned();
+            "id".clone_into(&mut slug);
         }
     }
 

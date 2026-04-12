@@ -130,7 +130,7 @@ impl RoutingEditorState {
                 model_cursor = found;
             }
             enabled = existing.enabled;
-            description = existing.description.clone();
+            description.clone_from(&existing.description);
         } else if let Some(high_idx) = ROUTING_REASONING_LEVELS
             .iter()
             .position(|level| *level == ReasoningEffort::High)

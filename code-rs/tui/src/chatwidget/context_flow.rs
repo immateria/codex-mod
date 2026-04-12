@@ -28,7 +28,7 @@ impl ChatWidget<'_> {
         if is_baseline {
             summary.deltas.clear();
         } else if let Some(prev) = previous.as_ref() {
-            summary.deltas = prev.deltas.clone();
+            summary.deltas.clone_from(&prev.deltas);
             for delta in Self::compute_context_deltas(prev, &summary, sequence) {
                 Self::push_context_delta(&mut summary.deltas, delta);
             }
@@ -357,11 +357,11 @@ impl ChatWidget<'_> {
         }
 
         if record.url.is_none() {
-            record.url = payload.url.clone();
+            record.url.clone_from(&payload.url);
         }
 
         if record.captured_at.is_none() {
-            record.captured_at = payload.captured_at.clone();
+            record.captured_at.clone_from(&payload.captured_at);
         }
 
         record

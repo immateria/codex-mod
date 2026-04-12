@@ -77,7 +77,7 @@ pub fn generate_branch_name_from_task(task: Option<&str>) -> String {
             if slug.len() > 48 {
                 slug.truncate(48);
                 slug = slug.trim_matches('-').to_owned();
-                if slug.is_empty() { slug = "branch".to_owned(); }
+                if slug.is_empty() { "branch".clone_into(&mut slug); }
             }
             return format!("code-branch-{slug}");
         }

@@ -247,7 +247,7 @@ impl RemoteModelsManager {
         {
             let mut state = self.state.write().await;
             state.models = parsed.models;
-            state.etag = etag.clone();
+            state.etag.clone_from(&etag);
             state.fetched_at = Some(fetched_at);
         }
 

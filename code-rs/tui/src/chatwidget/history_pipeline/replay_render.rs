@@ -134,7 +134,7 @@ impl ChatWidget<'_> {
                 let mut metadata_summary = String::new();
                 if let Ok(v) = serde_json::from_str::<JsonValue>(&content) {
                     if let Some(s) = v.get("output").and_then(|x| x.as_str()) {
-                        content = s.to_owned();
+                        s.clone_into(&mut content);
                     }
                     if let Some(meta) = v.get("metadata").and_then(|m| m.as_object()) {
                         let mut parts = Vec::new();

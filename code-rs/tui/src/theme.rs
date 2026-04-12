@@ -109,7 +109,7 @@ pub(crate) fn init_theme(config: &ThemeConfig) {
     *write_lock(&CURRENT_THEME_NAME) = mapped_name;
     // Track custom theme label for UI display
     if matches!(config.name, ThemeName::Custom) {
-        *write_lock(&CUSTOM_THEME_LABEL) = config.label.clone();
+        (*write_lock(&CUSTOM_THEME_LABEL)).clone_from(&config.label);
         *write_lock(&CUSTOM_THEME_COLORS) = Some(config.colors.clone());
         *write_lock(&CUSTOM_THEME_IS_DARK) = config.is_dark;
     }

@@ -105,8 +105,8 @@ pub(in super::super::super) fn handle_exec_end_now(
 
         if let Some(id) = history_id
             && let Some(HistoryRecord::Exec(record)) = chat.history_state.record(id).cloned() {
-                command = record.command.clone();
-                parsed = record.parsed.clone();
+                command.clone_from(&record.command);
+                parsed.clone_from(&record.parsed);
                 wait_total = record.wait_total;
                 wait_notes_pairs = ChatWidget::wait_pairs_from_exec_notes(&record.wait_notes);
                 streamed_stdout = stream_chunks_to_text(&record.stdout_chunks);
@@ -133,8 +133,8 @@ pub(in super::super::super) fn handle_exec_end_now(
             {
                 history_index = Some(idx);
                 history_id = chat.history_cell_ids.get(idx).and_then(|slot| *slot);
-                command = exec_cell.command.clone();
-                parsed = exec_cell.parsed.clone();
+                command.clone_from(&exec_cell.command);
+                parsed.clone_from(&exec_cell.parsed);
                 wait_total = exec_cell.record.wait_total;
                 wait_notes_pairs = ChatWidget::wait_pairs_from_exec_notes(&exec_cell.record.wait_notes);
                 streamed_stdout = stream_chunks_to_text(&exec_cell.record.stdout_chunks);

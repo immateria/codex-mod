@@ -261,8 +261,8 @@ impl DiffOverlay {
             return;
         };
 
-        self.diff_lines = diff_lines.clone();
-        self.text_lines = text_lines.clone();
+        self.diff_lines.clone_from(&diff_lines);
+        self.text_lines.clone_from(&text_lines);
         self.prompt = prompt;
 
         match self.current_view {

@@ -1910,7 +1910,7 @@ fn run_auto_loop(inputs: AutoLoopInputs) -> Result<()> {
     } = inputs;
     let mut config = config;
     if config.model.trim().is_empty() {
-        config.model = MODEL_SLUG.to_owned();
+        MODEL_SLUG.clone_into(&mut config.model);
     }
     if matches!(config.model_reasoning_effort, ReasoningEffort::None) {
         config.model_reasoning_effort = ReasoningEffort::High;
@@ -3108,7 +3108,7 @@ fn request_decision(
                 );
                 let original_error = err.to_string();
                 let mut fallback_request = request;
-                fallback_request.model_slug = fallback_slug.clone();
+                fallback_request.model_slug.clone_from(&fallback_slug);
                 return request_decision_with_model(fallback_request)
                 .map_err(|fallback_err| {
                     fallback_err.context(format!(
@@ -3195,7 +3195,7 @@ fn request_decision_with_model(
             if let Some(fallback_model) = spark_fallback_model(&active_model) {
                 did_usage_limit_model_fallback = true;
                 if let Ok(mut guard) = selected_model_for_retry.lock() {
-                    *guard = fallback_model.to_owned();
+                    fallback_model.clone_into(&mut *guard);
                 }
                 event_tx.send(AutoCoordinatorEvent::Action {
                     message: format!(

@@ -447,7 +447,8 @@ impl AutoDriveCardCell {
                 if !current.is_empty() {
                     rows.push(current);
                 }
-                current = word.to_owned();
+                #[allow(clippy::assigning_clones)]
+                { current = word.to_owned(); }
                 current_width = word_width;
             } else {
                 if separator_width > 0 {

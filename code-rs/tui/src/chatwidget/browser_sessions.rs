@@ -552,7 +552,7 @@ fn summarize_action(
                 .map(ToString::to_string);
         }
         "browser_close" => {
-            summary.action = "Close".to_owned();
+            "Close".clone_into(&mut summary.action);
         }
         _ => {
             summary.target = params

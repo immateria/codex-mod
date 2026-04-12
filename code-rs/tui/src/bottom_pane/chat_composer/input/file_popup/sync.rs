@@ -41,7 +41,7 @@ pub(super) fn sync_file_search_popup(view: &mut ChatComposer) {
                     view.file_popup_origin = None;
                     view.current_file_query = None;
                 } else if *token != generic {
-                    *token = generic.clone();
+                    token.clone_from(&generic);
                     super::popup::ensure_file_popup(view).set_query(&generic);
                     view.current_file_query = Some(generic.clone());
                     view.app_event_tx

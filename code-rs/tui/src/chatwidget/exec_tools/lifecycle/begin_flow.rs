@@ -26,8 +26,8 @@ fn try_upgrade_fallback_exec_cell(
                 if let Some(HistoryRecord::Exec(mut exec_record)) =
                     history_record_for_cell(chat, i)
                 {
-                    exec_record.command = ev.command.clone();
-                    exec_record.parsed = ev.parsed_cmd.clone();
+                    exec_record.command.clone_from(&ev.command);
+                    exec_record.parsed.clone_from(&ev.parsed_cmd);
                     exec_record.action = history_cell::action_enum_from_parsed(&exec_record.parsed);
                     exec_record.call_id = Some(ev.call_id.clone());
                     if exec_record.working_dir.is_none() {
@@ -92,10 +92,10 @@ fn hydrate_exec_record_from_begin(
 ) -> bool {
     let mut changed = record.command != ev.command;
     if changed {
-        record.command = ev.command.clone();
+        record.command.clone_from(&ev.command);
     }
     if record.parsed != ev.parsed_cmd {
-        record.parsed = ev.parsed_cmd.clone();
+        record.parsed.clone_from(&ev.parsed_cmd);
         changed = true;
     }
     let new_action = history_cell::action_enum_from_parsed(&record.parsed);
@@ -163,7 +163,7 @@ fn apply_exec_begin_metadata_to_finished_call(
 
             if let Some(idx) = chat.cell_index_for_history_id(history_id) {
                 let mut cell = history_cell::ExecCell::from_record(exec_record.clone());
-                cell.parent_call_id = ev.parent_call_id.clone();
+                cell.parent_call_id.clone_from(&ev.parent_call_id);
                 chat.history_replace_with_record(
                     idx,
                     Box::new(cell),
@@ -458,7 +458,7 @@ pub(in super::super::super) fn handle_exec_begin_now(
     let key = chat.provider_order_key_from_order_meta(order);
     let history_idx = if let Some(idx) = upgraded_tool_idx {
         let mut replacement = history_cell::ExecCell::from_record(exec_record.clone());
-        replacement.parent_call_id = ev.parent_call_id.clone();
+        replacement.parent_call_id.clone_from(&ev.parent_call_id);
         chat.history_replace_with_record(
             idx,
             Box::new(replacement),
@@ -479,7 +479,7 @@ pub(in super::super::super) fn handle_exec_begin_now(
         idx
     } else {
         let mut cell = history_cell::ExecCell::from_record(exec_record.clone());
-        cell.parent_call_id = ev.parent_call_id.clone();
+        cell.parent_call_id.clone_from(&ev.parent_call_id);
         chat.history_insert_with_key_global_tagged(
             Box::new(cell),
             key,

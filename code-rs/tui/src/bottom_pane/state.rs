@@ -50,7 +50,7 @@ impl<'a> BottomPane<'a> {
     }
 
     pub(crate) fn set_custom_prompts(&mut self, prompts: Vec<CustomPrompt>) {
-        self.custom_prompts = prompts.clone();
+        self.custom_prompts.clone_from(&prompts);
         self.composer.set_custom_prompts(prompts);
     }
 

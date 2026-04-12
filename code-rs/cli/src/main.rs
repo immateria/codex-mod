@@ -1830,7 +1830,7 @@ async fn preview_main(args: PreviewArgs) -> anyhow::Result<()> {
                     if tag == base {
                         if max_n < 1 {
                             max_n = 1;
-                            latest = base.clone();
+                            latest.clone_from(&base);
                         }
                     } else if let Some(c) = re.captures(tag) {
                         let n: u64 = c

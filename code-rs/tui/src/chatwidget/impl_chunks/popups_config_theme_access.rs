@@ -582,7 +582,7 @@ impl ChatWidget<'_> {
 
     pub(crate) fn set_spinner(&mut self, spinner_name: String) {
         // Update the config
-        self.config.tui.spinner.name = spinner_name.clone();
+        self.config.tui.spinner.name.clone_from(&spinner_name);
         // Persist selection to config file
         if let Ok(home) = code_core::config::find_code_home() {
             if let Err(e) = code_core::config::set_tui_spinner_name(&home, &spinner_name) {

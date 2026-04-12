@@ -161,7 +161,7 @@ pub(super) async fn try_run_turn(
                     );
                     let limits = state.latest_rate_limits.clone();
                     let emit = info.is_some() || limits.is_some();
-                    state.token_usage_info = info.clone();
+                    state.token_usage_info.clone_from(&info);
                     new_info = info;
                     rate_limits = limits;
                     should_emit = emit;

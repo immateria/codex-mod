@@ -102,7 +102,7 @@ pub(crate) fn switch_spinner(name: &str) {
     if ALL_SPINNERS.is_empty() { return; }
     let raw = name.trim();
     // Update the canonical current name (custom or built‑in)
-    *write_lock(&CURRENT_NAME) = raw.to_owned();
+    raw.clone_into(&mut write_lock(&CURRENT_NAME));
     // Keep CURRENT_INDEX aligned when the name is an all‑spinners entry (for fallbacks)
     let mut idx = ALL_SPINNERS.iter().position(|s| s.name == raw);
     if idx.is_none() {

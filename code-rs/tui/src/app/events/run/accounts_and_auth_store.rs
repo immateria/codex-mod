@@ -728,7 +728,7 @@
                 }
                 AppEvent::SwitchCwd(new_cwd, initial_prompt) => {
                     let target = new_cwd.clone();
-                    self.config.cwd = target.clone();
+                    self.config.cwd.clone_from(&target);
                     if let AppState::Chat { widget } = &mut self.app_state {
                         widget.switch_cwd(target, initial_prompt);
                     }
@@ -855,7 +855,7 @@
                     }
                 }
                 AppEvent::UpdateShellStyleProfiles { shell_style_profiles } => {
-                    self.config.shell_style_profiles = shell_style_profiles.clone();
+                    self.config.shell_style_profiles.clone_from(&shell_style_profiles);
                     if let AppState::Chat { widget } = &mut self.app_state {
                         widget.apply_shell_style_profiles(shell_style_profiles);
                     }

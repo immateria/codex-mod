@@ -299,7 +299,7 @@ impl ChatWidget<'_> {
         } else {
             format!(">> Code review started: {hint} <<")
         };
-        self.active_review_hint = review_request.user_facing_hint.clone();
+        self.active_review_hint.clone_from(&review_request.user_facing_hint);
         self.active_review_prompt = Some(review_request.prompt.clone());
         self.push_background_before_next_output(banner);
 

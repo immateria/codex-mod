@@ -299,7 +299,7 @@ impl ChatWidget<'_> {
                 }
                 if state.branch.is_empty()
                     && let Some(batch) = agent.batch_id.as_ref() {
-                        state.branch = batch.clone();
+                        state.branch.clone_from(batch);
                     }
             }
 

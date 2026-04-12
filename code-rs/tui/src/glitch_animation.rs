@@ -365,7 +365,8 @@ fn wrap_brand_for_block(text: &str, max_chars: usize) -> Vec<String> {
             current.push_str(token);
         } else {
             lines.push(current);
-            current = token.to_owned();
+            #[allow(clippy::assigning_clones)]
+            { current = token.to_owned(); }
         }
     }
     if !current.is_empty() {
@@ -415,7 +416,7 @@ fn render_brand_text_lines(brand_title: &str, max_width: usize, max_rows: usize)
             current = candidate;
         } else {
             lines.push(center_line(&current, max_width));
-            current = word.to_owned();
+            word.clone_into(&mut current);
             if lines.len() >= max_rows {
                 break;
             }

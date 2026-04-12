@@ -94,7 +94,7 @@ impl CommandPopup {
 
             // Update the filter keeping the original case (commands are all
             // lower-case for now but this may change in the future).
-            self.command_filter = cmd_token.to_owned();
+            cmd_token.clone_into(&mut self.command_filter);
         } else {
             // The composer no longer starts with '/'. Reset the filter so the
             // popup shows the *full* command list if it is still displayed

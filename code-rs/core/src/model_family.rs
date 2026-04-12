@@ -240,7 +240,7 @@ pub fn find_family_for_model(slug: &str) -> Option<ModelFamily> {
     if let Some(suffix) = namespaced_model_suffix(slug)
         && let Some(mut family) = find_family_for_model(suffix)
     {
-        family.slug = slug.to_owned();
+        slug.clone_into(&mut family.slug);
         return Some(family);
     }
 

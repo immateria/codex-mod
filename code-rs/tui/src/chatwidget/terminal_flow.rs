@@ -193,7 +193,7 @@ impl ChatWidget<'_> {
                 match &action {
                     PendingCommandAction::Forwarded(command)
                     | PendingCommandAction::Manual(command) => {
-                        overlay.command_display = command.clone();
+                        overlay.command_display.clone_from(command);
                     }
                 }
                 self.request_redraw();

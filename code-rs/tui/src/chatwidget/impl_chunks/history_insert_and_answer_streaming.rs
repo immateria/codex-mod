@@ -260,7 +260,7 @@ impl ChatWidget<'_> {
         }
         let mut stream_id_string = stream_id.map_or_else(|| "stream-preview".to_owned(), str::to_owned);
         if stream_id_string.is_empty() {
-            stream_id_string = "stream-preview".to_owned();
+            "stream-preview".clone_into(&mut stream_id_string);
         }
         AssistantStreamState {
             id: HistoryId::ZERO,
@@ -605,7 +605,7 @@ impl ChatWidget<'_> {
 
         if !citations.is_empty() {
             if let Some(meta) = metadata.as_mut() {
-                meta.citations = citations.clone();
+                meta.citations.clone_from(&citations);
             } else {
                 metadata = Some(MessageMetadata {
                     citations: citations.clone(),
@@ -848,7 +848,7 @@ impl ChatWidget<'_> {
 
             let cell = history_cell::AssistantMarkdownCell::from_state(state, &self.config);
             self.history_insert_existing_record(Box::new(cell), key, "answer-review", history_id);
-            self.last_answer_stream_id_in_turn = id.clone();
+            self.last_answer_stream_id_in_turn.clone_from(&id);
             self.last_answer_history_id_in_turn = Some(history_id);
             // Advance Auto Drive after the assistant message has been finalized.
             self.auto_on_assistant_final();
@@ -932,7 +932,7 @@ impl ChatWidget<'_> {
                     .insert(StreamId(want.clone()));
             }
             self.autoscroll_if_near_bottom();
-            self.last_answer_stream_id_in_turn = id.clone();
+            self.last_answer_stream_id_in_turn.clone_from(&id);
             self.last_answer_history_id_in_turn = Some(history_id);
             // Final cell committed via replacement; now advance Auto Drive.
             self.auto_on_assistant_final();
@@ -974,7 +974,7 @@ impl ChatWidget<'_> {
                     .closed_answer_ids
                     .insert(StreamId(want.clone()));
                 self.autoscroll_if_near_bottom();
-                self.last_answer_stream_id_in_turn = id.clone();
+                self.last_answer_stream_id_in_turn.clone_from(&id);
                 self.last_answer_history_id_in_turn = Some(history_id);
                 // Final cell replaced in-place; advance Auto Drive now.
                 self.auto_on_assistant_final();
@@ -1026,7 +1026,7 @@ impl ChatWidget<'_> {
                 let cell = history_cell::AssistantMarkdownCell::from_state(state, &self.config);
                 self.history_replace_at(idx, Box::new(cell));
                 self.autoscroll_if_near_bottom();
-                self.last_answer_stream_id_in_turn = id.clone();
+                self.last_answer_stream_id_in_turn.clone_from(&id);
                 self.last_answer_history_id_in_turn = Some(history_id);
                 // Final assistant content revised; advance Auto Drive now.
                 self.auto_on_assistant_final();
@@ -1085,7 +1085,7 @@ impl ChatWidget<'_> {
                 .closed_answer_ids
                 .insert(StreamId(want.clone()));
         }
-        self.last_answer_stream_id_in_turn = id.clone();
+        self.last_answer_stream_id_in_turn.clone_from(&id);
         self.last_answer_history_id_in_turn = Some(history_id);
         // Ordered insert completed; advance Auto Drive now that the assistant
         // message is present in history.

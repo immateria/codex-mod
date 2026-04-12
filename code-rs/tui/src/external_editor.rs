@@ -51,7 +51,7 @@ pub(crate) fn run_editor(initial: &str) -> Result<String, ExternalEditorError> {
             *arg = arg.replace("{file}", &path_str);
             replaced = true;
         } else if arg == "{}" {
-            *arg = path_str.clone();
+            arg.clone_from(&path_str);
             replaced = true;
         }
     }

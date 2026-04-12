@@ -63,20 +63,20 @@ pub(super) fn update_mappings(
     if key != original_key {
         for stored in chat.tools_state.agent_run_by_order.values_mut() {
             if *stored == original_key {
-                *stored = key.clone();
+                stored.clone_from(&key);
             }
         }
         if let Some(batch) = tracker.batch_id.as_ref()
             && let Some(stored) = chat.tools_state.agent_run_by_batch.get_mut(batch)
             && *stored == original_key
         {
-            *stored = key.clone();
+            stored.clone_from(&key);
         }
         for agent_id in &tracker.agent_ids {
             if let Some(stored) = chat.tools_state.agent_run_by_agent.get_mut(agent_id)
                 && *stored == original_key
             {
-                *stored = key.clone();
+                stored.clone_from(&key);
             }
         }
         for cid in &tracker.call_ids {

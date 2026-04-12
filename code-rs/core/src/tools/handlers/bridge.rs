@@ -92,7 +92,7 @@ async fn handle_code_bridge_with_cwd(
             let mut sub = get_effective_subscription();
             sub.levels = vec![level];
             sub.capabilities = full_capabilities();
-            sub.llm_filter = "off".to_owned();
+            "off".clone_into(&mut sub.llm_filter);
 
             set_session_subscription(Some(sub.clone()));
             if let Err(e) = persist_workspace_subscription(cwd, Some(sub.clone())) {

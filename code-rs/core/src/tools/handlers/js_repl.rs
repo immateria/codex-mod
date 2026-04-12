@@ -109,7 +109,7 @@ fn parse_freeform_args(input: &str) -> Result<crate::tools::js_repl::JsReplArgs,
     }
 
     reject_json_or_quoted_source(rest)?;
-    args.code = rest.to_owned();
+    rest.clone_into(&mut args.code);
     args.timeout_ms = timeout_ms;
     args.runtime = runtime;
     Ok(args)

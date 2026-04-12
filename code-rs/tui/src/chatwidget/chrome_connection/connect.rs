@@ -142,7 +142,7 @@ impl ChatWidget<'_> {
                         {
                             let mut cfg = browser_manager.config.write().await;
                             cfg.connect_ws = None;
-                            cfg.connect_host = host.clone();
+                            cfg.connect_host.clone_from(&host);
                             cfg.connect_port = Some(port_to_keep.unwrap_or(0));
                         }
 

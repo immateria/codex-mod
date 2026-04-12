@@ -89,7 +89,7 @@ impl FileSearchPopup {
             return; // stale
         }
 
-        self.display_query = query.to_owned();
+        query.clone_into(&mut self.display_query);
         self.matches = matches;
         self.waiting = false;
         let len = self.matches.len();

@@ -798,7 +798,7 @@ async fn build_turn_status_items_v2(sess: &Session) -> Vec<ResponseItem> {
                     .unwrap_or_else(|_| "1970-01-01T00:00:00Z".to_owned());
 
                 let mut snapshot = BrowserSnapshot::new(url.clone(), captured_at);
-                snapshot.title = title.clone();
+                snapshot.title.clone_from(&title);
                 snapshot.viewport = viewport;
                 if !metadata.is_empty() {
                     snapshot.metadata = Some(metadata);

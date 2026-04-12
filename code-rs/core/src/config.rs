@@ -1415,18 +1415,18 @@ impl NetworkProxySettingsToml {
     pub(crate) fn to_network_proxy_config(&self) -> code_network_proxy::NetworkProxyConfig {
         let mut cfg = code_network_proxy::NetworkProxyConfig::default();
         cfg.network.enabled = self.enabled;
-        cfg.network.proxy_url = self.proxy_url.clone();
-        cfg.network.admin_url = self.admin_url.clone();
+        cfg.network.proxy_url.clone_from(&self.proxy_url);
+        cfg.network.admin_url.clone_from(&self.admin_url);
         cfg.network.enable_socks5 = self.enable_socks5;
-        cfg.network.socks_url = self.socks_url.clone();
+        cfg.network.socks_url.clone_from(&self.socks_url);
         cfg.network.enable_socks5_udp = self.enable_socks5_udp;
         cfg.network.allow_upstream_proxy = self.allow_upstream_proxy;
         cfg.network.dangerously_allow_non_loopback_proxy = self.dangerously_allow_non_loopback_proxy;
         cfg.network.dangerously_allow_non_loopback_admin = self.dangerously_allow_non_loopback_admin;
         cfg.network.mode = self.mode.to_proxy_mode();
-        cfg.network.allowed_domains = self.allowed_domains.clone();
-        cfg.network.denied_domains = self.denied_domains.clone();
-        cfg.network.allow_unix_sockets = self.allow_unix_sockets.clone();
+        cfg.network.allowed_domains.clone_from(&self.allowed_domains);
+        cfg.network.denied_domains.clone_from(&self.denied_domains);
+        cfg.network.allow_unix_sockets.clone_from(&self.allow_unix_sockets);
         cfg.network.allow_local_binding = self.allow_local_binding;
         cfg
     }
@@ -2143,7 +2143,7 @@ impl Config {
             .unwrap_or_else(|| {
                 let mut defaults = AutoDriveSettings::default();
                 if using_chatgpt_auth {
-                    defaults.model = GPT_5_CODEX_MEDIUM_MODEL.to_owned();
+                    GPT_5_CODEX_MEDIUM_MODEL.clone_into(&mut defaults.model);
                     defaults.model_reasoning_effort = ReasoningEffort::XHigh;
                 }
                 defaults
@@ -2175,7 +2175,7 @@ impl Config {
             first_entry.enabled = true;
         }
         if auto_drive_use_chat_model {
-            auto_drive.model = model.clone();
+            auto_drive.model.clone_from(&model);
             auto_drive.model_reasoning_effort = chat_reasoning_effort;
         }
 

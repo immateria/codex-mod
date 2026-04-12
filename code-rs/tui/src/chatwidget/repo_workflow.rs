@@ -449,7 +449,7 @@ impl ChatWidget<'_> {
         initial_prompt: Option<String>,
     ) {
         let previous_cwd = self.config.cwd.clone();
-        self.config.cwd = new_cwd.clone();
+        self.config.cwd.clone_from(&new_cwd);
         remember_cwd_history(&self.config.cwd);
         let ticket = self.make_background_tail_ticket();
 

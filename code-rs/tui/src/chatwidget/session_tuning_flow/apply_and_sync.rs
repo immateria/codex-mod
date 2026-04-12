@@ -61,7 +61,7 @@ impl ChatWidget<'_> {
         }
 
         let model_changed = if !self.config.model.eq_ignore_ascii_case(trimmed) {
-            self.config.model = trimmed.to_owned();
+            trimmed.clone_into(&mut self.config.model);
             let family = find_family_for_model(&self.config.model)
                 .unwrap_or_else(|| derive_default_model_family(&self.config.model));
             self.config.model_family = family;
@@ -171,7 +171,7 @@ impl ChatWidget<'_> {
         let clamped_effort = Self::clamp_reasoning_for_model(trimmed, effort);
 
         let model_changed = if !self.config.review_model.eq_ignore_ascii_case(trimmed) {
-            self.config.review_model = trimmed.to_owned();
+            trimmed.clone_into(&mut self.config.review_model);
             true
         } else {
             false
@@ -245,7 +245,7 @@ impl ChatWidget<'_> {
             .review_resolve_model
             .eq_ignore_ascii_case(trimmed)
         {
-            self.config.review_resolve_model = trimmed.to_owned();
+            trimmed.clone_into(&mut self.config.review_resolve_model);
             true
         } else {
             false
@@ -388,7 +388,7 @@ impl ChatWidget<'_> {
             .auto_review_model
             .eq_ignore_ascii_case(trimmed)
         {
-            self.config.auto_review_model = trimmed.to_owned();
+            trimmed.clone_into(&mut self.config.auto_review_model);
             true
         } else {
             false
@@ -496,7 +496,7 @@ impl ChatWidget<'_> {
             .auto_review_resolve_model
             .eq_ignore_ascii_case(trimmed)
         {
-            self.config.auto_review_resolve_model = trimmed.to_owned();
+            trimmed.clone_into(&mut self.config.auto_review_resolve_model);
             true
         } else {
             false

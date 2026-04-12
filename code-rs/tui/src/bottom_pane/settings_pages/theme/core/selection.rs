@@ -16,7 +16,7 @@ impl ThemeSelectionView {
             if self.selected_spinner_index > 0 {
                 self.selected_spinner_index -= 1;
                 if let Some(name) = names.get(self.selected_spinner_index) {
-                    self.current_spinner = name.clone();
+                    self.current_spinner.clone_from(name);
                     self.app_event_tx
                         .send(AppEvent::PreviewSpinner(self.current_spinner.clone()));
                 }
@@ -50,7 +50,7 @@ impl ThemeSelectionView {
                 self.selected_spinner_index += 1;
                 if self.selected_spinner_index < names.len() {
                     if let Some(name) = names.get(self.selected_spinner_index) {
-                        self.current_spinner = name.clone();
+                        self.current_spinner.clone_from(name);
                         self.app_event_tx
                             .send(AppEvent::PreviewSpinner(self.current_spinner.clone()));
                     }

@@ -124,8 +124,8 @@ impl OtelEventManager {
 
     pub fn with_model(&self, model: &str, slug: &str) -> Self {
         let mut manager = self.clone();
-        manager.metadata.model = model.to_owned();
-        manager.metadata.slug = slug.to_owned();
+        model.clone_into(&mut manager.metadata.model);
+        slug.clone_into(&mut manager.metadata.slug);
         manager
     }
 

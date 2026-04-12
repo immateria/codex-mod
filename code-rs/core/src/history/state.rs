@@ -1615,9 +1615,9 @@ impl HistoryState {
 
         self.records = records;
         self.next_id = snapshot.next_id;
-        self.exec_call_lookup = snapshot.exec_call_lookup.clone();
-        self.tool_call_lookup = snapshot.tool_call_lookup.clone();
-        self.stream_lookup = snapshot.stream_lookup.clone();
+        self.exec_call_lookup.clone_from(&snapshot.exec_call_lookup);
+        self.tool_call_lookup.clone_from(&snapshot.tool_call_lookup);
+        self.stream_lookup.clone_from(&snapshot.stream_lookup);
         if self.exec_call_lookup.is_empty()
             && self.tool_call_lookup.is_empty()
             && self.stream_lookup.is_empty()
@@ -1993,9 +1993,9 @@ impl HistoryState {
                                     .saturating_add(truncated);
                             }
                         }
-                        updated.preview_markdown = preview_markdown.clone();
+                        updated.preview_markdown.clone_from(&preview_markdown);
                         if let Some(meta) = metadata.clone() {
-                            updated.citations = meta.citations.clone();
+                            updated.citations.clone_from(&meta.citations);
                             updated.metadata = Some(meta);
                         }
                         updated.in_progress = true;

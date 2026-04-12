@@ -116,7 +116,7 @@ impl ChatWidget<'_> {
         self.auto_state.current_status_sent_to_user = None;
         self.auto_state.current_status_title = None;
         self.auto_state.last_broadcast_summary = None;
-        self.auto_state.current_display_line = post_submit_display.clone();
+        self.auto_state.current_display_line.clone_from(&post_submit_display);
         self.auto_state.current_display_is_summary =
             self.auto_state.last_decision_display_is_summary && post_submit_display.is_some();
         self.auto_state.current_summary_index = None;

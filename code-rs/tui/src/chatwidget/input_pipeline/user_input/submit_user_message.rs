@@ -189,7 +189,7 @@ impl ChatWidget<'_> {
         // Expand user-defined custom prompts, supporting both "/prompts:name" and "/name" forms.
         match prompt_args::expand_custom_prompt(&text_only, self.bottom_pane.custom_prompts()) {
             Ok(Some(expanded)) => {
-                text_only = expanded.clone();
+                text_only.clone_from(&expanded);
                 message
                     .ordered_items
                     .clear();

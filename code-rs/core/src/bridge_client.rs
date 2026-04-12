@@ -299,19 +299,19 @@ pub(crate) fn merge_effective_subscription(state: &SubscriptionState) -> Subscri
 
     if let Some(ws) = &state.workspace {
         if !ws.levels.is_empty() {
-            effective.levels = ws.levels.clone();
+            effective.levels.clone_from(&ws.levels);
         }
         if !ws.capabilities.is_empty() {
-            effective.capabilities = ws.capabilities.clone();
+            effective.capabilities.clone_from(&ws.capabilities);
         }
-        effective.llm_filter = ws.llm_filter.clone();
+        effective.llm_filter.clone_from(&ws.llm_filter);
     }
 
     if let Some(sess) = &state.session {
         // Session overrides always win, even when the intent is to clear values
-        effective.levels = sess.levels.clone();
-        effective.capabilities = sess.capabilities.clone();
-        effective.llm_filter = sess.llm_filter.clone();
+        effective.levels.clone_from(&sess.levels);
+        effective.capabilities.clone_from(&sess.capabilities);
+        effective.llm_filter.clone_from(&sess.llm_filter);
     }
 
     effective

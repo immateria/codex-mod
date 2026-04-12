@@ -100,8 +100,8 @@ impl ThemeSelectionView {
                             frames,
                         );
                         crate::spinner::switch_spinner("custom");
-                        self.revert_spinner_on_back = "custom".to_owned();
-                        self.current_spinner = "custom".to_owned();
+                        "custom".clone_into(&mut self.revert_spinner_on_back);
+                        "custom".clone_into(&mut self.current_spinner);
                         self.app_event_tx
                             .send(AppEvent::UpdateSpinner("custom".to_owned()));
                         self.send_tail("Custom spinner saved".to_owned());

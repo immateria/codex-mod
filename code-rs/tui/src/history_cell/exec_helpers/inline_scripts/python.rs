@@ -171,7 +171,8 @@ fn heredoc_delimiter(token: &str) -> Option<String> {
         && let Some(inner) = delim.strip_prefix('"').and_then(|s| s.strip_suffix('"'))
             .or_else(|| delim.strip_prefix('\'').and_then(|s| s.strip_suffix('\'')))
     {
-        delim = inner.to_owned();
+        #[allow(clippy::assigning_clones)]
+        { delim = inner.to_owned(); }
     }
     if delim.is_empty() {
         None

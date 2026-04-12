@@ -110,7 +110,7 @@ impl ChatWidget<'_> {
         }
 
         if !snapshot.order_debug.is_empty() {
-            self.cell_order_dbg = snapshot.order_debug.clone();
+            self.cell_order_dbg.clone_from(&snapshot.order_debug);
         }
         if self.cell_order_dbg.len() < self.history_cells.len() {
             self.cell_order_dbg

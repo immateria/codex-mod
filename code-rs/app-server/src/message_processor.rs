@@ -198,7 +198,7 @@ impl MessageProcessor {
                             Some(format!("{}; {}", client_info.name, client_info.version));
 
                         if let Ok(mut methods) = outbound_opted_out_notification_methods.write() {
-                            *methods = session.opted_out_notification_methods.clone();
+                            (*methods).clone_from(&session.opted_out_notification_methods);
                         }
 
                         let user_agent = get_code_user_agent_with_suffix(

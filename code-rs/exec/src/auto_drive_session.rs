@@ -32,9 +32,9 @@ use tokio::time::Instant;
 
 pub(crate) fn build_auto_drive_exec_config(config: &Config) -> Config {
     let mut auto_config = config.clone();
-    auto_config.model = config.auto_drive.model.trim().to_owned();
+    config.auto_drive.model.trim().clone_into(&mut auto_config.model);
     if auto_config.model.is_empty() {
-        auto_config.model = MODEL_SLUG.to_owned();
+        MODEL_SLUG.clone_into(&mut auto_config.model);
     }
     auto_config.model_reasoning_effort = config.auto_drive.model_reasoning_effort;
     auto_config

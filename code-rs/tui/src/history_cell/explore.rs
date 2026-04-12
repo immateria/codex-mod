@@ -202,7 +202,7 @@ pub(crate) fn explore_record_push_from_parsed(
                         }
                         (Some(_), None) | (None, None) => {
                             if annot.is_some() {
-                                *existing_ann = annot.clone();
+                                existing_ann.clone_from(&annot);
                             }
                             true
                         }

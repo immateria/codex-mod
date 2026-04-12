@@ -185,7 +185,7 @@ impl ChatWidget<'_> {
 
     pub(super) fn update_shell_config(&mut self, shell: Option<ShellConfig>) {
         let previous_shell = self.config.shell.clone();
-        self.config.shell = shell.clone();
+        self.config.shell.clone_from(&shell);
         self.refresh_settings_overview_rows();
 
         let should_refresh_shell_content = self.settings.overlay.as_ref().is_some_and(|overlay| {

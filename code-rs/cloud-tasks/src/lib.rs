@@ -590,7 +590,7 @@ pub async fn run_main(cli: Cli, _code_linux_sandbox_exe: Option<PathBuf>) -> any
                                 ov.title = title;
                                 {
                                     let base = ov.base_attempt_mut();
-                                    base.diff_lines = diff_lines.clone();
+                                    base.diff_lines.clone_from(&diff_lines);
                                     base.diff_raw = Some(diff.clone());
                                 }
                                 ov.base_can_apply = true;
@@ -599,7 +599,7 @@ pub async fn run_main(cli: Cli, _code_linux_sandbox_exe: Option<PathBuf>) -> any
                                 let mut overlay = app::DiffOverlay::new(id.clone(), title, None);
                                 {
                                     let base = overlay.base_attempt_mut();
-                                    base.diff_lines = diff_lines.clone();
+                                    base.diff_lines.clone_from(&diff_lines);
                                     base.diff_raw = Some(diff.clone());
                                 }
                                 overlay.base_can_apply = true;
@@ -627,17 +627,17 @@ pub async fn run_main(cli: Cli, _code_linux_sandbox_exe: Option<PathBuf>) -> any
                                 }
                             let conv = conversation_lines(prompt.clone(), &messages);
                             if let Some(ov) = app.diff_overlay.as_mut() {
-                                ov.title = title.clone();
+                                ov.title.clone_from(&title);
                                 {
                                     let base = ov.base_attempt_mut();
-                                    base.text_lines = conv.clone();
-                                    base.prompt = prompt.clone();
-                                    base.turn_id = turn_id.clone();
+                                    base.text_lines.clone_from(&conv);
+                                    base.prompt.clone_from(&prompt);
+                                    base.turn_id.clone_from(&turn_id);
                                     base.status = attempt_status;
                                     base.attempt_placement = attempt_placement;
                                 }
-                                ov.base_turn_id = turn_id.clone();
-                                ov.sibling_turn_ids = sibling_turn_ids.clone();
+                                ov.base_turn_id.clone_from(&turn_id);
+                                ov.sibling_turn_ids.clone_from(&sibling_turn_ids);
                                 ov.attempt_total_hint = Some(sibling_turn_ids.len().saturating_add(1));
                                 if !ov.base_can_apply {
                                     ov.current_view = app::DetailView::Prompt;
@@ -672,14 +672,14 @@ pub async fn run_main(cli: Cli, _code_linux_sandbox_exe: Option<PathBuf>) -> any
                                 let mut overlay = app::DiffOverlay::new(id.clone(), title, None);
                                 {
                                     let base = overlay.base_attempt_mut();
-                                    base.text_lines = conv.clone();
-                                    base.prompt = prompt.clone();
-                                    base.turn_id = turn_id.clone();
+                                    base.text_lines.clone_from(&conv);
+                                    base.prompt.clone_from(&prompt);
+                                    base.turn_id.clone_from(&turn_id);
                                     base.status = attempt_status;
                                     base.attempt_placement = attempt_placement;
                                 }
-                                overlay.base_turn_id = turn_id.clone();
-                                overlay.sibling_turn_ids = sibling_turn_ids.clone();
+                                overlay.base_turn_id.clone_from(&turn_id);
+                                overlay.sibling_turn_ids.clone_from(&sibling_turn_ids);
                                 overlay.attempt_total_hint = Some(sibling_turn_ids.len().saturating_add(1));
                                 overlay.current_view = app::DetailView::Prompt;
                                 overlay.apply_selection_to_fields();
@@ -743,11 +743,11 @@ pub async fn run_main(cli: Cli, _code_linux_sandbox_exe: Option<PathBuf>) -> any
                             append_error_log(format!("details failed for {}: {error}", id.0));
                             let pretty = pretty_lines_from_error(&error);
                             if let Some(ov) = app.diff_overlay.as_mut() {
-                                ov.title = title.clone();
+                                ov.title.clone_from(&title);
                                 {
                                     let base = ov.base_attempt_mut();
                                     base.diff_lines.clear();
-                                    base.text_lines = pretty.clone();
+                                    base.text_lines.clone_from(&pretty);
                                     base.prompt = None;
                                 }
                                 ov.base_can_apply = false;
@@ -777,7 +777,7 @@ pub async fn run_main(cli: Cli, _code_linux_sandbox_exe: Option<PathBuf>) -> any
                             app.apply_inflight = false;
                             match result {
                                 Ok(outcome) => {
-                                    app.status = outcome.message.clone();
+                                    app.status.clone_from(&outcome.message);
                                     if matches!(outcome.status, code_cloud_tasks_client::ApplyStatus::Success) {
                                         app.apply_modal = None;
                                         app.diff_overlay = None;
@@ -1254,7 +1254,7 @@ pub async fn run_main(cli: Cli, _code_linux_sandbox_exe: Option<PathBuf>) -> any
                                         }
                                         // If New Task page is open, reflect the new selection in its header immediately.
                                         if let Some(page) = app.new_task.as_mut() {
-                                            page.env_id = app.env_filter.clone();
+                                            page.env_id.clone_from(&app.env_filter);
                                         }
                                         // Trigger tasks refresh with the selected filter
                                         app.status = "Loading tasks…".to_string();

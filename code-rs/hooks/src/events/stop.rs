@@ -156,7 +156,7 @@ fn parse_completed(
                     if !parsed.universal.continue_processing {
                         status = HookRunStatus::Stopped;
                         should_stop = true;
-                        stop_reason = parsed.universal.stop_reason.clone();
+                        stop_reason.clone_from(&parsed.universal.stop_reason);
                         if let Some(stop_reason_text) = parsed.universal.stop_reason {
                             entries.push(HookOutputEntry {
                                 kind: HookOutputEntryKind::Stop,

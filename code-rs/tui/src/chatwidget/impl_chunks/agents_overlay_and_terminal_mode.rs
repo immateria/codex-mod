@@ -270,7 +270,7 @@ impl ChatWidget<'_> {
                     String::new()
                 };
                 if label.is_empty() {
-                    label = "Auto Review".to_owned();
+                    "Auto Review".clone_into(&mut label);
                 }
 
                 if has_findings || matches!(entry.status, AgentStatus::Completed) {
@@ -613,7 +613,7 @@ impl ChatWidget<'_> {
                     status,
                     info.batch_id.clone(),
                 );
-                new_entry.source_kind = info.source_kind.clone();
+                new_entry.source_kind.clone_from(&info.source_kind);
                 new_entry.push_log(
                     AgentLogKind::Status,
                     format!("Status → {}", agent_status_label(status)),
@@ -621,10 +621,10 @@ impl ChatWidget<'_> {
                 new_entry
             });
 
-            entry.name = info.name.clone();
-            entry.batch_id = info.batch_id.clone();
-            entry.model = info.model.clone();
-            entry.source_kind = info.source_kind.clone();
+            entry.name.clone_from(&info.name);
+            entry.batch_id.clone_from(&info.batch_id);
+            entry.model.clone_from(&info.model);
+            entry.source_kind.clone_from(&info.source_kind);
 
             let AgentBatchMetadata { label, prompt: meta_prompt, context: meta_context } = batch_metadata;
             let auto_review_label = matches!(entry.source_kind, Some(AgentSourceKind::AutoReview))

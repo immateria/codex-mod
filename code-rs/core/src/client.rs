@@ -465,7 +465,7 @@ impl ModelClient {
             use_streamable_shell_tool: self.config.use_experimental_streamable_shell_tool,
             include_view_image_tool: self.config.include_view_image_tool,
         });
-        tools_config.web_search_allowed_domains = self.config.tools_web_search_allowed_domains.clone();
+        tools_config.web_search_allowed_domains.clone_from(&self.config.tools_web_search_allowed_domains);
         tools_config.web_search_external = self.config.tools_web_search_external;
         tools_config.search_tool = self.config.tools_search_tool;
 

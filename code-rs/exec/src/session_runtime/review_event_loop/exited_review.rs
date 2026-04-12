@@ -73,7 +73,7 @@ pub(super) async fn handle_exited_review_mode_event(
 
     if let Some(resolve_state) = state.auto_resolve_state.as_mut() {
         resolve_state.attempt = resolve_state.attempt.saturating_add(1);
-        resolve_state.last_review = event.review_output.clone();
+        resolve_state.last_review.clone_from(&event.review_output);
         resolve_state.last_fix_message = None;
 
         match event.review_output.as_ref() {

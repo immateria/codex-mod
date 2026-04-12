@@ -207,7 +207,7 @@ impl DryRunAnalysis {
         let mut out = self.tokens.clone();
         for token in &mut out {
             if equal_ignore_case(token.as_str(), "--write") || token.as_str() == "-w" {
-                *token = "--check".to_owned();
+                "--check".clone_into(token);
                 return out.join(" ");
             }
         }

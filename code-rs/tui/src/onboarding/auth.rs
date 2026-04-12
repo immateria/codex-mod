@@ -406,7 +406,7 @@ impl AuthModeWidget {
                 .eq_ignore_ascii_case("gpt-5.1")
             {
                 let new_model = GPT_5_CODEX_MEDIUM_MODEL.to_owned();
-                args.config.model = new_model.clone();
+                args.config.model.clone_from(&new_model);
 
                 let family = find_family_for_model(&new_model)
                     .unwrap_or_else(|| derive_default_model_family(&new_model));

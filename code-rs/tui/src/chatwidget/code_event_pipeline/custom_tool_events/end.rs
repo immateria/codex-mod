@@ -239,7 +239,7 @@ impl ChatWidget<'_> {
             ctx.content.clone(),
         );
         let mut completed = completed;
-        completed.parent_call_id = ctx.parent_call_id.clone();
+        completed.parent_call_id.clone_from(&ctx.parent_call_id);
         if let Some(idx) = ctx.resolved_idx {
             self.history_replace_at(idx, Box::new(completed));
         } else {

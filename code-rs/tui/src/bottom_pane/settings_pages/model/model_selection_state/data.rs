@@ -519,7 +519,7 @@ impl ModelSelectionData {
             }
             EntryKind::Preset(idx) => {
                 let flat_preset = self.flat_presets.get(idx)?.clone();
-                self.current.current_model = flat_preset.model.clone();
+                self.current.current_model.clone_from(&flat_preset.model);
                 self.current.current_effort = flat_preset.effort;
                 self.current.use_chat_model = false;
                 Some(SelectionAction::SetPreset {

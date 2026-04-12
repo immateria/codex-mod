@@ -61,7 +61,7 @@ pub(super) async fn handle_task_complete_event(
                 // Fix phase complete; release fix guard so follow-up can take the review lock
                 state.auto_resolve_fix_guard = None;
                 if let Some(resolve_state) = state.auto_resolve_state.as_mut() {
-                    resolve_state.last_fix_message = task_complete.last_agent_message.clone();
+                    resolve_state.last_fix_message.clone_from(&task_complete.last_agent_message);
                     resolve_state.phase = AutoResolvePhase::WaitingForReview;
                 }
                 if state.auto_resolve_followup_guard.is_none() {
@@ -168,7 +168,7 @@ pub(super) async fn handle_task_complete_event(
             AutoResolvePhase::AwaitingJudge { .. } => {
                 // Legacy branch: fall back to requesting a follow-up review.
                 if let Some(resolve_state) = state.auto_resolve_state.as_mut() {
-                    resolve_state.last_fix_message = task_complete.last_agent_message.clone();
+                    resolve_state.last_fix_message.clone_from(&task_complete.last_agent_message);
                     resolve_state.phase = AutoResolvePhase::WaitingForReview;
                 }
                 if let Some(base) = state.auto_resolve_base_snapshot.as_ref() {

@@ -95,13 +95,13 @@ impl AgentRunCell {
     pub(crate) fn mark_completed(&mut self) {
         self.completed = true;
         if self.status_label.trim().is_empty() {
-            self.status_label = "Completed".to_owned();
+            "Completed".clone_into(&mut self.status_label);
         }
     }
 
     pub(crate) fn mark_failed(&mut self) {
         self.completed = true;
-        self.status_label = "Failed".to_owned();
+        "Failed".clone_into(&mut self.status_label);
     }
 
     pub(crate) fn set_agent_name(&mut self, name: String) {
@@ -905,8 +905,9 @@ impl AgentRunCell {
             if remaining > 0 {
                 let mut desc_display = entry.label.clone();
                 if string_width(desc_display.as_str()) > remaining {
-                    desc_display = truncate_with_ellipsis(entry.label.as_str(), remaining)
-                        .trim_end().to_owned();
+                    #[allow(clippy::assigning_clones)]
+                    { desc_display = truncate_with_ellipsis(entry.label.as_str(), remaining)
+                        .trim_end().to_owned(); }
                 }
                 if !desc_display.is_empty() {
                     segments.push(CardSegment::new(desc_display, label_style));

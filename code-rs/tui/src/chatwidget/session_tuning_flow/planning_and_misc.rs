@@ -77,7 +77,7 @@ impl ChatWidget<'_> {
         let clamped_effort = Self::clamp_reasoning_for_model(trimmed, effort);
 
         let model_changed = if !self.config.planning_model.eq_ignore_ascii_case(trimmed) {
-            self.config.planning_model = trimmed.to_owned();
+            trimmed.clone_into(&mut self.config.planning_model);
             true
         } else {
             false
@@ -208,7 +208,7 @@ impl ChatWidget<'_> {
         let clamped_effort = Self::clamp_reasoning_for_model(trimmed, effort);
 
         let model_changed = if !self.config.auto_drive.model.eq_ignore_ascii_case(trimmed) {
-            self.config.auto_drive.model = trimmed.to_owned();
+            trimmed.clone_into(&mut self.config.auto_drive.model);
             true
         } else {
             false

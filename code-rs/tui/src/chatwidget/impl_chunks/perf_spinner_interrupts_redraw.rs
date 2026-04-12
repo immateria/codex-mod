@@ -189,7 +189,7 @@ impl ChatWidget<'_> {
         if stuck_on_completed_turn {
             self.active_task_ids.clear();
             any_tasks_active = false;
-            self.overall_task_status = "complete".to_owned();
+            "complete".clone_into(&mut self.overall_task_status);
         }
         if !(any_tools_running
             || any_streaming

@@ -155,7 +155,7 @@ impl ChatWidget<'_> {
             }
             AutoResolvePhase::AwaitingFix { review } => {
                 if let Some(state) = self.auto_resolve_state.as_mut() {
-                    state.last_fix_message = last_agent_message.clone();
+                    state.last_fix_message.clone_from(&last_agent_message);
                     state.phase = AutoResolvePhase::AwaitingJudge {
                         review: review.clone(),
                     };
@@ -260,7 +260,8 @@ impl ChatWidget<'_> {
         let prep_label = format!("Preparing follow-up code review ({attempt_label})");
         let mut base_prompt = state_snapshot.prompt.trim_end().to_owned();
         if let Some(idx) = base_prompt.find(AUTO_RESOLVE_REVIEW_FOLLOWUP) {
-            base_prompt = base_prompt[..idx].trim_end().to_owned();
+            #[allow(clippy::assigning_clones)]
+            { base_prompt = base_prompt[..idx].trim_end().to_owned(); }
         }
 
         let mut next_hint = state_snapshot.hint.clone();

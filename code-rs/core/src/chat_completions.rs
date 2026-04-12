@@ -1176,7 +1176,7 @@ where
                     this.cumulative.push_str(&delta);
                     // Capture the item_id if we haven't already
                     if item_id.is_some() && this.cumulative_item_id.is_none() {
-                        this.cumulative_item_id = item_id.clone();
+                        this.cumulative_item_id.clone_from(&item_id);
                     }
                     if matches!(this.mode, AggregateMode::Streaming) {
                         // In streaming mode, also forward the delta immediately.
@@ -1193,7 +1193,7 @@ where
                     this.cumulative_reasoning.push_str(&delta);
                     // Capture the item_id if we haven't already
                     if item_id.is_some() && this.cumulative_item_id.is_none() {
-                        this.cumulative_item_id = item_id.clone();
+                        this.cumulative_item_id.clone_from(&item_id);
                     }
                     if matches!(this.mode, AggregateMode::Streaming) {
                         // In streaming mode, also forward the delta immediately.

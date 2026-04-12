@@ -284,7 +284,7 @@ impl EventProcessor for EventProcessorWithHumanOutput {
                 self.reasoning_streams_started.clear();
             }
             EventMsg::TaskComplete(TaskCompleteEvent { last_agent_message }) => {
-                self.final_message = last_agent_message.clone();
+                self.final_message.clone_from(&last_agent_message);
                 if let Some(output_file) = self.last_message_path.as_deref() {
                     handle_last_message(last_agent_message.as_deref(), output_file);
                 }

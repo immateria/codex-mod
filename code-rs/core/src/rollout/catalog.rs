@@ -365,7 +365,7 @@ impl SessionCatalog {
             if let Some(existing) = self.entries.get(&session_id).cloned() {
                 if should_replace(&existing, &entry) {
                     if entry.nickname.is_none() {
-                        entry.nickname = existing.nickname.clone();
+                        entry.nickname.clone_from(&existing.nickname);
                     }
                     entry.memory_mode = existing.memory_mode;
                     self.remove_from_indexes(&session_id, &existing);
