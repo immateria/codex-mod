@@ -3,7 +3,6 @@ use anyhow::Result;
 use anyhow::anyhow;
 use std::ffi::OsStr;
 use std::fs;
-use std::io::Read;
 use std::io::Write;
 use std::path::Path;
 use std::path::PathBuf;
@@ -82,13 +81,8 @@ fn ensure_dir(dir: &Path) -> Result<()> {
 }
 
 fn prepend_header_if_missing(path: &Path) -> Result<()> {
-    let mut content = String::new();
-    {
-        let mut f = fs::File::open(path)
-            .with_context(|| format!("Failed to open {} for reading", path.display()))?;
-        f.read_to_string(&mut content)
-            .with_context(|| format!("Failed to read {}", path.display()))?;
-    }
+    let content = fs::read_to_string(path)
+        .with_context(|| format!("Failed to read {}", path.display()))?;
 
     if content.starts_with(HEADER) {
         return Ok(());

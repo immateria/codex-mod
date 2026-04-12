@@ -4,9 +4,7 @@ use reqwest::StatusCode;
 use serde::Deserialize;
 use serde::Serialize;
 use std::env;
-use std::fs::File;
 use std::fs::OpenOptions;
-use std::io::Read;
 use std::io::Write;
 #[cfg(unix)]
 use std::os::unix::fs::OpenOptionsExt;
@@ -780,11 +778,8 @@ fn load_auth(
 /// Attempt to read and refresh the `auth.json` file in the given `CODEX_HOME` directory.
 /// Returns the full `AuthDotJson` structure after refreshing if necessary.
 pub fn try_read_auth_json(auth_file: &Path) -> std::io::Result<AuthDotJson> {
-    let mut file = File::open(auth_file)?;
-    let mut contents = String::new();
-    file.read_to_string(&mut contents)?;
+    let contents = std::fs::read_to_string(auth_file)?;
     let auth_dot_json: AuthDotJson = serde_json::from_str(&contents)?;
-
     Ok(auth_dot_json)
 }
 

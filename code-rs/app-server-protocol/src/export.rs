@@ -26,7 +26,6 @@ use std::collections::HashMap;
 use std::collections::HashSet;
 use std::ffi::OsStr;
 use std::fs;
-use std::io::Read;
 use std::io::Write;
 use std::path::Path;
 use std::path::PathBuf;
@@ -1511,13 +1510,8 @@ fn rewrite_named_ref_to_namespace(value: &mut Value, ns: &str, name: &str) {
 }
 
 fn prepend_header_if_missing(path: &Path) -> Result<()> {
-    let mut content = String::new();
-    {
-        let mut f = fs::File::open(path)
-            .with_context(|| format!("Failed to open {} for reading", path.display()))?;
-        f.read_to_string(&mut content)
-            .with_context(|| format!("Failed to read {}", path.display()))?;
-    }
+    let content = fs::read_to_string(path)
+        .with_context(|| format!("Failed to read {}", path.display()))?;
 
     if content.starts_with(HEADER) {
         return Ok(());
