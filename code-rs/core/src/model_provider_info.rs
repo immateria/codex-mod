@@ -725,17 +725,15 @@ pub fn built_in_model_providers(
                 wire_api: wire_api_override_from_env("OPENAI_WIRE_API")
                     .unwrap_or(WireApi::Responses),
                 query_params: None,
-                http_headers: Some(
+                http_headers: Some(HashMap::from(
                     [
                         (
                             "version".to_owned(),
                             code_version::wire_compatible_version().to_owned(),
                         ),
                     ]
-                    .into_iter()
-                    .collect(),
-                ),
-                env_http_headers: Some(
+                )),
+                env_http_headers: Some(HashMap::from(
                     [
                         (
                             "OpenAI-Organization".to_owned(),
@@ -743,9 +741,7 @@ pub fn built_in_model_providers(
                         ),
                         ("OpenAI-Project".to_owned(), "OPENAI_PROJECT".to_owned()),
                     ]
-                    .into_iter()
-                    .collect(),
-                ),
+                )),
                 // Use global defaults for retry/timeout unless overridden in config.toml.
                 request_max_retries: None,
                 stream_max_retries: None,

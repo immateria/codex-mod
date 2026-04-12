@@ -161,7 +161,7 @@ pub(crate) fn is_safe_to_call_with_exec(command: &[String]) -> bool {
                 command.len() == 4
                     && command.get(1).map(String::as_str) == Some("-n")
                     && is_valid_sed_n_arg(command.get(2).map(String::as_str))
-                    && command.get(3).map(String::is_empty) == Some(false)
+                    && command.get(3).is_some_and(|s| !s.is_empty())
             } =>
         {
             true
