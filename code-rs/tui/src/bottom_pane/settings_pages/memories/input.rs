@@ -104,22 +104,22 @@ impl MemoriesSettingsView {
             (MemoriesScopeChoice::Global, EditTarget::MaxRawMemories) => self
                 .global_settings
                 .max_raw_memories_for_consolidation
-                .unwrap_or(self.effective_settings().max_raw_memories_for_consolidation)
+                .unwrap_or_else(|| self.effective_settings().max_raw_memories_for_consolidation)
                 .to_string(),
             (MemoriesScopeChoice::Global, EditTarget::MaxRolloutAgeDays) => self
                 .global_settings
                 .max_rollout_age_days
-                .unwrap_or(self.effective_settings().max_rollout_age_days)
+                .unwrap_or_else(|| self.effective_settings().max_rollout_age_days)
                 .to_string(),
             (MemoriesScopeChoice::Global, EditTarget::MaxRolloutsPerStartup) => self
                 .global_settings
                 .max_rollouts_per_startup
-                .unwrap_or(self.effective_settings().max_rollouts_per_startup)
+                .unwrap_or_else(|| self.effective_settings().max_rollouts_per_startup)
                 .to_string(),
             (MemoriesScopeChoice::Global, EditTarget::MinRolloutIdleHours) => self
                 .global_settings
                 .min_rollout_idle_hours
-                .unwrap_or(self.effective_settings().min_rollout_idle_hours)
+                .unwrap_or_else(|| self.effective_settings().min_rollout_idle_hours)
                 .to_string(),
             (_, EditTarget::MaxRawMemories) => scoped
                 .and_then(|settings| {

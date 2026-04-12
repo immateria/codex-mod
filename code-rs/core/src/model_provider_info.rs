@@ -441,7 +441,7 @@ impl ModelProviderInfo {
         let base_url = self
             .base_url
             .clone()
-            .unwrap_or(default_base_url.to_owned());
+            .unwrap_or_else(|| default_base_url.to_owned());
 
         match self.wire_api {
             WireApi::Responses | WireApi::ResponsesWebsocket => {

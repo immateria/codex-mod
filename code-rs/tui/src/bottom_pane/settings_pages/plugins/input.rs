@@ -217,7 +217,7 @@ impl PluginsSettingsView {
             .position(|id| *id == self.focused_detail_button)
             .unwrap_or(0);
         let next = match direction {
-            KeyCode::Left => idx.checked_sub(1).unwrap_or(available.len().saturating_sub(1)),
+            KeyCode::Left => idx.checked_sub(1).unwrap_or_else(|| available.len().saturating_sub(1)),
             _ => (idx + 1) % available.len(),
         };
         self.focused_detail_button = available[next];

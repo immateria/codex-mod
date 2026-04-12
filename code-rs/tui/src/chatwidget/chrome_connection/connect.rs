@@ -220,7 +220,7 @@ impl ChatWidget<'_> {
         self.browser_is_external = true;
         let latest_screenshot = self.latest_browser_screenshot.clone();
         let app_event_tx = self.app_event_tx.clone();
-        let port_display = port.map_or("auto-detect".to_owned(), |p| p.to_string());
+        let port_display = port.map_or_else(|| "auto-detect".to_owned(), |p| p.to_string());
         let host_display = host.clone().unwrap_or_else(|| "127.0.0.1".to_owned());
 
         // Add status message to chat (use BackgroundEvent with header so it renders reliably)

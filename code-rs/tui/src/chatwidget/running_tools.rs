@@ -111,7 +111,7 @@ pub(super) fn resolve_entry_index(
                 .iter()
                 .position(|key| *key == entry.order_key)
         })
-        .or({
+        .or_else(|| {
             (entry.fallback_index < chat.history_cells.len())
                 .then_some(entry.fallback_index)
         })

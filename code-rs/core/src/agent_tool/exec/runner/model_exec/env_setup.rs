@@ -82,11 +82,11 @@ pub(super) fn build_agent_env(
 
     // Reduce startup overhead for Claude CLI: disable auto-updater/telemetry.
     env.entry("DISABLE_AUTOUPDATER".to_owned())
-        .or_insert("1".to_owned());
+        .or_insert_with(|| "1".to_owned());
     env.entry("CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC".to_owned())
-        .or_insert("1".to_owned());
+        .or_insert_with(|| "1".to_owned());
     env.entry("DISABLE_ERROR_REPORTING".to_owned())
-        .or_insert("1".to_owned());
+        .or_insert_with(|| "1".to_owned());
 
     // If GEMINI_API_KEY not provided, try pointing to host config for read-only
     // discovery (Gemini CLI supports GEMINI_CONFIG_DIR). We keep HOME as-is so

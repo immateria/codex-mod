@@ -194,6 +194,6 @@ fn auth_progress_body_width(_state: &LoginAddAccountState, area: Rect) -> u16 {
     auth_progress_message_page(Vec::new(), Vec::new())
         .framed()
         .layout(area)
-        .map_or(area.width.max(1), |layout| layout.body.width.max(1))
+        .map_or_else(|| area.width.max(1), |layout| layout.body.width.max(1))
 }
 

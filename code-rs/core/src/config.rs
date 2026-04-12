@@ -1711,7 +1711,7 @@ impl Config {
         // Resolve sandbox mode with correct precedence:
         // CLI override > per-project override > global config.toml > default
         let effective_sandbox_mode = sandbox_mode
-            .or(project_override.and_then(|p| p.sandbox_mode))
+            .or_else(|| project_override.and_then(|p| p.sandbox_mode))
             .or(cfg.sandbox_mode)
             .unwrap_or_default();
         let sandbox_policy = match effective_sandbox_mode {
@@ -1738,7 +1738,7 @@ impl Config {
         // CLI override > profile override > per-project override > global config.toml > default
         let effective_approval = approval_policy
             .or(config_profile.approval_policy)
-            .or(project_override.and_then(|p| p.approval_policy))
+            .or_else(|| project_override.and_then(|p| p.approval_policy))
             .or(cfg.approval_policy)
             .unwrap_or_else(AskForApproval::default);
 
@@ -1772,7 +1772,7 @@ impl Config {
             .unwrap_or_default();
 
         let tools_web_search_request = override_tools_web_search_request
-            .or(cfg.tools.as_ref().and_then(|t| t.web_search))
+            .or_else(|| cfg.tools.as_ref().and_then(|t| t.web_search))
             .unwrap_or(false);
         let tools_web_search_external = cfg
             .tools
@@ -1810,7 +1810,7 @@ impl Config {
             .and_then(|t| t.web_search_allowed_domains.clone());
         // View Image tool is enabled by default; can be disabled in config or overrides.
         let include_view_image_tool_flag = include_view_image_tool
-            .or(cfg.tools.as_ref().and_then(|t| t.view_image))
+            .or_else(|| cfg.tools.as_ref().and_then(|t| t.view_image))
             .unwrap_or(true);
 
         let network_proxy = {
@@ -1952,13 +1952,13 @@ impl Config {
         let base_instructions = base_instructions.or(file_base_instructions);
 
         let compact_prompt_file = compact_prompt_override_file
-            .or(config_profile.compact_prompt_override_file.clone())
-            .or(cfg.compact_prompt_file.clone());
+            .or_else(|| config_profile.compact_prompt_override_file.clone())
+            .or_else(|| cfg.compact_prompt_file.clone());
         let file_compact_prompt =
             Self::get_compact_prompt_override(compact_prompt_file.as_deref(), &resolved_cwd)?;
         let compact_prompt_override = compact_prompt_override
-            .or(config_profile.compact_prompt_override.clone())
-            .or(cfg.compact_prompt_override.clone())
+            .or_else(|| config_profile.compact_prompt_override.clone())
+            .or_else(|| cfg.compact_prompt_override.clone())
             .or(file_compact_prompt);
 
         let responses_originator_header: String = cfg
@@ -1997,7 +1997,7 @@ impl Config {
 
         // Default review model when not set in config; allow CLI override to take precedence.
         let review_model = override_review_model
-            .or(config_profile.review_model.clone())
+            .or_else(|| config_profile.review_model.clone())
             .or(cfg.review_model)
             .unwrap_or_else(default_review_model);
 
@@ -2016,7 +2016,7 @@ impl Config {
             config_profile
                 .review_resolve_model
                 .clone()
-                .or(cfg.review_resolve_model.clone())
+                .or_else(|| cfg.review_resolve_model.clone())
                 .unwrap_or_else(|| model.clone())
         };
         let review_resolve_model_reasoning_effort = if review_resolve_use_chat_model {
@@ -2089,7 +2089,7 @@ impl Config {
             config_profile
                 .auto_review_model
                 .clone()
-                .or(cfg.auto_review_model.clone())
+                .or_else(|| cfg.auto_review_model.clone())
                 .unwrap_or_else(default_review_model)
         };
 
@@ -2117,7 +2117,7 @@ impl Config {
             config_profile
                 .auto_review_resolve_model
                 .clone()
-                .or(cfg.auto_review_resolve_model.clone())
+                .or_else(|| cfg.auto_review_resolve_model.clone())
                 .unwrap_or_else(|| model.clone())
         };
 
@@ -2311,7 +2311,7 @@ impl Config {
             chatgpt_base_url: config_profile
                 .chatgpt_base_url
                 .or(cfg.chatgpt_base_url)
-                .unwrap_or("https://chatgpt.com/backend-api/".to_owned()),
+                .unwrap_or_else(|| "https://chatgpt.com/backend-api/".to_owned()),
             experimental_exec_server_url: cfg
                 .experimental_exec_server_url
                 .as_ref()
@@ -2374,7 +2374,7 @@ impl Config {
                 let log_user_prompt = t.log_user_prompt.unwrap_or(false);
                 let environment = t
                     .environment
-                    .unwrap_or(DEFAULT_OTEL_ENVIRONMENT.to_owned());
+                    .unwrap_or_else(|| DEFAULT_OTEL_ENVIRONMENT.to_owned());
                 let exporter = t.exporter.unwrap_or(OtelExporterKind::None);
                 OtelConfig {
                     log_user_prompt,

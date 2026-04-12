@@ -42,7 +42,7 @@ pub(in super::super) fn handle_custom_tool_end(
     let resolved_key = agent_batch_key(batch);
 
     tracker.slot.set_order_key(order_key);
-    tracker.batch_id.get_or_insert(batch.clone());
+    tracker.batch_id.get_or_insert_with(|| batch.clone());
     apply_tracker_metadata(&mut tracker, &metadata, true);
 
     tracker.cell.set_duration(Some(duration));

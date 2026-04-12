@@ -22,7 +22,7 @@ pub(super) fn build_previews(
     for agent in agents {
         tracker.agent_ids.insert(agent.id.clone());
         if let Some(agent_batch) = agent.batch_id.as_ref() {
-            tracker.batch_id.get_or_insert(agent_batch.clone());
+            tracker.batch_id.get_or_insert_with(|| agent_batch.clone());
         }
         if let Some(model) = agent.model.as_ref() {
             tracker.merge_models([model.clone()]);

@@ -86,7 +86,7 @@ impl ModelSelectionView {
                 Span::styled("Fast mode: ", label_style),
                 Span::styled(
                     status.text,
-                    label_style.fg(status.style.fg.unwrap_or(colors::text())),
+                    label_style.fg(status.style.fg.unwrap_or_else(colors::text)),
                 ),
             ])],
         ));

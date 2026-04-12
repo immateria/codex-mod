@@ -33,7 +33,7 @@ fn get_originator_value(provided: Option<String>) -> Originator {
     let value = std::env::var(CODEX_INTERNAL_ORIGINATOR_OVERRIDE_ENV_VAR)
         .ok()
         .or(provided)
-        .unwrap_or(DEFAULT_ORIGINATOR.to_owned());
+        .unwrap_or_else(|| DEFAULT_ORIGINATOR.to_owned());
 
     match HeaderValue::from_str(&value) {
         Ok(header_value) => Originator {

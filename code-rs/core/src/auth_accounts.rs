@@ -138,7 +138,7 @@ fn account_store_paths(code_home: &Path) -> AccountStorePaths {
     let default_read_path =
         crate::config::resolve_code_path_for_read(code_home, Path::new(ACCOUNTS_FILE_NAME));
 
-    let mut paths = configured_account_store_paths(code_home).unwrap_or(AccountStorePaths {
+    let mut paths = configured_account_store_paths(code_home).unwrap_or_else(|| AccountStorePaths {
         read_paths: vec![default_read_path.clone()],
         write_path: default_write_path,
     });

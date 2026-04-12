@@ -48,7 +48,7 @@ pub fn resolve_observed_args_with_patterns(
         let n = pattern
             .cardinality()
             .is_exact()
-            .ok_or(Error::InternalInvariantViolation {
+            .ok_or_else(|| Error::InternalInvariantViolation {
                 message: "expected exact cardinality".to_owned(),
             })?;
         for positional_arg in &prefix[prefix_arg_index..prefix_arg_index + n] {
@@ -118,7 +118,7 @@ pub fn resolve_observed_args_with_patterns(
         let n = pattern
             .cardinality()
             .is_exact()
-            .ok_or(Error::InternalInvariantViolation {
+            .ok_or_else(|| Error::InternalInvariantViolation {
                 message: "expected exact cardinality".to_owned(),
             })?;
         for positional_arg in &suffix[suffix_arg_index..suffix_arg_index + n] {

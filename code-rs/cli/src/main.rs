@@ -1913,7 +1913,7 @@ async fn preview_main(args: PreviewArgs) -> anyhow::Result<()> {
             let f = fs::File::open(&path)?;
             let mut z = ZipArchive::new(f)?;
             z.extract(&out_dir)?;
-            let exe = first_match(&out_dir, "code-").unwrap_or(out_dir.join("code.exe"));
+            let exe = first_match(&out_dir, "code-").unwrap_or_else(|| out_dir.join("code.exe"));
             // Append slug before extension if present
             let dest = match exe.extension().and_then(|e| e.to_str()) {
                 Some(ext) => {
@@ -1943,7 +1943,7 @@ async fn preview_main(args: PreviewArgs) -> anyhow::Result<()> {
             let mut ar = tar::Archive::new(gz);
             ar.unpack(&out_dir)?;
             // Find extracted binary
-            let bin = first_match(&out_dir, "code-").unwrap_or(out_dir.join("code"));
+            let bin = first_match(&out_dir, "code-").unwrap_or_else(|| out_dir.join("code"));
             let dest_name = format!("{}-{}", bin.file_name().and_then(|s| s.to_str()).unwrap_or("code"), slug);
             let dest = out_dir.join(dest_name);
             // Rename/move to include PR number suffix

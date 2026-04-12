@@ -100,7 +100,7 @@ impl ThemeSelectionView {
             let name = &names[index];
             let is_selected = index == self.selected_spinner_index;
             let def =
-                crate::spinner::find_spinner_by_name(name).unwrap_or(crate::spinner::current_spinner());
+                crate::spinner::find_spinner_by_name(name).unwrap_or_else(crate::spinner::current_spinner);
             let frame = crate::spinner::frame_at_time(def, now_ms);
 
             // Aligned columns:

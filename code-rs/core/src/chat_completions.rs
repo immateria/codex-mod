@@ -142,7 +142,7 @@ pub(crate) async fn stream_chat_completions(
                     reasoning_by_anchor_index
                         .entry(idx - 1)
                         .and_modify(|v| v.push_str(&text))
-                        .or_insert(text.clone());
+                        .or_insert_with(|| text.clone());
                     true
                 } else {
                     false
@@ -157,13 +157,13 @@ pub(crate) async fn stream_chat_completions(
                             reasoning_by_anchor_index
                                 .entry(idx + 1)
                                 .and_modify(|v| v.push_str(&text))
-                                .or_insert(text.clone());
+                                .or_insert_with(|| text.clone());
                         }
                         ResponseItem::Message { role, .. } if role == "assistant" => {
                             reasoning_by_anchor_index
                                 .entry(idx + 1)
                                 .and_modify(|v| v.push_str(&text))
-                                .or_insert(text.clone());
+                                .or_insert_with(|| text.clone());
                         }
                         _ => {}
                     }

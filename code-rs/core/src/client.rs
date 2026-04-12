@@ -595,7 +595,7 @@ impl ModelClient {
                 }
                 let ws_version = self
                     .active_ws_version_for_prompt(prompt)
-                    .unwrap_or(preferred_ws_version_from_env());
+                    .unwrap_or_else(preferred_ws_version_from_env);
                 match self
                     .stream_responses_websocket(prompt, log_tag, ws_version)
                     .await

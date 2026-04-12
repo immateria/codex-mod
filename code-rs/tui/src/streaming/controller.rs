@@ -319,7 +319,7 @@ pub(crate) fn set_last_sequence_number(&mut self, kind: StreamKind, seq: Option<
         // Char-threshold soft commit (when no newline has arrived for a while)
         if !delta.contains('\n') {
             let threshold = self.config.tui.stream.soft_commit_chars
-                .or(self.config.tui.stream.responsive.then_some(160));
+                .or_else(|| self.config.tui.stream.responsive.then_some(160));
             if let Some(limit) = threshold {
                 let ready = { self.state(kind).tail_chars_since_commit >= limit };
                 if ready {
@@ -605,7 +605,7 @@ pub(crate) fn set_last_sequence_number(&mut self, kind: StreamKind, seq: Option<
         let c_text_bright = crate::colors::text_bright();
         // Timeout-based soft commit: if no newline arrived and nothing is queued, force a soft commit.
         let timeout_ms = self.config.tui.stream.soft_commit_timeout_ms
-            .or(self.config.tui.stream.responsive.then_some(400));
+            .or_else(|| self.config.tui.stream.responsive.then_some(400));
         if let Some(ms) = timeout_ms {
             let queue_empty = self.state(kind).is_idle();
             let overdue = self

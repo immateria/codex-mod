@@ -132,7 +132,7 @@ impl ChatWidget<'_> {
         current_shell: Option<&ShellConfig>,
     ) -> ShellConfig {
         let (command_safety, dangerous_command_detection) = current_shell
-            .map_or((code_core::config_types::CommandSafetyProfileConfig::default(), None), |shell| (shell.command_safety.clone(), shell.dangerous_command_detection));
+            .map_or_else(|| (code_core::config_types::CommandSafetyProfileConfig::default(), None), |shell| (shell.command_safety.clone(), shell.dangerous_command_detection));
 
         ShellConfig {
             path,

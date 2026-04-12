@@ -734,7 +734,7 @@ impl ChatWidget<'_> {
                     let AgentBatchMetadata { label, prompt: meta_prompt, context: meta_context } = batch_metadata;
                     entry.batch_label = label
                         .or_else(|| agent.batch_id.clone())
-                        .or(entry.batch_label.clone());
+                        .or_else(|| entry.batch_label.clone());
                     let fallback_prompt = self
                         .agents_terminal
                         .shared_task
@@ -742,7 +742,7 @@ impl ChatWidget<'_> {
                         .or_else(|| self.agent_task.clone());
                     entry.batch_prompt = meta_prompt
                         .or(fallback_prompt)
-                        .or(entry.batch_prompt.clone());
+                        .or_else(|| entry.batch_prompt.clone());
                     let fallback_context = self
                         .agents_terminal
                         .shared_context
@@ -750,7 +750,7 @@ impl ChatWidget<'_> {
                         .or_else(|| self.agent_context.clone());
                     entry.batch_context = meta_context
                         .or(fallback_context)
-                        .or(entry.batch_context.clone());
+                        .or_else(|| entry.batch_context.clone());
                     if let Some(progress) = agent.last_progress.as_ref() {
                         entry.last_progress = Some(progress.clone());
                         entry.push_log(AgentLogKind::Progress, progress.clone());

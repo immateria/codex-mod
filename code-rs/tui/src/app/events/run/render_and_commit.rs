@@ -143,7 +143,7 @@
                             .tui
                             .stream
                             .commit_tick_ms
-                            .or(self.config.tui.stream.responsive.then_some(30))
+                            .or_else(|| self.config.tui.stream.responsive.then_some(30))
                             .unwrap_or(50);
                         if thread_spawner::spawn_lightweight("commit-anim", move || {
                             while running_for_thread.load(Ordering::Relaxed) {

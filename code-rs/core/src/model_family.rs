@@ -472,7 +472,7 @@ impl ModelFamily {
     /// Token limit at which we should automatically compact, if known.
     pub fn auto_compact_token_limit(&self) -> Option<i64> {
         self.auto_compact_token_limit
-            .or(self.context_window.map(Self::default_auto_compact_limit))
+            .or_else(|| self.context_window.map(Self::default_auto_compact_limit))
     }
 
     pub fn set_auto_compact_token_limit(&mut self, limit: Option<i64>) {

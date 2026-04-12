@@ -114,7 +114,7 @@ pub async fn run_login_with_device_code(
     let config = load_config_or_exit(cli_config_overrides);
     let mut opts = ServerOptions::new(
         config.code_home,
-        client_id.unwrap_or(CLIENT_ID.to_string()),
+        client_id.unwrap_or_else(|| CLIENT_ID.to_string()),
         config.responses_originator_header.clone(),
         config.cli_auth_credentials_store_mode,
     );

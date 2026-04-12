@@ -107,7 +107,7 @@ impl ValidationSettingsView {
             .section_bounds
             .get(sel_idx)
             .copied()
-            .unwrap_or((0, model.total_lines.saturating_sub(1)));
+            .unwrap_or_else(|| (0, model.total_lines.saturating_sub(1)));
         let section_end = section_end.min(model.total_lines.saturating_sub(1));
         let section_start = section_start.min(section_end);
 

@@ -490,7 +490,7 @@ impl ChatWidget<'_> {
                             None
                         }
                     })
-                    .or(meta.base_branch.clone())
+                    .or_else(|| meta.base_branch.clone())
                     .unwrap_or_else(|| code_core::git_worktree::LOCAL_DEFAULT_REMOTE.to_owned());
                 let mut note = format!(
                     "System: Working directory changed from {} to {}{}. You are now working on branch '{}' checked out at {}. Compare against '{}' for the parent branch and run all commands from this directory.",

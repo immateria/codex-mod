@@ -203,7 +203,7 @@ impl CodexAuth {
                 let mut tokens = auth_dot_json
                     .tokens
                     .clone()
-                    .ok_or(std::io::Error::other("Token data is not available."))?;
+                    .ok_or_else(|| std::io::Error::other("Token data is not available."))?;
                 if self.mode == AuthMode::ChatgptAuthTokens {
                     return Ok(tokens);
                 }
@@ -225,7 +225,7 @@ impl CodexAuth {
 
                     tokens = self
                         .get_current_token_data()
-                        .ok_or(std::io::Error::other(
+                        .ok_or_else(|| std::io::Error::other(
                             "Token data is not available after refresh.",
                         ))?;
                 }

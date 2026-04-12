@@ -170,7 +170,7 @@ pub fn parse_id_token(id_token: &str) -> Result<IdTokenInfo, IdTokenInfoError> {
     Ok(IdTokenInfo {
         email,
         chatgpt_plan_type: auth.as_ref().and_then(|a| a.chatgpt_plan_type.clone()),
-        chatgpt_user_id: auth.as_ref().and_then(|a| a.chatgpt_user_id.clone().or(a.user_id.clone())),
+        chatgpt_user_id: auth.as_ref().and_then(|a| a.chatgpt_user_id.clone().or_else(|| a.user_id.clone())),
         chatgpt_account_id: auth.as_ref().and_then(|a| a.chatgpt_account_id.clone()),
         raw_jwt: id_token.to_owned(),
     })
