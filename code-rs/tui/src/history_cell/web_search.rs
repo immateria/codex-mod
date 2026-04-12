@@ -246,11 +246,7 @@ impl WebSearchSessionCell {
         let indent_text: &str = " ";
         let indent_style = secondary_text_style(style);
         let time_style = primary_text_style(style);
-        let separator_text = if ACTION_TIME_SEPARATOR_WIDTH > 0 {
-            Some(" ".repeat(ACTION_TIME_SEPARATOR_WIDTH))
-        } else {
-            None
-        };
+        let separator_text = (ACTION_TIME_SEPARATOR_WIDTH > 0).then(|| " ".repeat(ACTION_TIME_SEPARATOR_WIDTH));
 
         for (action, elapsed) in self.actions.iter().zip(elapsed_labels.iter()) {
             let mut segments = Vec::new();

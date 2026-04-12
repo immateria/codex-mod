@@ -190,11 +190,7 @@ fn forward_request(client: &Client, auth_header: &'static str, mut req: Request)
     }
 
     let content_length = upstream_resp.content_length().and_then(|len| {
-        if usize::try_from(len).is_ok() {
-            Some(len as usize)
-        } else {
-            None
-        }
+        usize::try_from(len).is_ok().then_some(len as usize)
     });
 
     let response = Response::new(

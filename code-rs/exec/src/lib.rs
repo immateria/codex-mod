@@ -149,11 +149,7 @@ pub async fn run_main(cli: Cli, code_linux_sandbox_exe: Option<PathBuf>) -> anyh
         None // No model specified, will use the default.
     };
 
-    let model_provider = if oss {
-        Some(BUILT_IN_OSS_MODEL_PROVIDER_ID.to_owned())
-    } else {
-        None // No specific model provider override.
-    };
+    let model_provider = oss.then(|| BUILT_IN_OSS_MODEL_PROVIDER_ID.to_owned());
 
     // Load configuration and determine approval policy
     let overrides = ConfigOverrides {
@@ -277,17 +273,13 @@ pub async fn run_main(cli: Cli, code_linux_sandbox_exe: Option<PathBuf>) -> anyh
         config.auto_drive.auto_resolve_review_attempts.get()
     };
     let auto_resolve_state: Option<AutoResolveState> = review_request.as_ref().and_then(|req| {
-        if review_auto_resolve_requested {
-            Some(AutoResolveState::new_with_limit(
-                req.target.clone(),
-                req.prompt.clone(),
-                req.user_facing_hint.clone().unwrap_or_default(),
-                None,
-                max_auto_resolve_attempts,
-            ))
-        } else {
-            None
-        }
+        review_auto_resolve_requested.then(|| AutoResolveState::new_with_limit(
+            req.target.clone(),
+            req.prompt.clone(),
+            req.user_facing_hint.clone().unwrap_or_default(),
+            None,
+            max_auto_resolve_attempts,
+        ))
     });
     let resolve_model_for_auto_resolve = if is_auto_review {
         if config.auto_review_resolve_use_chat_model {

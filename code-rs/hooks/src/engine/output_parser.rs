@@ -108,15 +108,11 @@ pub(crate) fn parse_pre_tool_use(stdout: &str) -> Option<PreToolUseOutput> {
 pub(crate) fn parse_user_prompt_submit(stdout: &str) -> Option<UserPromptSubmitOutput> {
     let wire: UserPromptSubmitCommandOutputWire = parse_json(stdout)?;
     let should_block = matches!(wire.decision, Some(BlockDecisionWire::Block));
-    let invalid_block_reason = if should_block
+    let invalid_block_reason = (should_block
         && match wire.reason.as_deref() {
             Some(reason) => reason.trim().is_empty(),
             None => true,
-        } {
-        Some(invalid_block_message("UserPromptSubmit"))
-    } else {
-        None
-    };
+        }).then(|| invalid_block_message("UserPromptSubmit"));
     let additional_context = wire
         .hook_specific_output
         .and_then(|output| output.additional_context);
@@ -132,15 +128,11 @@ pub(crate) fn parse_user_prompt_submit(stdout: &str) -> Option<UserPromptSubmitO
 pub(crate) fn parse_stop(stdout: &str) -> Option<StopOutput> {
     let wire: StopCommandOutputWire = parse_json(stdout)?;
     let should_block = matches!(wire.decision, Some(BlockDecisionWire::Block));
-    let invalid_block_reason = if should_block
+    let invalid_block_reason = (should_block
         && match wire.reason.as_deref() {
             Some(reason) => reason.trim().is_empty(),
             None => true,
-        } {
-        Some(invalid_block_message("Stop"))
-    } else {
-        None
-    };
+        }).then(|| invalid_block_message("Stop"));
     Some(StopOutput {
         universal: UniversalOutput::from(wire.universal),
         should_block: should_block && invalid_block_reason.is_none(),
@@ -212,23 +204,15 @@ fn unsupported_pre_tool_use_hook_specific_output(
                 Some("PreToolUse hook returned unsupported permissionDecision:ask".to_owned())
             }
             Some(PreToolUsePermissionDecisionWire::Deny) => {
-                if output
+                output
                     .permission_decision_reason
                     .as_deref()
                     .and_then(trimmed_reason)
                     .is_none()
-                {
-                    Some(invalid_pre_tool_use_reason_message())
-                } else {
-                    None
-                }
+                    .then(invalid_pre_tool_use_reason_message)
             }
             None => {
-                if output.permission_decision_reason.is_some() {
-                    Some("PreToolUse hook returned permissionDecisionReason without permissionDecision".to_owned())
-                } else {
-                    None
-                }
+                output.permission_decision_reason.is_some().then(|| "PreToolUse hook returned permissionDecisionReason without permissionDecision".to_owned())
             }
         }
     }
@@ -243,18 +227,10 @@ fn unsupported_pre_tool_use_legacy_decision(
             Some("PreToolUse hook returned unsupported decision:approve".to_owned())
         }
         Some(PreToolUseDecisionWire::Block) => {
-            if reason.and_then(trimmed_reason).is_none() {
-                Some(invalid_block_message("PreToolUse"))
-            } else {
-                None
-            }
+            reason.and_then(trimmed_reason).is_none().then(|| invalid_block_message("PreToolUse"))
         }
         None => {
-            if reason.is_some() {
-                Some("PreToolUse hook returned reason without decision".to_owned())
-            } else {
-                None
-            }
+            reason.is_some().then(|| "PreToolUse hook returned reason without decision".to_owned())
         }
     }
 }

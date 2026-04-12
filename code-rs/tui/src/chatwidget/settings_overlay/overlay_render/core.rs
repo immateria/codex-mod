@@ -297,11 +297,8 @@ impl SettingsOverlayView {
             let label_hit_end = area
                 .x
                 .saturating_add(label_hit_end_offset.min(content_width) as u16);
-            let label_hit_range = if label_hit_end > label_hit_start {
-                Some((label_hit_start, label_hit_end))
-            } else {
-                None
-            };
+            let label_hit_range = (label_hit_end > label_hit_start)
+                .then_some((label_hit_start, label_hit_end));
             let mut summary_hit_range: Option<(u16, u16)> = None;
 
             let mut summary_line = Line::from(vec![
@@ -370,11 +367,8 @@ impl SettingsOverlayView {
             let info_hit_end = area
                 .x
                 .saturating_add(info_hit_end_offset.min(content_width) as u16);
-            let info_hit_range = if info_hit_end > info_hit_start {
-                Some((info_hit_start, info_hit_end))
-            } else {
-                None
-            };
+            let info_hit_range = (info_hit_end > info_hit_start)
+                .then_some((info_hit_start, info_hit_end));
             line_hit_ranges.push([info_hit_range, None]);
 
             if is_active {

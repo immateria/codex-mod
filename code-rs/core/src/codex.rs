@@ -764,14 +764,10 @@ async fn build_turn_status_items_v2(sess: &Session) -> Vec<ResponseItem> {
                 metadata.insert("cursor_position".to_owned(), format!("{x:.0},{y:.0}"));
             }
 
-            let viewport = if viewport_width > 0 && viewport_height > 0 {
-                Some(ViewportDimensions {
-                    width: viewport_width,
-                    height: viewport_height,
-                })
-            } else {
-                None
-            };
+            let viewport = (viewport_width > 0 && viewport_height > 0).then_some(ViewportDimensions {
+                width: viewport_width,
+                height: viewport_height,
+            });
 
             let mut screenshot_path = None;
 

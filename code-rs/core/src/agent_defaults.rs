@@ -446,11 +446,7 @@ pub fn model_guide_markdown_with_custom(configured_agents: &[AgentConfig]) -> Op
         }
     }
 
-    if saw_custom {
-        Some(lines.join("\n"))
-    } else {
-        None
-    }
+    saw_custom.then(|| lines.join("\n"))
 }
 
 pub fn default_agent_configs() -> Vec<AgentConfig> {

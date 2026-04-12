@@ -106,11 +106,7 @@ impl ChatWidget<'_> {
 
         self.history_cells.iter().enumerate().find_map(|(idx, cell)| {
             let record = history_cell::record_from_cell(cell.as_ref())?;
-            if record.id() == id {
-                Some(idx)
-            } else {
-                None
-            }
+            (record.id() == id).then_some(idx)
         })
     }
 

@@ -2683,11 +2683,7 @@ fn build_initial_planning_seed(goal_text: &str, include_agents: bool) -> Option<
         goal_message: format!("Primary Goal: {goal}"),
         status_title: "Planning route".to_owned(),
         status_sent_to_user: "Planning best route to reach the goal.".to_owned(),
-        agents_timing: if include_agents {
-            Some(AutoTurnAgentsTiming::Parallel)
-        } else {
-            None
-        },
+        agents_timing: include_agents.then_some(AutoTurnAgentsTiming::Parallel),
     })
 }
 

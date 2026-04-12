@@ -241,16 +241,12 @@ pub fn run(
     sort_matches(&mut raw_matches);
 
     // Transform into `FileMatch`, optionally computing indices.
-    let mut matcher = if compute_indices {
-        Some(Matcher::new(nucleo_matcher::Config::DEFAULT))
-    } else {
-        None
-    };
+    let mut matcher = compute_indices.then(|| Matcher::new(nucleo_matcher::Config::DEFAULT));
 
     let matches: Vec<FileMatch> = raw_matches
         .into_iter()
         .map(|(score, path)| {
-            let indices = if compute_indices {
+            let indices = compute_indices.then(|| {
                 let mut buf = Vec::<char>::new();
                 let haystack: Utf32Str<'_> = Utf32Str::new(&path, &mut buf);
                 let mut idx_vec: Vec<u32> = Vec::new();
@@ -260,10 +256,8 @@ pub fn run(
                 }
                 idx_vec.sort_unstable();
                 idx_vec.dedup();
-                Some(idx_vec)
-            } else {
-                None
-            };
+                idx_vec
+            });
 
             FileMatch {
                 score,

@@ -95,11 +95,8 @@ pub(crate) fn get_upgrade_version(config: &Config) -> Option<String> {
 
     cached_info.and_then(|info| {
         let current_version = code_version::version();
-        if is_newer(&info.latest_version, current_version).unwrap_or(false) {
-            Some(info.latest_version)
-        } else {
-            None
-        }
+        is_newer(&info.latest_version, current_version).unwrap_or(false)
+            .then_some(info.latest_version)
     })
 }
 
@@ -113,11 +110,8 @@ pub(crate) async fn check_for_updates_now(config: &Config) -> anyhow::Result<Upd
     let originator = config.responses_originator_header.clone();
     let info = check_for_update(&version_file, &originator).await?;
     let current_version = code_version::version().to_owned();
-    let latest_version = if is_newer(&info.latest_version, &current_version).unwrap_or(false) {
-        Some(info.latest_version)
-    } else {
-        None
-    };
+    let latest_version = is_newer(&info.latest_version, &current_version).unwrap_or(false)
+        .then_some(info.latest_version);
 
     Ok(UpdateCheckInfo {
         latest_version,

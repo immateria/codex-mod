@@ -260,11 +260,7 @@ fn find_card_index<C: ToolCardCell>(
 ) -> Option<usize> {
     chat.history_cells.iter().enumerate().find_map(|(idx, cell)| {
         let typed = cell.as_any().downcast_ref::<C>()?;
-        if identity_matches(typed, slot, signature) {
-            Some(idx)
-        } else {
-            None
-        }
+        identity_matches(typed, slot, signature).then_some(idx)
     })
 }
 

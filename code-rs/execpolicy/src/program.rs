@@ -57,13 +57,8 @@ impl ProgramSpec {
 
         let required_options = allowed_options
             .iter()
-            .filter_map(|(name, opt)| {
-                if opt.required {
-                    Some(name.clone())
-                } else {
-                    None
-                }
-            })
+            .filter(|(_, opt)| opt.required)
+            .map(|(name, _)| name.clone())
             .collect();
         Self {
             program,

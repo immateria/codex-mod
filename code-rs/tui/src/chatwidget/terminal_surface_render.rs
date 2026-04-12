@@ -383,16 +383,12 @@ impl ChatWidget<'_> {
         let top_status_line_items = self.status_line_top_items();
         let has_selected_status_line =
             top_text_with_regions.is_none() && !top_status_line_items.is_empty();
-        let selected_status_line = if has_selected_status_line {
-            Some(self.render_selected_status_line_with_width(
-                &top_status_line_items,
-                header_template_ctx.hovered_action.clone(),
-                hover_style,
-                usize::MAX,
-            ))
-        } else {
-            None
-        };
+        let selected_status_line = has_selected_status_line.then(|| self.render_selected_status_line_with_width(
+            &top_status_line_items,
+            header_template_ctx.hovered_action.clone(),
+            hover_style,
+            usize::MAX,
+        ));
         let bottom_text = header_cfg
             .bottom_line_text
             .as_deref()

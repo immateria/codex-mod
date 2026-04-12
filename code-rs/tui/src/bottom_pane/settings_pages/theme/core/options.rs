@@ -83,11 +83,7 @@ impl ThemeSelectionView {
             return Some(builtins[index].0);
         }
 
-        if Self::has_custom_theme_option() && index == builtins.len() {
-            Some(ThemeName::Custom)
-        } else {
-            None
-        }
+        (Self::has_custom_theme_option() && index == builtins.len()).then_some(ThemeName::Custom)
     }
 
     pub(in crate::bottom_pane::settings_pages::theme) fn allow_custom_theme_generation() -> bool {
@@ -136,11 +132,7 @@ impl ThemeSelectionView {
         let (start, _, _) =
             crate::util::list_window::anchored_window(self.selected_theme_index, count, visible);
         let idx = start + row;
-        if idx < count {
-            Some(idx)
-        } else {
-            None
-        }
+        (idx < count).then_some(idx)
     }
 
     pub(in crate::bottom_pane::settings_pages::theme) fn theme_display_name(theme_name: ThemeName) -> String {

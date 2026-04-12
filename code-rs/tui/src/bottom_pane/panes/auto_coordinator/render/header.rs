@@ -74,7 +74,7 @@ pub(super) fn intro_state<'a>(header_text: &'a str, model: &AutoActiveViewModel)
         Cow::Owned(header_text.chars().take(visible).collect())
     };
 
-    let schedule_next_in = if !body_visible {
+    let schedule_next_in = (!body_visible).then(|| {
         let next_target = if visible < total_chars {
             Duration::from_millis(LETTER_INTERVAL_MS * visible as u64)
         } else {
@@ -92,10 +92,8 @@ pub(super) fn intro_state<'a>(header_text: &'a str, model: &AutoActiveViewModel)
         }
 
         let min_delay = Duration::from_millis(MIN_FRAME_MS);
-        Some(remaining.max(min_delay))
-    } else {
-        None
-    };
+        remaining.max(min_delay)
+    });
 
     IntroState {
         header_text,
@@ -312,11 +310,7 @@ pub(super) fn render_header(view: &AutoCoordinatorView, buf: &mut Buffer, params
             let mut candidate_spans = base_spans.clone();
             candidate_spans.push(Span::styled(content.to_owned(), status_style));
             let candidate_line = Line::from(candidate_spans);
-            if candidate_line.width() <= left_available as usize {
-                Some(candidate_line)
-            } else {
-                None
-            }
+            (candidate_line.width() <= left_available as usize).then_some(candidate_line)
         };
 
         match (status_title.as_ref(), status_sent_to_user.as_ref()) {

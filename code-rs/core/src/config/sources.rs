@@ -3582,11 +3582,7 @@ fn compute_legacy_code_home_dir() -> Option<PathBuf> {
     }
     let home = home_dir()?;
     let candidate = home.join(".codex");
-    if path_exists(&candidate) {
-        Some(candidate)
-    } else {
-        None
-    }
+    path_exists(&candidate).then_some(candidate)
 }
 
 fn legacy_code_home_dir() -> Option<PathBuf> {

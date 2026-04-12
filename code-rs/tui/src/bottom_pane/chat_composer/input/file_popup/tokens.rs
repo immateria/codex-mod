@@ -42,11 +42,7 @@ fn current_at_token(textarea: &TextArea) -> Option<String> {
         .is_some_and(char::is_whitespace);
 
     // Left candidate: token containing the cursor position.
-    let token_left = if ctx.start_idx < ctx.end_idx {
-        Some(&ctx.text[ctx.start_idx..ctx.end_idx])
-    } else {
-        None
-    };
+    let token_left = (ctx.start_idx < ctx.end_idx).then(|| &ctx.text[ctx.start_idx..ctx.end_idx]);
 
     // Right candidate: token immediately after any whitespace from the cursor.
     let ws_len_right: usize = ctx
@@ -61,11 +57,7 @@ fn current_at_token(textarea: &TextArea) -> Option<String> {
         .find(|(_, c)| c.is_whitespace())
         .map_or(ctx.text.len() - start_right, |(idx, _)| idx);
     let end_right = start_right + end_right_rel;
-    let token_right = if start_right < end_right {
-        Some(&ctx.text[start_right..end_right])
-    } else {
-        None
-    };
+    let token_right = (start_right < end_right).then(|| &ctx.text[start_right..end_right]);
 
     let left_at = token_left
         .filter(|t| t.starts_with('@'))

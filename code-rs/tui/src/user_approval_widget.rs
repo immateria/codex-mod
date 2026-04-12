@@ -868,11 +868,7 @@ fn prefix_candidate(tokens: &[String]) -> Option<Vec<String>> {
         }
     }
 
-    if prefix.len() >= 2 && prefix.len() < tokens.len() {
-        Some(prefix)
-    } else {
-        None
-    }
+    (prefix.len() >= 2 && prefix.len() < tokens.len()).then_some(prefix)
 }
 
 fn hotkey_suffix(key: KeyCode) -> String {

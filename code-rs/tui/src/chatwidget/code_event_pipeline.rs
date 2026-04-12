@@ -401,11 +401,7 @@ impl ChatWidget<'_> {
                 );
                 // If we inserted during streaming, keep the reasoning ellipsis visible.
                 self.restore_reasoning_in_progress_if_streaming();
-                let desired_title = if plan_active {
-                    Some(plan_title.unwrap_or_else(|| "Plan".to_owned()))
-                } else {
-                    None
-                };
+                let desired_title = plan_active.then(|| plan_title.unwrap_or_else(|| "Plan".to_owned()));
                 self.apply_plan_terminal_title(desired_title);
             }
             EventMsg::ExecApprovalRequest(ev) => {

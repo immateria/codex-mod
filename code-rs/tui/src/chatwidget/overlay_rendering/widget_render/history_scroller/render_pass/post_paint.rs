@@ -25,11 +25,7 @@ impl ChatWidget<'_> {
         } = args;
 
         if screen_y < content_area.y + content_area.height {
-            let _perf_hist_clear2 = if self.perf_state.enabled {
-                Some(std::time::Instant::now())
-            } else {
-                None
-            };
+            let _perf_hist_clear2 = self.perf_state.enabled.then(std::time::Instant::now);
             let gap_height = (content_area.y + content_area.height).saturating_sub(screen_y);
             if gap_height > 0 {
                 let gap_rect = Rect::new(content_area.x, screen_y, content_area.width, gap_height);

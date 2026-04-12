@@ -470,12 +470,12 @@ impl NetworkProxy {
             }
         });
 
-        let socks_task = if current_cfg.network.enable_socks5 {
+        let socks_task = current_cfg.network.enable_socks5.then(|| {
             let socks_state = self.state.clone();
             let socks_decider = self.policy_decider.clone();
             let socks_addr = self.socks_addr;
             let enable_socks5_udp = current_cfg.network.enable_socks5_udp;
-            Some(tokio::spawn(async move {
+            tokio::spawn(async move {
                 match socks_listener {
                     Some(listener) => {
                         socks5::run_socks5_with_std_listener(
@@ -496,10 +496,8 @@ impl NetworkProxy {
                         .await
                     }
                 }
-            }))
-        } else {
-            None
-        };
+            })
+        });
         let admin_state = self.state.clone();
         let admin_addr = self.admin_addr;
         let admin_task = tokio::spawn(async move {

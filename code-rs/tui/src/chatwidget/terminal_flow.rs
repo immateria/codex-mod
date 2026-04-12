@@ -116,11 +116,7 @@ impl ChatWidget<'_> {
     pub(crate) fn terminal_dimensions_hint(&self) -> Option<(u16, u16)> {
         let rows = self.terminal.last_visible_rows.get();
         let cols = self.terminal.last_visible_cols.get();
-        if rows > 0 && cols > 0 {
-            Some((rows, cols))
-        } else {
-            None
-        }
+        (rows > 0 && cols > 0).then_some((rows, cols))
     }
 
     pub(crate) fn terminal_apply_resize(&mut self, id: u64, rows: u16, cols: u16) {

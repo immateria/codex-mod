@@ -84,11 +84,7 @@ impl RequestUserInputView {
 
     pub(super) fn current_other_index(&self) -> Option<usize> {
         let options_len = self.current_options_len();
-        if options_len > 0 && self.current_is_other() {
-            Some(options_len)
-        } else {
-            None
-        }
+        (options_len > 0 && self.current_is_other()).then_some(options_len)
     }
 
     pub(super) fn current_total_options_len(&self) -> usize {

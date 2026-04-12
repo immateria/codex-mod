@@ -180,15 +180,13 @@ impl SettingsOverlayView {
                 let symbol = buf[(x, area.y)].symbol();
                 Self::is_border_symbol(symbol) || Self::is_corner_symbol(symbol)
             });
-        let bottom_is_frame = if area.height > 1 {
-            Some(bottom_has_corners
+        let bottom_is_frame = (area.height > 1).then(|| {
+            bottom_has_corners
                 && (area.x..=end_x).all(|x| {
                     let symbol = buf[(x, end_y)].symbol();
                     Self::is_border_symbol(symbol) || Self::is_corner_symbol(symbol)
-                }))
-        } else {
-            None
-        };
+                })
+        });
 
         let left_has_corners =
             Self::is_corner_symbol(top_left_symbol) && Self::is_corner_symbol(bottom_left_symbol);
@@ -200,15 +198,13 @@ impl SettingsOverlayView {
                 let symbol = buf[(area.x, y)].symbol();
                 Self::is_border_symbol(symbol) || Self::is_corner_symbol(symbol)
             });
-        let right_is_frame = if area.width > 1 {
-            Some(right_has_corners
+        let right_is_frame = (area.width > 1).then(|| {
+            right_has_corners
                 && (area.y..=end_y).all(|y| {
                     let symbol = buf[(end_x, y)].symbol();
                     Self::is_border_symbol(symbol) || Self::is_corner_symbol(symbol)
-                }))
-        } else {
-            None
-        };
+                })
+        });
 
         if top_is_frame {
             for x in area.x..=end_x {

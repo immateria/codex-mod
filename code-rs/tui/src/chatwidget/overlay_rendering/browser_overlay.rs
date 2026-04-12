@@ -212,18 +212,14 @@ impl ChatWidget<'_> {
             width: screenshot_column.width,
             height: screenshot_display_height,
         };
-        let progress_area = if progress_height > 0 {
-            Some(Rect {
-                x: screenshot_column.x,
-                y: screenshot_column
-                    .y
-                    .saturating_add(screenshot_column.height.saturating_sub(progress_height)),
-                width: screenshot_column.width,
-                height: progress_height,
-            })
-        } else {
-            None
-        };
+        let progress_area = (progress_height > 0).then(|| Rect {
+            x: screenshot_column.x,
+            y: screenshot_column
+                .y
+                .saturating_add(screenshot_column.height.saturating_sub(progress_height)),
+            width: screenshot_column.width,
+            height: progress_height,
+        });
 
         if screenshot_display_area.width > 0 && screenshot_display_area.height > 0 {
             if let Some(path) = screenshot_path.as_ref() {

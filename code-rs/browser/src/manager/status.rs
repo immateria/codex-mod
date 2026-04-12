@@ -21,11 +21,7 @@ impl BrowserManager {
         let idle_timeout = Duration::from_millis(self.config.read().await.idle_timeout_ms);
         let last = *self.last_activity.lock().await;
         let elapsed = last.elapsed();
-        if elapsed > idle_timeout {
-            Some((elapsed, idle_timeout))
-        } else {
-            None
-        }
+        (elapsed > idle_timeout).then_some((elapsed, idle_timeout))
     }
 
     /// Get a description of the browser connection type

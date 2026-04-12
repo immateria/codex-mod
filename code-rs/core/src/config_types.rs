@@ -1463,11 +1463,7 @@ impl FunctionKeyHotkey {
     }
 
     pub fn from_u8(value: u8) -> Option<Self> {
-        if value <= 24 {
-            Some(ALL_FUNCTION_KEY_HOTKEYS[value as usize])
-        } else {
-            None
-        }
+        (value <= 24).then(|| ALL_FUNCTION_KEY_HOTKEYS[value as usize])
     }
 
     pub fn as_u8(self) -> Option<u8> {

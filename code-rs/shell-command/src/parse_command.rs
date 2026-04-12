@@ -1620,11 +1620,7 @@ fn git_subcommand_index(args: &[String]) -> Option<usize> {
     while i < args.len() {
         let token = args[i].as_str();
         if token == "--" {
-            return if i + 1 < args.len() {
-                Some(i + 1)
-            } else {
-                None
-            };
+            return (i + 1 < args.len()).then_some(i + 1);
         }
         if token.starts_with('-') {
             if git_flag_consumes_value(token) && i + 1 < args.len() {

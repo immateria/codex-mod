@@ -184,7 +184,7 @@ impl ChatWidget<'_> {
             None
         };
 
-        let button = if self.auto_state.awaiting_coordinator_submit() {
+        let button = self.auto_state.awaiting_coordinator_submit().then(|| {
             let base_label = if bootstrap_pending {
                 "Complete Current Task"
             } else if has_cli_prompt {
@@ -199,13 +199,11 @@ impl ChatWidget<'_> {
             } else {
                 base_label.to_owned()
             };
-            Some(AutoCoordinatorButton {
+            AutoCoordinatorButton {
                 label,
                 enabled: true,
-            })
-        } else {
-            None
-        };
+            }
+        });
 
         let manual_hint = if self.auto_state.awaiting_coordinator_submit() {
             if self.auto_state.is_paused_manual() {

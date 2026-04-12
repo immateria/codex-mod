@@ -765,16 +765,14 @@ fn new_exec_command_generic(
 
     let render_running_header = output.is_none();
     let display_output = output.or(stream_preview);
-    let running_status = if render_running_header {
+    let running_status = render_running_header.then(|| {
         let mut message = "Running...".to_owned();
         if let Some(start) = start_time {
             let elapsed = start.elapsed();
             message = format!("{message} ({})", format_duration(elapsed));
         }
-        Some(running_status_line(message))
-    } else {
-        None
-    };
+        running_status_line(message)
+    });
 
     if output.is_some() {
         for line in &mut highlighted_cmd {

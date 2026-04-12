@@ -1755,11 +1755,7 @@ impl Config {
                         AllowedCommandMatchKind::Exact => ApprovedCommandMatchKind::Exact,
                         AllowedCommandMatchKind::Prefix => ApprovedCommandMatchKind::Prefix,
                     };
-                    let semantic = if matches!(kind, ApprovedCommandMatchKind::Prefix) {
-                        Some(cmd.argv.clone())
-                    } else {
-                        None
-                    };
+                    let semantic = matches!(kind, ApprovedCommandMatchKind::Prefix).then(|| cmd.argv.clone());
                     always_allow_commands.push(ApprovedCommandPattern::new(
                         cmd.argv.clone(),
                         kind,

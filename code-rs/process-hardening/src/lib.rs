@@ -90,11 +90,7 @@ pub(crate) fn pre_main_hardening_macos() {
     // library loading.
     let dyld_keys: Vec<String> = std::env::vars()
         .filter_map(|(key, _)| {
-            if key.starts_with("DYLD_") {
-                Some(key)
-            } else {
-                None
-            }
+            key.starts_with("DYLD_").then_some(key)
         })
         .collect();
 

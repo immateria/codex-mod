@@ -100,11 +100,7 @@ impl ShellSelectionView {
         }
 
         let resolved = if trimmed.contains('/') || trimmed.contains('\\') {
-            if std::path::Path::new(trimmed).exists() {
-                Some(trimmed.to_owned())
-            } else {
-                None
-            }
+            std::path::Path::new(trimmed).exists().then(|| trimmed.to_owned())
         } else {
             which::which(trimmed).ok().map(|path| path.to_string_lossy().into_owned())
         };

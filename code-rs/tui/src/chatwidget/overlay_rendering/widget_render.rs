@@ -8,11 +8,7 @@ mod terminal_overlay;
 impl ChatWidget<'_> {
     pub(super) fn render_widget_ref(&self, area: Rect, buf: &mut Buffer) {
         // Top-level widget render timing
-        let _perf_widget_start = if self.perf_state.enabled {
-            Some(std::time::Instant::now())
-        } else {
-            None
-        };
+        let _perf_widget_start = self.perf_state.enabled.then(std::time::Instant::now);
 
         // Safety clear for non-standard mode: keep a stable background even
         // when downstream widgets intentionally skip unchanged regions.

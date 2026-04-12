@@ -1503,13 +1503,8 @@ impl McpConnectionManager {
             let tool_scheduling = self.tool_scheduling_read();
             tool_scheduling
                 .iter()
-                .filter_map(|((srv, tool), cfg)| {
-                    if srv == server && cfg.max_concurrent.is_none() && !cfg.is_empty() {
-                        Some((tool.clone(), cfg.clone()))
-                    } else {
-                        None
-                    }
-                })
+                .filter(|((srv, _tool), cfg)| srv == server && cfg.max_concurrent.is_none() && !cfg.is_empty())
+                .map(|((_srv, tool), cfg)| (tool.clone(), cfg.clone()))
                 .collect::<Vec<_>>()
         };
         if overrides.is_empty() {

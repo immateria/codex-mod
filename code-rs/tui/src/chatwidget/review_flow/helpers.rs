@@ -115,11 +115,7 @@ impl ChatWidget<'_> {
         }
         lines.push("</context>".to_owned());
 
-        if any {
-            Some(lines.join("\n"))
-        } else {
-            None
-        }
+        any.then(|| lines.join("\n"))
     }
 
 }

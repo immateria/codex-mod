@@ -68,11 +68,7 @@ impl McpViewLayout {
         };
 
         let main_area = vertical[0];
-        let hint_area = if vertical.len() > 1 {
-            Some(vertical[1])
-        } else {
-            None
-        };
+        let hint_area = (vertical.len() > 1).then(|| vertical[1]);
 
         if main_area.width >= 72 {
             let (list_rect, detail_rect) = split_content_wide(main_area);

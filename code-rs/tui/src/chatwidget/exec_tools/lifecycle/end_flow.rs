@@ -126,11 +126,8 @@ pub(in super::super::super) fn handle_exec_end_now(
                     cell.as_any()
                         .downcast_ref::<history_cell::ExecCell>()
                         .and_then(|exec_cell| {
-                            if exec_cell.record.call_id.as_deref() == Some(call_id.as_ref()) {
-                                Some((idx, exec_cell))
-                            } else {
-                                None
-                            }
+                            (exec_cell.record.call_id.as_deref() == Some(call_id.as_ref()))
+                                .then_some((idx, exec_cell))
                         })
                 })
             {

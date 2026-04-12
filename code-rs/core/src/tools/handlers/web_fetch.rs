@@ -389,7 +389,7 @@ pub(crate) async fn handle_web_fetch(sess: &Session, ctx: &ToolCallCtx, argument
                             if j + tag.len() <= bytes.len() && bytes[j..j+tag.len()].eq_ignore_ascii_case(tag) {
                                 // Found '<main'; now find '>'
                                 while j < bytes.len() && bytes[j] != b'>' { j += 1; }
-                                if j < bytes.len() { Some((i, j + 1)) } else { None }
+                                (j < bytes.len()).then_some((i, j + 1))
                             } else { None }
                         } else {
                             None

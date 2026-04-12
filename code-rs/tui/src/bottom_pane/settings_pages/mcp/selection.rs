@@ -135,11 +135,7 @@ impl McpSettingsView {
         let rel_y = row.saturating_sub(tools_inner.y) as usize;
         let scroll_top = self.tools_scroll_top_for_entries_len(tools_inner.height, entries_len);
         let idx = scroll_top.saturating_add(rel_y);
-        if idx < entries_len {
-            Some(idx)
-        } else {
-            None
-        }
+        (idx < entries_len).then_some(idx)
     }
 
     pub(super) fn tool_index_at_mouse_position(

@@ -340,18 +340,16 @@ impl Runner<'_> {
             &updated_config.shell_style_profiles,
         );
 
-        let mut skills_outcome = if updated_config.skills_enabled {
-            Some(if shell_style_skill_roots.is_empty() {
+        let mut skills_outcome = updated_config.skills_enabled.then(|| {
+            if shell_style_skill_roots.is_empty() {
                 load_skills(&updated_config)
             } else {
                 crate::skills::loader::load_skills_with_additional_roots(
                     &updated_config,
                     shell_style_skill_roots.iter().cloned(),
                 )
-            })
-        } else {
-            None
-        };
+            }
+        });
         if let Some(outcome) = &mut skills_outcome {
             for err in &outcome.errors {
                 warn!("invalid skill {}: {}", err.path.display(), err.message);

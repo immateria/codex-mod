@@ -628,11 +628,7 @@ impl ChatWidget<'_> {
             }
         }
 
-        let token_usage = if should_attach_token_usage {
-            Some(self.last_token_usage.clone())
-        } else {
-            None
-        };
+        let token_usage = should_attach_token_usage.then(|| self.last_token_usage.clone());
 
         
         self.history_state.finalize_assistant_stream_state(

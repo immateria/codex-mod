@@ -371,16 +371,12 @@ pub(in super::super::super) fn handle_exec_begin_now(
         }
         let mut created_new = false;
         let mut agg_idx = chat.exec.running_explore_agg_index.and_then(|idx| {
-            if idx < chat.history_cells.len()
+            (idx < chat.history_cells.len()
                 && chat.history_cells[idx]
                     .as_any()
                     .downcast_ref::<history_cell::ExploreAggregationCell>()
-                    .is_some()
-            {
-                Some(idx)
-            } else {
-                None
-            }
+                    .is_some())
+            .then_some(idx)
         });
 
         if agg_idx.is_none() {

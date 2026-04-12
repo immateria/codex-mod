@@ -116,16 +116,12 @@ pub(super) fn promote_exec_cell_to_explore(chat: &mut ChatWidget<'_>, idx: usize
     let session_root = chat.config.cwd.clone();
 
     let mut target_idx = chat.exec.running_explore_agg_index.and_then(|candidate| {
-        if candidate < chat.history_cells.len()
+        (candidate < chat.history_cells.len()
             && chat.history_cells[candidate]
                 .as_any()
                 .downcast_ref::<history_cell::ExploreAggregationCell>()
-                .is_some()
-        {
-            Some(candidate)
-        } else {
-            None
-        }
+                .is_some())
+        .then_some(candidate)
     });
 
     if target_idx.is_none() {

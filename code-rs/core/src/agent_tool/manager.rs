@@ -369,11 +369,7 @@ impl AgentManager {
         batch_id: Option<String>,
         recent_only: bool,
     ) -> Vec<Agent> {
-        let cutoff = if recent_only {
-            Some(Utc::now() - Duration::hours(2))
-        } else {
-            None
-        };
+        let cutoff = recent_only.then(|| Utc::now() - Duration::hours(2));
 
         self.agents
             .values()

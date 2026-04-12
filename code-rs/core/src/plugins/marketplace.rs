@@ -478,13 +478,9 @@ fn resolve_marketplace_interface(
     interface: Option<RawMarketplaceManifestInterface>,
 ) -> Option<MarketplaceInterface> {
     let interface = interface?;
-    if interface.display_name.is_some() {
-        Some(MarketplaceInterface {
-            display_name: interface.display_name,
-        })
-    } else {
-        None
-    }
+    interface.display_name.is_some().then_some(MarketplaceInterface {
+        display_name: interface.display_name,
+    })
 }
 
 #[cfg(test)]

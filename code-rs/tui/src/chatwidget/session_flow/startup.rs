@@ -104,11 +104,7 @@ impl ChatWidget<'_> {
                 &config.sandbox_policy,
             ),
             planning_restore: None,
-            history_debug_events: if history_cell_logging_enabled() {
-                Some(RefCell::new(Vec::new()))
-            } else {
-                None
-            },
+            history_debug_events: history_cell_logging_enabled().then(|| RefCell::new(Vec::new())),
             latest_upgrade_version,
             reconnect_notice_active: false,
             reconnect_notice_started_at: None,

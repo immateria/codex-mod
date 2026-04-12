@@ -282,11 +282,7 @@ impl TerminalOverlay {
             self.raw_stream.drain(..excess);
         }
         let was_following = self.is_following();
-        let previous_plain = if is_stderr {
-            Some(self.terminal_plain_lines.clone())
-        } else {
-            None
-        };
+        let previous_plain = is_stderr.then(|| self.terminal_plain_lines.clone());
         self.parser.process(chunk);
         self.refresh_terminal_lines(is_stderr, previous_plain);
         if was_following {

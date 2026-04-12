@@ -550,11 +550,7 @@ impl Session {
         let tracking_command = params.command.clone();
         let dry_run_analysis = analyze_command(&tracking_command);
         let params = maybe_run_with_user_profile(params, self);
-        let params_for_hooks = if enable_hooks {
-            Some(params.clone())
-        } else {
-            None
-        };
+        let params_for_hooks = enable_hooks.then(|| params.clone());
 
         if enable_hooks
             && let Some(params_ref) = params_for_hooks.as_ref() {

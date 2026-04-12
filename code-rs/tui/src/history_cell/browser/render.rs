@@ -349,11 +349,7 @@ impl BrowserSessionCell {
         let detail_style = primary_text_style(style);
         let time_style = primary_text_style(style);
 
-        let indent_string = if indent > 0 {
-            Some(" ".repeat(indent))
-        } else {
-            None
-        };
+        let indent_string = (indent > 0).then(|| " ".repeat(indent));
 
         if let Some(first) = lines.first() {
             rows.push(self.build_action_row(
@@ -549,11 +545,7 @@ impl HistoryCell for BrowserSessionCell {
     impl_as_any!();
 
     fn gutter_symbol(&self) -> Option<&'static str> {
-        if self.completed {
-            Some(crate::icons::gutter_success())
-        } else {
-            None
-        }
+        self.completed.then(crate::icons::gutter_success)
     }
 
     fn kind(&self) -> HistoryCellType {

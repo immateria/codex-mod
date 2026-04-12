@@ -105,13 +105,15 @@ impl BrowserManager {
                     }
                     // Evaluate visibility/focus of the tab. We avoid focus listeners since they won't fire when attaching.
                     let eval = page.evaluate(
-                        "(() => {\n".to_owned()
-                            + "  return {\n"
-                            + "    visible: document.visibilityState === 'visible',\n"
-                            + "    focused: (document.hasFocus && document.hasFocus()) || false,\n"
-                            + "    url: String(window.location.href || '')\n"
-                            + "  };\n"
-                            + "})()",
+                        concat!(
+                            "(() => {\n",
+                            "  return {\n",
+                            "    visible: document.visibilityState === 'visible',\n",
+                            "    focused: (document.hasFocus && document.hasFocus()) || false,\n",
+                            "    url: String(window.location.href || '')\n",
+                            "  };\n",
+                            "})()",
+                        ),
                     );
                     // Guard against hung targets by timing out quickly
                     let is_visible = tokio::time::timeout(Duration::from_millis(300), eval).await;

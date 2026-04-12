@@ -34,10 +34,7 @@ impl ChatWidget<'_> {
 
         let context = CoordinatorContext::new(self.auto_state.pending_agent_actions.len(), updates);
         let response = route_user_message(trimmed, &context);
-        if response.user_response.is_some() || response.cli_command.is_some() {
-            Some(response)
-        } else {
-            None
-        }
+        (response.user_response.is_some() || response.cli_command.is_some())
+            .then_some(response)
     }
 }

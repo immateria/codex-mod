@@ -1559,14 +1559,12 @@ impl HistoryState {
     }
 
     pub fn remove(&mut self, index: usize) -> Option<HistoryRecord> {
-        if index < self.records.len() {
+        (index < self.records.len()).then(|| {
             let record = self.records.remove(index);
             self.unregister_record(&record);
             self.rebuild_id_index();
-            Some(record)
-        } else {
-            None
-        }
+            record
+        })
     }
 
     pub fn get(&self, index: usize) -> Option<&HistoryRecord> {

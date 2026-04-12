@@ -30,11 +30,7 @@ pub(crate) fn hit_test_repeating_rows(
         return None;
     }
 
-    if offset % group_stride < active_rows_per_group {
-        Some(idx)
-    } else {
-        None
-    }
+    (offset % group_stride < active_rows_per_group).then_some(idx)
 }
 
 pub(crate) fn wrap_prev(current: usize, count: usize) -> usize {

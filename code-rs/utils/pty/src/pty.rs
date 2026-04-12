@@ -158,11 +158,7 @@ pub async fn spawn_process(
     });
 
     let handles = PtyHandles {
-        _slave: if cfg!(windows) {
-            Some(pair.slave)
-        } else {
-            None
-        },
+        _slave: cfg!(windows).then_some(pair.slave),
         _master: pair.master,
     };
 

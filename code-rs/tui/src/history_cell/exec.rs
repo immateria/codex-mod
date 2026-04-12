@@ -331,11 +331,7 @@ impl ExecCell {
             waiting: record.wait_active,
             notes: wait_notes_from_record(&record.wait_notes),
         };
-        let start_time = if matches!(record.status, ExecStatus::Running) {
-            Some(Instant::now())
-        } else {
-            None
-        };
+        let start_time = matches!(record.status, ExecStatus::Running).then(Instant::now);
 
         let collapsed_output = should_auto_collapse_output(output.as_ref());
 
@@ -877,11 +873,7 @@ pub(crate) fn new_completed_exec_command(
 pub(crate) fn display_lines_from_record(record: &ExecRecord) -> Vec<Line<'static>> {
     let output = super::formatting::record_output(record);
     let stream_preview = super::formatting::build_streaming_preview(record);
-    let start_time = if matches!(record.status, ExecStatus::Running) {
-        Some(Instant::now())
-    } else {
-        None
-    };
+    let start_time = matches!(record.status, ExecStatus::Running).then(Instant::now);
     let lines = crate::history_cell::exec_command_lines(
         &record.command,
         &record.parsed,

@@ -648,11 +648,7 @@ fn extract_leading_status_code(text: &str) -> Option<String> {
         .chars()
         .take_while(char::is_ascii_digit)
         .collect();
-    if digits.len() == 3 {
-        Some(digits)
-    } else {
-        None
-    }
+    (digits.len() == 3).then_some(digits)
 }
 
 fn console_lines_from_result(result: &Result<String, String>) -> Vec<String> {

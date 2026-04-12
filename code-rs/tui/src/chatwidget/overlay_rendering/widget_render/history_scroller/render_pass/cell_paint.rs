@@ -51,11 +51,7 @@ impl ChatWidget<'_> {
         let c_primary = crate::colors::primary();
         let c_info = crate::colors::info();
 
-        let render_loop_start = if self.perf_state.enabled {
-            Some(std::time::Instant::now())
-        } else {
-            None
-        };
+        let render_loop_start = self.perf_state.enabled.then(std::time::Instant::now);
 
         #[cfg(debug_assertions)]
         #[derive(Debug)]
@@ -254,11 +250,7 @@ impl ChatWidget<'_> {
                 };
 
                 if (is_assistant || is_auto_review) && gutter_area.width > 0 && gutter_area.height > 0 {
-                    let _perf_gutter_start = if self.perf_state.enabled {
-                        Some(std::time::Instant::now())
-                    } else {
-                        None
-                    };
+                    let _perf_gutter_start = self.perf_state.enabled.then(std::time::Instant::now);
                     let style = Style::default().bg(gutter_bg);
                     let mut tint_x = gutter_area.x;
                     let mut tint_width = gutter_area.width;

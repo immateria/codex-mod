@@ -269,11 +269,7 @@ impl CodexMessageProcessor {
             .conversation_listeners
             .iter()
             .filter_map(|(subscription_id, registration)| {
-                if registration.owner_connection_id == connection_id {
-                    Some(*subscription_id)
-                } else {
-                    None
-                }
+                (registration.owner_connection_id == connection_id).then_some(*subscription_id)
             })
             .collect();
 

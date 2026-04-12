@@ -1119,11 +1119,7 @@ impl MessageProcessor {
         let response_meta = models_meta_value
             .clone()
             .map(|value| json!({ "models": value }));
-        let configure_op = if changed {
-            Some(configure_session_op_from_config(&config_guard))
-        } else {
-            None
-        };
+        let configure_op = changed.then(|| configure_session_op_from_config(&config_guard));
         let model_name = selection.model.clone();
 
         drop(config_guard);
@@ -1366,11 +1362,8 @@ impl MessageProcessor {
         let request_ids: Vec<RequestId> = {
             let map = self.running_requests_id_to_code_uuid.lock().await;
             map.iter()
-                .filter_map(|(request_id, uuid)| if *uuid == session_uuid {
-                    Some(request_id.clone())
-                } else {
-                    None
-                })
+                .filter(|(_, uuid)| **uuid == session_uuid)
+                .map(|(request_id, _)| request_id.clone())
                 .collect()
         };
 

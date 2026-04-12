@@ -23,14 +23,10 @@ impl ChatWidget<'_> {
                 || id.ends_with(&format!("__{tool_name}"))
                 || id.ends_with(&format!(".{tool_name}"));
 
-            if tool.name == tool_name
+            (tool.name == tool_name
                 || (id_tool_name == tool_name && id_server.is_some_and(|server| server == server_name))
-                || (id_has_tool_suffix && id_server.is_some_and(|server| server == server_name))
-            {
-                Some(tool.clone())
-            } else {
-                None
-            }
+                || (id_has_tool_suffix && id_server.is_some_and(|server| server == server_name)))
+            .then(|| tool.clone())
         })
     }
 

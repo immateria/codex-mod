@@ -46,11 +46,7 @@ impl ChatWidget<'_> {
                 let scrim_bg = Style::default()
                     .bg(c_overlay_scrim)
                     .fg(c_text_dim);
-                let _perf_scrim_start = if self.perf_state.enabled {
-                    Some(std::time::Instant::now())
-                } else {
-                    None
-                };
+                let _perf_scrim_start = self.perf_state.enabled.then(std::time::Instant::now);
                 fill_rect(buf, area, None, scrim_bg);
                 if let Some(t0) = _perf_scrim_start {
                     let dt = t0.elapsed().as_nanos();
@@ -71,11 +67,7 @@ impl ChatWidget<'_> {
                 // Clear and repaint the overlay area with theme scrim background
                 Clear.render(area, buf);
                 let bg_style = crate::colors::style_on_overlay_scrim();
-                let _perf_overlay_area_bg_start = if self.perf_state.enabled {
-                    Some(std::time::Instant::now())
-                } else {
-                    None
-                };
+                let _perf_overlay_area_bg_start = self.perf_state.enabled.then(std::time::Instant::now);
                 fill_rect(buf, area, None, bg_style);
                 if let Some(t0) = _perf_overlay_area_bg_start {
                     let dt = t0.elapsed().as_nanos();
@@ -125,11 +117,7 @@ impl ChatWidget<'_> {
 
                 // Paint inner content background as the normal theme background
                 let inner_bg = s_on_bg;
-                let _perf_overlay_inner_bg_start = if self.perf_state.enabled {
-                    Some(std::time::Instant::now())
-                } else {
-                    None
-                };
+                let _perf_overlay_inner_bg_start = self.perf_state.enabled.then(std::time::Instant::now);
                 fill_rect(buf, inner, None, inner_bg);
                 if let Some(t0) = _perf_overlay_inner_bg_start {
                     let dt = t0.elapsed().as_nanos();
@@ -285,11 +273,7 @@ impl ChatWidget<'_> {
                     let contrast_target = crate::colors::text_bright();
                     let paper_color = crate::colors::mix_toward(bg, contrast_target, 0.06);
                     let body_bg = Style::default().bg(paper_color);
-                    let _perf_overlay_body_bg2 = if self.perf_state.enabled {
-                        Some(std::time::Instant::now())
-                    } else {
-                        None
-                    };
+                    let _perf_overlay_body_bg2 = self.perf_state.enabled.then(std::time::Instant::now);
                     for y in body_inner.y..body_inner.y + body_inner.height {
                         for x in body_inner.x..body_inner.x + body_inner.width {
                             buf[(x, y)].set_style(body_bg);

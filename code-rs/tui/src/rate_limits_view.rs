@@ -913,11 +913,7 @@ fn extract_capacity_fraction(snapshot: &RateLimitSnapshotEvent) -> Option<f64> {
     }
 
     let derived = (primary as f64 / secondary as f64).clamp(0.0, 1.0);
-    if derived > 0.0 && derived.is_finite() {
-        Some(derived)
-    } else {
-        None
-    }
+    (derived > 0.0 && derived.is_finite()).then_some(derived)
 }
 
 fn gauge_inputs_available(snapshot: &RateLimitSnapshotEvent) -> bool {

@@ -299,11 +299,8 @@ impl ChatWidget<'_> {
             } else {
                 #[cfg(feature = "managed-network-proxy")]
                 {
-                    if matches_tui_hotkey(hotkeys.network_settings, &key_event) {
-                        Some(ClickableAction::ShowNetworkSettings)
-                    } else {
-                        None
-                    }
+                    matches_tui_hotkey(hotkeys.network_settings, &key_event)
+                        .then_some(ClickableAction::ShowNetworkSettings)
                 }
                 #[cfg(not(feature = "managed-network-proxy"))]
                 {

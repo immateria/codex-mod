@@ -1468,11 +1468,7 @@ pub(crate) async fn handle_container_exec_with_params(
                                 Some(SensitiveGitKind::BranchChange)
                             } else if let Some(first_arg) = args.first() {
                                 let a = *first_arg;
-                                if !a.starts_with('-') && a != "." && a != ".." {
-                                    Some(SensitiveGitKind::BranchChange)
-                                } else {
-                                    None
-                                }
+                                (!a.starts_with('-') && a != "." && a != "..").then_some(SensitiveGitKind::BranchChange)
                             } else {
                                 None
                             }
@@ -1781,16 +1777,12 @@ pub(crate) async fn handle_container_exec_with_params(
     );
     let sandbox_cwd = sess.get_cwd().to_path_buf();
     let code_linux_sandbox_exe = sess.code_linux_sandbox_exe.clone();
-    let exec_spool_dir_for_task = if sess.client.debug_enabled() {
-        Some(
-            sess.client
-                .code_home()
-                .join("debug_logs")
-                .join("exec"),
-        )
-    } else {
-        None
-    };
+    let exec_spool_dir_for_task = sess.client.debug_enabled().then(|| {
+        sess.client
+            .code_home()
+            .join("debug_logs")
+            .join("exec")
+    });
     let result_cell_for_task = result_cell.clone();
     let notify_task = notify.clone();
     let tail_buf_task = tail_buf.clone();
@@ -2003,11 +1995,7 @@ pub(crate) async fn handle_container_exec_with_params(
                     st.background_execs
                         .iter()
                         .find_map(|(k, v)| {
-                            if crate::codex::lock_or_panic!(v.result_cell).is_some() {
-                                Some(k.clone())
-                            } else {
-                                None
-                            }
+                            crate::codex::lock_or_panic!(v.result_cell).is_some().then(|| k.clone())
                         })
                         .and_then(|k| st.background_execs.remove(&k))
                         .and_then(|bg| crate::codex::lock_or_panic!(bg.result_cell).clone())

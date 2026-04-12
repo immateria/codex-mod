@@ -51,16 +51,12 @@ pub(super) fn handle_mouse_event_inner(
 
     // Calculate footer area (where popups live)
     let footer_height = view.footer_height();
-    let footer_area = if footer_height > 0 {
-        Some(Rect {
-            x: area.x,
-            y: area.y + area.height.saturating_sub(footer_height),
-            width: area.width,
-            height: footer_height,
-        })
-    } else {
-        None
-    };
+    let footer_area = (footer_height > 0).then(|| Rect {
+        x: area.x,
+        y: area.y + area.height.saturating_sub(footer_height),
+        width: area.width,
+        height: footer_height,
+    });
 
     // Check if click/scroll is in footer area for popup handling
     let hit_footer = footer_area.filter(|fa| {

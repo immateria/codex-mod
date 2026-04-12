@@ -515,11 +515,7 @@ pub async fn run_main(
         None // No model specified, will use the default.
     };
 
-    let model_provider_override = if cli.oss {
-        Some(BUILT_IN_OSS_MODEL_PROVIDER_ID.to_owned())
-    } else {
-        None
-    };
+    let model_provider_override = cli.oss.then(|| BUILT_IN_OSS_MODEL_PROVIDER_ID.to_owned());
 
     // canonicalize the cwd
     let cwd = cli.cwd.clone().map(|p| p.canonicalize().unwrap_or(p));

@@ -221,11 +221,8 @@ pub(super) async fn run_agent(sess: Arc<Session>, turn_context: Arc<TurnContext>
             }
         }
 
-        let compact_snapshot = if auto_compact_pending && !is_review_mode {
-            Some(sess.turn_input_with_history(pending_input_tail.clone()))
-        } else {
-            None
-        };
+        let compact_snapshot = (auto_compact_pending && !is_review_mode)
+            .then(|| sess.turn_input_with_history(pending_input_tail.clone()));
 
         // Do not duplicate the initial input in `pending_input`.
         // It is already recorded to history above; ephemeral items are appended separately.

@@ -78,11 +78,7 @@ fn usage_used_percent(snapshot: &account_usage::StoredRateLimitSnapshot) -> Opti
     let used = snapshot
         .primary_used_percent
         .max(snapshot.secondary_used_percent);
-    if used.is_finite() {
-        Some(used)
-    } else {
-        None
-    }
+    used.is_finite().then_some(used)
 }
 
 fn is_blocked(now: DateTime<Utc>, blocked_until: Option<DateTime<Utc>>) -> bool {

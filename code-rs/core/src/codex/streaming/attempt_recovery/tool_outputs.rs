@@ -63,11 +63,7 @@ fn find_call_item_by_id(items: &[ResponseItem], call_id: &str) -> Option<Respons
         }
         ResponseItem::LocalShellCall { call_id: call_id_field, id, .. } => {
             let effective = call_id_field.as_deref().or(id.as_deref());
-            if effective == Some(call_id) {
-                Some(item.clone())
-            } else {
-                None
-            }
+            (effective == Some(call_id)).then(|| item.clone())
         }
         ResponseItem::CustomToolCall { call_id: existing, .. } if existing == call_id => {
             Some(item.clone())

@@ -100,11 +100,7 @@ pub(crate) fn explore_record_push_from_parsed(
             ParsedCommand::Search { query, path, cmd } => {
                 let formatted_path = format_search_target(path.as_deref(), cwd, session_root);
                 let pretty_query = query.clone().filter(|q| !q.trim().is_empty()).or_else(|| {
-                    if query.is_none() {
-                        Some(cmd.clone())
-                    } else {
-                        None
-                    }
+                    query.is_none().then(|| cmd.clone())
                 });
                 Some(ExploreSummary::Search {
                     query: pretty_query,

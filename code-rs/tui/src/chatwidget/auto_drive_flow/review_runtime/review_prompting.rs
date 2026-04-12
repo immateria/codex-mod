@@ -95,14 +95,10 @@ impl ChatWidget<'_> {
         self.auto_pending_goal_request = true;
         self.auto_goal_bootstrap_done = false;
 
-        let override_seconds = if matches!(
+        let override_seconds = matches!(
             self.auto_state.continue_mode,
             AutoContinueMode::Immediate
-        ) {
-            Some(10)
-        } else {
-            None
-        };
+        ).then_some(10);
         self.schedule_auto_cli_prompt_with_override(0, String::new(), override_seconds);
         true
     }

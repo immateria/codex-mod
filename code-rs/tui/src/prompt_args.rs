@@ -126,11 +126,7 @@ pub(crate) fn expand_custom_prompt(
             .into_iter()
             .map(|(n, _)| n.to_owned())
             .collect();
-        if !builtins.contains(name) {
-            Some(name)
-        } else {
-            None
-        }
+        (!builtins.contains(name)).then_some(name)
     };
 
     let Some(prompt_name) = prompt_name else {

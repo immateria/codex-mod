@@ -401,11 +401,7 @@ impl MessageProcessor {
                 let response = ConfigReadResponse {
                     config: self.v2_config_snapshot_from(&config),
                     origins: HashMap::new(),
-                    layers: if params.include_layers {
-                        Some(Vec::new())
-                    } else {
-                        None
-                    },
+                    layers: params.include_layers.then(Vec::new),
                 };
                 self.outgoing
                     .send_response_to_connection(connection_id, request_id, response)

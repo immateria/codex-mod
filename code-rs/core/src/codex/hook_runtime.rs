@@ -136,11 +136,7 @@ pub(super) async fn run_pre_tool_use_hooks(
     } = sess.hooks_json().run_pre_tool_use(request.clone()).await;
     emit_hook_completed_events(sess, sub_id, hook_events).await;
 
-    if should_block {
-        Some(block_reason.unwrap_or_default())
-    } else {
-        None
-    }
+    should_block.then(|| block_reason.unwrap_or_default())
 }
 
 pub(super) async fn run_stop_hooks(

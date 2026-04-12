@@ -158,10 +158,6 @@ fn extract_status_code(outcome: &str) -> Option<String> {
         return None;
     }
     let code: String = trimmed.chars().take_while(char::is_ascii_digit).collect();
-    if code.len() == 3 {
-        Some(code)
-    } else {
-        None
-    }
+    (code.len() == 3).then_some(code)
 }
 

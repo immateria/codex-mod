@@ -590,13 +590,9 @@ pub fn apply_hunks(
                 path, move_path, ..
             } => match move_path {
                 Some(move_path) => {
-                    if std::fs::metadata(move_path)
+                    std::fs::metadata(move_path)
                         .is_ok_and(|m| m.is_file())
-                    {
-                        Some(move_path.as_path())
-                    } else {
-                        None
-                    }
+                        .then_some(move_path.as_path())
                 }
                 None => Some(path.as_path()),
             },

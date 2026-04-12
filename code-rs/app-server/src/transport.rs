@@ -506,13 +506,9 @@ pub(crate) async fn route_outgoing_envelope(
             let target_connections: Vec<ConnectionId> = connections
                 .iter()
                 .filter_map(|(connection_id, connection_state)| {
-                    if connection_state.initialized.load(Ordering::Acquire)
-                        && !should_skip_notification_for_connection(connection_state, &message)
-                    {
-                        Some(*connection_id)
-                    } else {
-                        None
-                    }
+                    (connection_state.initialized.load(Ordering::Acquire)
+                        && !should_skip_notification_for_connection(connection_state, &message))
+                    .then_some(*connection_id)
                 })
                 .collect();
 

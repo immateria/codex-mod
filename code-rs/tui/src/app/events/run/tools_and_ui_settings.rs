@@ -509,11 +509,7 @@
                     self.schedule_redraw();
                 }
                 AppEvent::PluginInstallFinished { request, force_remote_sync: _force_remote_sync, result } => {
-                    let reload = if result.is_ok() {
-                        Some(self.reload_config_with_startup_overrides())
-                    } else {
-                        None
-                    };
+                    let reload = result.is_ok().then(|| self.reload_config_with_startup_overrides());
                     let mut should_refresh_list = false;
                     let mut refresh_roots: Option<Vec<code_utils_absolute_path::AbsolutePathBuf>> = None;
 
@@ -578,11 +574,7 @@
                     force_remote_sync: _force_remote_sync,
                     result,
                 } => {
-                    let reload = if result.is_ok() {
-                        Some(self.reload_config_with_startup_overrides())
-                    } else {
-                        None
-                    };
+                    let reload = result.is_ok().then(|| self.reload_config_with_startup_overrides());
                     let mut should_refresh_list = false;
                     let mut refresh_roots: Option<Vec<code_utils_absolute_path::AbsolutePathBuf>> = None;
 
@@ -644,11 +636,7 @@
                     enabled: _enabled,
                     result,
                 } => {
-                    let reload = if result.is_ok() {
-                        Some(self.reload_config_with_startup_overrides())
-                    } else {
-                        None
-                    };
+                    let reload = result.is_ok().then(|| self.reload_config_with_startup_overrides());
                     let mut should_refresh_list = false;
                     let mut refresh_roots: Option<Vec<code_utils_absolute_path::AbsolutePathBuf>> = None;
 
