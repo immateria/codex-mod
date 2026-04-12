@@ -86,7 +86,7 @@ impl SecretsSettingsView {
             Line::from(scope_line),
             Line::from(""),
             Line::from("This removes the stored secret value. You can re-add it with:"),
-            Line::from(format!("  code secrets set {}", entry.name.as_str())),
+            Line::from(format!("  code secrets set {}=VALUE", entry.name.as_str())),
         ];
 
         let paragraph = Paragraph::new(lines)

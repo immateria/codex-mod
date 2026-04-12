@@ -66,6 +66,15 @@ pub struct SecretsCommandOutput {
     pub stdout: String,
 }
 
+/// Parse a `NAME=VALUE` string into separate name and value parts.
+/// Returns `None` if no `=` is present.
+pub fn parse_name_eq_value(input: &str) -> Option<(String, String)> {
+    let eq_pos = input.find('=')?;
+    let name = input[..eq_pos].to_string();
+    let value = input[eq_pos + 1..].to_string();
+    Some((name, value))
+}
+
 pub fn read_secret_value_from_reader(mut reader: impl Read) -> Result<String> {
     let mut buf = String::new();
     reader
@@ -259,5 +268,22 @@ mod tests {
         assert_eq!(out.exit_code, 0);
         assert_eq!(out.stdout, "sk-test\n");
         Ok(())
+    }
+
+    #[test]
+    fn parse_name_eq_value_splits_correctly() {
+        assert_eq!(
+            parse_name_eq_value("API_KEY=sk-test-123"),
+            Some(("API_KEY".to_string(), "sk-test-123".to_string()))
+        );
+        assert_eq!(
+            parse_name_eq_value("KEY=val=ue"),
+            Some(("KEY".to_string(), "val=ue".to_string()))
+        );
+        assert_eq!(
+            parse_name_eq_value("KEY="),
+            Some(("KEY".to_string(), String::new()))
+        );
+        assert_eq!(parse_name_eq_value("NO_EQUALS"), None);
     }
 }

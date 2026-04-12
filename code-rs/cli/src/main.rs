@@ -26,6 +26,7 @@ use code_cli::login::run_login_with_chatgpt;
 use code_cli::login::run_login_with_device_code;
 use code_cli::login::run_logout;
 use code_cli::secrets_cmd;
+use std::io::IsTerminal;
 mod bridge;
 mod llm;
 use llm::{LlmCli, run_llm};
@@ -205,6 +206,7 @@ struct SecretsCli {
 
 #[derive(Debug, clap::Subcommand)]
 enum SecretsSubcommand {
+    /// Store a secret: `set NAME=VALUE`, `set NAME VALUE`, or pipe via stdin.
     Set(SecretsSetArgs),
     Get(SecretsGetArgs),
     List(SecretsListArgs),
@@ -213,9 +215,13 @@ enum SecretsSubcommand {
 
 #[derive(Debug, Parser)]
 struct SecretsSetArgs {
-    /// Secret name (must be A-Z0-9_).
-    #[arg(value_name = "NAME")]
+    /// Secret name, or NAME=VALUE to set inline.
+    #[arg(value_name = "NAME[=VALUE]")]
     name: String,
+
+    /// Secret value (if not provided inline or via stdin).
+    #[arg(value_name = "VALUE")]
+    value: Option<String>,
 
     /// Scope to store the secret in.
     #[arg(long = "scope", value_enum, default_value_t = SecretsScopeArg::Global)]
@@ -985,9 +991,31 @@ async fn cli_main(code_linux_sandbox_exe: Option<PathBuf>) -> anyhow::Result<()>
 
             let command = match secrets_cli.action {
                 SecretsSubcommand::Set(args) => {
-                    let value = secrets_cmd::read_secret_value_from_reader(std::io::stdin().lock())?;
+                    // Support three forms:
+                    //   code secrets set NAME=VALUE
+                    //   code secrets set NAME VALUE
+                    //   echo VALUE | code secrets set NAME
+                    let (name, value) = if let Some((n, v)) = secrets_cmd::parse_name_eq_value(&args.name) {
+                        // NAME=VALUE form
+                        anyhow::ensure!(!v.is_empty(), "secret value after '=' must not be empty");
+                        (n, v)
+                    } else if let Some(v) = args.value {
+                        // Positional VALUE form
+                        (args.name, v)
+                    } else if !std::io::stdin().is_terminal() {
+                        // Piped stdin form
+                        let v = secrets_cmd::read_secret_value_from_reader(std::io::stdin().lock())?;
+                        (args.name, v)
+                    } else {
+                        anyhow::bail!(
+                            "no value provided. Usage:\n  \
+                             code secrets set NAME=VALUE\n  \
+                             code secrets set NAME VALUE\n  \
+                             echo VALUE | code secrets set NAME"
+                        );
+                    };
                     secrets_cmd::SecretsCommand::Set {
-                        name: args.name,
+                        name,
                         value,
                         scope: scope_selection(args.scope, args.cwd, args.env_id),
                     }

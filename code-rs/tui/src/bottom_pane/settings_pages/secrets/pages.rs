@@ -20,7 +20,7 @@ impl SecretsSettingsView {
                 Style::new().fg(colors::text_dim()),
             )),
             Line::from(Span::styled(
-                "Use `code secrets set NAME` to add. Values are never shown in the TUI.",
+                "Use `code secrets set NAME=VALUE` to add. Values are never shown in the TUI.",
                 Style::new().fg(colors::text_dim()),
             )),
             Line::from(Span::styled(
