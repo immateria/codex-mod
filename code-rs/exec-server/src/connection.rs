@@ -174,7 +174,6 @@ impl JsonRpcConnection {
                         send_disconnected(&incoming_tx_for_reader, /*reason*/ None).await;
                         break;
                     }
-                    Some(Ok(Message::Ping(_) | Message::Pong(_))) => {}
                     Some(Ok(_)) => {}
                     Some(Err(err)) => {
                         send_disconnected(

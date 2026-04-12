@@ -599,7 +599,6 @@ mod api {
             "failed" => AttemptStatus::Failed,
             "completed" => AttemptStatus::Completed,
             "in_progress" => AttemptStatus::InProgress,
-            "pending" => AttemptStatus::Pending,
             _ => AttemptStatus::Pending,
         }
     }
@@ -639,17 +638,13 @@ mod api {
                 && let Some(s) = turn.get("turn_status").and_then(Value::as_str)
             {
                 return match s {
-                    "failed" => TaskStatus::Error,
+                    "failed" | "cancelled" => TaskStatus::Error,
                     "completed" => TaskStatus::Ready,
-                    "in_progress" => TaskStatus::Pending,
-                    "pending" => TaskStatus::Pending,
-                    "cancelled" => TaskStatus::Error,
                     _ => TaskStatus::Pending,
                 };
             }
             if let Some(state) = val.get("state").and_then(Value::as_str) {
                 return match state {
-                    "pending" => TaskStatus::Pending,
                     "ready" => TaskStatus::Ready,
                     "applied" => TaskStatus::Applied,
                     "error" => TaskStatus::Error,
@@ -771,7 +766,6 @@ fn log_level_from_env() -> CloudLogLevel {
         let value = raw.trim().to_ascii_lowercase();
         return match value.as_str() {
             "off" | "none" | "0" => CloudLogLevel::Off,
-            "error" | "warn" | "1" => CloudLogLevel::Error,
             "info" | "2" => CloudLogLevel::Info,
             "debug" | "trace" | "3" => CloudLogLevel::Debug,
             _ => CloudLogLevel::Error,

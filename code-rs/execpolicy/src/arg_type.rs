@@ -39,14 +39,7 @@ impl ArgType {
                     })
                 }
             }
-            ArgType::ReadableFile => {
-                if value.is_empty() {
-                    Err(Error::EmptyFileName {})
-                } else {
-                    Ok(())
-                }
-            }
-            ArgType::WriteableFile => {
+            ArgType::ReadableFile | ArgType::WriteableFile => {
                 if value.is_empty() {
                     Err(Error::EmptyFileName {})
                 } else {
@@ -55,13 +48,10 @@ impl ArgType {
             }
             ArgType::OpaqueNonFile | ArgType::Unknown => Ok(()),
             ArgType::PositiveInteger => match value.parse::<u64>() {
-                Ok(0) => Err(Error::InvalidPositiveInteger {
+                Ok(0) | Err(_) => Err(Error::InvalidPositiveInteger {
                     value: value.to_owned(),
                 }),
                 Ok(_) => Ok(()),
-                Err(_) => Err(Error::InvalidPositiveInteger {
-                    value: value.to_owned(),
-                }),
             },
             ArgType::SedCommand => parse_sed_command(value),
         }

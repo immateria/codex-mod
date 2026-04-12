@@ -82,15 +82,13 @@ pub struct MacOsPermissions {
 impl MacOsPermissions {
     pub fn is_empty(&self) -> bool {
         let preferences_empty = match &self.preferences {
-            None => true,
-            Some(MacOsPreferencesValue::Bool(false)) => true,
+            None | Some(MacOsPreferencesValue::Bool(false)) => true,
             Some(MacOsPreferencesValue::Bool(true)) => false,
             Some(MacOsPreferencesValue::Mode(mode)) => mode.trim().is_empty(),
         };
 
         let automations_empty = match &self.automations {
-            None => true,
-            Some(MacOsAutomationValue::Bool(false)) => true,
+            None | Some(MacOsAutomationValue::Bool(false)) => true,
             Some(MacOsAutomationValue::Bool(true)) => false,
             Some(MacOsAutomationValue::BundleIds(bundle_ids)) => bundle_ids.is_empty(),
         };
@@ -132,8 +130,8 @@ impl<'de> Deserialize<'de> for MacOsAutomationValue {
         let value = MacOsAutomationValueDe::deserialize(deserializer)?;
         Ok(match value {
             MacOsAutomationValueDe::Bool(value) => Self::Bool(value),
-            MacOsAutomationValueDe::BundleIds(bundle_ids) => Self::BundleIds(bundle_ids),
-            MacOsAutomationValueDe::BundleIdsObject { bundle_ids } => Self::BundleIds(bundle_ids),
+            MacOsAutomationValueDe::BundleIds(bundle_ids)
+            | MacOsAutomationValueDe::BundleIdsObject { bundle_ids } => Self::BundleIds(bundle_ids),
         })
     }
 }
@@ -546,9 +544,9 @@ impl DeveloperInstructions {
         };
 
         let (sandbox_mode, writable_roots) = match sandbox_policy {
-            SandboxPolicy::DangerFullAccess => (SandboxMode::DangerFullAccess, None),
+            SandboxPolicy::DangerFullAccess
+            | SandboxPolicy::ExternalSandbox { .. } => (SandboxMode::DangerFullAccess, None),
             SandboxPolicy::ReadOnly => (SandboxMode::ReadOnly, None),
-            SandboxPolicy::ExternalSandbox { .. } => (SandboxMode::DangerFullAccess, None),
             SandboxPolicy::WorkspaceWrite { .. } => {
                 let roots = sandbox_policy.get_writable_roots_with_cwd(cwd);
                 (SandboxMode::WorkspaceWrite, Some(roots))

@@ -65,10 +65,10 @@ impl ArgMatcher {
         match self {
             ArgMatcher::Literal(value) => ArgType::Literal(value.clone()),
             ArgMatcher::OpaqueNonFile => ArgType::OpaqueNonFile,
-            ArgMatcher::ReadableFile => ArgType::ReadableFile,
+            ArgMatcher::ReadableFile
+            | ArgMatcher::ReadableFiles
+            | ArgMatcher::ReadableFilesOrCwd => ArgType::ReadableFile,
             ArgMatcher::WriteableFile => ArgType::WriteableFile,
-            ArgMatcher::ReadableFiles => ArgType::ReadableFile,
-            ArgMatcher::ReadableFilesOrCwd => ArgType::ReadableFile,
             ArgMatcher::PositiveInteger => ArgType::PositiveInteger,
             ArgMatcher::SedCommand => ArgType::SedCommand,
             ArgMatcher::UnverifiedVarargs => ArgType::Unknown,
@@ -86,8 +86,7 @@ impl ArgMatcherCardinality {
     pub fn is_exact(&self) -> Option<usize> {
         match self {
             ArgMatcherCardinality::One => Some(1),
-            ArgMatcherCardinality::AtLeastOne => None,
-            ArgMatcherCardinality::ZeroOrMore => None,
+            ArgMatcherCardinality::AtLeastOne | ArgMatcherCardinality::ZeroOrMore => None,
         }
     }
 }

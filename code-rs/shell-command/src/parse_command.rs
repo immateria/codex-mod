@@ -1640,18 +1640,12 @@ fn git_subcommand_index(args: &[String]) -> Option<usize> {
 
 fn git_command_is_read_only(subcmd: &str, args: &[String]) -> bool {
     match subcmd {
-        "status" => true,
+        "status" | "log" | "show" | "rev-parse" | "rev-list"
+        | "describe" | "ls-files" | "ls-tree" => true,
         "diff" => args
             .iter()
             .all(|arg| !(arg == "-o" || arg == "--output" || arg.starts_with("--output="))),
-        "log" => true,
-        "show" => true,
         "branch" => git_branch_is_read_only(args),
-        "rev-parse" => true,
-        "rev-list" => true,
-        "describe" => true,
-        "ls-files" => true,
-        "ls-tree" => true,
         _ => false,
     }
 }

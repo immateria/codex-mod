@@ -259,32 +259,22 @@ fn is_safe_powershell_command(words: &[String]) -> bool {
         .trim_start_matches('-')
         .to_ascii_lowercase();
     match command.as_str() {
-        "echo" | "write-output" | "write-host" => true, // (no redirection allowed)
-        "dir" | "ls" | "get-childitem" | "gci" => true,
-        "cat" | "type" | "gc" | "get-content" => true,
-        "select-string" | "sls" | "findstr" => true,
-        "measure-object" | "measure" => true,
-        "get-location" | "gl" | "pwd" => true,
-        "test-path" | "tp" => true,
-        "resolve-path" | "rvpa" => true,
-        "select-object" | "select" => true,
-        "get-item" => true,
+        "echo" | "write-output" | "write-host"
+        | "dir" | "ls" | "get-childitem" | "gci"
+        | "cat" | "type" | "gc" | "get-content"
+        | "select-string" | "sls" | "findstr"
+        | "measure-object" | "measure"
+        | "get-location" | "gl" | "pwd"
+        | "test-path" | "tp"
+        | "resolve-path" | "rvpa"
+        | "select-object" | "select"
+        | "get-item" => true,
 
         "git" => is_safe_git_command(words),
 
         "rg" => is_safe_ripgrep(words),
 
-        // Extra safety: explicitly prohibit common side-effecting cmdlets regardless of args.
-        "set-content" | "add-content" | "out-file" | "new-item" | "remove-item" | "move-item"
-        | "copy-item" | "rename-item" | "start-process" | "stop-process" => {
-            // Examples rejected here: "pwsh -Command 'Set-Content notes.txt data'" and "pwsh -Command 'Remove-Item temp.log'".
-            false
-        }
-
-        _ => {
-            // Examples rejected here: "pwsh -Command 'Invoke-WebRequest https://example.com'" and "pwsh -Command 'Start-Service Spooler'".
-            false
-        }
+        _ => false,
     }
 }
 

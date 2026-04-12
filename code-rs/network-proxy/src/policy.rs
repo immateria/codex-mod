@@ -242,11 +242,9 @@ impl DomainPattern {
             },
             DomainPattern::ApexAndSubdomains(domain) => match candidate {
                 DomainPattern::Any => false,
-                DomainPattern::Exact(candidate) => is_subdomain_or_equal(candidate, domain),
-                DomainPattern::SubdomainsOnly(candidate) => {
-                    is_subdomain_or_equal(candidate, domain)
-                }
-                DomainPattern::ApexAndSubdomains(candidate) => {
+                DomainPattern::Exact(candidate)
+                | DomainPattern::SubdomainsOnly(candidate)
+                | DomainPattern::ApexAndSubdomains(candidate) => {
                     is_subdomain_or_equal(candidate, domain)
                 }
             },
