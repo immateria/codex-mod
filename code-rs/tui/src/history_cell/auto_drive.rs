@@ -738,9 +738,9 @@ impl AutoDriveCardCell {
         let (protected_start, protected_end) = protected;
 
         let mut state = frame_seed
-            .wrapping_mul(0x9E3779B97F4A7C15)
-            .wrapping_add(row_seed.wrapping_mul(0xBF58476D1CE4E5B9))
-            ^ 0x94D049BB133111EB;
+            .wrapping_mul(0x9E37_79B9_7F4A_7C15)
+            .wrapping_add(row_seed.wrapping_mul(0xBF58_476D_1CE4_E5B9))
+            ^ 0x94D0_49BB_1331_11EB;
 
         let sparkle_count = 3 + (Self::prng_step(&mut state) % 4) as usize;
         for _ in 0..sparkle_count {
@@ -770,7 +770,7 @@ impl AutoDriveCardCell {
 
     fn prng_step(state: &mut u64) -> u64 {
         *state = state
-            .wrapping_mul(6364136223846793005)
+            .wrapping_mul(6_364_136_223_846_793_005)
             .wrapping_add(1);
         *state
     }

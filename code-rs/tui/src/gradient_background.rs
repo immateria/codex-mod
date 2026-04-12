@@ -281,9 +281,9 @@ fn accent_color(
 }
 
 fn hash_noise(x: u16, y: u16) -> f32 {
-    let mut n = u32::from(x).wrapping_mul(73856093) ^ u32::from(y).wrapping_mul(19349663);
+    let mut n = u32::from(x).wrapping_mul(73_856_093) ^ u32::from(y).wrapping_mul(19_349_663);
     n ^= n >> 13;
-    n = n.wrapping_mul(1274126177);
+    n = n.wrapping_mul(1_274_126_177);
     ((n >> 10) & 0xffff) as f32 / 65535.0
 }
 
