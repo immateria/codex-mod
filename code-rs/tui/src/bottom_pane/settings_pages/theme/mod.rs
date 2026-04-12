@@ -202,6 +202,10 @@ impl ThemeSelectionView {
     pub(crate) fn is_complete(&self) -> bool {
         self.is_complete
     }
+
+    pub(crate) fn has_back_navigation(&self) -> bool {
+        !matches!(self.mode, Mode::Overview)
+    }
 }
 
 crate::bottom_pane::chrome_view::impl_chrome_view!(ThemeSelectionView, framed);

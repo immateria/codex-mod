@@ -271,4 +271,8 @@ impl ReviewSettingsView {
 
         runs
     }
+
+    pub(crate) fn has_back_navigation(&self) -> bool {
+        false
+    }
 }

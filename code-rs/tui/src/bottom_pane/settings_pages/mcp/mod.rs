@@ -175,6 +175,10 @@ impl McpSettingsView {
     pub(crate) fn is_complete(&self) -> bool {
         self.is_complete
     }
+
+    pub(crate) fn has_back_navigation(&self) -> bool {
+        !matches!(self.mode, McpSettingsMode::Main)
+    }
 }
 
 crate::bottom_pane::chrome_view::impl_chrome_view!(McpSettingsView, framed);

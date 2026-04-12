@@ -125,4 +125,8 @@ impl AppsSettingsView {
     fn close(&mut self) {
         self.is_complete = true;
     }
+
+    pub(crate) fn has_back_navigation(&self) -> bool {
+        !matches!(self.mode, Mode::Overview)
+    }
 }

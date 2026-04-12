@@ -118,4 +118,8 @@ impl UpdateSettingsView {
     pub fn is_view_complete(&self) -> bool {
         self.is_complete
     }
+
+    pub(crate) fn has_back_navigation(&self) -> bool {
+        false
+    }
 }

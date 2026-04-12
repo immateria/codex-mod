@@ -343,4 +343,8 @@ impl AutoDriveSettingsView {
         }
     }
 
+    pub(crate) fn has_back_navigation(&self) -> bool {
+        !matches!(self.mode, AutoDriveSettingsMode::Main)
+    }
+
 }

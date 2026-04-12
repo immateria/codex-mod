@@ -125,4 +125,8 @@ impl SecretsSettingsView {
             entry,
         });
     }
+
+    pub(crate) fn has_back_navigation(&self) -> bool {
+        !matches!(self.mode, Mode::List)
+    }
 }

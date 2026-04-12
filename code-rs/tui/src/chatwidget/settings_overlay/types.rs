@@ -19,6 +19,12 @@ pub(crate) trait SettingsContent {
     fn handle_mouse(&mut self, _mouse_event: MouseEvent, _area: Rect) -> bool {
         false
     }
+    /// Returns `true` when the content is in a sub-view that Esc should navigate
+    /// back from (e.g. a detail pane or edit form) rather than returning focus to
+    /// the settings sidebar.
+    fn has_back_navigation(&self) -> bool {
+        false
+    }
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]

@@ -80,5 +80,9 @@ impl ExecLimitsSettingsView {
             ViewMode::Main | ViewMode::Transition => false,
         }
     }
+
+    pub(crate) fn has_back_navigation(&self) -> bool {
+        !matches!(self.mode, ViewMode::Main)
+    }
 }
 

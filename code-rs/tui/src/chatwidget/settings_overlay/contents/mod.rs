@@ -13,6 +13,10 @@ macro_rules! impl_settings_content {
                 self.view.is_complete()
             }
 
+            fn has_back_navigation(&self) -> bool {
+                self.view.has_back_navigation()
+            }
+
             fn handle_mouse(
                 &mut self,
                 mouse_event: crossterm::event::MouseEvent,
@@ -39,6 +43,10 @@ macro_rules! impl_settings_content_with_paste {
 
             fn is_complete(&self) -> bool {
                 self.view.is_complete()
+            }
+
+            fn has_back_navigation(&self) -> bool {
+                self.view.has_back_navigation()
             }
 
             fn handle_paste(&mut self, text: String) -> bool {
@@ -73,6 +81,10 @@ macro_rules! impl_settings_content_view_complete {
                 self.view.is_view_complete()
             }
 
+            fn has_back_navigation(&self) -> bool {
+                self.view.has_back_navigation()
+            }
+
             fn handle_mouse(
                 &mut self,
                 mouse_event: crossterm::event::MouseEvent,
@@ -100,6 +112,10 @@ macro_rules! impl_settings_content_view_complete_key_always_true {
 
             fn is_complete(&self) -> bool {
                 self.view.is_view_complete()
+            }
+
+            fn has_back_navigation(&self) -> bool {
+                self.view.has_back_navigation()
             }
 
             fn handle_mouse(

@@ -168,10 +168,8 @@ pub(super) fn handle_settings_key(chat: &mut ChatWidget<'_>, key_event: KeyEvent
             }
             return true;
         }
-        // BackTab or Esc in content pane returns focus to sidebar.
-        // Esc is a Termux-friendly fallback for Shift+Tab.
-        KeyCode::BackTab | KeyCode::Esc if content_focused => {
-            // Expand sidebar if collapsed, then focus it.
+        // BackTab always returns focus to sidebar.
+        KeyCode::BackTab if content_focused => {
             if let Some(overlay) = chat.settings.overlay.as_mut() {
                 if overlay.is_sidebar_collapsed() {
                     overlay.toggle_sidebar_collapsed();
@@ -180,6 +178,29 @@ pub(super) fn handle_settings_key(chat: &mut ChatWidget<'_>, key_event: KeyEvent
             }
             chat.request_redraw();
             return true;
+        }
+        // Esc in content pane: if the content has internal back-navigation
+        // (e.g. a detail sub-view), let it handle Esc first. Otherwise
+        // return focus to the sidebar.
+        KeyCode::Esc if content_focused => {
+            let has_back = chat
+                .settings
+                .overlay
+                .as_ref()
+                .and_then(|o| o.active_content())
+                .is_some_and(super::settings_overlay::SettingsContent::has_back_navigation);
+            if !has_back {
+                if let Some(overlay) = chat.settings.overlay.as_mut() {
+                    if overlay.is_sidebar_collapsed() {
+                        overlay.toggle_sidebar_collapsed();
+                    }
+                    overlay.set_focus_sidebar();
+                }
+                chat.request_redraw();
+                return true;
+            }
+            // has_back_navigation is true — fall through so the content
+            // handler at line ~260 can process the Esc internally.
         }
         _ => {}
     }

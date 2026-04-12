@@ -492,6 +492,125 @@ impl SettingsOverlayView {
             .unwrap_or(0)
     }
 
+    pub(crate) fn active_content(&self) -> Option<&dyn SettingsContent> {
+        if self.is_menu_active() {
+            return None;
+        }
+
+        match self.active_section() {
+            SettingsSection::Model => self
+                .model_content
+                .as_ref()
+                .map(|content| content as &dyn SettingsContent),
+            SettingsSection::Interface => self
+                .interface_content
+                .as_ref()
+                .map(|content| content as &dyn SettingsContent),
+            SettingsSection::Experimental => self
+                .experimental_features_content
+                .as_ref()
+                .map(|content| content as &dyn SettingsContent),
+            SettingsSection::Shell => self
+                .shell_content
+                .as_ref()
+                .map(|content| content as &dyn SettingsContent),
+            SettingsSection::ShellEscalation => self
+                .shell_escalation_content
+                .as_ref()
+                .map(|content| content as &dyn SettingsContent),
+            SettingsSection::ShellProfiles => self
+                .shell_profiles_content
+                .as_ref()
+                .map(|content| content as &dyn SettingsContent),
+            SettingsSection::ExecLimits => self
+                .exec_limits_content
+                .as_ref()
+                .map(|content| content as &dyn SettingsContent),
+            SettingsSection::Planning => self
+                .planning_content
+                .as_ref()
+                .map(|content| content as &dyn SettingsContent),
+            SettingsSection::Theme => self
+                .theme_content
+                .as_ref()
+                .map(|content| content as &dyn SettingsContent),
+            SettingsSection::Updates => self
+                .updates_content
+                .as_ref()
+                .map(|content| content as &dyn SettingsContent),
+            SettingsSection::Agents => self
+                .agents_content
+                .as_ref()
+                .map(|content| content as &dyn SettingsContent),
+            SettingsSection::Accounts => self
+                .accounts_content
+                .as_ref()
+                .map(|content| content as &dyn SettingsContent),
+            SettingsSection::Secrets => self
+                .secrets_content
+                .as_ref()
+                .map(|content| content as &dyn SettingsContent),
+            SettingsSection::Apps => self
+                .apps_content
+                .as_ref()
+                .map(|content| content as &dyn SettingsContent),
+            SettingsSection::Memories => self
+                .memories_content
+                .as_ref()
+                .map(|content| content as &dyn SettingsContent),
+            SettingsSection::Prompts => self
+                .prompts_content
+                .as_ref()
+                .map(|content| content as &dyn SettingsContent),
+            SettingsSection::Skills => self
+                .skills_content
+                .as_ref()
+                .map(|content| content as &dyn SettingsContent),
+            SettingsSection::Plugins => self
+                .plugins_content
+                .as_ref()
+                .map(|content| content as &dyn SettingsContent),
+            SettingsSection::AutoDrive => self
+                .auto_drive_content
+                .as_ref()
+                .map(|content| content as &dyn SettingsContent),
+            SettingsSection::Review => self
+                .review_content
+                .as_ref()
+                .map(|content| content as &dyn SettingsContent),
+            SettingsSection::Validation => self
+                .validation_content
+                .as_ref()
+                .map(|content| content as &dyn SettingsContent),
+            SettingsSection::Limits => self
+                .limits_content
+                .as_ref()
+                .map(|content| content as &dyn SettingsContent),
+            #[cfg(feature = "browser-automation")]
+            SettingsSection::Chrome => self
+                .chrome_content
+                .as_ref()
+                .map(|content| content as &dyn SettingsContent),
+            SettingsSection::Notifications => self
+                .notifications_content
+                .as_ref()
+                .map(|content| content as &dyn SettingsContent),
+            SettingsSection::Mcp => self
+                .mcp_content
+                .as_ref()
+                .map(|content| content as &dyn SettingsContent),
+            SettingsSection::JsRepl => self
+                .js_repl_content
+                .as_ref()
+                .map(|content| content as &dyn SettingsContent),
+            #[cfg(feature = "managed-network-proxy")]
+            SettingsSection::Network => self
+                .network_content
+                .as_ref()
+                .map(|content| content as &dyn SettingsContent),
+        }
+    }
+
     pub(crate) fn active_content_mut(&mut self) -> Option<&mut dyn SettingsContent> {
         if self.is_menu_active() {
             return None;

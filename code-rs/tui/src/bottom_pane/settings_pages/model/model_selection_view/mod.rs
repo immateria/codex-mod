@@ -70,4 +70,8 @@ impl ModelSelectionView {
     pub(crate) fn update_presets(&mut self, presets: Vec<ModelPreset>) {
         self.selected_index = self.data.update_presets(presets, self.selected_index);
     }
+
+    pub(crate) fn has_back_navigation(&self) -> bool {
+        !matches!(self.mode, ViewMode::Main)
+    }
 }

@@ -183,6 +183,10 @@ impl_settings_content_custom!(AccountsSettingsContent {
         }
     }
 
+    fn has_back_navigation(&self) -> bool {
+        !matches!(self.mode, AccountsSubmenuMode::Switch(_))
+    }
+
     fn handle_paste(&mut self, text: String) -> bool {
         match &mut self.mode {
             AccountsSubmenuMode::Switch(_) => false,

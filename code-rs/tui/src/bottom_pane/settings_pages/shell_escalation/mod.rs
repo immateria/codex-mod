@@ -139,4 +139,8 @@ impl ShellEscalationSettingsView {
             || self.zsh_path != self.baseline_zsh_path
             || self.wrapper_override != self.baseline_wrapper_override;
     }
+
+    pub(crate) fn has_back_navigation(&self) -> bool {
+        !matches!(self.mode, ViewMode::Main)
+    }
 }

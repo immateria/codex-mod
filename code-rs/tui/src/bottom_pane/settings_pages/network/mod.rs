@@ -104,5 +104,9 @@ impl NetworkSettingsView {
     pub(crate) fn is_complete(&self) -> bool {
         self.is_complete
     }
+
+    pub(crate) fn has_back_navigation(&self) -> bool {
+        !matches!(self.mode, ViewMode::Main { .. })
+    }
 }
 

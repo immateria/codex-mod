@@ -120,6 +120,10 @@ impl SkillsSettingsView {
         self.list_state
             .ensure_visible(item_count, self.list_viewport_rows.get().max(1));
     }
+
+    pub(crate) fn has_back_navigation(&self) -> bool {
+        !matches!(self.mode, Mode::List)
+    }
 }
 
 #[cfg(test)]

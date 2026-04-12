@@ -122,5 +122,9 @@ impl ExperimentalFeaturesSettingsView {
         self.dirty = false;
         true
     }
+
+    pub(crate) fn has_back_navigation(&self) -> bool {
+        false
+    }
 }
 
