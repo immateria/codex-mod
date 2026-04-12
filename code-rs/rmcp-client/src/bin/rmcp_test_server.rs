@@ -19,7 +19,7 @@ use tokio::task;
 
 #[derive(Clone)]
 struct TestToolServer {
-    tools: Arc<Vec<Tool>>,
+    tools: Arc<[Tool]>,
 }
 pub fn stdio() -> (tokio::io::Stdin, tokio::io::Stdout) {
     (tokio::io::stdin(), tokio::io::stdout())
@@ -28,7 +28,7 @@ impl TestToolServer {
     fn new() -> Self {
         let tools = vec![Self::echo_tool()];
         Self {
-            tools: Arc::new(tools),
+            tools: Arc::from(tools),
         }
     }
 
@@ -79,7 +79,7 @@ impl ServerHandler for TestToolServer {
         let tools = self.tools.clone();
         async move {
             Ok(ListToolsResult {
-                tools: (*tools).clone(),
+                tools: tools.to_vec(),
                 next_cursor: None,
             })
         }
