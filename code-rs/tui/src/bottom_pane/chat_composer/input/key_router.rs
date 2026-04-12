@@ -46,9 +46,6 @@ pub(super) fn handle_key_event_inner(
     ) && (burst_active || recent_plain_char);
 
     if enter_should_newline {
-        // Enter is a non-Down key, so clear the sticky scroll flag.
-        view.next_down_scrolls_history = false;
-
         // Treat Enter as literal newline when a paste-like burst is active.
         view.insert_str("\n");
         view.history.reset_navigation();
@@ -79,10 +76,7 @@ pub(super) fn handle_key_event_inner(
         return (InputResult::None, true);
     }
 
-    // Any non-Down key clears the sticky flag; handled before popup routing
-    if !matches!(key_event.code, KeyCode::Down) {
-        view.next_down_scrolls_history = false;
-    }
+    // handled before popup routing
     let result = match &mut view.active_popup {
         ActivePopup::Command(_) => view.handle_key_event_with_slash_popup(key_event),
         ActivePopup::File(_) => view.handle_key_event_with_file_popup(key_event),

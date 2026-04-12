@@ -180,10 +180,6 @@ pub(crate) struct ChatComposer {
     show_reasoning_hint: bool,
     show_diffs_hint: bool,
     reasoning_shown: bool,
-    // Sticky flag: after a chat ScrollUp, make the very next Down trigger
-    // chat ScrollDown instead of moving within the textarea, unless another
-    // key is pressed in between.
-    next_down_scrolls_history: bool,
     // Detect and coalesce paste bursts for smoother UX
     paste_burst: PasteBurst,
     post_paste_space_guard: Option<PostPasteSpaceGuard>,
@@ -260,7 +256,6 @@ impl ChatComposer {
             show_reasoning_hint: false,
             show_diffs_hint: false,
             reasoning_shown: false,
-            next_down_scrolls_history: false,
             paste_burst: PasteBurst::default(),
             post_paste_space_guard: None,
             footer_hint_override: None,

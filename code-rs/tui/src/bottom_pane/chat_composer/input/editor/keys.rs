@@ -117,76 +117,57 @@ pub(super) fn handle_key_event_without_popup(
             (InputResult::None, true)
         }
         // -------------------------------------------------------------
-        // Up/Down key handling - check modifiers to determine action
+        // Up/Down key handling
+        // Plain Up/Down  → input history recall (shell-like)
+        // Shift+Up/Down  → viewport scroll
         // -------------------------------------------------------------
         KeyEvent {
             code: code @ (KeyCode::Up | KeyCode::Down),
             modifiers,
             ..
         } => {
-            // Check if Shift is held for history navigation
             if modifiers.contains(KeyModifiers::SHIFT) {
-                // History navigation with Shift+Up/Down
-                if view
-                    .history
-                    .should_handle_navigation(view.textarea.text(), view.textarea.cursor())
-                {
-                    let replace_text = match code {
-                        KeyCode::Up => view
-                            .history
-                            .navigate_up(view.textarea.text(), &view.app_event_tx),
-                        KeyCode::Down => view.history.navigate_down(&view.app_event_tx),
-                        _ => unreachable!("outer match restricts code to Up/Down"),
-                    };
-                    if let Some(text) = replace_text {
-                        view.textarea.set_text(&text);
-                        view.textarea.set_cursor(0);
-                        return (InputResult::None, true);
-                    }
-                }
-                // If history navigation didn't happen, just ignore the key
-                (InputResult::None, false)
-            } else {
-                // No Shift modifier — move cursor within the input first.
-                // Only when already at the top-left/bottom-right should Up/Down scroll chat.
-                if view.textarea.is_empty() {
-                    return match code {
-                        KeyCode::Up => (InputResult::ScrollUp, false),
-                        KeyCode::Down => (InputResult::ScrollDown, false),
-                        _ => unreachable!("outer match restricts code to Up/Down"),
-                    };
-                }
-
-                let before = view.textarea.cursor();
-                let len = view.textarea.text().len();
-                match code {
-                    KeyCode::Up => {
-                        if before == 0 {
-                            (InputResult::ScrollUp, false)
-                        } else {
-                            // Move up a visual/logical line; if already on first line, TextArea moves to start.
-                            view.textarea
-                                .input(KeyEvent::new(KeyCode::Up, KeyModifiers::NONE));
-                            (InputResult::None, true)
-                        }
-                    }
-                    KeyCode::Down => {
-                        // If sticky is set, prefer chat ScrollDown once
-                        if view.next_down_scrolls_history {
-                            view.next_down_scrolls_history = false;
-                            return (InputResult::ScrollDown, false);
-                        }
-                        if before == len {
-                            (InputResult::ScrollDown, false)
-                        } else {
-                            // Move down a visual/logical line; if already on last line, TextArea moves to end.
-                            view.textarea
-                                .input(KeyEvent::new(KeyCode::Down, KeyModifiers::NONE));
-                            (InputResult::None, true)
-                        }
-                    }
+                // Shift held → viewport scroll
+                return match code {
+                    KeyCode::Up => (InputResult::ScrollUp, false),
+                    KeyCode::Down => (InputResult::ScrollDown, false),
                     _ => unreachable!("outer match restricts code to Up/Down"),
+                };
+            }
+
+            // Empty composer → history only, no-op when nothing to recall
+            if view.textarea.is_empty() {
+                let ok = match code {
+                    KeyCode::Up => view.try_history_up(),
+                    KeyCode::Down => view.try_history_down(),
+                    _ => unreachable!("outer match restricts code to Up/Down"),
+                };
+                return (InputResult::None, ok);
+            }
+
+            // Non-empty composer → cursor movement, history at boundaries
+            let cursor = view.textarea.cursor();
+            let len = view.textarea.text().len();
+            match code {
+                KeyCode::Up => {
+                    if cursor == 0 {
+                        (InputResult::None, view.try_history_up())
+                    } else {
+                        view.textarea
+                            .input(KeyEvent::new(KeyCode::Up, KeyModifiers::NONE));
+                        (InputResult::None, true)
+                    }
                 }
+                KeyCode::Down => {
+                    if cursor == len {
+                        (InputResult::None, view.try_history_down())
+                    } else {
+                        view.textarea
+                            .input(KeyEvent::new(KeyCode::Down, KeyModifiers::NONE));
+                        (InputResult::None, true)
+                    }
+                }
+                _ => unreachable!("outer match restricts code to Up/Down"),
             }
         }
         KeyEvent {

@@ -66,12 +66,4 @@ impl ChatComposer {
         history_nav::try_history_down_inner(self)
     }
 
-    pub(crate) fn history_is_browsing(&self) -> bool {
-        history_nav::history_is_browsing_inner(self)
-    }
-
-    pub(crate) fn mark_next_down_scrolls_history(&mut self) {
-        history_nav::mark_next_down_scrolls_history_inner(self);
-    }
-
 }

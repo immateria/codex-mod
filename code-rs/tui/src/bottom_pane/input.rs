@@ -151,34 +151,6 @@ impl<'a> BottomPane<'a> {
         input_result
     }
 
-    /// Attempt to navigate history upwards from the composer. Returns true if consumed.
-    pub(crate) fn try_history_up(&mut self) -> bool {
-        let consumed = self.composer.try_history_up();
-        if consumed {
-            self.request_redraw();
-        }
-        consumed
-    }
-
-    /// Attempt to navigate history downwards from the composer. Returns true if consumed.
-    pub(crate) fn try_history_down(&mut self) -> bool {
-        let consumed = self.composer.try_history_down();
-        if consumed {
-            self.request_redraw();
-        }
-        consumed
-    }
-
-    /// Returns true if the composer is currently browsing history.
-    pub(crate) fn history_is_browsing(&self) -> bool {
-        self.composer.history_is_browsing()
-    }
-
-    /// After a chat scroll-up, make the next Down key scroll chat instead of moving within input.
-    pub(crate) fn mark_next_down_scrolls_history(&mut self) {
-        self.composer.mark_next_down_scrolls_history();
-    }
-
     /// Handle Ctrl-C in the bottom pane. If a modal view is active it gets a
     /// chance to consume the event (e.g. to dismiss itself).
     pub(crate) fn on_ctrl_c(&mut self) -> CancellationEvent {

@@ -516,15 +516,8 @@ impl ChatWidget<'_> {
             }
             InputResult::ScrollUp => {
                 let before = self.layout.scroll_offset.get();
-                // Only allow Up to navigate command history when the top view
-                // cannot be scrolled at all (no scrollback available).
-                if self.layout.last_max_scroll.get() == 0
-                    && self.bottom_pane.try_history_up() {
-                        self.perf_track_scroll_delta(before, self.layout.scroll_offset.get());
-                        return;
-                    }
-                // Scroll up in chat history (increase offset, towards older content)
-                // Use last_max_scroll computed during the previous render to avoid overshoot
+                // Pure viewport scroll (Shift+Up). History recall is handled
+                // at the composer level via plain Up.
                 let new_offset = self
                     .layout
                     .scroll_offset
@@ -534,14 +527,11 @@ impl ChatWidget<'_> {
                 self.layout.scroll_offset.set(new_offset);
                 self.flash_scrollbar();
                 self.sync_history_virtualization();
-                // Enable compact mode so history can use the spacer line
                 if self.layout.scroll_offset.get() > 0 {
                     self.bottom_pane.set_compact_compose(true);
                     self.height_manager
                         .borrow_mut()
                         .record_event(HeightEvent::ComposerModeChange);
-                    // Mark that the very next Down should continue scrolling chat (sticky)
-                    self.bottom_pane.mark_next_down_scrolls_history();
                 }
                 self.app_event_tx.send(AppEvent::RequestRedraw);
                 self.height_manager
@@ -552,14 +542,7 @@ impl ChatWidget<'_> {
             }
             InputResult::ScrollDown => {
                 let before = self.layout.scroll_offset.get();
-                // Only allow Down to navigate command history when the top view
-                // cannot be scrolled at all (no scrollback available).
-                if self.layout.last_max_scroll.get() == 0 && self.bottom_pane.history_is_browsing()
-                    && self.bottom_pane.try_history_down() {
-                        self.perf_track_scroll_delta(before, self.layout.scroll_offset.get());
-                        return;
-                    }
-                // Scroll down in chat history (decrease offset, towards bottom)
+                // Pure viewport scroll (Shift+Down).
                 if self.layout.scroll_offset.get() == 0 {
                     // Already at bottom: ensure spacer above input is enabled.
                     self.bottom_pane.set_compact_compose(false);
