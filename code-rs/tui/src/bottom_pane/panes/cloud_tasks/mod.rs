@@ -81,15 +81,29 @@ impl BottomPaneView<'_> for CloudTasksView {
     fn handle_key_event(&mut self, _pane: &mut BottomPane<'_>, key: crossterm::event::KeyEvent) {
         use crossterm::event::KeyCode;
         match key.code {
-            KeyCode::Up => {
+            KeyCode::Up | KeyCode::Char('k') => {
                 self.state.move_up_wrap(self.tasks.len());
                 self.state.ensure_visible(self.tasks.len(), self.max_rows());
             }
-            KeyCode::Down => {
+            KeyCode::Down | KeyCode::Char('j') => {
                 self.state.move_down_wrap(self.tasks.len());
                 self.state.ensure_visible(self.tasks.len(), self.max_rows());
             }
-            KeyCode::Enter => {
+            KeyCode::PageUp => {
+                self.state.page_up(self.tasks.len(), self.max_rows());
+            }
+            KeyCode::PageDown => {
+                self.state.page_down(self.tasks.len(), self.max_rows());
+            }
+            KeyCode::Home => {
+                self.state.home(self.tasks.len());
+                self.state.ensure_visible(self.tasks.len(), self.max_rows());
+            }
+            KeyCode::End => {
+                self.state.end(self.tasks.len(), self.max_rows());
+                self.state.ensure_visible(self.tasks.len(), self.max_rows());
+            }
+            KeyCode::Enter | KeyCode::Char(' ') => {
                 if let Some(task_id) = self.selected_task_id() {
                     self.app_event_tx
                         .send(AppEvent::ShowCloudTaskActions { task_id: task_id.to_owned() });

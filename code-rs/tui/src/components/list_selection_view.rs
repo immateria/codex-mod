@@ -212,10 +212,10 @@ impl BottomPaneView<'_> for ListSelectionView {
         let visible = self.max_rows.min(len);
         match key_event {
             KeyEvent {
-                code: KeyCode::Up, ..
+                code: KeyCode::Up | KeyCode::Char('k'), ..
             } => self.move_up(),
             KeyEvent {
-                code: KeyCode::Down,
+                code: KeyCode::Down | KeyCode::Char('j'),
                 ..
             } => self.move_down(),
             KeyEvent {
@@ -244,7 +244,7 @@ impl BottomPaneView<'_> for ListSelectionView {
                 code: KeyCode::Esc, ..
             } => self.cancel(),
             KeyEvent {
-                code: KeyCode::Enter,
+                code: KeyCode::Enter | KeyCode::Char(' '),
                 modifiers: KeyModifiers::NONE,
                 ..
             } => self.accept(),

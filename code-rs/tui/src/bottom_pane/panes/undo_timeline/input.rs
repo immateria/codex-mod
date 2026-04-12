@@ -5,11 +5,11 @@ use super::UndoTimelineView;
 impl UndoTimelineView {
     pub(super) fn handle_key_event_direct(&mut self, key_event: KeyEvent) -> bool {
         match key_event.code {
-            KeyCode::Up => {
+            KeyCode::Up | KeyCode::Char('k') => {
                 self.move_up();
                 true
             }
-            KeyCode::Down => {
+            KeyCode::Down | KeyCode::Char('j') => {
                 self.move_down();
                 true
             }

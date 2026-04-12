@@ -122,13 +122,13 @@ impl ResumeSelectionView {
 impl BottomPaneView<'_> for ResumeSelectionView {
     fn handle_key_event(&mut self, _pane: &mut BottomPane<'_>, key_event: KeyEvent) {
         match key_event.code {
-            KeyCode::Up => self.move_up(),
-            KeyCode::Down => self.move_down(),
+            KeyCode::Up | KeyCode::Char('k') => self.move_up(),
+            KeyCode::Down | KeyCode::Char('j') => self.move_down(),
             KeyCode::PageUp => self.page_up(),
             KeyCode::PageDown => self.page_down(),
             KeyCode::Home => self.go_home(),
             KeyCode::End => self.go_end(),
-            KeyCode::Enter => {
+            KeyCode::Enter | KeyCode::Char(' ') => {
                 if let Some(row) = self.rows.get(self.selected) {
                     match self.action {
                         SessionPickerAction::Resume => {

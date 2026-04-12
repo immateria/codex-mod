@@ -150,8 +150,8 @@ impl AppLinkView {
 impl BottomPaneView<'_> for AppLinkView {
     fn handle_key_event(&mut self, _pane: &mut BottomPane<'_>, key_event: KeyEvent) {
         match key_event.code {
-            KeyCode::Up => self.move_up(),
-            KeyCode::Down => self.move_down(),
+            KeyCode::Up | KeyCode::Char('k') => self.move_up(),
+            KeyCode::Down | KeyCode::Char('j') => self.move_down(),
             KeyCode::Enter | KeyCode::Char(' ') => self.activate_selected_action(),
             KeyCode::Esc => self.complete = true,
             _ => {}
