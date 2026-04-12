@@ -256,10 +256,8 @@ impl ThemeSelectionView {
                         Ok(code_core::ResponseEvent::Created { .. }) => {
                             let _ = progress_tx.send(ProgressMsg::SetStatus("(starting generation)".to_owned()));
                         }
-                        Ok(code_core::ResponseEvent::ReasoningSummaryDelta { delta, .. }) => {
-                            let _ = progress_tx.send(ProgressMsg::ThinkingDelta(delta));
-                        }
-                        Ok(code_core::ResponseEvent::ReasoningContentDelta { delta, .. }) => {
+                        Ok(code_core::ResponseEvent::ReasoningSummaryDelta { delta, .. })
+                        | Ok(code_core::ResponseEvent::ReasoningContentDelta { delta, .. }) => {
                             let _ = progress_tx.send(ProgressMsg::ThinkingDelta(delta));
                         }
                         Ok(code_core::ResponseEvent::OutputTextDelta { delta, .. }) => {

@@ -60,20 +60,23 @@ impl ChatWidget<'_> {
             self.config.model_explicit = true;
         }
 
-        let mut updated = false;
-        if !self.config.model.eq_ignore_ascii_case(trimmed) {
+        let model_changed = if !self.config.model.eq_ignore_ascii_case(trimmed) {
             self.config.model = trimmed.to_owned();
             let family = find_family_for_model(&self.config.model)
                 .unwrap_or_else(|| derive_default_model_family(&self.config.model));
             self.config.model_family = family;
-            updated = true;
-        }
+            true
+        } else {
+            false
+        };
 
-        if let Some(explicit) = effort
+        let effort_changed = if let Some(explicit) = effort
             && self.config.preferred_model_reasoning_effort != Some(explicit) {
                 self.config.preferred_model_reasoning_effort = Some(explicit);
-                updated = true;
-            }
+                true
+            } else {
+                false
+            };
 
         let requested_effort = effort
             .or(self.config.preferred_model_reasoning_effort)
@@ -81,10 +84,14 @@ impl ChatWidget<'_> {
         let presets = self.available_model_presets();
         let clamped_effort = Self::clamp_reasoning_for_model_from_presets(trimmed, requested_effort, &presets);
 
-        if self.config.model_reasoning_effort != clamped_effort {
+        let reasoning_changed = if self.config.model_reasoning_effort != clamped_effort {
             self.config.model_reasoning_effort = clamped_effort;
-            updated = true;
-        }
+            true
+        } else {
+            false
+        };
+
+        let updated = model_changed || effort_changed || reasoning_changed;
 
         if updated {
             let op = self.current_configure_session_op();
@@ -163,16 +170,21 @@ impl ChatWidget<'_> {
 
         let clamped_effort = Self::clamp_reasoning_for_model(trimmed, effort);
 
-        let mut updated = false;
-        if !self.config.review_model.eq_ignore_ascii_case(trimmed) {
+        let model_changed = if !self.config.review_model.eq_ignore_ascii_case(trimmed) {
             self.config.review_model = trimmed.to_owned();
-            updated = true;
-        }
+            true
+        } else {
+            false
+        };
 
-        if self.config.review_model_reasoning_effort != clamped_effort {
+        let effort_changed = if self.config.review_model_reasoning_effort != clamped_effort {
             self.config.review_model_reasoning_effort = clamped_effort;
-            updated = true;
-        }
+            true
+        } else {
+            false
+        };
+
+        let updated = model_changed || effort_changed;
 
         if !updated {
             self.bottom_pane
@@ -228,20 +240,25 @@ impl ChatWidget<'_> {
 
         let clamped_effort = Self::clamp_reasoning_for_model(trimmed, effort);
 
-        let mut updated = false;
-        if !self
+        let model_changed = if !self
             .config
             .review_resolve_model
             .eq_ignore_ascii_case(trimmed)
         {
             self.config.review_resolve_model = trimmed.to_owned();
-            updated = true;
-        }
+            true
+        } else {
+            false
+        };
 
-        if self.config.review_resolve_model_reasoning_effort != clamped_effort {
+        let effort_changed = if self.config.review_resolve_model_reasoning_effort != clamped_effort {
             self.config.review_resolve_model_reasoning_effort = clamped_effort;
-            updated = true;
-        }
+            true
+        } else {
+            false
+        };
+
+        let updated = model_changed || effort_changed;
 
         if !updated {
             self.bottom_pane
@@ -366,20 +383,25 @@ impl ChatWidget<'_> {
         self.config.auto_review_use_chat_model = false;
         let clamped_effort = Self::clamp_reasoning_for_model(trimmed, effort);
 
-        let mut updated = false;
-        if !self
+        let model_changed = if !self
             .config
             .auto_review_model
             .eq_ignore_ascii_case(trimmed)
         {
             self.config.auto_review_model = trimmed.to_owned();
-            updated = true;
-        }
+            true
+        } else {
+            false
+        };
 
-        if self.config.auto_review_model_reasoning_effort != clamped_effort {
+        let effort_changed = if self.config.auto_review_model_reasoning_effort != clamped_effort {
             self.config.auto_review_model_reasoning_effort = clamped_effort;
-            updated = true;
-        }
+            true
+        } else {
+            false
+        };
+
+        let updated = model_changed || effort_changed;
 
         if !updated {
             self.bottom_pane
@@ -469,20 +491,25 @@ impl ChatWidget<'_> {
         self.config.auto_review_resolve_use_chat_model = false;
         let clamped_effort = Self::clamp_reasoning_for_model(trimmed, effort);
 
-        let mut updated = false;
-        if !self
+        let model_changed = if !self
             .config
             .auto_review_resolve_model
             .eq_ignore_ascii_case(trimmed)
         {
             self.config.auto_review_resolve_model = trimmed.to_owned();
-            updated = true;
-        }
+            true
+        } else {
+            false
+        };
 
-        if self.config.auto_review_resolve_model_reasoning_effort != clamped_effort {
+        let effort_changed = if self.config.auto_review_resolve_model_reasoning_effort != clamped_effort {
             self.config.auto_review_resolve_model_reasoning_effort = clamped_effort;
-            updated = true;
-        }
+            true
+        } else {
+            false
+        };
+
+        let updated = model_changed || effort_changed;
 
         if !updated {
             self.bottom_pane

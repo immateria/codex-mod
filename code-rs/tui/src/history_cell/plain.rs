@@ -521,7 +521,6 @@ fn plain_role_from_kind(kind: HistoryCellType) -> PlainMessageRole {
         HistoryCellType::Tool { .. } => PlainMessageRole::Tool,
         HistoryCellType::Error => PlainMessageRole::Error,
         HistoryCellType::BackgroundEvent => PlainMessageRole::BackgroundEvent,
-        HistoryCellType::Notice => PlainMessageRole::System,
         _ => PlainMessageRole::System,
     }
 }
@@ -576,8 +575,7 @@ fn header_style(role: PlainMessageRole, theme: &Theme) -> Style {
         PlainMessageRole::Error => Style::default()
             .fg(theme.error)
             .add_modifier(Modifier::BOLD),
-        PlainMessageRole::BackgroundEvent => Style::default().fg(theme.text_dim),
-        PlainMessageRole::System => Style::default().fg(theme.text_dim),
+        PlainMessageRole::BackgroundEvent | PlainMessageRole::System => Style::default().fg(theme.text_dim),
     }
 }
 

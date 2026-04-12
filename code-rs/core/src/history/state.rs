@@ -1246,27 +1246,32 @@ impl HistoryUsageTracker {
         let total_chunks = state.total_chunks;
         let total_bytes = state.total_bytes;
 
-        let mut should_log = false;
-        if total_chunks >= EXEC_STREAM_CHUNK_THRESHOLD
+        let log_chunks = if total_chunks >= EXEC_STREAM_CHUNK_THRESHOLD
             && total_chunks >= state.last_chunk_log.saturating_add(EXEC_STREAM_CHUNK_STEP)
         {
             state.last_chunk_log = total_chunks;
-            should_log = true;
-        }
-        if total_bytes >= EXEC_STREAM_BYTE_THRESHOLD
+            true
+        } else {
+            false
+        };
+        let log_bytes = if total_bytes >= EXEC_STREAM_BYTE_THRESHOLD
             && total_bytes >= state.last_byte_log.saturating_add(EXEC_STREAM_BYTE_STEP)
         {
             state.last_byte_log = total_bytes;
-            should_log = true;
-        }
+            true
+        } else {
+            false
+        };
 
         let truncated_bytes = stdout_truncated.saturating_add(stderr_truncated);
-        if truncated_bytes > state.last_truncated_log {
+        let log_truncated = if truncated_bytes > state.last_truncated_log {
             state.last_truncated_log = truncated_bytes;
-            should_log = true;
-        }
+            true
+        } else {
+            false
+        };
 
-        if should_log {
+        if log_chunks || log_bytes || log_truncated {
             let preview = command_preview(&record.command);
             tracing::warn!(
                 target = "codex::history::memory",
@@ -1302,26 +1307,29 @@ impl HistoryUsageTracker {
         tracker.total_chunks = tracker.total_chunks.max(chunk_count);
         tracker.total_bytes = tracker.total_bytes.max(byte_count);
 
-        let mut should_log = false;
-        if chunk_count >= ASSISTANT_STREAM_CHUNK_THRESHOLD
+        let log_chunks = if chunk_count >= ASSISTANT_STREAM_CHUNK_THRESHOLD
             && chunk_count >= tracker
                 .last_chunk_log
                 .saturating_add(ASSISTANT_STREAM_CHUNK_STEP)
         {
             tracker.last_chunk_log = chunk_count;
-            should_log = true;
-        }
-        if byte_count >= ASSISTANT_STREAM_BYTE_THRESHOLD
+            true
+        } else {
+            false
+        };
+        let log_bytes = if byte_count >= ASSISTANT_STREAM_BYTE_THRESHOLD
             && byte_count
                 >= tracker
                     .last_byte_log
                     .saturating_add(ASSISTANT_STREAM_BYTE_STEP)
         {
             tracker.last_byte_log = byte_count;
-            should_log = true;
-        }
+            true
+        } else {
+            false
+        };
 
-        if should_log {
+        if log_chunks || log_bytes {
             let preview = assistant_preview(state);
             tracing::warn!(
                 target = "codex::history::memory",
@@ -2006,8 +2014,7 @@ impl HistoryState {
                     }
 
                 let mut deltas = Vec::new();
-                let mut truncated_prefix_bytes = 0usize;
-                if let Some(delta_value) = delta {
+                let truncated_prefix_bytes = if let Some(delta_value) = delta {
                     if let Some(existing_id) = self.records
                         .iter()
                         .find_map(|record| match record {
@@ -2020,8 +2027,10 @@ impl HistoryState {
                         self.usage_tracker
                             .add_assistant_delta(existing_id, delta_value.delta.len());
                     }
-                    truncated_prefix_bytes = append_assistant_delta(&mut deltas, delta_value);
-                }
+                    append_assistant_delta(&mut deltas, delta_value)
+                } else {
+                    0
+                };
                 let citations = metadata
                     .as_ref()
                     .map(|meta| meta.citations.clone())

@@ -41,16 +41,14 @@ fn collect_tool_call_ids(items: &[ResponseItem]) -> HashSet<String> {
     let mut ids = HashSet::new();
     for item in items {
         match item {
-            ResponseItem::FunctionCall { call_id, .. } => {
+            ResponseItem::FunctionCall { call_id, .. }
+            | ResponseItem::CustomToolCall { call_id, .. } => {
                 ids.insert(call_id.clone());
             }
             ResponseItem::LocalShellCall { call_id, id, .. } => {
                 if let Some(call_id) = call_id.as_ref().or(id.as_ref()) {
                     ids.insert(call_id.clone());
                 }
-            }
-            ResponseItem::CustomToolCall { call_id, .. } => {
-                ids.insert(call_id.clone());
             }
             _ => {}
         }

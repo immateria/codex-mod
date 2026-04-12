@@ -95,9 +95,7 @@ impl ThemeSelectionView {
                         .send(AppEvent::PreviewSpinner(self.current_spinner.clone()));
                 }
             }
-            Mode::Overview => {}
-            Mode::CreateSpinner(_) => {}
-            Mode::CreateTheme(_) => {}
+            Mode::Overview | Mode::CreateSpinner(_) | Mode::CreateTheme(_) => {}
         }
         self.mode = Mode::Overview;
     }

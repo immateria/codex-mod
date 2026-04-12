@@ -39,10 +39,7 @@ pub(super) fn estimated_height_active_with_context_inner(
         }
     }
 
-    let mut button_height = 0usize;
-    if ctx.button.is_some() {
-        button_height = 3;
-    }
+    let button_height: usize = if ctx.button.is_some() { 3 } else { 0 };
 
     if model.editing_prompt {
         let display_message = header::resolve_display_message(view, model);

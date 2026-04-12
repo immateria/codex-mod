@@ -23,7 +23,6 @@ use code_core::protocol::SessionConfiguredEvent;
 use code_core::protocol::TaskCompleteEvent;
 use code_protocol::protocol::TurnAbortReason;
 use code_core::protocol::TurnDiffEvent;
-use code_core::protocol::WebSearchBeginEvent;
 use code_core::protocol::WebSearchCompleteEvent;
 use code_protocol::num_format::format_with_separators_u64;
 use owo_colors::OwoColorize;
@@ -264,7 +263,13 @@ impl EventProcessor for EventProcessorWithHumanOutput {
             | EventMsg::ListCustomPromptsResponse(_)
             | EventMsg::ListSkillsResponse(_)
             | EventMsg::McpListToolsResponse(_)
-            | EventMsg::ViewImageToolCall(_) => {
+            | EventMsg::ViewImageToolCall(_)
+            | EventMsg::AutoContextCheck(_)
+            | EventMsg::ExecCommandOutputDelta(_)
+            | EventMsg::WebSearchBegin(_)
+            | EventMsg::ConversationPath(_)
+            | EventMsg::UserMessage(_)
+            | EventMsg::CompactionCheckpointWarning(_) => {
                 // Environment context events are consumed by the TUI; the CLI runner
                 // does not surface them alongside the human-readable transcript.
             }
@@ -293,7 +298,6 @@ impl EventProcessor for EventProcessorWithHumanOutput {
                     );
                 }
             }
-            EventMsg::AutoContextCheck(_) => {}
             EventMsg::AgentMessageDelta(AgentMessageDeltaEvent { delta }) => {
                 if !self.answer_started {
                     ts_println!(self, "{}\n", "codex".style(self.italic).style(self.magenta));
@@ -407,7 +411,6 @@ impl EventProcessor for EventProcessorWithHumanOutput {
                     ev.cwd.to_string_lossy(),
                 );
             }
-            EventMsg::ExecCommandOutputDelta(_) => {}
             EventMsg::ExecCommandEnd(ExecCommandEndEvent { call_id, stdout, stderr, duration, exit_code }) => {
                 let exec_command = self.call_id_to_command.remove(&call_id);
                 let (duration, call) = if let Some(ExecCommandBegin { command, .. }) = exec_command
@@ -492,7 +495,6 @@ impl EventProcessor for EventProcessorWithHumanOutput {
                     }
                 }
             }
-            EventMsg::WebSearchBegin(WebSearchBeginEvent { call_id: _, .. }) => {}
             EventMsg::WebSearchComplete(WebSearchCompleteEvent { call_id: _, query }) => {
                 if let Some(query) = query {
                     ts_println!(self, "Search: {query}");
@@ -743,8 +745,6 @@ impl EventProcessor for EventProcessorWithHumanOutput {
                 }
             },
             EventMsg::ShutdownComplete => return CodexStatus::Shutdown,
-            EventMsg::ConversationPath(_) => {}
-            EventMsg::UserMessage(_) => {}
             EventMsg::EnteredReviewMode(request) => {
                 ts_println!(
                     self,
@@ -843,7 +843,6 @@ impl EventProcessor for EventProcessorWithHumanOutput {
                     status.style(self.dimmed),
                 );
             }
-            EventMsg::CompactionCheckpointWarning(_) => {}
         }
         CodexStatus::Running
     }

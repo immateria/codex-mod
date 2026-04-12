@@ -69,10 +69,7 @@ pub(super) fn create_diff_summary_with_width(
     }
 
     let count_from_unified = |diff: &str| -> DiffTally {
-        let mut binary_marker = diff.contains("Binary files") || diff.contains("GIT binary patch");
-        if diff.as_bytes().contains(&0) {
-            binary_marker = true;
-        }
+        let mut binary_marker = diff.contains("Binary files") || diff.contains("GIT binary patch") || diff.as_bytes().contains(&0);
         let mut metadata_marker = diff_contains_metadata_markers(diff);
         if let Ok(patch) = diffy::Patch::from_str(diff) {
             let (added, removed) = patch

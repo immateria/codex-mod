@@ -204,13 +204,7 @@ pub(crate) fn explore_record_push_from_parsed(
                             *existing_ann = annot.clone().or_else(|| annotation_for_range(ns, ne));
                             true
                         }
-                        (Some(_), None) => {
-                            if annot.is_some() {
-                                *existing_ann = annot.clone();
-                            }
-                            true
-                        }
-                        (None, None) => {
+                        (Some(_), None) | (None, None) => {
                             if annot.is_some() {
                                 *existing_ann = annot.clone();
                             }
@@ -891,7 +885,6 @@ fn format_cwd_display(cwd: &Path, session_root: &Path) -> String {
             match comp {
                 Component::Normal(part) => parts.push(part.to_string_lossy().into_owned()),
                 Component::ParentDir => parts.push("..".to_owned()),
-                Component::CurDir => {}
                 _ => {}
             }
         }
@@ -912,14 +905,13 @@ fn format_list_target(path: Option<&str>, cwd: &Path, session_root: &Path) -> Op
     });
 
     let display = match trimmed {
-        Some("." | "./") => format_cwd_display(cwd, session_root),
+        Some("." | "./") | None => format_cwd_display(cwd, session_root),
         Some("/") => normalize_separators("/".to_owned()),
         Some(raw) => {
             let stripped = raw.trim_end_matches('/');
             let base = if stripped.is_empty() { raw } else { stripped };
             ensure_dir_suffix(base.to_owned())
         }
-        None => format_cwd_display(cwd, session_root),
     };
 
     Some(display)

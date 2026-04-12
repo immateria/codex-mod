@@ -553,11 +553,10 @@ impl ChatWidget<'_> {
                 self.handle_browser_screenshot_update_event(payload, event.order.as_ref());
             }
             // Newer protocol variants we currently ignore in the TUI
-            EventMsg::UserMessage(_) => {}
+            EventMsg::UserMessage(_) | EventMsg::ConversationPath(_) => {}
             EventMsg::TurnAborted(_) => {
                 self.handle_turn_aborted_event();
             }
-            EventMsg::ConversationPath(_) => {}
             EventMsg::EnteredReviewMode(review_request) => {
                 self.handle_entered_review_mode_event(review_request);
             }

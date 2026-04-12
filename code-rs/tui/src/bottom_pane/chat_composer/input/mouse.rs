@@ -43,8 +43,9 @@ pub(super) fn handle_mouse_event_inner(
 
     // Only handle left clicks and scroll
     match mouse_event.kind {
-        MouseEventKind::Down(MouseButton::Left) => {}
-        MouseEventKind::ScrollUp | MouseEventKind::ScrollDown => {}
+        MouseEventKind::Down(MouseButton::Left)
+        | MouseEventKind::ScrollUp
+        | MouseEventKind::ScrollDown => {}
         _ => return (InputResult::None, false),
     }
 

@@ -74,8 +74,7 @@ pub(super) fn intro_state<'a>(header_text: &'a str, model: &AutoActiveViewModel)
         Cow::Owned(header_text.chars().take(visible).collect())
     };
 
-    let mut schedule_next_in = None;
-    if !body_visible {
+    let schedule_next_in = if !body_visible {
         let next_target = if visible < total_chars {
             Duration::from_millis(LETTER_INTERVAL_MS * visible as u64)
         } else {
@@ -93,8 +92,10 @@ pub(super) fn intro_state<'a>(header_text: &'a str, model: &AutoActiveViewModel)
         }
 
         let min_delay = Duration::from_millis(MIN_FRAME_MS);
-        schedule_next_in = Some(remaining.max(min_delay));
-    }
+        Some(remaining.max(min_delay))
+    } else {
+        None
+    };
 
     IntroState {
         header_text,

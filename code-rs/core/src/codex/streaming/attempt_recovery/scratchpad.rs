@@ -10,8 +10,8 @@ pub(in crate::codex::streaming) fn inject_scratchpad_into_attempt_input(
     let mut seen_calls: std::collections::HashSet<String> = attempt_input
         .iter()
         .filter_map(|ri| match ri {
-            ResponseItem::FunctionCall { call_id, .. } => Some(call_id.clone()),
-            ResponseItem::CustomToolCall { call_id, .. } => Some(call_id.clone()),
+            ResponseItem::FunctionCall { call_id, .. }
+            | ResponseItem::CustomToolCall { call_id, .. } => Some(call_id.clone()),
             ResponseItem::LocalShellCall { call_id, id, .. } => call_id.clone().or_else(|| id.clone()),
             _ => None,
         })
@@ -21,8 +21,8 @@ pub(in crate::codex::streaming) fn inject_scratchpad_into_attempt_input(
     // the same call ids as their tool outputs.
     for item in sp.items {
         let call_id = match &item {
-            ResponseItem::FunctionCall { call_id, .. } => Some(call_id.as_str()),
-            ResponseItem::CustomToolCall { call_id, .. } => Some(call_id.as_str()),
+            ResponseItem::FunctionCall { call_id, .. }
+            | ResponseItem::CustomToolCall { call_id, .. } => Some(call_id.as_str()),
             ResponseItem::LocalShellCall { call_id, id, .. } => call_id.as_deref().or(id.as_deref()),
             _ => None,
         };

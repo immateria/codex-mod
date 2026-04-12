@@ -90,11 +90,8 @@ pub(super) fn handle_key_event_direct(view: &mut ShellProfilesSettingsView, key:
                 code: KeyCode::Left,
                 modifiers: KeyModifiers::NONE,
                 ..
-            } if view.selected_row() == RowKind::Style => {
-                view.cycle_style_next();
-                true
             }
-            KeyEvent {
+            | KeyEvent {
                 code: KeyCode::Right,
                 modifiers: KeyModifiers::NONE,
                 ..
@@ -199,9 +196,8 @@ pub(super) fn handle_paste_direct(view: &mut ShellProfilesSettingsView, text: St
     }
 
     let target = match &view.mode {
-        ViewMode::Main => return false,
+        ViewMode::Main | ViewMode::PickList(_) => return false,
         ViewMode::EditList { target, .. } => *target,
-        ViewMode::PickList(_) => return false,
     };
     view.editor_field_mut(target).handle_paste(text);
     true

@@ -118,11 +118,8 @@ pub(crate) fn expand_custom_prompt(
         return Ok(None);
     };
 
-    let mut prompt_name = None;
-
-    // Explicit prefix takes priority for backwards compatibility.
-    if let Some(after_prefix) = name.strip_prefix(&format!("{PROMPTS_CMD_PREFIX}:")) {
-        prompt_name = Some(after_prefix);
+    let prompt_name = if let Some(after_prefix) = name.strip_prefix(&format!("{PROMPTS_CMD_PREFIX}:")) {
+        Some(after_prefix)
     } else {
         // Allow bare `/name` form when it does not shadow a built-in command.
         let builtins: HashSet<String> = built_in_slash_commands()
@@ -130,9 +127,11 @@ pub(crate) fn expand_custom_prompt(
             .map(|(n, _)| n.to_owned())
             .collect();
         if !builtins.contains(name) {
-            prompt_name = Some(name);
+            Some(name)
+        } else {
+            None
         }
-    }
+    };
 
     let Some(prompt_name) = prompt_name else {
         return Ok(None);

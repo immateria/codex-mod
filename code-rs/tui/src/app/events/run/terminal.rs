@@ -102,8 +102,7 @@
                     }
                 }
                 AppEvent::TerminalCancel { id } => {
-                    let mut remove_entry = false;
-                    if let Some(run) = self.terminal_runs.get_mut(&id) {
+                    let remove_entry = if let Some(run) = self.terminal_runs.get_mut(&id) {
                         let had_controller = run.controller.is_some();
                         if let Some(tx) = run.cancel_tx.take()
                             && !tx.is_closed() {
@@ -118,8 +117,10 @@
                             guard.take();
                         }
                         run.pty = None;
-                        remove_entry = had_controller;
-                    }
+                        had_controller
+                    } else {
+                        false
+                    };
                     if remove_entry {
                         self.terminal_runs.remove(&id);
                     }

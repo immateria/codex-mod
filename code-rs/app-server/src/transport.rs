@@ -372,12 +372,12 @@ async fn run_websocket_connection(
                             break;
                         }
                     }
-                    Some(Ok(WebSocketMessage::Pong(_))) => {}
+                    Some(Ok(WebSocketMessage::Pong(_)))
+                    | Some(Ok(WebSocketMessage::Frame(_))) => {}
                     Some(Ok(WebSocketMessage::Close(_))) | None => break,
                     Some(Ok(WebSocketMessage::Binary(_))) => {
                         warn!("dropping unsupported binary websocket message");
                     }
-                    Some(Ok(WebSocketMessage::Frame(_))) => {}
                     Some(Err(err)) => {
                         warn!("websocket receive error: {err}");
                         break;

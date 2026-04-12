@@ -191,7 +191,6 @@ enum AgentStatus {
 
 fn agent_status_from_str(status: &str) -> AgentStatus {
     match status {
-        "pending" => AgentStatus::Pending,
         "running" => AgentStatus::Running,
         "completed" => AgentStatus::Completed,
         "failed" => AgentStatus::Failed,
@@ -232,11 +231,10 @@ fn agent_running_priority(status: AgentStatus) -> usize {
 
 fn agent_status_color(status: AgentStatus) -> ratatui::style::Color {
     match status {
-        AgentStatus::Pending => crate::colors::warning(),
+        AgentStatus::Pending | AgentStatus::Cancelled => crate::colors::warning(),
         AgentStatus::Running => crate::colors::info(),
         AgentStatus::Completed => crate::colors::success(),
         AgentStatus::Failed => crate::colors::error(),
-        AgentStatus::Cancelled => crate::colors::warning(),
     }
 }
 

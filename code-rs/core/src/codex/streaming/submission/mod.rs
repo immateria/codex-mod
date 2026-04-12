@@ -192,7 +192,8 @@ pub(in crate::codex) async fn submission_loop(
                     sess.set_task(agent);
                 }
             }
-            Op::ExecApproval { id, decision, .. } => {
+            Op::ExecApproval { id, decision, .. }
+            | Op::PatchApproval { id, decision } => {
                 let Some(sess) = sess.as_ref() else {
                     send_no_session_event(sub.id).await;
                     continue;
@@ -263,19 +264,6 @@ pub(in crate::codex) async fn submission_loop(
                     ));
                 } else {
                     send_no_session_event(sub.id).await;
-                }
-            }
-            Op::PatchApproval { id, decision } => {
-                let Some(sess) = sess.as_ref() else {
-                    send_no_session_event(sub.id).await;
-                    continue;
-                };
-                match decision {
-                    ReviewDecision::Abort => {
-                        sess.notify_wait_interrupted(WaitInterruptReason::SessionAborted);
-                        sess.abort();
-                    }
-                    other => sess.notify_approval(&id, other),
                 }
             }
             Op::UpdateValidationTool { name, enable } => {
@@ -643,10 +631,8 @@ pub(in crate::codex) async fn submission_loop(
                             crate::skills::model::SkillScope::User => {
                                 code_protocol::skills::SkillScope::User
                             }
-                            crate::skills::model::SkillScope::System => {
-                                code_protocol::skills::SkillScope::System
-                            }
-                            crate::skills::model::SkillScope::Admin => {
+                            crate::skills::model::SkillScope::System
+                            | crate::skills::model::SkillScope::Admin => {
                                 code_protocol::skills::SkillScope::System
                             }
                         },

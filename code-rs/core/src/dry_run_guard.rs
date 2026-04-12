@@ -103,11 +103,11 @@ impl DryRunAnalysis {
             DryRunGuardKey::PackageFormat(manager) => self.suggest_package_script_dry_run(manager, "--check", Some("--dry-run")),
             DryRunGuardKey::EslintFix => self.suggest_eslint_fix_dry_run(),
             DryRunGuardKey::PrettierWrite => self.suggest_prettier_write_dry_run(),
-            DryRunGuardKey::Black => self.suggest_append_flag("--check"),
-            DryRunGuardKey::RuffFormat => self.suggest_append_flag("--check"),
+            DryRunGuardKey::Black
+            | DryRunGuardKey::RuffFormat
+            | DryRunGuardKey::Rustywind => self.suggest_append_flag("--check"),
             DryRunGuardKey::Isort => self.suggest_append_flag("--check-only"),
             DryRunGuardKey::Gofmt => self.suggest_gofmt_dry_run(),
-            DryRunGuardKey::Rustywind => self.suggest_append_flag("--check"),
             DryRunGuardKey::DartFormat => self.suggest_append_flag("--dry-run"),
             DryRunGuardKey::SwiftFormat => self.suggest_swiftformat_dry_run(),
         }
@@ -467,8 +467,7 @@ fn analyze_package_manager(tokens: &[String], manager: PackageManager) -> Option
 fn locate_package_script(tokens: &[String], manager: PackageManager) -> Option<(usize, String)> {
     match manager {
         PackageManager::Npm => locate_npm_script(tokens),
-        PackageManager::Pnpm => locate_simple_script(tokens),
-        PackageManager::Yarn => locate_simple_script(tokens),
+        PackageManager::Pnpm | PackageManager::Yarn => locate_simple_script(tokens),
     }
 }
 

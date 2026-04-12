@@ -16,13 +16,7 @@ pub(super) fn handle_settings_key(chat: &mut ChatWidget<'_>, key_event: KeyEvent
         .is_some_and(super::settings_overlay::SettingsOverlayView::is_help_visible)
     {
         match key_event.code {
-            KeyCode::Esc => {
-                if let Some(overlay) = chat.settings.overlay.as_mut() {
-                    overlay.hide_help();
-                }
-                chat.request_redraw();
-            }
-            KeyCode::Char('?') => {
+            KeyCode::Esc | KeyCode::Char('?') => {
                 if let Some(overlay) = chat.settings.overlay.as_mut() {
                     overlay.hide_help();
                 }
@@ -71,24 +65,14 @@ pub(super) fn handle_settings_key(chat: &mut ChatWidget<'_>, key_event: KeyEvent
                 chat.close_settings_overlay();
                 return true;
             }
-            KeyCode::Up | KeyCode::Char('k') => {
+            KeyCode::Up | KeyCode::Char('k') | KeyCode::BackTab => {
                 if let Some(overlay) = chat.settings.overlay.as_mut() {
                     changed = overlay.select_previous();
                 }
             }
-            KeyCode::Down | KeyCode::Char('j') => {
+            KeyCode::Down | KeyCode::Char('j') | KeyCode::Tab => {
                 if let Some(overlay) = chat.settings.overlay.as_mut() {
                     changed = overlay.select_next();
-                }
-            }
-            KeyCode::Tab => {
-                if let Some(overlay) = chat.settings.overlay.as_mut() {
-                    changed = overlay.select_next();
-                }
-            }
-            KeyCode::BackTab => {
-                if let Some(overlay) = chat.settings.overlay.as_mut() {
-                    changed = overlay.select_previous();
                 }
             }
             KeyCode::Home => {
@@ -184,20 +168,9 @@ pub(super) fn handle_settings_key(chat: &mut ChatWidget<'_>, key_event: KeyEvent
             }
             return true;
         }
-        KeyCode::BackTab if content_focused => {
-            // Expand sidebar if collapsed, then focus it.
-            if let Some(overlay) = chat.settings.overlay.as_mut() {
-                if overlay.is_sidebar_collapsed() {
-                    overlay.toggle_sidebar_collapsed();
-                }
-                overlay.set_focus_sidebar();
-            }
-            chat.request_redraw();
-            return true;
-        }
-        // Esc in content pane (when no sub-editor is active) returns to sidebar.
-        // This is a Termux-friendly fallback for Shift+Tab.
-        KeyCode::Esc if content_focused => {
+        // BackTab or Esc in content pane returns focus to sidebar.
+        // Esc is a Termux-friendly fallback for Shift+Tab.
+        KeyCode::BackTab | KeyCode::Esc if content_focused => {
             // Expand sidebar if collapsed, then focus it.
             if let Some(overlay) = chat.settings.overlay.as_mut() {
                 if overlay.is_sidebar_collapsed() {

@@ -149,10 +149,8 @@ impl CommandPopup {
         }
         for (idx, p) in self.prompts.iter().enumerate() {
             let prefixed = format!("{PROMPTS_CMD_PREFIX}:{}", p.name);
-            let mut best: Option<(Vec<usize>, i32)> = None;
-            if let Some((indices, score)) = fuzzy_match(&prefixed, filter) {
-                best = Some((indices, score));
-            }
+            let mut best: Option<(Vec<usize>, i32)> =
+                fuzzy_match(&prefixed, filter);
             if let Some((indices, score)) = fuzzy_match(&p.name, filter) {
                 match best {
                     Some((_, s)) if score < s => best = Some((indices, score)),

@@ -13,9 +13,8 @@ pub(crate) fn should_persist_rollout_item(item: &RolloutItem) -> bool {
         RolloutItem::EventMsg(msg) => event_msg_from_protocol(msg)
             .is_some_and(|event| should_persist_event_msg(&event)),
         // Always persist session meta
-        RolloutItem::SessionMeta(_) => true,
-        // Persist compacted summaries and turn context for accurate history reconstruction.
-        RolloutItem::Compacted(_) | RolloutItem::TurnContext(_) => true,
+        RolloutItem::SessionMeta(_)
+        | RolloutItem::Compacted(_) | RolloutItem::TurnContext(_) => true,
     }
 }
 

@@ -29,13 +29,14 @@ impl ChatWidget<'_> {
         }
         let is_background_cell = matches!(cell.kind(), HistoryCellType::BackgroundEvent);
         let mut key = key;
-        let mut key_bumped = false;
-        if !is_background_cell
+        let key_bumped = if !is_background_cell
             && let Some(last) = self.last_assigned_order
                 && key <= last {
                     key = Self::order_key_successor(last);
-                    key_bumped = true;
-                }
+                    true
+                } else {
+                    false
+                };
 
         // Determine insertion position across the entire history.
         // Most ordered inserts are monotonic tail-appends (we bump non-background
@@ -186,11 +187,7 @@ impl ChatWidget<'_> {
             None
         };
 
-        let mut maybe_id = None;
-        if let Some(mutation) = mutation
-            && let Some(id) = self.apply_mutation_to_cell(&mut cell, mutation) {
-                maybe_id = Some(id);
-            }
+        let maybe_id = mutation.and_then(|m| self.apply_mutation_to_cell(&mut cell, m));
 
         let append = pos == self.history_cells.len();
         if !append {

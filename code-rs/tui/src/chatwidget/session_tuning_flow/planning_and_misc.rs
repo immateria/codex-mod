@@ -44,12 +44,12 @@ impl ChatWidget<'_> {
     pub(crate) fn handle_model_selection_closed(&mut self, target: ModelSelectionKind, _accepted: bool) {
         let expected_section = match target {
             ModelSelectionKind::Session => SettingsSection::Model,
-            ModelSelectionKind::Review => SettingsSection::Review,
+            ModelSelectionKind::Review
+            | ModelSelectionKind::ReviewResolve
+            | ModelSelectionKind::AutoReview
+            | ModelSelectionKind::AutoReviewResolve => SettingsSection::Review,
             ModelSelectionKind::Planning => SettingsSection::Planning,
             ModelSelectionKind::AutoDrive => SettingsSection::AutoDrive,
-            ModelSelectionKind::ReviewResolve => SettingsSection::Review,
-            ModelSelectionKind::AutoReview => SettingsSection::Review,
-            ModelSelectionKind::AutoReviewResolve => SettingsSection::Review,
         };
 
         if let Some(section) = self.pending_settings_return {
@@ -76,15 +76,20 @@ impl ChatWidget<'_> {
 
         let clamped_effort = Self::clamp_reasoning_for_model(trimmed, effort);
 
-        let mut updated = false;
-        if !self.config.planning_model.eq_ignore_ascii_case(trimmed) {
+        let model_changed = if !self.config.planning_model.eq_ignore_ascii_case(trimmed) {
             self.config.planning_model = trimmed.to_owned();
-            updated = true;
-        }
-        if self.config.planning_model_reasoning_effort != clamped_effort {
+            true
+        } else {
+            false
+        };
+        let effort_changed = if self.config.planning_model_reasoning_effort != clamped_effort {
             self.config.planning_model_reasoning_effort = clamped_effort;
-            updated = true;
-        }
+            true
+        } else {
+            false
+        };
+
+        let updated = model_changed || effort_changed;
 
         if !updated {
             self.bottom_pane
@@ -202,16 +207,21 @@ impl ChatWidget<'_> {
 
         let clamped_effort = Self::clamp_reasoning_for_model(trimmed, effort);
 
-        let mut updated = false;
-        if !self.config.auto_drive.model.eq_ignore_ascii_case(trimmed) {
+        let model_changed = if !self.config.auto_drive.model.eq_ignore_ascii_case(trimmed) {
             self.config.auto_drive.model = trimmed.to_owned();
-            updated = true;
-        }
+            true
+        } else {
+            false
+        };
 
-        if self.config.auto_drive.model_reasoning_effort != clamped_effort {
+        let effort_changed = if self.config.auto_drive.model_reasoning_effort != clamped_effort {
             self.config.auto_drive.model_reasoning_effort = clamped_effort;
-            updated = true;
-        }
+            true
+        } else {
+            false
+        };
+
+        let updated = model_changed || effort_changed;
 
         if !updated {
             self.bottom_pane
@@ -279,13 +289,12 @@ impl ChatWidget<'_> {
         } else {
             // User specified a level: e.g., "high"
             let new_effort = match trimmed.to_lowercase().as_str() {
-                "minimal" | "min" => ReasoningEffort::Minimal,
+                // "none" | "off" for backwards compatibility.
+                "minimal" | "min" | "none" | "off" => ReasoningEffort::Minimal,
                 "low" => ReasoningEffort::Low,
                 "medium" | "med" => ReasoningEffort::Medium,
                 "xhigh" | "extra-high" | "extra_high" => ReasoningEffort::XHigh,
                 "high" => ReasoningEffort::High,
-                // Backwards compatibility: map legacy values to minimal.
-                "none" | "off" => ReasoningEffort::Minimal,
                 _ => {
                     // Invalid parameter, show error and return
                     let message = format!(

@@ -103,18 +103,7 @@ impl SubagentEditorView {
                 true
             }
             KeyEvent {
-                code: KeyCode::Char(' '),
-                modifiers: KeyModifiers::NONE,
-                ..
-            } if self.focus == Focus::Agents => {
-                let idx = self
-                    .agent_cursor
-                    .min(self.available_agents.len().saturating_sub(1));
-                self.toggle_agent_at(idx);
-                true
-            }
-            KeyEvent {
-                code: KeyCode::Enter,
+                code: KeyCode::Char(' ') | KeyCode::Enter,
                 modifiers: KeyModifiers::NONE,
                 ..
             } if self.focus == Focus::Agents => {

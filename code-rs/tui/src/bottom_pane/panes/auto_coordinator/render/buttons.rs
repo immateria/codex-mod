@@ -87,12 +87,8 @@ pub(super) fn ctrl_hint_spans(hint: &str) -> Option<Vec<Span<'static>>> {
     let lower = trimmed.to_ascii_lowercase();
     if lower.starts_with("esc") {
         let rest = &trimmed[3..];
-        let mut use_prefix = rest.is_empty();
-        if let Some(ch) = rest.chars().next()
-            && (ch.is_whitespace() || matches!(ch, ':' | '-' | ',' | ';'))
-        {
-            use_prefix = true;
-        }
+        let use_prefix = rest.is_empty()
+            || rest.chars().next().is_some_and(|ch| ch.is_whitespace() || matches!(ch, ':' | '-' | ',' | ';'));
 
         if use_prefix {
             let prefix = &trimmed[..3];

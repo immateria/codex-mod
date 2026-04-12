@@ -127,8 +127,7 @@
                 AppEvent::MemoriesArtifactsActionFinished { _action: _, result } => {
                     if let AppState::Chat { widget } = &mut self.app_state {
                         match result {
-                            Ok(message) => widget.flash_footer_notice(message),
-                            Err(message) => widget.flash_footer_notice(message),
+                            Ok(message) | Err(message) => widget.flash_footer_notice(message),
                         }
                     }
                     self.app_event_tx.send(AppEvent::RunMemoriesStatusLoad {

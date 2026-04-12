@@ -1423,8 +1423,7 @@ fn normalize_plugin_mcp_server_value(
 
     if let Some(JsonValue::String(transport_type)) = object.remove("type") {
         match transport_type.as_str() {
-            "http" | "streamable_http" | "streamable-http" => {}
-            "stdio" => {}
+            "http" | "streamable_http" | "streamable-http" | "stdio" => {}
             other => {
                 warn!(
                     plugin = %plugin_root.display(),

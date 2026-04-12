@@ -161,8 +161,7 @@ pub(in super::super::super) fn handle_exec_end_now(
         let action = history_cell::action_enum_from_parsed(&parsed);
         let status = match (exit_code, action) {
             (0, _) => history_cell::ExploreEntryStatus::Success,
-            (1, ExecAction::Search) => history_cell::ExploreEntryStatus::NotFound,
-            (1, ExecAction::List) => history_cell::ExploreEntryStatus::NotFound,
+            (1, ExecAction::Search) | (1, ExecAction::List) => history_cell::ExploreEntryStatus::NotFound,
             _ => history_cell::ExploreEntryStatus::Error {
                 exit_code: Some(exit_code),
             },
@@ -230,8 +229,7 @@ pub(in super::super::super) fn handle_exec_end_now(
             stderr_tail: stderr_tail_event,
         });
 
-    let mut handled_via_state = false;
-    if let HistoryMutation::Replaced {
+    let handled_via_state = if let HistoryMutation::Replaced {
         id,
         record: HistoryRecord::Exec(exec_record),
         ..
@@ -241,8 +239,10 @@ pub(in super::super::super) fn handle_exec_end_now(
         if let Some(idx) = chat.cell_index_for_history_id(id) {
             crate::chatwidget::exec_tools::try_merge_completed_exec_at(chat, idx);
         }
-        handled_via_state = true;
-    }
+        true
+    } else {
+        false
+    };
 
     if !handled_via_state {
         let mut completed_opt = Some(history_cell::new_completed_exec_command(

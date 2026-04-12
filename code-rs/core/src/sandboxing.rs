@@ -170,7 +170,7 @@ pub fn build_exec_request(params: BuildExecRequestParams) -> Result<ExecRequest>
     let local_policy = local_policy_from_protocol(&sandbox_policy);
 
     let (command, arg0) = match sandbox {
-        SandboxType::None => (command, None),
+        SandboxType::None | SandboxType::WindowsRestrictedToken => (command, None),
         SandboxType::MacosSeatbelt => (
             vec![crate::seatbelt::seatbelt_exec_path().to_owned()]
                 .into_iter()
@@ -206,7 +206,6 @@ pub fn build_exec_request(params: BuildExecRequestParams) -> Result<ExecRequest>
             wrapped.extend(command);
             (wrapped, Some("codex-linux-sandbox".to_owned()))
         }
-        SandboxType::WindowsRestrictedToken => (command, None),
     };
 
     Ok(ExecRequest {

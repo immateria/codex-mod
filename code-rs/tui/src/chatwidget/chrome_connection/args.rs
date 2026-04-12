@@ -25,16 +25,14 @@ pub(super) fn parse_chrome_command_args(command_text: &str) -> ChromeCommandArgs
         return ChromeCommandArgs::WsUrl((*first).to_owned());
     }
 
-    let mut host: Option<String> = None;
-    let mut port: Option<u16> = None;
-
-    if let Some(first) = parts.first()
+    let (mut host, mut port): (Option<String>, Option<u16>) = if let Some(first) = parts.first()
         && let Some((h, p)) = first.rsplit_once(':')
         && let Ok(pn) = p.parse::<u16>()
     {
-        host = Some(h.to_owned());
-        port = Some(pn);
-    }
+        (Some(h.to_owned()), Some(pn))
+    } else {
+        (None, None)
+    };
 
     if host.is_none() && port.is_none() {
         if let Some(first) = parts.first()

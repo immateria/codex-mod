@@ -289,16 +289,14 @@ impl InterfaceSettingsView {
 
     fn cycle_optional_hotkey_next(hotkey: Option<TuiHotkey>, max_key: u8) -> Option<TuiHotkey> {
         match hotkey {
-            None => Some(TuiHotkey::disabled()),
             Some(hk) if hk.is_disabled() => Some(TuiHotkey::Function(FunctionKeyHotkey::F2)),
-            Some(TuiHotkey::Legacy) => Some(TuiHotkey::disabled()),
             Some(TuiHotkey::Function(value)) => match value.as_u8() {
                 Some(n) if n < 2 => None,
                 Some(n) if n >= max_key => None,
                 Some(n) => FunctionKeyHotkey::from_u8(n.saturating_add(1)).map(TuiHotkey::Function),
                 None => None,
             },
-            Some(TuiHotkey::Chord(_)) => Some(TuiHotkey::disabled()),
+            None | Some(TuiHotkey::Legacy) | Some(TuiHotkey::Chord(_)) => Some(TuiHotkey::disabled()),
         }
     }
 
@@ -471,20 +469,24 @@ impl InterfaceSettingsView {
     }
 
     pub(super) fn apply_settings(&mut self) {
-        let mut saved_any = false;
-
-        if self.dirty_settings {
+        let saved_settings = if self.dirty_settings {
             self.app_event_tx
                 .send(AppEvent::SetTuiSettingsMenuConfig(self.settings.clone()));
             self.dirty_settings = false;
-            saved_any = true;
-        }
+            true
+        } else {
+            false
+        };
 
-        if self.icon_mode != self.icon_mode_baseline {
+        let saved_icon = if self.icon_mode != self.icon_mode_baseline {
             self.app_event_tx.send(AppEvent::SetIconMode(self.icon_mode));
             self.icon_mode_baseline = self.icon_mode;
-            saved_any = true;
-        }
+            true
+        } else {
+            false
+        };
+
+        let mut saved_any = saved_settings || saved_icon;
 
         if self.dirty_hotkeys {
             if let Err(err) = self.validate_hotkeys() {

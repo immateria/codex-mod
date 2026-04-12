@@ -241,8 +241,7 @@ impl McpSettingsView {
             } else {
                 match parse_secs_field("Min interval", override_min_interval_text) {
                     Ok(Some(v)) => (Some(v), false),
-                    Ok(None) => (None, true),
-                    Err(_) => (None, true),
+                    Ok(None) | Err(_) => (None, true),
                 }
             }
         } else {

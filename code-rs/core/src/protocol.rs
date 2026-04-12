@@ -577,8 +577,8 @@ impl SandboxPolicy {
     pub fn has_full_disk_write_access(&self) -> bool {
         match self {
             SandboxPolicy::DangerFullAccess => true,
-            SandboxPolicy::ReadOnly => false,
-            SandboxPolicy::WorkspaceWrite { .. } => false,
+            SandboxPolicy::ReadOnly
+            | SandboxPolicy::WorkspaceWrite { .. } => false,
         }
     }
 
@@ -595,8 +595,8 @@ impl SandboxPolicy {
     /// each writable root.
     pub fn get_writable_roots_with_cwd(&self, cwd: &Path) -> Vec<WritableRoot> {
         match self {
-            SandboxPolicy::DangerFullAccess => Vec::new(),
-            SandboxPolicy::ReadOnly => Vec::new(),
+            SandboxPolicy::DangerFullAccess
+            | SandboxPolicy::ReadOnly => Vec::new(),
             SandboxPolicy::WorkspaceWrite {
                 writable_roots,
                 exclude_tmpdir_env_var,

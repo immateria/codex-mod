@@ -459,8 +459,7 @@ impl ChatWidget<'_> {
                             buf.set_string(box_left.saturating_add(2), content_y, dismiss_glyph, glyph_style);
 
                             // Bottom border
-                            let mut hit_height = 2u16;
-                            if window_area.height >= 4 {
+                            let hit_height = if window_area.height >= 4 {
                                 let bottom_y = content_y.saturating_add(1);
                                 buf.set_string(box_left, bottom_y, "└", border_style);
                                 crate::util::buffer::fill_rect(
@@ -470,8 +469,10 @@ impl ChatWidget<'_> {
                                     border_style,
                                 );
                                 buf.set_string(right_edge, bottom_y, "┤", border_style);
-                                hit_height = 3;
-                            }
+                                3u16
+                            } else {
+                                2u16
+                            };
 
                             self.help.close_rect.set(Rect {
                                 x: box_left,

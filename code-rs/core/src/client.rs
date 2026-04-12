@@ -1002,7 +1002,6 @@ impl ModelClient {
                                         break;
                                     }
                                 }
-                                Ok(Message::Pong(_)) => {}
                                 Ok(Message::Close(_)) => break,
                                 Ok(Message::Binary(_)) => {
                                     let _ = tx_bytes

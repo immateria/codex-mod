@@ -677,7 +677,6 @@ impl ChatWidget<'_> {
 
         // Determine current index
         let idx = match (&self.config.sandbox_policy, self.config.approval_policy) {
-            (SandboxPolicy::ReadOnly, _) => 0,
             (
                 SandboxPolicy::WorkspaceWrite {
                     network_access: false,

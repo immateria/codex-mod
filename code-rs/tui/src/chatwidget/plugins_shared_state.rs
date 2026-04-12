@@ -50,9 +50,9 @@ impl PluginsListState {
     pub(crate) fn roots(&self) -> Option<&[AbsolutePathBuf]> {
         match self {
             PluginsListState::Uninitialized => None,
-            PluginsListState::Loading { roots, .. } => Some(roots),
-            PluginsListState::Ready { roots, .. } => Some(roots),
-            PluginsListState::Failed { roots, .. } => Some(roots),
+            PluginsListState::Loading { roots, .. }
+            | PluginsListState::Ready { roots, .. }
+            | PluginsListState::Failed { roots, .. } => Some(roots),
         }
     }
 }

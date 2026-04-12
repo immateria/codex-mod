@@ -27,9 +27,9 @@ impl SecretsListState {
     pub(crate) fn env_id(&self) -> Option<&str> {
         match self {
             SecretsListState::Uninitialized => None,
-            SecretsListState::Loading { env_id } => Some(env_id),
-            SecretsListState::Ready { env_id, .. } => Some(env_id),
-            SecretsListState::Failed { env_id, .. } => Some(env_id),
+            SecretsListState::Loading { env_id }
+            | SecretsListState::Ready { env_id, .. }
+            | SecretsListState::Failed { env_id, .. } => Some(env_id),
         }
     }
 }

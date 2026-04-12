@@ -60,9 +60,9 @@ impl Stage {
         match self {
             Stage::Experimental {
                 announcement: "", ..
-            } => None,
+            }
+            | Stage::UnderDevelopment | Stage::Stable | Stage::Deprecated | Stage::Removed => None,
             Stage::Experimental { announcement, .. } => Some(announcement),
-            Stage::UnderDevelopment | Stage::Stable | Stage::Deprecated | Stage::Removed => None,
         }
     }
 }

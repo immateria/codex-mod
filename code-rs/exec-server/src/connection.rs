@@ -170,7 +170,7 @@ impl JsonRpcConnection {
                             }
                         }
                     }
-                    Some(Ok(Message::Close(_))) => {
+                    Some(Ok(Message::Close(_))) | None => {
                         send_disconnected(&incoming_tx_for_reader, /*reason*/ None).await;
                         break;
                     }
@@ -183,10 +183,6 @@ impl JsonRpcConnection {
                             )),
                         )
                         .await;
-                        break;
-                    }
-                    None => {
-                        send_disconnected(&incoming_tx_for_reader, /*reason*/ None).await;
                         break;
                     }
                 }

@@ -77,8 +77,7 @@ impl KeyboardHandler for AuthModeWidget {
             KeyCode::Char('2') => self.verify_api_key(),
             KeyCode::Enter => match self.sign_in_state {
                 SignInState::PickMode => match self.highlighted_mode {
-                    AuthMode::ChatGPT => self.start_chatgpt_login(),
-                    AuthMode::ChatgptAuthTokens => self.start_chatgpt_login(),
+                    AuthMode::ChatGPT | AuthMode::ChatgptAuthTokens => self.start_chatgpt_login(),
                     AuthMode::ApiKey => self.verify_api_key(),
                 },
                 SignInState::EnvVarMissing => self.sign_in_state = SignInState::PickMode,

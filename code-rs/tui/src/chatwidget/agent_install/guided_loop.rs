@@ -375,8 +375,7 @@ fn run_guided_loop(runtime: &tokio::runtime::Runtime, args: GuidedLoopArgs<'_>) 
                 let suggested = simplify_command(suggested_raw).to_owned();
 
                 let require_confirmation = match mode {
-                    GuidedTerminalMode::AgentInstall { .. } => steps > 1,
-                    GuidedTerminalMode::Prompt { .. } => steps > 1,
+                    GuidedTerminalMode::AgentInstall { .. } | GuidedTerminalMode::Prompt { .. } => steps > 1,
                     GuidedTerminalMode::DirectCommand { .. } | GuidedTerminalMode::Upgrade { .. } => {
                         true
                     }

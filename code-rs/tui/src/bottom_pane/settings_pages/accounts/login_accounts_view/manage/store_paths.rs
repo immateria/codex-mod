@@ -129,7 +129,7 @@ impl LoginAccountsState {
         const ROW_COUNT: usize = 4;
         match key_event.code {
             KeyCode::Esc => (false, true),
-            KeyCode::Up => {
+            KeyCode::Up | KeyCode::BackTab => {
                 if editor.selected_row == 0 {
                     editor.selected_row = ROW_COUNT - 1;
                 } else {
@@ -139,14 +139,6 @@ impl LoginAccountsState {
             }
             KeyCode::Down | KeyCode::Tab => {
                 editor.selected_row = (editor.selected_row + 1) % ROW_COUNT;
-                (true, true)
-            }
-            KeyCode::BackTab => {
-                if editor.selected_row == 0 {
-                    editor.selected_row = ROW_COUNT - 1;
-                } else {
-                    editor.selected_row = editor.selected_row.saturating_sub(1);
-                }
                 (true, true)
             }
             KeyCode::Enter => match editor.selected_row {

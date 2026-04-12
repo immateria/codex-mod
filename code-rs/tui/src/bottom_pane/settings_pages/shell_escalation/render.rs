@@ -77,7 +77,7 @@ impl ShellEscalationSettingsView {
 
     pub(super) fn render_framed(&self, area: Rect, buf: &mut Buffer) {
         match &self.mode {
-            ViewMode::Main => self.render_main_in_chrome(ChromeMode::Framed, area, buf),
+            ViewMode::Main | ViewMode::Transition => self.render_main_in_chrome(ChromeMode::Framed, area, buf),
             ViewMode::EditText { target, field } => self.render_edit_in_chrome(
                 ChromeMode::Framed,
                 area,
@@ -85,13 +85,12 @@ impl ShellEscalationSettingsView {
                 *target,
                 field,
             ),
-            ViewMode::Transition => self.render_main_in_chrome(ChromeMode::Framed, area, buf),
         }
     }
 
     pub(super) fn render_content_only(&self, area: Rect, buf: &mut Buffer) {
         match &self.mode {
-            ViewMode::Main => self.render_main_in_chrome(ChromeMode::ContentOnly, area, buf),
+            ViewMode::Main | ViewMode::Transition => self.render_main_in_chrome(ChromeMode::ContentOnly, area, buf),
             ViewMode::EditText { target, field } => self.render_edit_in_chrome(
                 ChromeMode::ContentOnly,
                 area,
@@ -99,7 +98,6 @@ impl ShellEscalationSettingsView {
                 *target,
                 field,
             ),
-            ViewMode::Transition => self.render_main_in_chrome(ChromeMode::ContentOnly, area, buf),
         }
     }
 }

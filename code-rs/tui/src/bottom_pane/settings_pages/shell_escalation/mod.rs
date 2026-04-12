@@ -66,9 +66,8 @@ impl ShellEscalationSettingsView {
 
     fn desired_height_impl(&self, _width: u16) -> u16 {
         match &self.mode {
-            ViewMode::Main => 18,
+            ViewMode::Main | ViewMode::Transition => 18,
             ViewMode::EditText { .. } => 12,
-            ViewMode::Transition => 18,
         }
     }
 

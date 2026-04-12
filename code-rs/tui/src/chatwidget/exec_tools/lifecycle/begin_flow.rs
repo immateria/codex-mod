@@ -90,10 +90,9 @@ fn hydrate_exec_record_from_begin(
     record: &mut ExecRecord,
     ev: &ExecCommandBeginEvent,
 ) -> bool {
-    let mut changed = false;
-    if record.command != ev.command {
+    let mut changed = record.command != ev.command;
+    if changed {
         record.command = ev.command.clone();
-        changed = true;
     }
     if record.parsed != ev.parsed_cmd {
         record.parsed = ev.parsed_cmd.clone();

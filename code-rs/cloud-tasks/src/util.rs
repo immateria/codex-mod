@@ -23,7 +23,6 @@ fn log_level_from_env() -> CloudLogLevel {
         let value = raw.trim().to_ascii_lowercase();
         return match value.as_str() {
             "off" | "none" | "0" => CloudLogLevel::Off,
-            "error" | "warn" | "1" => CloudLogLevel::Error,
             "info" | "2" => CloudLogLevel::Info,
             "debug" | "trace" | "3" => CloudLogLevel::Debug,
             _ => CloudLogLevel::Error,

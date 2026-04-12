@@ -143,7 +143,6 @@ impl HeightManager {
 
         // Bottom pane policy: Grow immediately, confirm small decreases over a few frames
         let mut bottom_h = match (self.last_bottom, self.bypass_once) {
-            (Some(_), true) => desired,
             (Some(prev), false) => {
                 if desired > prev {
                     // grow immediately, reset counter
@@ -171,15 +170,14 @@ impl HeightManager {
                     prev
                 }
             }
-            (None, _) => desired,
+            _ => desired,
         };
         self.last_bottom = Some(bottom_h);
         // Clear bypass after use
         if self.bypass_once { self.bypass_once = false; }
 
         // Determine HUD height if present.
-        let mut hud_h: u16;
-        if hud_present {
+        let mut hud_h: u16 = if hud_present {
             let override_target = hud_target_override.is_some();
             // Use caller-provided target when available; otherwise fall back to
             // an aspect-based estimate similar to the older preview logic.
@@ -222,13 +220,13 @@ impl HeightManager {
             };
 
             // Require consecutive-frame confirmation for HUD changes unless bypassed.
-            hud_h = self.apply_hud_confirmation(quantized);
+            self.apply_hud_confirmation(quantized)
         } else {
             // Clear HUD state when not present.
             self.hud_pending = None;
             self.last_hud = None;
-            hud_h = 0;
-        }
+            0
+        };
 
         // Ensure the history area has enough rows for at least one visible cell header so
         // gutter click targets (fold/jump) remain usable on small terminals. When the

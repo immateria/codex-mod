@@ -88,7 +88,6 @@ pub async fn prompt(
             EventMsg::Error(error_event) => {
                 anyhow::bail!("Error: {}", error_event.message);
             }
-            EventMsg::AgentMessage(_) | EventMsg::AgentReasoning(_) => None,
             EventMsg::AgentMessageDelta(event) => Some(acp::SessionUpdate::AgentMessageChunk {
                 content: event.delta.into(),
             }),
@@ -141,7 +140,6 @@ pub async fn prompt(
                     meta: None,
                 }))
             }
-            EventMsg::ExecApprovalRequest(_) | EventMsg::ApplyPatchApprovalRequest(_) => None,
             EventMsg::ExecCommandBegin(event) => Some(acp::SessionUpdate::ToolCall(
                 code_core::acp::new_execute_tool_call(
                     &event.call_id,
@@ -194,12 +192,6 @@ pub async fn prompt(
                 None
             }
             EventMsg::TaskComplete(_) => return Ok(stop_reason),
-            EventMsg::SessionConfigured(_)
-            | EventMsg::TokenCount(_)
-            | EventMsg::TaskStarted
-            | EventMsg::GetHistoryEntryResponse(_)
-            | EventMsg::BackgroundEvent(_)
-            | EventMsg::ShutdownComplete => None,
             _ => None,
         };
 

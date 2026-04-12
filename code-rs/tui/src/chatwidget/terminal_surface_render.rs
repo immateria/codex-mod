@@ -339,10 +339,7 @@ impl ChatWidget<'_> {
         );
 
         let now = Instant::now();
-        let mut frame_needed = false;
-        if ENABLE_WARP_STRIPES && self.header_wave.schedule_if_needed(now) {
-            frame_needed = true;
-        }
+        let frame_needed = ENABLE_WARP_STRIPES && self.header_wave.schedule_if_needed(now);
         if frame_needed {
             self.app_event_tx
                 .send(AppEvent::ScheduleFrameIn(HeaderWaveEffect::FRAME_INTERVAL));

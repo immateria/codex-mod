@@ -19,10 +19,10 @@ pub(super) fn merge_developer_message(existing: Option<String>, extra: &str) -> 
 }
 
 pub(super) fn build_timeboxed_review_message(base: Option<String>) -> Option<String> {
-    let mut message = merge_developer_message(base.clone(), AUTO_EXEC_TIMEBOXED_REVIEW_GUIDANCE);
     if base.as_deref() == Some(AUTO_EXEC_TIMEBOXED_CLI_GUIDANCE) {
-        message = Some(AUTO_EXEC_TIMEBOXED_REVIEW_GUIDANCE.to_owned());
+        Some(AUTO_EXEC_TIMEBOXED_REVIEW_GUIDANCE.to_owned())
+    } else {
+        merge_developer_message(base, AUTO_EXEC_TIMEBOXED_REVIEW_GUIDANCE)
     }
-    message
 }
 

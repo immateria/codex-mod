@@ -151,15 +151,7 @@ impl ChatWidget<'_> {
                     }
                     return;
                 }
-                KeyCode::Tab => {
-                    match self.agents_terminal.focus() {
-                        AgentsTerminalFocus::Sidebar => self.agents_terminal.focus_detail(),
-                        AgentsTerminalFocus::Detail => self.agents_terminal.focus_sidebar(),
-                    }
-                    self.request_redraw();
-                    return;
-                }
-                KeyCode::BackTab => {
+                KeyCode::Tab | KeyCode::BackTab => {
                     match self.agents_terminal.focus() {
                         AgentsTerminalFocus::Sidebar => self.agents_terminal.focus_detail(),
                         AgentsTerminalFocus::Detail => self.agents_terminal.focus_sidebar(),

@@ -135,9 +135,9 @@ fn estimate_item_size(item: &ResponseItem) -> usize {
             }).sum()
         }
         ResponseItem::FunctionCall { arguments, .. } => arguments.len(),
-        ResponseItem::FunctionCallOutput { output, .. } => output.to_string().len(),
+        ResponseItem::FunctionCallOutput { output, .. }
+        | ResponseItem::CustomToolCallOutput { output, .. } => output.to_string().len(),
         ResponseItem::CustomToolCall { input, .. } => input.len(),
-        ResponseItem::CustomToolCallOutput { output, .. } => output.to_string().len(),
         ResponseItem::Reasoning { content, .. } => {
             content.as_ref().map_or(0, std::vec::Vec::len)
         }

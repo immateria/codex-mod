@@ -147,12 +147,11 @@ impl AutoDriveSettingsView {
                 );
                 self.main_state.scroll_top = 0;
 
-                let mut changed = outcome.changed;
-                if matches!(outcome.result, SelectableListMouseResult::Activated) {
+                let activated = matches!(outcome.result, SelectableListMouseResult::Activated);
+                if activated {
                     self.toggle_selected();
-                    changed = true;
                 }
-                changed
+                outcome.changed || activated
             }
             AutoDriveSettingsMode::RoutingList => {
                 let rows = self.routing_list_menu_rows();
@@ -188,8 +187,8 @@ impl AutoDriveSettingsView {
                     config,
                 );
 
-                let mut changed = outcome.changed;
-                if matches!(outcome.result, SelectableListMouseResult::Activated) {
+                let activated = matches!(outcome.result, SelectableListMouseResult::Activated);
+                if activated {
                     let idx = self
                         .routing_state
                         .selected_idx
@@ -201,9 +200,8 @@ impl AutoDriveSettingsView {
                     } else {
                         self.open_routing_editor(Some(idx));
                     }
-                    changed = true;
                 }
-                changed
+                outcome.changed || activated
             }
             AutoDriveSettingsMode::RoutingEditor(editor) => {
                 if !matches!(mouse_event.kind, MouseEventKind::Down(MouseButton::Left)) {
@@ -279,8 +277,7 @@ impl AutoDriveSettingsView {
                         });
                         changed
                     }
-                    Some(RoutingEditorField::Save | RoutingEditorField::Cancel) => false,
-                    None => false,
+                    Some(RoutingEditorField::Save | RoutingEditorField::Cancel) | None => false,
                 }
             }
         }

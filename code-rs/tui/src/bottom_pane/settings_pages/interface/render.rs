@@ -38,7 +38,7 @@ impl InterfaceSettingsView {
 
     pub(super) fn render_content_only(&self, area: Rect, buf: &mut Buffer) {
         match &self.mode {
-            ViewMode::Main => self.render_main_without_frame(area, buf),
+            ViewMode::Main | ViewMode::Transition => self.render_main_without_frame(area, buf),
             ViewMode::EditWidth { field, error } => {
                 // Layout is intentionally unused; `main_viewport_rows` is only relevant in main mode.
                 let _layout = Self::edit_width_page(error.as_deref())
@@ -52,7 +52,6 @@ impl InterfaceSettingsView {
                     .content_only()
                     .render(area, buf);
             }
-            ViewMode::Transition => self.render_main_without_frame(area, buf),
         }
     }
 
@@ -84,14 +83,13 @@ impl InterfaceSettingsView {
 
     pub(super) fn render_framed(&self, area: Rect, buf: &mut Buffer) {
         match &self.mode {
-            ViewMode::Main => self.render_main(area, buf),
+            ViewMode::Main | ViewMode::Transition => self.render_main(area, buf),
             ViewMode::EditWidth { field, error } => {
                 Self::render_edit_width(area, buf, field, error.as_deref());
             }
             ViewMode::CaptureHotkey { row, error } => {
                 self.render_capture_hotkey(area, buf, *row, error.as_deref());
             }
-            ViewMode::Transition => self.render_main(area, buf),
         }
     }
 }

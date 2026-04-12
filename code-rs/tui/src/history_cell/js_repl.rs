@@ -355,12 +355,13 @@ impl JsReplCell {
             return None;
         }
         let elapsed = self.start_time.map(|s| s.elapsed());
-        let mut msg = "Running…".to_owned();
-        if let Some(dur) = elapsed
+        let msg = if let Some(dur) = elapsed
             && !dur.is_zero()
         {
-            msg = format!("Running… ({})", format_duration(dur));
-        }
+            format!("Running… ({})", format_duration(dur))
+        } else {
+            "Running…".to_owned()
+        };
         Some(Line::from(Span::styled(
             msg,
             Style::default()

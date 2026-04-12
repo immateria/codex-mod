@@ -388,15 +388,13 @@ fn select_session_key(
             }
     }
 
-    let mut key = browser_key(order, call_id);
-
     if order.is_none() && tool_name != "browser_open"
         && let Some(last) = chat.tools_state.browser_last_key.clone()
             && chat.tools_state.browser_sessions.contains_key(&last) {
-                key = last;
+                last
+            } else {
+                browser_key(order, call_id)
             }
-
-    key
 }
 
 fn key_from_order_or_last(

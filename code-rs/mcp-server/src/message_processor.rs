@@ -1598,20 +1598,23 @@ fn apply_model_selection(config: &mut Config, model: &str, effort: ReasoningEffo
     let clamped_effort: ReasoningEffort =
         clamp_reasoning_effort_for_model(model, requested_effort).into();
 
-    let mut updated = false;
-    if !config.model.eq_ignore_ascii_case(model) {
+    let model_changed = if !config.model.eq_ignore_ascii_case(model) {
         config.model = model.to_owned();
         config.model_family = find_family_for_model(&config.model)
             .unwrap_or_else(|| derive_default_model_family(&config.model));
-        updated = true;
-    }
+        true
+    } else {
+        false
+    };
 
-    if config.model_reasoning_effort != clamped_effort {
+    let effort_changed = if config.model_reasoning_effort != clamped_effort {
         config.model_reasoning_effort = clamped_effort;
-        updated = true;
-    }
+        true
+    } else {
+        false
+    };
 
-    updated
+    model_changed || effort_changed
 }
 
 fn configure_session_op_from_config(config: &Config) -> Op {

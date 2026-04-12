@@ -153,9 +153,8 @@ impl ChatWidget<'_> {
         if self.auto_state.should_show_goal_entry() {
             return EscRoute::new(
                 match self.auto_goal_escape_state {
-                    AutoGoalEscState::Inactive => EscIntent::AutoGoalExitPreserveDraft,
+                    AutoGoalEscState::Inactive | AutoGoalEscState::ArmedForExit => EscIntent::AutoGoalExitPreserveDraft,
                     AutoGoalEscState::NeedsEnableEditing => EscIntent::AutoGoalEnableEdit,
-                    AutoGoalEscState::ArmedForExit => EscIntent::AutoGoalExitPreserveDraft,
                 },
                 true,
                 false,
@@ -190,11 +189,7 @@ impl ChatWidget<'_> {
 
     pub(crate) fn execute_esc_intent(&mut self, intent: EscIntent, key_event: KeyEvent) -> bool {
         match intent {
-            EscIntent::DismissModal => {
-                self.handle_key_event(key_event);
-                true
-            }
-            EscIntent::CloseSettings => {
+            EscIntent::DismissModal | EscIntent::CloseSettings | EscIntent::AgentsTerminal => {
                 self.handle_key_event(key_event);
                 true
             }
@@ -229,10 +224,6 @@ impl ChatWidget<'_> {
             EscIntent::DiffConfirm => {
                 self.diffs.confirm = None;
                 self.request_redraw();
-                true
-            }
-            EscIntent::AgentsTerminal => {
-                self.handle_key_event(key_event);
                 true
             }
             EscIntent::CancelAgents => self.cancel_active_agents(),
@@ -308,10 +299,6 @@ impl ChatWidget<'_> {
                         break;
                     }
                     continue;
-                }
-                EscIntent::CloseFilePopup => {
-                    handled = true;
-                    break;
                 }
                 EscIntent::ShowUndoHint => {
                     if route.allows_double_esc && !double_ready {

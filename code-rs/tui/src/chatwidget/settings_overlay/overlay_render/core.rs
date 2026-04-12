@@ -147,8 +147,7 @@ impl SettingsOverlayView {
         );
         buf.set_string(box_left.saturating_add(2), content_y, dismiss_glyph, glyph_style);
 
-        let mut hit_height = 2u16;
-        if draw_bottom_border && area.height >= 4 {
+        let hit_height = if draw_bottom_border && area.height >= 4 {
             let bottom_y = content_y.saturating_add(1);
             buf.set_string(box_left, bottom_y, "└", border_style);
             fill_rect(
@@ -163,8 +162,10 @@ impl SettingsOverlayView {
                 border_style,
             );
             buf.set_string(right_edge, bottom_y, "┤", border_style);
-            hit_height = 3;
-        }
+            3u16
+        } else {
+            2u16
+        };
 
         *self.last_close_button_area.borrow_mut() = Rect {
             x: box_left,

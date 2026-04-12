@@ -499,10 +499,8 @@ fn effective_sandbox_policy_for_exec(
         }
     }
 
-    let mut effective_network_access = *network_access;
-    if additional_permissions.network.unwrap_or(false) {
-        effective_network_access = true;
-    }
+    let effective_network_access =
+        *network_access || additional_permissions.network.unwrap_or(false);
 
     crate::protocol::SandboxPolicy::WorkspaceWrite {
         writable_roots: effective_writable_roots,
@@ -636,10 +634,8 @@ pub(crate) async fn handle_apply_patch_action(
             }
 
             let output = match item {
-                ResponseInputItem::FunctionCallOutput { output, .. } => {
-                    output.body.to_text().unwrap_or_default()
-                }
-                ResponseInputItem::CustomToolCallOutput { output, .. } => {
+                ResponseInputItem::FunctionCallOutput { output, .. }
+                | ResponseInputItem::CustomToolCallOutput { output, .. } => {
                     output.body.to_text().unwrap_or_default()
                 }
                 other => format!("{other:?}"),

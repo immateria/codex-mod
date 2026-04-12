@@ -137,12 +137,11 @@ fn normalize_cli_routing_reasoning_levels(levels: &[ReasoningEffort]) -> Vec<Rea
 
 fn cli_reasoning_effort_to_str(level: ReasoningEffort) -> &'static str {
     match level {
-        ReasoningEffort::Minimal => "minimal",
+        ReasoningEffort::Minimal | ReasoningEffort::None => "minimal",
         ReasoningEffort::Low => "low",
         ReasoningEffort::Medium => "medium",
         ReasoningEffort::High => "high",
         ReasoningEffort::XHigh => "xhigh",
-        ReasoningEffort::None => "minimal",
     }
 }
 
@@ -2331,15 +2330,16 @@ fn run_auto_loop(inputs: AutoLoopInputs) -> Result<()> {
 
                             const OVERLONG_MSG: &str = "ERROR: Your last cli_milestone_instruction was greater than 600 characters and was not sent to the CLI. Please try again with a shorter prompt. You must keep prompts succinct (<=600 chars) to give the CLI autonomy to decide how to best execute the task.";
 
-                            let mut already_shared_raw = false;
-                            if let Some(raw) = raw_output.as_ref() {
+                            let already_shared_raw = if let Some(raw) = raw_output.as_ref() {
                                 // Assistant message should show the model's raw output so the UI sees the failed response.
                                 let assistant_msg = make_message("assistant", raw.clone());
                                 retry_conversation
                                     .get_or_insert_with(|| conv.as_ref().to_vec())
                                     .push(assistant_msg);
-                                already_shared_raw = true;
-                            }
+                                true
+                            } else {
+                                false
+                            };
 
                             warn!(
                                 "auto coordinator decision validation failed (attempt {}/{}): {:#}",
@@ -4303,8 +4303,7 @@ fn validate_phase(phase: Option<String>) -> Result<()> {
 fn parse_cli_reasoning_effort(value: &str) -> Result<ReasoningEffort> {
     let normalized = value.trim().to_ascii_lowercase();
     match normalized.as_str() {
-        "minimal" => Ok(ReasoningEffort::Minimal),
-        "none" => Ok(ReasoningEffort::Minimal),
+        "minimal" | "none" => Ok(ReasoningEffort::Minimal),
         "low" => Ok(ReasoningEffort::Low),
         "medium" => Ok(ReasoningEffort::Medium),
         "high" => Ok(ReasoningEffort::High),

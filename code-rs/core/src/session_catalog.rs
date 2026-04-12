@@ -150,18 +150,15 @@ impl SessionCatalog {
             return Ok(None);
         };
 
-        let mut updated = false;
+        let updated = sha.is_some() || branch.is_some() || origin_url.is_some();
         if let Some(value) = sha {
             entry.git_sha = value;
-            updated = true;
         }
         if let Some(value) = branch {
             entry.git_branch = value;
-            updated = true;
         }
         if let Some(value) = origin_url {
             entry.git_origin_url = value;
-            updated = true;
         }
 
         if !updated {

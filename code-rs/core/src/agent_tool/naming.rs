@@ -38,18 +38,13 @@ fn canonicalize_agent_word_boundaries(input: &str) -> String {
         }
 
         let next_char = chars.peek().copied();
-        let mut split = false;
-
-        if !current.is_empty()
-            && let Some(prev) = prev_char
-            && ((prev.is_ascii_lowercase() && ch.is_ascii_uppercase())
+        let split = !current.is_empty()
+            && prev_char.is_some_and(|prev: char|
+                (prev.is_ascii_lowercase() && ch.is_ascii_uppercase())
                 || (prev.is_ascii_uppercase()
                     && ch.is_ascii_uppercase()
                     && uppercase_run > 0
-                    && next_char.is_some_and(|c| c.is_ascii_lowercase())))
-        {
-            split = true;
-        }
+                    && next_char.is_some_and(|c| c.is_ascii_lowercase())));
 
         if split {
             tokens.push(std::mem::take(&mut current));

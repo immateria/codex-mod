@@ -9,16 +9,12 @@ impl AccountSwitchSettingsView {
                     self.close();
                     true
                 }
-                KeyCode::Up => {
+                KeyCode::Up | KeyCode::BackTab => {
                     self.main_state.move_up_wrap(Self::MAIN_OPTION_COUNT);
                     true
                 }
                 KeyCode::Down | KeyCode::Tab => {
                     self.main_state.move_down_wrap(Self::MAIN_OPTION_COUNT);
-                    true
-                }
-                KeyCode::BackTab => {
-                    self.main_state.move_up_wrap(Self::MAIN_OPTION_COUNT);
                     true
                 }
                 KeyCode::Enter | KeyCode::Char(' ') => {
@@ -32,16 +28,12 @@ impl AccountSwitchSettingsView {
                     self.view_mode = ViewMode::Main;
                     true
                 }
-                KeyCode::Up => {
+                KeyCode::Up | KeyCode::BackTab => {
                     self.confirm_state.move_up_wrap(Self::CONFIRM_OPTION_COUNT);
                     true
                 }
                 KeyCode::Down | KeyCode::Tab => {
                     self.confirm_state.move_down_wrap(Self::CONFIRM_OPTION_COUNT);
-                    true
-                }
-                KeyCode::BackTab => {
-                    self.confirm_state.move_up_wrap(Self::CONFIRM_OPTION_COUNT);
                     true
                 }
                 KeyCode::Enter | KeyCode::Char(' ') => {

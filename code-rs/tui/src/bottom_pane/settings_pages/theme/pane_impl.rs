@@ -58,8 +58,7 @@ impl<'a> BottomPaneView<'a> for ThemeSelectionView {
             }
             // Title + spacer + 2 fields + buttons + help = 6 content rows
             // plus border(2) + padding(2) = 10; add 2 rows headroom for small terminals
-            Mode::CreateSpinner(_) => 12,
-            Mode::CreateTheme(_) => 12,
+            Mode::CreateSpinner(_) | Mode::CreateTheme(_) => 12,
         }
     }
 

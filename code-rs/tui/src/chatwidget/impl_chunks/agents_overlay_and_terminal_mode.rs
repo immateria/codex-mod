@@ -61,9 +61,7 @@ impl ChatWidget<'_> {
 
     fn try_set_agents_settings_editor(&mut self, editor: SubagentEditorView) -> bool {
         let mut editor = Some(editor);
-        let mut needs_content = false;
-
-        if let Some(overlay) = self.settings.overlay.as_mut()
+        let needs_content = if let Some(overlay) = self.settings.overlay.as_mut()
             && overlay.active_section() == SettingsSection::Agents {
                 if let Some(content) = overlay.agents_content_mut() {
                     let Some(editor_view) = editor.take() else {
@@ -73,8 +71,10 @@ impl ChatWidget<'_> {
                     self.request_redraw();
                     return true;
                 }
-                needs_content = true;
-            }
+                true
+            } else {
+                false
+            };
 
         if needs_content {
             let (rows, commands) = self.collect_agents_overview_rows();
@@ -112,9 +112,7 @@ impl ChatWidget<'_> {
 
     fn try_set_agents_settings_agent_editor(&mut self, editor: AgentEditorView) -> bool {
         let mut editor = Some(editor);
-        let mut needs_content = false;
-
-        if let Some(overlay) = self.settings.overlay.as_mut()
+        let needs_content = if let Some(overlay) = self.settings.overlay.as_mut()
             && overlay.active_section() == SettingsSection::Agents {
                 if let Some(content) = overlay.agents_content_mut() {
                     let Some(editor_view) = editor.take() else {
@@ -124,8 +122,10 @@ impl ChatWidget<'_> {
                     self.request_redraw();
                     return true;
                 }
-                needs_content = true;
-            }
+                true
+            } else {
+                false
+            };
 
         if needs_content {
             let (rows, commands) = self.collect_agents_overview_rows();

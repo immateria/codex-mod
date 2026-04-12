@@ -1261,16 +1261,17 @@ impl CodexMessageProcessor {
     }
 
     async fn user_info(&self, request_id: RequestId) {
-        let mut alleged_user_email = None;
-        if let Some(auth) = self.auth_manager.auth()
+        let alleged_user_email = if let Some(auth) = self.auth_manager.auth()
             && auth.mode.is_chatgpt()
         {
-            alleged_user_email = auth
+            auth
                 .get_token_data()
                 .await
                 .ok()
-                .and_then(|t| t.id_token.email);
-        }
+                .and_then(|t| t.id_token.email)
+        } else {
+            None
+        };
         self.outgoing
             .send_response(request_id, UserInfoResponse { alleged_user_email })
             .await;
@@ -1964,7 +1965,8 @@ fn map_reasoning_effort_to_wire(
     effort: code_core::config_types::ReasoningEffort,
 ) -> code_protocol::config_types::ReasoningEffort {
     match effort {
-        code_core::config_types::ReasoningEffort::Minimal => {
+        code_core::config_types::ReasoningEffort::Minimal
+        | code_core::config_types::ReasoningEffort::None => {
             code_protocol::config_types::ReasoningEffort::Minimal
         }
         code_core::config_types::ReasoningEffort::Low => code_protocol::config_types::ReasoningEffort::Low,
@@ -1974,9 +1976,6 @@ fn map_reasoning_effort_to_wire(
         code_core::config_types::ReasoningEffort::High => code_protocol::config_types::ReasoningEffort::High,
         code_core::config_types::ReasoningEffort::XHigh => {
             code_protocol::config_types::ReasoningEffort::XHigh
-        }
-        code_core::config_types::ReasoningEffort::None => {
-            code_protocol::config_types::ReasoningEffort::Minimal
         }
     }
 }

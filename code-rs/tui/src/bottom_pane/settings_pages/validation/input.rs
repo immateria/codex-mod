@@ -196,15 +196,8 @@ impl ValidationSettingsView {
                     false
                 }
             }
-            KeyEvent { code: KeyCode::Char(' '), .. } => {
-                if let Some(kind) = current_kind {
-                    self.activate_selection(pane.take(), kind);
-                    true
-                } else {
-                    false
-                }
-            }
-            KeyEvent { code: KeyCode::Enter, modifiers: KeyModifiers::NONE, .. } => {
+            KeyEvent { code: KeyCode::Char(' '), .. }
+            | KeyEvent { code: KeyCode::Enter, modifiers: KeyModifiers::NONE, .. } => {
                 if let Some(kind) = current_kind {
                     self.activate_selection(pane.take(), kind);
                     true

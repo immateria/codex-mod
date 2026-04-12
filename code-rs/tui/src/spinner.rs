@@ -71,13 +71,13 @@ lazy_static! {
     };
     static ref DEFAULT_INDEX: usize = {
         let val: Value = serde_json::from_str(SPINNERS_JSON).unwrap_or(Value::Object(Default::default()));
-        let mut idx = 0usize;
         if let Value::Object(map) = val
             && let Some(Value::String(def)) = map.get("Default")
                 && let Some(found) = ALL_SPINNERS.iter().position(|s| s.name == *def) {
-                    idx = found;
+                    found
+                } else {
+                    0usize
                 }
-        idx
     };
     static ref CURRENT_INDEX: RwLock<usize> = RwLock::new(*DEFAULT_INDEX);
     static ref CURRENT_NAME: RwLock<String> = RwLock::new(ALL_SPINNERS[*DEFAULT_INDEX].name.clone());

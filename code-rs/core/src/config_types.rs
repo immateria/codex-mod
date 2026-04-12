@@ -1594,9 +1594,8 @@ impl TuiHotkey {
 
     pub fn function_key(self) -> Option<FunctionKeyHotkey> {
         match self {
-            Self::Legacy => None,
+            Self::Legacy | Self::Chord(_) => None,
             Self::Function(hk) => Some(hk),
-            Self::Chord(_) => None,
         }
     }
 

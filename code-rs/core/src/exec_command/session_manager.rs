@@ -339,8 +339,8 @@ impl SessionManager {
                                 // Skip missed messages; keep trying within grace period.
                                 continue;
                             }
-                            Ok(Err(tokio::sync::broadcast::error::RecvError::Closed)) => break,
-                            Err(_) => break,
+                            Ok(Err(tokio::sync::broadcast::error::RecvError::Closed))
+                            | Err(_) => break,
                         }
                     }
                     break;
@@ -353,8 +353,8 @@ impl SessionManager {
                         Ok(Err(tokio::sync::broadcast::error::RecvError::Lagged(_))) => {
                             // Skip missed messages; continue collecting fresh output.
                         }
-                        Ok(Err(tokio::sync::broadcast::error::RecvError::Closed)) => { break; }
-                        Err(_) => { break; }
+                        Ok(Err(tokio::sync::broadcast::error::RecvError::Closed))
+                        | Err(_) => { break; }
                     }
                 }
             }
@@ -434,8 +434,8 @@ impl SessionManager {
                 Ok(Err(tokio::sync::broadcast::error::RecvError::Lagged(_))) => {
                     // Skip missed messages; continue collecting fresh output.
                 }
-                Ok(Err(tokio::sync::broadcast::error::RecvError::Closed)) => break,
-                Err(_) => break, // timeout
+                Ok(Err(tokio::sync::broadcast::error::RecvError::Closed))
+                | Err(_) => break,
             }
         }
 
@@ -510,10 +510,8 @@ fn effective_sandbox_policy_for_exec_command(
         }
     }
 
-    let mut effective_network_access = *network_access;
-    if additional_permissions.network.unwrap_or(false) {
-        effective_network_access = true;
-    }
+    let effective_network_access =
+        *network_access || additional_permissions.network.unwrap_or(false);
 
     SandboxPolicy::WorkspaceWrite {
         writable_roots: effective_writable_roots,
@@ -901,20 +899,18 @@ async fn spawn_pipe_exec_command_session(
             tokio::select! {
                 res = stdout.read(&mut stdout_buf), if !stdout_done => {
                     match res {
-                        Ok(0) => stdout_done = true,
+                        Ok(0) | Err(_) => stdout_done = true,
                         Ok(n) => {
                             let _ = output_tx_clone.send(stdout_buf[..n].to_vec());
                         }
-                        Err(_) => stdout_done = true,
                     }
                 }
                 res = stderr.read(&mut stderr_buf), if !stderr_done => {
                     match res {
-                        Ok(0) => stderr_done = true,
+                        Ok(0) | Err(_) => stderr_done = true,
                         Ok(n) => {
                             let _ = output_tx_clone.send(stderr_buf[..n].to_vec());
                         }
-                        Err(_) => stderr_done = true,
                     }
                 }
             }

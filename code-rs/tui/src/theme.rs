@@ -712,10 +712,7 @@ fn ensure_contrast(
             PaletteMode::Ansi256 => Color::Indexed(16),
         }
     } else {
-        match palette {
-            PaletteMode::Ansi16 => Color::Indexed(15),
-            PaletteMode::Ansi256 => Color::Indexed(15),
-        }
+        Color::Indexed(15)
     }
 }
 

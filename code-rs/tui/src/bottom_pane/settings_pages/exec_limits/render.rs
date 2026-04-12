@@ -40,7 +40,7 @@ impl ExecLimitsSettingsView {
 
     fn render_in_chrome(&self, chrome: ChromeMode, area: Rect, buf: &mut Buffer) {
         match &self.mode {
-            ViewMode::Main => self.render_main_in_chrome(chrome, area, buf),
+            ViewMode::Main | ViewMode::Transition => self.render_main_in_chrome(chrome, area, buf),
             ViewMode::Edit { target, field, error } => self.render_edit_in_chrome(
                 chrome,
                 area,
@@ -49,7 +49,6 @@ impl ExecLimitsSettingsView {
                 field,
                 error.as_deref(),
             ),
-            ViewMode::Transition => self.render_main_in_chrome(chrome, area, buf),
         }
     }
 

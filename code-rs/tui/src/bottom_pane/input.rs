@@ -189,17 +189,7 @@ impl<'a> BottomPane<'a> {
 
         let event = view.on_ctrl_c(self);
         match event {
-            CancellationEvent::Handled => {
-                if !self.callback_claimed_active_view(kind) {
-                    if view.is_complete() {
-                        self.clear_active_view_state();
-                    } else {
-                        self.active_view = Some(view);
-                        self.active_view_kind = kind;
-                    }
-                }
-            }
-            CancellationEvent::Ignored => {
+            CancellationEvent::Handled | CancellationEvent::Ignored => {
                 if !self.callback_claimed_active_view(kind) {
                     if view.is_complete() {
                         self.clear_active_view_state();

@@ -7,7 +7,7 @@ fn main() {
     // Inject the version as a rustc env so it participates in the compiler
     // invocation hash (sccache-friendly) and guarantees a cache miss when
     // the version changes.
-    println!("cargo:rustc-env=CODE_VERSION={}", version);
+    println!("cargo:rustc-env=CODE_VERSION={version}");
 
     // Ensure dependent crates rebuild when CODE_VERSION changes even if the
     // source graph stays the same.

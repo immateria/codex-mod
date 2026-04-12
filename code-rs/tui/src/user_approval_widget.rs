@@ -522,16 +522,10 @@ impl UserApprovalWidget<'_> {
         // so the UI reflects their intent (clear spinner/status) without waiting
         // for backend cleanup. Core still receives the Abort below.
         match (&self.approval_request, decision) {
-            (ApprovalRequest::Exec { .. }, ReviewDecision::Abort) => {
+            (ApprovalRequest::Exec { .. } | ApprovalRequest::ApplyPatch { .. }, ReviewDecision::Abort) => {
                 self.app_event_tx.send(AppEvent::CancelRunningTask);
             }
-            (ApprovalRequest::Exec { .. }, ReviewDecision::Denied) => {
-                self.app_event_tx.send(AppEvent::MarkTaskIdle);
-            }
-            (ApprovalRequest::ApplyPatch { .. }, ReviewDecision::Abort) => {
-                self.app_event_tx.send(AppEvent::CancelRunningTask);
-            }
-            (ApprovalRequest::ApplyPatch { .. }, ReviewDecision::Denied) => {
+            (ApprovalRequest::Exec { .. } | ApprovalRequest::ApplyPatch { .. }, ReviewDecision::Denied) => {
                 self.app_event_tx.send(AppEvent::MarkTaskIdle);
             }
             _ => {}

@@ -47,8 +47,7 @@ impl ChatWidget<'_> {
         start_idx = start_idx.min(request_count);
 
         let mut end_idx = match ps.binary_search(&viewport_bottom) {
-            Ok(i) => i,
-            Err(i) => i,
+            Ok(i) | Err(i) => i,
         };
         end_idx = end_idx.saturating_add(1).min(request_count);
         drop(ps_ref);

@@ -168,14 +168,12 @@ impl App<'_> {
                                             app_event_tx.send(AppEvent::KeyEvent(key_event));
                                         }
                                     }
-                                    crossterm::event::Event::Resize(_, _) => {
-                                        app_event_tx.send(AppEvent::RequestRedraw);
-                                    }
-                                    // When the terminal/tab regains focus, issue a redraw.
+                                    // When the terminal resizes or regains focus, issue a redraw.
                                     // Some terminals clear the alt‑screen buffer on focus switches,
                                     // which can leave the status bar and inline images blank until
                                     // the next resize. A focus‑gain repaint fixes this immediately.
-                                    crossterm::event::Event::FocusGained => {
+                                    crossterm::event::Event::Resize(_, _)
+                                    | crossterm::event::Event::FocusGained => {
                                         app_event_tx.send(AppEvent::RequestRedraw);
                                     }
                                     crossterm::event::Event::FocusLost => {

@@ -109,8 +109,7 @@ impl ExternalAgentConfigService {
                 .map_err(|err| invalid_data_error(err.to_string()))?;
             let migrated = build_config_from_external(&settings)?;
             if !is_empty_toml_table(&migrated) {
-                let mut should_include = true;
-                if target_config.exists() {
+                let should_include = if target_config.exists() {
                     let existing_raw = fs::read_to_string(&target_config)?;
                     let mut existing = if existing_raw.trim().is_empty() {
                         TomlValue::Table(Default::default())
@@ -119,8 +118,10 @@ impl ExternalAgentConfigService {
                             invalid_data_error(format!("invalid existing config.toml: {err}"))
                         })?
                     };
-                    should_include = merge_missing_toml_values(&mut existing, &migrated)?;
-                }
+                    merge_missing_toml_values(&mut existing, &migrated)?
+                } else {
+                    true
+                };
 
                 if should_include {
                     items.push(ExternalAgentConfigMigrationItem {

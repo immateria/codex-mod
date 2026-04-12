@@ -411,9 +411,7 @@ impl ChatWidget<'_> {
             return;
         }
 
-        let mut needs_refresh = false;
-
-        if let Some(idx) = summary_index
+        let mut needs_refresh = if let Some(idx) = summary_index
             && self.auto_state.current_summary_index != Some(idx) {
                 self.auto_state.current_summary_index = Some(idx);
                 self.auto_state.current_summary = Some(String::new());
@@ -423,8 +421,10 @@ impl ChatWidget<'_> {
                 self.auto_state.current_display_is_summary = false;
                 self.auto_state.placeholder_phrase =
                     Some(auto_drive_strings::next_auto_drive_phrase().to_owned());
-                needs_refresh = true;
-            }
+                true
+            } else {
+                false
+            };
 
         let cleaned_delta = if self.auto_state.thinking_prefix_stripped {
             delta.to_owned()

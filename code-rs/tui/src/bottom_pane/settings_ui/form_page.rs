@@ -121,12 +121,8 @@ impl<'a> SettingsFormPage<'a> {
         let mut rows = 0usize;
         for (idx, section) in self.sections.iter().enumerate() {
             let min_rows = match section.constraint {
-                Constraint::Length(n) => n as usize,
-                Constraint::Min(n) => n as usize,
-                Constraint::Max(_) => 1,
-                Constraint::Percentage(_) => 1,
-                Constraint::Ratio(_, _) => 1,
-                Constraint::Fill(_) => 1,
+                Constraint::Length(n) | Constraint::Min(n) => n as usize,
+                Constraint::Max(_) | Constraint::Percentage(_) | Constraint::Ratio(_, _) | Constraint::Fill(_) => 1,
             }
             .max(1);
 

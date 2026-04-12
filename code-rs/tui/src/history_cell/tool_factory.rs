@@ -1025,13 +1025,12 @@ fn new_completed_browser_tool_call(
 // Map `agent_*` tool names to friendly titles
 fn agent_tool_title(tool_name: &str, action: Option<&str>) -> String {
     let key = action.unwrap_or(match tool_name {
-        "agent_run" => "create",
+        "agent_run" | "agent" => "create",
         "agent_wait" => "wait",
         "agent_result" => "result",
         "agent_cancel" => "cancel",
         "agent_check" => "status",
         "agent_list" => "list",
-        "agent" => "create",
         other => other,
     });
 

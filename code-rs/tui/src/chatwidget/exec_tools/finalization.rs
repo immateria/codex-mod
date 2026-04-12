@@ -216,8 +216,7 @@ pub(in super::super) fn finalize_all_running_due_to_answer(chat: &mut ChatWidget
                 },
             );
 
-            let mut handled_via_state = false;
-            if let HistoryMutation::Replaced {
+            let handled_via_state = if let HistoryMutation::Replaced {
                 id,
                 record: HistoryRecord::Exec(exec_record),
                 ..
@@ -227,8 +226,10 @@ pub(in super::super) fn finalize_all_running_due_to_answer(chat: &mut ChatWidget
                 if let Some(idx) = chat.cell_index_for_history_id(id) {
                     crate::chatwidget::exec_tools::try_merge_completed_exec_at(chat, idx);
                 }
-                handled_via_state = true;
-            }
+                true
+            } else {
+                false
+            };
 
             if !handled_via_state {
                 let mut stdout_so_far = String::new();
@@ -323,9 +324,8 @@ pub(in super::super) fn finalize_wait_missing_exec(
     let mut parsed: Vec<ParsedCommand> = Vec::new();
     let mut wait_total: Option<std::time::Duration> = None;
     let mut wait_notes_pairs: Vec<(String, bool)> = Vec::new();
-    let mut explore_entry: Option<(usize, usize)> = None;
 
-    if let Some(running) = chat.exec.running_commands.remove(&call_id) {
+    let explore_entry = if let Some(running) = chat.exec.running_commands.remove(&call_id) {
         history_id = running
             .history_id
             .or_else(|| chat.history_state.history_id_for_exec_call(call_id.as_ref()))
@@ -339,7 +339,7 @@ pub(in super::super) fn finalize_wait_missing_exec(
         parsed = running.parsed;
         wait_total = running.wait_total;
         wait_notes_pairs = running.wait_notes;
-        explore_entry = running.explore_entry;
+        running.explore_entry
     } else {
         history_id = chat.history_state.history_id_for_exec_call(call_id.as_ref());
         if let Some(id) = history_id {
@@ -352,7 +352,8 @@ pub(in super::super) fn finalize_wait_missing_exec(
         } else {
             return false;
         }
-    }
+        None
+    };
 
     if let Some(id) = history_id
         && let Some(record) = chat.history_state.record(id) {
@@ -403,8 +404,7 @@ pub(in super::super) fn finalize_wait_missing_exec(
             stderr_tail: Some(fallback_message.to_owned()),
         });
 
-    let mut handled_via_state = false;
-    if let HistoryMutation::Replaced {
+    let handled_via_state = if let HistoryMutation::Replaced {
         id,
         record: HistoryRecord::Exec(exec_record),
         ..
@@ -414,8 +414,10 @@ pub(in super::super) fn finalize_wait_missing_exec(
         if let Some(idx) = chat.cell_index_for_history_id(id) {
             crate::chatwidget::exec_tools::try_merge_completed_exec_at(chat, idx);
         }
-        handled_via_state = true;
-    }
+        true
+    } else {
+        false
+    };
 
     if !handled_via_state {
         let mut stdout_so_far = String::new();

@@ -107,8 +107,7 @@ impl SkillsFormLayout {
             Focus::StyleMcpExclude => Some((self.style_mcp_exclude_top, self.style_mcp_exclude_h)),
             Focus::Examples => Some((self.examples_top, self.examples_h)),
             Focus::Body => Some((self.body_top, self.body_h)),
-            Focus::Generate | Focus::Save | Focus::Delete | Focus::Cancel => None,
-            Focus::List => None,
+            Focus::Generate | Focus::Save | Focus::Delete | Focus::Cancel | Focus::List => None,
         }
     }
 }

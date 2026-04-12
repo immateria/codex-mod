@@ -25,14 +25,12 @@ pub(super) fn build_sections(
     let mut left_sections: Vec<FooterSection> = Vec::new();
     let mut right_sections: Vec<FooterSection> = Vec::new();
 
-    let mut auto_review_status_spans: Vec<Span<'static>> = Vec::new();
-    let mut auto_review_agent_hint: Vec<Span<'static>> = Vec::new();
-    if let Some(status) = view.auto_review_status {
-        let (status_spans, agent_hint_spans) =
-            ChatComposer::auto_review_footer_sections(status, view.agent_hint_label);
-        auto_review_status_spans = status_spans;
-        auto_review_agent_hint = agent_hint_spans;
-    }
+    let (auto_review_status_spans, auto_review_agent_hint): (Vec<Span<'static>>, Vec<Span<'static>>) =
+        if let Some(status) = view.auto_review_status {
+            ChatComposer::auto_review_footer_sections(status, view.agent_hint_label)
+        } else {
+            (Vec::new(), Vec::new())
+        };
 
     if !auto_review_status_spans.is_empty() {
         left_sections.push(FooterSection {

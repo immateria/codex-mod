@@ -30,13 +30,8 @@ impl SecretsSettingsView {
         ];
 
         match &snapshot.list {
-            crate::chatwidget::SecretsListState::Uninitialized => {
-                header_lines.push(Line::from(Span::styled(
-                    "Loading secrets...".to_owned(),
-                    Style::new().fg(colors::function()),
-                )));
-            }
-            crate::chatwidget::SecretsListState::Loading { .. } => {
+            crate::chatwidget::SecretsListState::Uninitialized
+            | crate::chatwidget::SecretsListState::Loading { .. } => {
                 header_lines.push(Line::from(Span::styled(
                     "Loading secrets...".to_owned(),
                     Style::new().fg(colors::function()),

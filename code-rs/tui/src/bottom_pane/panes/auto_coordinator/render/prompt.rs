@@ -61,24 +61,26 @@ pub(super) fn pending_prompt_content_lines(
         }
     };
 
-    let mut inserted_context = false;
-    if let Some(value) = context {
+    let inserted_context = if let Some(value) = context {
         for line in value.lines() {
             add_segments(line.trim_end(), context_style, &mut rows);
         }
-        inserted_context = true;
-    }
+        true
+    } else {
+        false
+    };
 
-    let mut inserted_prompt = false;
-    if let Some(value) = prompt {
+    let inserted_prompt = if let Some(value) = prompt {
         if inserted_context {
             add_segments("", prompt_style, &mut rows);
         }
         for line in value.lines() {
             add_segments(line.trim_end(), prompt_style, &mut rows);
         }
-        inserted_prompt = true;
-    }
+        true
+    } else {
+        false
+    };
 
     if !inserted_prompt {
         return Vec::new();

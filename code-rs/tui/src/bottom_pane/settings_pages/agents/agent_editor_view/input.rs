@@ -111,34 +111,19 @@ impl AgentEditorView {
                 true
             }
             KeyEvent {
-                code: KeyCode::Tab,
+                code: KeyCode::Tab | KeyCode::Down,
                 ..
             } => {
                 self.field = (self.field + 1).min(last_field_idx);
                 true
             }
             KeyEvent {
-                code: KeyCode::BackTab,
+                code: KeyCode::BackTab | KeyCode::Up,
                 ..
             } => {
                 if self.field > 0 {
                     self.field -= 1;
                 }
-                true
-            }
-            KeyEvent {
-                code: KeyCode::Up, ..
-            } => {
-                if self.field > 0 {
-                    self.field -= 1;
-                }
-                true
-            }
-            KeyEvent {
-                code: KeyCode::Down,
-                ..
-            } => {
-                self.field = (self.field + 1).min(last_field_idx);
                 true
             }
             KeyEvent {

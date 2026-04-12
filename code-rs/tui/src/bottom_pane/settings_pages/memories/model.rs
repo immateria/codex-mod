@@ -99,9 +99,8 @@ impl MemoriesSettingsView {
 
     pub(super) fn supports_scope(&self, scope: MemoriesScopeChoice) -> bool {
         match scope {
-            MemoriesScopeChoice::Global => true,
+            MemoriesScopeChoice::Global | MemoriesScopeChoice::Project => true,
             MemoriesScopeChoice::Profile => self.active_profile.is_some(),
-            MemoriesScopeChoice::Project => true,
         }
     }
 

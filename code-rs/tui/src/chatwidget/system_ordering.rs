@@ -31,18 +31,18 @@ impl ChatWidget<'_> {
         }
 
         self.internal_seq = self.internal_seq.saturating_add(1);
-        let mut out = match placement {
-            SystemPlacement::Early => i32::MIN + 2,
-            SystemPlacement::Tail => i32::MAX,
-            SystemPlacement::PrePrompt => i32::MIN,
-        };
-
-        if order.is_none()
+        let out = if order.is_none()
             && self.pending_user_prompts_for_next_turn > 0
             && matches!(placement, SystemPlacement::Early)
         {
-            out = i32::MIN;
-        }
+            i32::MIN
+        } else {
+            match placement {
+                SystemPlacement::Early => i32::MIN + 2,
+                SystemPlacement::Tail => i32::MAX,
+                SystemPlacement::PrePrompt => i32::MIN,
+            }
+        };
 
         let mut key = OrderKey {
             req,

@@ -58,11 +58,15 @@ pub(crate) enum HistoryCellType {
 pub(crate) fn gutter_symbol_for_kind(kind: HistoryCellType) -> Option<&'static str> {
     use crate::icons;
     match kind {
-        HistoryCellType::Plain => None,
+        HistoryCellType::Plain
+        | HistoryCellType::Reasoning
+        | HistoryCellType::PlanUpdate
+        | HistoryCellType::Image
+        | HistoryCellType::AnimatedWelcome
+        | HistoryCellType::Loading => None,
         HistoryCellType::User => Some(icons::gutter_user()),
         HistoryCellType::Assistant => Some(icons::gutter_assistant()),
         HistoryCellType::ProposedPlan => Some(icons::gutter_plan()),
-        HistoryCellType::Reasoning => None,
         HistoryCellType::Error => Some(icons::gutter_error()),
         HistoryCellType::Tool { status } => Some(match status {
             ToolCellStatus::Running => icons::gutter_running(),
@@ -76,16 +80,11 @@ pub(crate) fn gutter_symbol_for_kind(kind: HistoryCellType) -> Option<&'static s
                 _ => None,
             }
         }
-        HistoryCellType::Patch { .. } => Some(icons::gutter_patch()),
-        HistoryCellType::PlanUpdate => None,
+        HistoryCellType::Patch { .. } | HistoryCellType::Diff => Some(icons::gutter_patch()),
         HistoryCellType::BackgroundEvent => Some(icons::gutter_background()),
         HistoryCellType::Notice => Some(icons::gutter_notice()),
         HistoryCellType::CompactionSummary => Some(icons::gutter_compaction()),
-        HistoryCellType::Diff => Some(icons::gutter_patch()),
-        HistoryCellType::Image => None,
         HistoryCellType::Context => Some(icons::gutter_context()),
-        HistoryCellType::AnimatedWelcome => None,
-        HistoryCellType::Loading => None,
         HistoryCellType::JsRepl { status } => match status {
             ExecStatus::Error => Some(icons::gutter_error()),
             _ => Some(icons::gutter_exec()),

@@ -346,10 +346,8 @@ impl Runner<'_> {
                     .layers_low_to_high()
                     .filter(|layer| layer.disabled_reason.is_none())
                     .filter_map(|layer| match &layer.name {
-                        ConfigLayerSource::System { file } => {
-                            file.as_path().parent().map(std::path::Path::to_path_buf)
-                        }
-                        ConfigLayerSource::User { file } => {
+                        ConfigLayerSource::System { file }
+                        | ConfigLayerSource::User { file } => {
                             file.as_path().parent().map(std::path::Path::to_path_buf)
                         }
                         ConfigLayerSource::Project { dot_codex_folder } => {
@@ -535,9 +533,8 @@ impl Runner<'_> {
             }
         }
 
-        let mut replay_history_items: Option<Vec<ResponseItem>> = None;
         // Patch restored state into the newly created session.
-        if let Some(sess_arc) = self.sess.as_ref()
+        let replay_history_items = if let Some(sess_arc) = self.sess.as_ref()
             && let Some(items) = restored_items.as_ref()
         {
             let turn_context = sess_arc.make_turn_context();
@@ -547,8 +544,10 @@ impl Runner<'_> {
                 st.history = ConversationHistory::new();
                 st.history.record_items(reconstructed.iter());
             }
-            replay_history_items = Some(reconstructed);
-        }
+            Some(reconstructed)
+        } else {
+            None
+        };
 
         Built {
             submission_id,

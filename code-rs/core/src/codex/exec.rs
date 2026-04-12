@@ -175,7 +175,6 @@ fn build_exec_hook_payload(
     });
 
     match event {
-        ProjectHookEvent::ToolBefore => base,
         ProjectHookEvent::ToolAfter => {
             if let Some(out) = output {
                 json!({
@@ -759,13 +758,8 @@ impl Session {
 
     fn build_session_payload(&self, event: ProjectHookEvent) -> Value {
         match event {
-            ProjectHookEvent::SessionStart => json!({
-                "event": event.as_str(),
-                "cwd": self.cwd.to_string_lossy(),
-                "sandbox_policy": self.sandbox_policy.to_string(),
-                "approval_policy": self.approval_policy.to_string(),
-            }),
-            ProjectHookEvent::SessionEnd => json!({
+            ProjectHookEvent::SessionStart
+            | ProjectHookEvent::SessionEnd => json!({
                 "event": event.as_str(),
                 "cwd": self.cwd.to_string_lossy(),
                 "sandbox_policy": self.sandbox_policy.to_string(),

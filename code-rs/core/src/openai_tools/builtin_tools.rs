@@ -726,10 +726,8 @@ Long-running commands may be backgrounded after an initial window. Use `wait` to
                 }
             )
         }
-        SandboxPolicy::DangerFullAccess => {
-            "Runs a shell command and returns its output. Output streams live to the UI. Long-running commands may be backgrounded after an initial window. Use `wait` to await background tasks.".to_owned()
-        }
-        SandboxPolicy::ReadOnly => {
+        SandboxPolicy::DangerFullAccess
+        | SandboxPolicy::ReadOnly => {
             "Runs a shell command and returns its output. Output streams live to the UI. Long-running commands may be backgrounded after an initial window. Use `wait` to await background tasks.".to_owned()
         }
     };

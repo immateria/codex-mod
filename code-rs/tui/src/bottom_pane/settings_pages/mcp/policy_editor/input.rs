@@ -152,20 +152,14 @@ impl McpSettingsView {
         }
 
         let handled = match key_event {
-            KeyEvent { code: KeyCode::Up, .. } => {
+            KeyEvent { code: KeyCode::Up, .. }
+            | KeyEvent { code: KeyCode::BackTab, .. } => {
                 editor.move_selected(-1);
                 true
             }
-            KeyEvent { code: KeyCode::Down, .. } => {
+            KeyEvent { code: KeyCode::Down, .. }
+            | KeyEvent { code: KeyCode::Tab, modifiers: KeyModifiers::NONE, .. } => {
                 editor.move_selected(1);
-                true
-            }
-            KeyEvent { code: KeyCode::Tab, modifiers: KeyModifiers::NONE, .. } => {
-                editor.move_selected(1);
-                true
-            }
-            KeyEvent { code: KeyCode::BackTab, .. } => {
-                editor.move_selected(-1);
                 true
             }
             KeyEvent { code: KeyCode::Delete, .. } => {
@@ -295,20 +289,14 @@ impl McpSettingsView {
         }
 
         let handled = match key_event {
-            KeyEvent { code: KeyCode::Up, .. } => {
+            KeyEvent { code: KeyCode::Up, .. }
+            | KeyEvent { code: KeyCode::BackTab, .. } => {
                 editor.move_selected(-1);
                 true
             }
-            KeyEvent { code: KeyCode::Down, .. } => {
+            KeyEvent { code: KeyCode::Down, .. }
+            | KeyEvent { code: KeyCode::Tab, modifiers: KeyModifiers::NONE, .. } => {
                 editor.move_selected(1);
-                true
-            }
-            KeyEvent { code: KeyCode::Tab, modifiers: KeyModifiers::NONE, .. } => {
-                editor.move_selected(1);
-                true
-            }
-            KeyEvent { code: KeyCode::BackTab, .. } => {
-                editor.move_selected(-1);
                 true
             }
             KeyEvent { code: KeyCode::Delete, .. } => {

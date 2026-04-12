@@ -724,11 +724,11 @@ async fn connect_and_listen(meta: BridgeMeta, session: Arc<Session>, cwd: &Path)
                 let event = summarize_event(&text);
                 let _ = batch_tx.send(event);
             }
-            Ok(Message::Binary(_)) => {}
             Ok(Message::Close(_)) => break,
-            Ok(Message::Ping(_)) => {}
-            Ok(Message::Pong(_)) => {}
-            Ok(Message::Frame(_)) => {}
+            Ok(Message::Binary(_))
+            | Ok(Message::Ping(_))
+            | Ok(Message::Pong(_))
+            | Ok(Message::Frame(_)) => {}
             Err(err) => {
                 warn!("[bridge] websocket error: {err:?}");
                 break;

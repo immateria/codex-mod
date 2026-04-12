@@ -26,13 +26,14 @@ impl ChatWidget<'_> {
         }
 
         let is_background_cell = matches!(cell.kind(), HistoryCellType::BackgroundEvent);
-        let mut key_bumped = false;
-        if !is_background_cell
+        let key_bumped = if !is_background_cell
             && let Some(last) = self.last_assigned_order
                 && key <= last {
                     key = Self::order_key_successor(last);
-                    key_bumped = true;
-                }
+                    true
+                } else {
+                    false
+                };
 
         let mut pos = self.history_cells.len();
         if is_background_cell || self.last_assigned_order.is_none() {

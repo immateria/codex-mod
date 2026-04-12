@@ -55,22 +55,12 @@ impl ChatWidget<'_> {
                 self.adjust_browser_overlay_action_scroll(1);
                 self.request_redraw();
             }
-            KeyCode::Up => {
+            KeyCode::Up | KeyCode::Left => {
                 if self.move_browser_overlay_screenshot(-1) {
                     self.request_redraw();
                 }
             }
-            KeyCode::Down => {
-                if self.move_browser_overlay_screenshot(1) {
-                    self.request_redraw();
-                }
-            }
-            KeyCode::Left => {
-                if self.move_browser_overlay_screenshot(-1) {
-                    self.request_redraw();
-                }
-            }
-            KeyCode::Right => {
+            KeyCode::Down | KeyCode::Right => {
                 if self.move_browser_overlay_screenshot(1) {
                     self.request_redraw();
                 }

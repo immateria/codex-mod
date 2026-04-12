@@ -571,17 +571,17 @@ pub(crate) async fn handle_web_fetch(sess: &Session, ctx: &ToolCallCtx, argument
                 }
 
                 // Parse JSON-LD for headline, articleBody, author, date
-                let mut title: Option<String> = None;
-                let mut issue_body_md: Option<String> = None;
-                let mut opened_by: Option<String> = None;
-                let mut opened_at: Option<String> = None;
-                if let Some(ld) = extract_ld_json(html)
+                let (title, issue_body_md, opened_by, opened_at) = if let Some(ld) = extract_ld_json(html)
                     && ld.get("@type").and_then(|v| v.as_str()) == Some("DiscussionForumPosting") {
-                        title = ld.get("headline").and_then(|v| v.as_str()).map(ToString::to_string);
-                        issue_body_md = ld.get("articleBody").and_then(|v| v.as_str()).map(ToString::to_string);
-                        opened_by = ld.get("author").and_then(|a| a.get("name")).and_then(|v| v.as_str()).map(ToString::to_string);
-                        opened_at = ld.get("datePublished").and_then(|v| v.as_str()).map(ToString::to_string);
-                    }
+                        (
+                            ld.get("headline").and_then(|v| v.as_str()).map(ToString::to_string),
+                            ld.get("articleBody").and_then(|v| v.as_str()).map(ToString::to_string),
+                            ld.get("author").and_then(|a| a.get("name")).and_then(|v| v.as_str()).map(ToString::to_string),
+                            ld.get("datePublished").and_then(|v| v.as_str()).map(ToString::to_string),
+                        )
+                    } else {
+                        (None, None, None, None)
+                    };
 
                 // Parse GraphQL payload for comments and state
                 let arr_str = extract_json_array_after(html, "\"preloadedQueries\"")?;

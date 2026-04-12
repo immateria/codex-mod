@@ -266,9 +266,9 @@ impl ChatWidget<'_> {
             | HistoryRecord::Patch(_)
             | HistoryRecord::Image(_)
             | HistoryRecord::UpgradeNotice(_)
-            | HistoryRecord::RateLimits(_) => true,
+            | HistoryRecord::RateLimits(_)
+            | HistoryRecord::MergedExec(_) => true,
             HistoryRecord::Exec(state) => !matches!(state.status, ExecStatus::Running),
-            HistoryRecord::MergedExec(_) => true,
             HistoryRecord::ToolCall(state) => state.status != ToolStatus::Running,
             HistoryRecord::AssistantStream(state) => !state.in_progress,
             _ => false,
@@ -437,8 +437,7 @@ impl ChatWidget<'_> {
                     Err(i) => i.saturating_sub(1),
                 };
                 let end_idx = match ps.binary_search(&live_end) {
-                    Ok(i) => i,
-                    Err(i) => i,
+                    Ok(i) | Err(i) => i,
                 };
 
                 (start_idx, end_idx)

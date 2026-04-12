@@ -224,12 +224,13 @@ impl HistoryRenderState {
         }
         // Walk backwards until we hit a true cell row or run out of history.
         loop {
-            let mut adjusted = false;
-            if let Some((start, end)) = bottom_spacer
+            let mut adjusted = if let Some((start, end)) = bottom_spacer
                 && start > 0 && scroll_pos >= start && scroll_pos < end {
                     scroll_pos = start.saturating_sub(1);
-                    adjusted = true;
-                }
+                    true
+                } else {
+                    false
+                };
             if !adjusted {
                 for &(start, end) in ranges.iter() {
                     if start == 0 {

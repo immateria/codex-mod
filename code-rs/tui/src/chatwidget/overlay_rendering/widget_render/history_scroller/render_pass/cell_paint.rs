@@ -315,8 +315,8 @@ impl ChatWidget<'_> {
                                 }
                             }
                             crate::history_cell::HistoryCellType::Patch { kind } => match kind {
-                                crate::history_cell::PatchKind::ApplySuccess => c_success,
-                                crate::history_cell::PatchKind::ApplyBegin => c_success,
+                                crate::history_cell::PatchKind::ApplySuccess
+                                | crate::history_cell::PatchKind::ApplyBegin => c_success,
                                 crate::history_cell::PatchKind::Proposed => c_primary,
                                 crate::history_cell::PatchKind::ApplyFailure => c_error,
                             },
@@ -333,13 +333,8 @@ impl ChatWidget<'_> {
                             match item_kind {
                                 crate::history_cell::HistoryCellType::Exec {
                                     kind: crate::history_cell::ExecKind::Run,
-                                    status: crate::history::state::ExecStatus::Success,
-                                } => c_text,
-                                crate::history_cell::HistoryCellType::Exec {
-                                    kind: crate::history_cell::ExecKind::Run,
                                     status: crate::history::state::ExecStatus::Error,
                                 } => c_error,
-                                crate::history_cell::HistoryCellType::Exec { .. } => c_text,
                                 _ => c_text,
                             }
                         }
@@ -347,13 +342,10 @@ impl ChatWidget<'_> {
                         match item_kind {
                             crate::history_cell::HistoryCellType::Patch {
                                 kind: crate::history_cell::PatchKind::ApplySuccess,
-                            } => c_success,
-                            crate::history_cell::HistoryCellType::Patch {
+                            }
+                            | crate::history_cell::HistoryCellType::Patch {
                                 kind: crate::history_cell::PatchKind::ApplyBegin,
                             } => c_success,
-                            crate::history_cell::HistoryCellType::Patch {
-                                kind: crate::history_cell::PatchKind::Proposed,
-                            } => c_primary,
                             crate::history_cell::HistoryCellType::Patch {
                                 kind: crate::history_cell::PatchKind::ApplyFailure,
                             } => c_error,

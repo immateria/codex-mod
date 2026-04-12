@@ -1110,10 +1110,10 @@ pub async fn run_main(cli: Cli, _code_linux_sandbox_exe: Option<PathBuf>) -> any
                                         needs_redraw = true;
                                     }
                                 }
-                                KeyCode::Tab => {
+                                KeyCode::Tab | KeyCode::Char(']' | '}') => {
                                     cycle_attempt(1);
                                 }
-                                KeyCode::BackTab => {
+                                KeyCode::BackTab | KeyCode::Char('[' | '{') => {
                                     cycle_attempt(-1);
                                 }
                                 // From task modal, 'o' should close it and open the env selector
@@ -1157,12 +1157,6 @@ pub async fn run_main(cli: Cli, _code_linux_sandbox_exe: Option<PathBuf>) -> any
                                             needs_redraw = true;
                                         }
                                     }
-                                }
-                                KeyCode::Char(']' | '}') => {
-                                    cycle_attempt(1);
-                                }
-                                KeyCode::Char('[' | '{') => {
-                                    cycle_attempt(-1);
                                 }
                                 KeyCode::Esc | KeyCode::Char('q') => {
                                     app.diff_overlay = None;
@@ -1489,7 +1483,6 @@ pub async fn run_main(cli: Cli, _code_linux_sandbox_exe: Option<PathBuf>) -> any
                         // Redraw immediately on resize for snappier UX.
                         render_if_needed(&mut terminal, &mut app, &mut needs_redraw)?;
                     }
-                    Some(Err(_)) | None => {}
                     _ => {}
                 }
                 // Fallback: if any other event path requested a redraw, render now.

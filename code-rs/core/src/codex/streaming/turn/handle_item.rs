@@ -73,8 +73,8 @@ pub(super) async fn handle_response_item(
             {
                 for item in content {
                     let text = match item {
-                        ReasoningItemContent::ReasoningText { text } => text,
-                        ReasoningItemContent::Text { text } => text,
+                        ReasoningItemContent::ReasoningText { text }
+                        | ReasoningItemContent::Text { text } => text,
                     };
                     let order = crate::protocol::OrderMeta {
                         request_ordinal: attempt_req,
@@ -131,11 +131,11 @@ pub(super) async fn handle_response_item(
             }
             None
         }
-        ResponseItem::ToolSearchCall { .. } => None,
-        ResponseItem::ToolSearchOutput { .. } => None,
-        ResponseItem::ImageGenerationCall { .. } => None,
-        ResponseItem::GhostSnapshot { .. } => None,
-        ResponseItem::Other => None,
+        ResponseItem::ToolSearchCall { .. }
+        | ResponseItem::ToolSearchOutput { .. }
+        | ResponseItem::ImageGenerationCall { .. }
+        | ResponseItem::GhostSnapshot { .. }
+        | ResponseItem::Other => None,
     };
     Ok(output)
 }

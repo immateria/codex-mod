@@ -56,18 +56,12 @@ impl SettingsButtonKind {
 
     fn style(self) -> Style {
         match self {
-            Self::Save => Style::new().fg(colors::success()).bold(),
-            Self::Delete => Style::new().fg(colors::error()).bold(),
+            Self::Save | Self::Apply | Self::Install | Self::Enable => Style::new().fg(colors::success()).bold(),
+            Self::Delete | Self::Uninstall => Style::new().fg(colors::error()).bold(),
             Self::Cancel | Self::Back => Style::new().fg(colors::text_dim()).bold(),
-            Self::Apply => Style::new().fg(colors::success()).bold(),
-            Self::Install => Style::new().fg(colors::success()).bold(),
-            Self::Uninstall => Style::new().fg(colors::error()).bold(),
-            Self::Enable => Style::new().fg(colors::success()).bold(),
             Self::Disable => Style::new().fg(colors::warning()).bold(),
-            Self::Generate | Self::GenerateDraft => Style::new().fg(colors::function()).bold(),
-            Self::Pick | Self::Show => Style::new().fg(colors::primary()).bold(),
-            Self::Resolve => Style::new().fg(colors::function()).bold(),
-            Self::Style => Style::new().fg(colors::primary()).bold(),
+            Self::Generate | Self::GenerateDraft | Self::Resolve => Style::new().fg(colors::function()).bold(),
+            Self::Pick | Self::Show | Self::Style => Style::new().fg(colors::primary()).bold(),
         }
     }
 }

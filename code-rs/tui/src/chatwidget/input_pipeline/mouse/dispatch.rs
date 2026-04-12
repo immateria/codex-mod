@@ -215,16 +215,10 @@ impl ChatWidget<'_> {
                 }
             }
             MouseEventKind::Moved => {
-                let mut needs_redraw = false;
-                if self.update_header_hover_state(mouse_pos) {
-                    needs_redraw = true;
-                }
-                // Update hover state in bottom pane.
-                if in_bottom_pane
-                    && self.bottom_pane.update_hover(mouse_pos, bottom_pane_area)
-                {
-                    needs_redraw = true;
-                }
+                let header_changed = self.update_header_hover_state(mouse_pos);
+                let bottom_changed = in_bottom_pane
+                    && self.bottom_pane.update_hover(mouse_pos, bottom_pane_area);
+                let needs_redraw = header_changed || bottom_changed;
                 if needs_redraw {
                     self.request_redraw();
                 }

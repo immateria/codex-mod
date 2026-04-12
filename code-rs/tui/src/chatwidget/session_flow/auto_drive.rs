@@ -21,7 +21,6 @@ impl ChatWidget<'_> {
         use AutoDriveRole::{Assistant, User};
         match kind {
             HistoryCellType::User => Some(Assistant),
-            HistoryCellType::ProposedPlan => None,
             HistoryCellType::Assistant
             | HistoryCellType::Reasoning
             | HistoryCellType::Error
@@ -33,15 +32,17 @@ impl ChatWidget<'_> {
             | HistoryCellType::CompactionSummary
             | HistoryCellType::Diff
             | HistoryCellType::Plain
-            | HistoryCellType::Image => Some(User),
-            HistoryCellType::Context => None,
+            | HistoryCellType::Image
+            | HistoryCellType::JsRepl { .. } => Some(User),
             HistoryCellType::Tool { status } => match status {
                 crate::history_cell::ToolCellStatus::Running => None,
                 crate::history_cell::ToolCellStatus::Success
                 | crate::history_cell::ToolCellStatus::Failed => Some(User),
             },
-            HistoryCellType::AnimatedWelcome | HistoryCellType::Loading => None,
-            HistoryCellType::JsRepl { .. } => Some(User),
+            HistoryCellType::ProposedPlan
+            | HistoryCellType::Context
+            | HistoryCellType::AnimatedWelcome
+            | HistoryCellType::Loading => None,
         }
     }
 
@@ -326,15 +327,16 @@ impl ChatWidget<'_> {
                 continue;
             };
 
-            let mut extra_content = None;
-            if !is_reasoning && matches!(role, AutoDriveRole::User)
+            let extra_content = if !is_reasoning && matches!(role, AutoDriveRole::User)
                 && let Some(browser_cell) = cell
                     .as_ref()
                     .as_any()
                     .downcast_ref::<BrowserSessionCell>()
                 {
-                    extra_content = Self::auto_drive_browser_screenshot_items(browser_cell);
-                }
+                    Self::auto_drive_browser_screenshot_items(browser_cell)
+                } else {
+                    None
+                };
 
             let mut item = if is_reasoning {
                 code_protocol::models::ResponseItem::Message {

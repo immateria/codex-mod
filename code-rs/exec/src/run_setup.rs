@@ -44,8 +44,7 @@ pub(crate) fn prepare_run_inputs(
             merged.extend(args.images.iter().cloned());
             merged
         }
-        Some(ExecCommand::Review(_)) => images,
-        None => images,
+        Some(ExecCommand::Review(_)) | None => images,
     };
 
     if review_request.is_some() && auto_drive {

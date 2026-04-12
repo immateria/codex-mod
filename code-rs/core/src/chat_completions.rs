@@ -88,12 +88,13 @@ pub(crate) async fn stream_chat_completions(
                 last_emitted_role = Some("tool");
             }
             ResponseItem::CompactionSummary { .. } => last_emitted_role = Some("assistant"),
-            ResponseItem::Reasoning { .. } | ResponseItem::Other => {}
-            ResponseItem::CustomToolCall { .. } => {}
-            ResponseItem::CustomToolCallOutput { .. } => {}
-            ResponseItem::WebSearchCall { .. } => {}
-            ResponseItem::ImageGenerationCall { .. } => {}
-            ResponseItem::GhostSnapshot { .. } => {}
+            ResponseItem::Reasoning { .. }
+            | ResponseItem::Other
+            | ResponseItem::CustomToolCall { .. }
+            | ResponseItem::CustomToolCallOutput { .. }
+            | ResponseItem::WebSearchCall { .. }
+            | ResponseItem::ImageGenerationCall { .. }
+            | ResponseItem::GhostSnapshot { .. } => {}
         }
     }
 
@@ -134,8 +135,7 @@ pub(crate) async fn stream_chat_completions(
                 }
 
                 // Prefer immediate previous assistant message (stop turns)
-                let mut attached = false;
-                if idx > 0
+                let attached = if idx > 0
                     && let ResponseItem::Message { role, .. } = &input[idx - 1]
                     && role == "assistant"
                 {
@@ -143,8 +143,10 @@ pub(crate) async fn stream_chat_completions(
                         .entry(idx - 1)
                         .and_modify(|v| v.push_str(&text))
                         .or_insert(text.clone());
-                    attached = true;
-                }
+                    true
+                } else {
+                    false
+                };
 
                 // Otherwise, attach to immediate next assistant anchor (tool-calls or assistant message)
                 if !attached && idx + 1 < input.len() {
@@ -1106,9 +1108,7 @@ where
                     token_usage,
                 }))) => {
                     // Build any aggregated items in the correct order: Reasoning first, then Message.
-                    let mut emitted_any = false;
-
-                    if !this.cumulative_reasoning.is_empty()
+                    let emitted_reasoning = if !this.cumulative_reasoning.is_empty()
                         && matches!(this.mode, AggregateMode::AggregatedOnly)
                     {
                         let aggregated_reasoning = ResponseItem::Reasoning {
@@ -1123,15 +1123,17 @@ where
                         };
                         this.pending
                             .push_back(ResponseEvent::OutputItemDone { item: aggregated_reasoning, sequence_number: None, output_index: None });
-                        emitted_any = true;
-                    }
+                        true
+                    } else {
+                        false
+                    };
 
                     // Always emit the final aggregated assistant message when any
                     // content deltas have been observed. In AggregatedOnly mode this
                     // is the sole assistant output; in Streaming mode this finalizes
                     // the streamed deltas into a terminal OutputItemDone so callers
                     // can persist/render the message once per turn.
-                    if !this.cumulative.is_empty() {
+                    let emitted_message = if !this.cumulative.is_empty() {
                         let aggregated_message = ResponseItem::Message {
                             id: this.cumulative_item_id.clone(),
                             role: "assistant".to_owned(),
@@ -1140,11 +1142,13 @@ where
                             }], end_turn: None, phase: None};
                         this.pending
                             .push_back(ResponseEvent::OutputItemDone { item: aggregated_message, sequence_number: None, output_index: None });
-                        emitted_any = true;
-                    }
+                        true
+                    } else {
+                        false
+                    };
 
                     // Always emit Completed last when anything was aggregated.
-                    if emitted_any {
+                    if emitted_reasoning || emitted_message {
                         this.pending.push_back(ResponseEvent::Completed {
                             response_id: response_id.clone(),
                             token_usage: token_usage.clone(),
@@ -1209,10 +1213,10 @@ where
                     }
                     continue;
                 }
-                Poll::Ready(Some(Ok(ResponseEvent::ReasoningSummaryDelta { .. }))) => {
-                    continue;
-                }
-                Poll::Ready(Some(Ok(ResponseEvent::ReasoningSummaryPartAdded))) => {
+                Poll::Ready(Some(Ok(
+                    ResponseEvent::ReasoningSummaryDelta { .. }
+                    | ResponseEvent::ReasoningSummaryPartAdded,
+                ))) => {
                     continue;
                 }
                 Poll::Ready(Some(Ok(ResponseEvent::WebSearchCallBegin { call_id }))) => {

@@ -179,7 +179,7 @@ pub(crate) fn color_to_rgb(c: Color) -> (u8, u8, u8) {
     match c {
         Color::Rgb(r, g, b) => (r, g, b),
         Color::Black => (0, 0, 0),
-        Color::White => (255, 255, 255),
+        Color::White | Color::Reset => (255, 255, 255),
         Color::Gray => (192, 192, 192),
         Color::DarkGray => (128, 128, 128),
         Color::Red => (205, 49, 49),
@@ -199,9 +199,6 @@ pub(crate) fn color_to_rgb(c: Color) -> (u8, u8, u8) {
         // luminance decisions (e.g., mistaking light themes for dark) on
         // terminals that don’t advertise truecolor, including some Windows setups.
         Color::Indexed(i) => ansi256_to_rgb(i),
-        // When theme background is Color::Reset (to use terminal default),
-        // avoid recursion by treating Reset as pure white in RGB space.
-        Color::Reset => (255, 255, 255),
     }
 }
 

@@ -36,7 +36,7 @@ impl SettingsContent for LimitsSettingsContent {
             KeyCode::PageDown | KeyCode::Char(' ') => self.page_scroll(scroll_target, true),
             KeyCode::Home => self.jump_scroll(scroll_target, false),
             KeyCode::End => self.jump_scroll(scroll_target, true),
-            KeyCode::Left | KeyCode::Char('[') => self.overlay.select_prev_tab(),
+            KeyCode::Left | KeyCode::Char('[') | KeyCode::BackTab => self.overlay.select_prev_tab(),
             KeyCode::Right | KeyCode::Char(']') => self.overlay.select_next_tab(),
             KeyCode::Char('v' | 'V') => self.toggle_layout_mode(),
             KeyCode::Char('f' | 'F') => self.cycle_focus_mode(),
@@ -68,7 +68,6 @@ impl SettingsContent for LimitsSettingsContent {
                     self.overlay.select_next_tab()
                 }
             }
-            KeyCode::BackTab => self.overlay.select_prev_tab(),
             _ => false,
         }
     }

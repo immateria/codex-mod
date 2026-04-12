@@ -413,7 +413,6 @@ impl RolloutRecorder {
                                     role: "user".to_owned(),
                                     content, end_turn: None, phase: None}));
                             }
-                            ProtoEventMsg::AgentMessage(_) => items.push(RolloutItem::Event(ev)),
                             _ => items.push(RolloutItem::Event(ev)),
                         }
                     }

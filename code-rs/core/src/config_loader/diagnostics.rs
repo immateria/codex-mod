@@ -152,12 +152,12 @@ pub(super) async fn first_layer_config_error_from_entries(
 
 fn config_path_for_layer(layer: &ConfigLayerEntry) -> Option<PathBuf> {
     match &layer.name {
-        ConfigLayerSource::System { file } => Some(file.to_path_buf()),
-        ConfigLayerSource::User { file } => Some(file.to_path_buf()),
+        ConfigLayerSource::System { file }
+        | ConfigLayerSource::User { file }
+        | ConfigLayerSource::LegacyManagedConfigTomlFromFile { file } => Some(file.to_path_buf()),
         ConfigLayerSource::Project { dot_codex_folder } => {
             Some(dot_codex_folder.as_path().join(CONFIG_TOML_FILE))
         }
-        ConfigLayerSource::LegacyManagedConfigTomlFromFile { file } => Some(file.to_path_buf()),
         ConfigLayerSource::Mdm { .. }
         | ConfigLayerSource::SessionFlags
         | ConfigLayerSource::LegacyManagedConfigTomlFromMdm => None,
@@ -249,11 +249,10 @@ fn span_for_features_value(contents: &str) -> Option<std::ops::Range<usize>> {
     let features_table = features_item.as_table_like()?;
     for (_, item) in features_table.iter() {
         match item {
-            Item::Value(Value::Boolean(_)) => continue,
+            Item::Value(Value::Boolean(_)) | Item::None => continue,
             Item::Value(value) => return value.span(),
             Item::Table(table) => return table.span(),
             Item::ArrayOfTables(array) => return array.span(),
-            Item::None => continue,
         }
     }
     None
@@ -302,9 +301,9 @@ fn map_child<'a>(node: &TomlNode<'a>, key: &str) -> Option<TomlNode<'a>> {
 
 fn seq_child<'a>(node: &TomlNode<'a>, index: usize) -> Option<TomlNode<'a>> {
     match node {
-        TomlNode::Item(Item::Value(Value::Array(array))) => array.get(index).map(TomlNode::Value),
+        TomlNode::Item(Item::Value(Value::Array(array)))
+        | TomlNode::Value(Value::Array(array)) => array.get(index).map(TomlNode::Value),
         TomlNode::Item(Item::ArrayOfTables(array)) => array.get(index).map(TomlNode::Table),
-        TomlNode::Value(Value::Array(array)) => array.get(index).map(TomlNode::Value),
         _ => None,
     }
 }

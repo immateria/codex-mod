@@ -521,8 +521,7 @@ impl ChatWidget<'_> {
             return;
         };
 
-        let mut changed = false;
-        if let Some(idx) = self
+        let cell_changed = if let Some(idx) = self
             .history_cell_ids
             .iter()
             .rposition(|hid| *hid == Some(prev_history_id))
@@ -531,17 +530,21 @@ impl ChatWidget<'_> {
                 .downcast_mut::<history_cell::AssistantMarkdownCell>()
                 && !cell.state().mid_turn {
                     cell.set_mid_turn(true);
-                    changed = true;
-                }
+                    true
+                } else {
+                    false
+                };
 
-        if let Some(record) = self.history_state.record_mut(prev_history_id)
+        let record_changed = if let Some(record) = self.history_state.record_mut(prev_history_id)
             && let HistoryRecord::AssistantMessage(state) = record
                 && !state.mid_turn {
                     state.mid_turn = true;
-                    changed = true;
-                }
+                    true
+                } else {
+                    false
+                };
 
-        if changed {
+        if cell_changed || record_changed {
             self.mark_history_dirty();
             self.request_redraw();
         }
@@ -559,16 +562,16 @@ impl ChatWidget<'_> {
             return;
         };
 
-        let mut changed = false;
-
-        if let Some(record) = self.history_state.record_mut(last_history_id)
+        let record_changed = if let Some(record) = self.history_state.record_mut(last_history_id)
             && let HistoryRecord::AssistantMessage(state) = record
                 && state.stream_id.as_deref() == Some(stream_id) && state.mid_turn {
                     state.mid_turn = false;
-                    changed = true;
-                }
+                    true
+                } else {
+                    false
+                };
 
-        if let Some(idx) = self
+        let cell_changed = if let Some(idx) = self
             .history_cell_ids
             .iter()
             .rposition(|hid| *hid == Some(last_history_id))
@@ -577,10 +580,12 @@ impl ChatWidget<'_> {
                 .downcast_mut::<history_cell::AssistantMarkdownCell>()
                 && cell.stream_id() == Some(stream_id) && cell.state().mid_turn {
                     cell.set_mid_turn(false);
-                    changed = true;
-                }
+                    true
+                } else {
+                    false
+                };
 
-        if changed {
+        if record_changed || cell_changed {
             self.mark_history_dirty();
             self.request_redraw();
         }

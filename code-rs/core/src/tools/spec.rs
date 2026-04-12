@@ -48,16 +48,17 @@ impl ToolsConfig {
             use_streamable_shell_tool,
             include_view_image_tool,
         } = params;
-        let mut shell_type = if use_streamable_shell_tool {
+        let shell_type = if matches!(approval_policy, AskForApproval::OnRequest)
+            && !use_streamable_shell_tool
+        {
+            ConfigShellToolType::ShellWithRequest { sandbox_policy }
+        } else if use_streamable_shell_tool {
             ConfigShellToolType::StreamableShell
         } else if model_family.uses_local_shell_tool {
             ConfigShellToolType::LocalShell
         } else {
             ConfigShellToolType::DefaultShell
         };
-        if matches!(approval_policy, AskForApproval::OnRequest) && !use_streamable_shell_tool {
-            shell_type = ConfigShellToolType::ShellWithRequest { sandbox_policy };
-        }
 
         let apply_patch_tool_type = if include_apply_patch_tool {
             // On Windows, grammar-based apply_patch invocations rely on heredocs

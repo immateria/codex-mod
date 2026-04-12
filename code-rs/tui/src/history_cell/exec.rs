@@ -170,7 +170,6 @@ impl HistoryCell for ExecCell {
                     None
                 }
             }
-            HistoryCellType::Exec { .. } => None,
             _ => None,
         }
     }
@@ -705,8 +704,7 @@ impl ExecCell {
                 );
             }
 
-        let mut status = None;
-        if self.output.is_none() {
+        let status = if self.output.is_none() {
             let status_line = self.streaming_status_line_for_label(status_label);
             if status_line.is_some()
                 && let Some(last) = out.last() {
@@ -718,8 +716,10 @@ impl ExecCell {
                         out.pop();
                     }
                 }
-            status = status_line;
-        }
+            status_line
+        } else {
+            None
+        };
 
         (pre, out, status)
     }

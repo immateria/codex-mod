@@ -374,10 +374,9 @@ impl ChatWidget<'_> {
             model_routing_entries,
             continue_mode,
         } = update;
-        let mut changed = false;
-        if self.auto_state.review_enabled != review_enabled {
+        let mut changed = self.auto_state.review_enabled != review_enabled;
+        if changed {
             self.auto_state.review_enabled = review_enabled;
-            changed = true;
         }
         if self.auto_state.subagents_enabled != agents_enabled {
             self.auto_state.subagents_enabled = agents_enabled;

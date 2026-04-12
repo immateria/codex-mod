@@ -639,10 +639,7 @@ const MAX_ALLOW_PREFIX_TEXT_BYTES: usize = 5000;
 const TRUNCATED_MARKER: &str = "...\n[Some commands were truncated]";
 
 pub fn format_allow_prefixes(prefixes: Vec<Vec<String>>) -> Option<String> {
-    let mut truncated = false;
-    if prefixes.len() > MAX_RENDERED_PREFIXES {
-        truncated = true;
-    }
+    let mut truncated = prefixes.len() > MAX_RENDERED_PREFIXES;
 
     let mut prefixes = prefixes;
     prefixes.sort_by(|a, b| {

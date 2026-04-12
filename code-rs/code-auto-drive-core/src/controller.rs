@@ -434,7 +434,10 @@ impl AutoDriveController {
             (AutoRunPhase::Idle | AutoRunPhase::AwaitingGoalEntry, PhaseTransition::BeginLaunch) => {
                 self.apply_phase(AutoRunPhase::Launching);
             }
-            (AutoRunPhase::Launching, PhaseTransition::LaunchSuccess) => {
+            (AutoRunPhase::Launching, PhaseTransition::LaunchSuccess)
+            | (AutoRunPhase::PausedManual { .. }, PhaseTransition::ResumeFromManual)
+            | (AutoRunPhase::AwaitingCoordinator { .. }, PhaseTransition::SubmitPrompt)
+            | (AutoRunPhase::TransientRecovery { .. }, PhaseTransition::RecoveryAttempt) => {
                 self.apply_phase(AutoRunPhase::Active);
             }
             (AutoRunPhase::Launching, PhaseTransition::LaunchFailed) => {
@@ -446,14 +449,8 @@ impl AutoDriveController {
                     bypass_next_submit: false,
                 });
             }
-            (AutoRunPhase::PausedManual { .. }, PhaseTransition::ResumeFromManual) => {
-                self.apply_phase(AutoRunPhase::Active);
-            }
             (AutoRunPhase::Active, PhaseTransition::PromptReady) => {
                 self.apply_phase(AutoRunPhase::AwaitingCoordinator { prompt_ready: true });
-            }
-            (AutoRunPhase::AwaitingCoordinator { .. }, PhaseTransition::SubmitPrompt) => {
-                self.apply_phase(AutoRunPhase::Active);
             }
             (AutoRunPhase::Active, PhaseTransition::AwaitDiagnostics) => {
                 self.apply_phase(AutoRunPhase::AwaitingDiagnostics { coordinator_waiting: true });
@@ -484,9 +481,6 @@ impl AutoDriveController {
                 if self.phase.is_active() {
                     self.apply_phase(AutoRunPhase::TransientRecovery { backoff_ms: *backoff_ms });
                 }
-            }
-            (AutoRunPhase::TransientRecovery { .. }, PhaseTransition::RecoveryAttempt) => {
-                self.apply_phase(AutoRunPhase::Active);
             }
             (_, PhaseTransition::Stop) => {
                 self.apply_phase(AutoRunPhase::Idle);

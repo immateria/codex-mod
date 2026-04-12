@@ -32,7 +32,7 @@ impl JsReplSettingsView {
 
     pub(super) fn render_content_only(&self, area: Rect, buf: &mut Buffer) {
         match &self.mode {
-            ViewMode::Main => self.render_main_without_frame(area, buf),
+            ViewMode::Main | ViewMode::Transition => self.render_main_without_frame(area, buf),
             ViewMode::EditText { target, field } => {
                 // Layout is intentionally unused; `viewport_rows` is only relevant in main mode.
                 let _layout = Self::text_edit_page(*target)
@@ -43,13 +43,12 @@ impl JsReplSettingsView {
                 let _layout = Self::list_edit_page(*target)
                     .render_in_chrome(ChromeMode::ContentOnly, area, buf, field);
             }
-            ViewMode::Transition => self.render_main_without_frame(area, buf),
         }
     }
 
     pub(super) fn render_framed(&self, area: Rect, buf: &mut Buffer) {
         match &self.mode {
-            ViewMode::Main => self.render_main(area, buf),
+            ViewMode::Main | ViewMode::Transition => self.render_main(area, buf),
             ViewMode::EditText { target, field } => {
                 // Layout is intentionally unused; `viewport_rows` is only relevant in main mode.
                 let _layout =
@@ -60,7 +59,6 @@ impl JsReplSettingsView {
                 let _layout =
                     Self::list_edit_page(*target).render_in_chrome(ChromeMode::Framed, area, buf, field);
             }
-            ViewMode::Transition => self.render_main(area, buf),
         }
     }
 }

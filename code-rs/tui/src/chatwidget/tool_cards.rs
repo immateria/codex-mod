@@ -221,9 +221,8 @@ fn prune_tool_card_duplicates<C: ToolCardCell>(
 
         let key_match = match (key, typed.tool_card_key()) {
             (Some(expected), Some(actual)) => actual == expected,
-            (Some(_), None) => false,
             (None, None) => true,
-            (None, Some(_)) => false,
+            (Some(_), None) | (None, Some(_)) => false,
         };
 
         let signature_match = match (signature, typed.dedupe_signature().as_deref()) {

@@ -132,18 +132,13 @@ impl ShellSelectionView {
                 self.open_shell_profiles_settings();
                 true
             }
-            (KeyCode::Char('e'), KeyModifiers::NONE) => {
+            (KeyCode::Char('e'), KeyModifiers::NONE) | (KeyCode::Right, _) => {
                 let (prefill, style) = self.prefill_for_selection(self.selected_index);
                 self.open_custom_input_with_prefill(prefill, style);
                 true
             }
             (KeyCode::Char('p'), KeyModifiers::NONE) => {
                 self.pin_selected_shell_binary();
-                true
-            }
-            (KeyCode::Right, _) => {
-                let (prefill, style) = self.prefill_for_selection(self.selected_index);
-                self.open_custom_input_with_prefill(prefill, style);
                 true
             }
             (KeyCode::Enter, _) => {

@@ -81,7 +81,7 @@ impl NotificationsSettingsView {
                 true
             }
             KeyEvent {
-                code: KeyCode::Left | KeyCode::Right,
+                code: KeyCode::Left | KeyCode::Right | KeyCode::Char(' '),
                 modifiers: KeyModifiers::NONE,
                 ..
             } => {
@@ -99,16 +99,6 @@ impl NotificationsSettingsView {
                     self.toggle();
                 } else {
                     self.is_complete = true;
-                }
-                true
-            }
-            KeyEvent {
-                code: KeyCode::Char(' '),
-                modifiers: KeyModifiers::NONE,
-                ..
-            } => {
-                if self.selected_row() == 0 {
-                    self.toggle();
                 }
                 true
             }

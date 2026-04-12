@@ -86,22 +86,23 @@ impl ChatWidget<'_> {
             return Err("could not parse command (check quoting)".to_owned());
         };
 
-        let mut explicit_style: Option<ShellScriptStyle> = None;
-        if parts.first().map(String::as_str) == Some("--style") {
+        let explicit_style: Option<ShellScriptStyle> = if parts.first().map(String::as_str) == Some("--style") {
             if parts.len() < 2 {
                 return Err("missing value after --style".to_owned());
             }
             let style_value = parts.remove(1);
             parts.remove(0);
-            explicit_style = Some(
+            Some(
                 ShellScriptStyle::parse(style_value.as_str())
                     .ok_or_else(|| {
                         format!(
                             "unknown style `{style_value}` (expected one of: posix-sh, bash-zsh-compatible, zsh)",
                         )
                     })?,
-            );
-        }
+            )
+        } else {
+            None
+        };
 
         if parts.is_empty() {
             let Some(existing_shell) = current_shell else {

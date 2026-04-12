@@ -105,8 +105,7 @@ fn model_info_to_preset(info: ModelInfo) -> ModelPreset {
 
 fn map_reasoning_effort(effort: RemoteReasoningEffort) -> ProtocolReasoningEffort {
     match effort {
-        RemoteReasoningEffort::None => ProtocolReasoningEffort::Minimal,
-        RemoteReasoningEffort::Minimal => ProtocolReasoningEffort::Minimal,
+        RemoteReasoningEffort::None | RemoteReasoningEffort::Minimal => ProtocolReasoningEffort::Minimal,
         RemoteReasoningEffort::Low => ProtocolReasoningEffort::Low,
         RemoteReasoningEffort::Medium => ProtocolReasoningEffort::Medium,
         RemoteReasoningEffort::High => ProtocolReasoningEffort::High,

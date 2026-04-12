@@ -138,7 +138,6 @@ fn encode_key_for_pty(key_event: KeyEvent) -> Option<Vec<u8>> {
         KeyCode::BackTab => Some(b"\x1b[Z".to_vec()),
         KeyCode::F(n) if (1..=12).contains(&n) => Some(function_key_sequence(n, mods)),
         KeyCode::Null => Some(vec![0]),
-        KeyCode::Esc => None,
         _ => None,
     }
 }

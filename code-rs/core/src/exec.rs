@@ -274,10 +274,11 @@ pub async fn process_exec_tool_call_with_managed_network(
                 }
             }
 
-            let mut exit_code = raw_output.exit_status.code().unwrap_or(-1);
-            if timed_out {
-                exit_code = EXEC_TIMEOUT_EXIT_CODE;
-            }
+            let exit_code = if timed_out {
+                EXEC_TIMEOUT_EXIT_CODE
+            } else {
+                raw_output.exit_status.code().unwrap_or(-1)
+            };
 
             let stdout = raw_output.stdout.from_utf8_lossy();
             let stderr = raw_output.stderr.from_utf8_lossy();

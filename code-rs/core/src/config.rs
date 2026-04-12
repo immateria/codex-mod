@@ -1903,8 +1903,7 @@ impl Config {
 
         let service_tier = match config_profile.service_tier.or(cfg.service_tier) {
             Some(ServiceTier::Fast) => Some(ServiceTier::Fast),
-            Some(ServiceTier::Standard) => None,
-            None => None,
+            Some(ServiceTier::Standard) | None => None,
         };
         let windows_sandbox_level = windows_sandbox_level_from_mode(windows_sandbox_mode);
         let model_family =

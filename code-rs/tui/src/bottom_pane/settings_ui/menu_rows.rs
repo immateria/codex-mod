@@ -298,22 +298,22 @@ fn menu_row_run_with_width<'a, Id: Copy + PartialEq>(
         }
     }
 
-    let mut truncated = false;
-
-    if let Some(value) = &row.value {
+    let mut truncated = if let Some(value) = &row.value {
         push_raw_clipped(&mut spans, &mut used_cols, max_cols, "  ");
         let mut value_style = value.style;
         if !row.enabled {
             value_style = value_style.fg(colors::dim());
         }
-        truncated = push_text_clipped(
+        push_text_clipped(
             &mut spans,
             &mut used_cols,
             max_cols,
             value.text.as_ref(),
             value_style,
-        );
-    }
+        )
+    } else {
+        false
+    };
 
     if !truncated
         && include_detail

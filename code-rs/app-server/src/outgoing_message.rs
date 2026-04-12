@@ -361,8 +361,8 @@ impl OutgoingMessageSender {
             OutgoingChannel::Routed(sender) => sender.send(envelope).await,
             OutgoingChannel::Direct(sender) => {
                 let message = match envelope {
-                    OutgoingEnvelope::ToConnection { message, .. } => message,
-                    OutgoingEnvelope::Broadcast { message } => message,
+                    OutgoingEnvelope::ToConnection { message, .. }
+                    | OutgoingEnvelope::Broadcast { message } => message,
                 };
                 sender
                     .send(message)

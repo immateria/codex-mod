@@ -209,8 +209,8 @@ fn platform_compatibility_rank(
         (MemoryPlatformFamily::Unix, MemoryPlatformFamily::Unix)
         | (MemoryPlatformFamily::Windows, MemoryPlatformFamily::Windows)
         | (MemoryPlatformFamily::Unknown, MemoryPlatformFamily::Unknown) => Some(0),
-        (_, MemoryPlatformFamily::Unknown) => Some(1),
-        (MemoryPlatformFamily::Unknown, _) => Some(1),
+        (_, MemoryPlatformFamily::Unknown)
+        | (MemoryPlatformFamily::Unknown, _) => Some(1),
         _ => None,
     }
 }

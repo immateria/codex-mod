@@ -390,11 +390,12 @@ pub(crate) async fn ensure_layout(code_home: &Path) -> io::Result<()> {
 }
 
 pub async fn clear_generated_memory_artifacts(code_home: &Path) -> io::Result<()> {
-    let mut refresh_db_status = false;
-    if let Some(state) = maybe_existing_memories_state(code_home).await? {
+    let refresh_db_status = if let Some(state) = maybe_existing_memories_state(code_home).await? {
         state.mark_artifact_dirty().await.map_err(io::Error::other)?;
-        refresh_db_status = true;
-    }
+        true
+    } else {
+        false
+    };
     let result = control::clear_memory_root_contents(&memory_root(code_home)).await;
     if refresh_db_status {
         refresh_cached_db_status(code_home).await;

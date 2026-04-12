@@ -260,8 +260,7 @@ impl ChatWidget<'_> {
         let mut segments: Vec<String> = Vec::new();
         for line in lines {
             match line.kind {
-                MessageLineKind::Blank => continue,
-                MessageLineKind::Metadata => continue,
+                MessageLineKind::Blank | MessageLineKind::Metadata => continue,
                 _ => {
                     let mut text = String::new();
                     for span in &line.spans {

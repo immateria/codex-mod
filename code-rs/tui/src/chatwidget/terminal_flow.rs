@@ -176,12 +176,13 @@ impl ChatWidget<'_> {
         suggestion: String,
         ack: Sender<TerminalCommandGate>,
     ) {
-        let mut updated = false;
-        if let Some(overlay) = self.terminal.overlay_mut()
+        let updated = if let Some(overlay) = self.terminal.overlay_mut()
             && overlay.id == id {
                 overlay.set_pending_command(suggestion, ack);
-                updated = true;
-            }
+                true
+            } else {
+                false
+            };
         if updated {
             self.request_redraw();
         }
@@ -255,9 +256,7 @@ impl ChatWidget<'_> {
             return;
         }
 
-        let mut command_body = trimmed;
-        let mut run_direct = false;
-        if let Some(rest) = trimmed.strip_prefix('$') {
+        let (command_body, run_direct) = if let Some(rest) = trimmed.strip_prefix('$') {
             let candidate = rest.trim();
             if candidate.is_empty() {
                 if let Some(overlay) = self.terminal.overlay_mut() {
@@ -267,9 +266,10 @@ impl ChatWidget<'_> {
                 self.request_redraw();
                 return;
             }
-            command_body = candidate;
-            run_direct = true;
-        }
+            (candidate, true)
+        } else {
+            (trimmed, false)
+        };
 
         let command_string = command_body.to_owned();
         let wrapped_command = wrap_command(&command_string);
@@ -657,12 +657,13 @@ impl ChatWidget<'_> {
     }
 
     pub(crate) fn terminal_scroll_to_top(&mut self) {
-        let mut updated = false;
-        if let Some(overlay) = self.terminal.overlay_mut()
+        let updated = if let Some(overlay) = self.terminal.overlay_mut()
             && overlay.scroll != 0 {
                 overlay.scroll = 0;
-                updated = true;
-            }
+                true
+            } else {
+                false
+            };
         if updated {
             self.request_redraw();
         }
