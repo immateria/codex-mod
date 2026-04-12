@@ -128,6 +128,7 @@ impl MemoriesSettingsView {
             hint_nav_horizontal(" cycle"),
             hint_enter(" edit/activate"),
             KeyHint::new(crate::bottom_pane::settings_ui::hints::key_ctrl("S"), " apply"),
+            KeyHint::new(crate::bottom_pane::settings_ui::hints::key_ctrl("R"), " refresh"),
             hint_esc(" close"),
         ])]
     }
@@ -280,14 +281,22 @@ impl MemoriesSettingsView {
             .iter()
             .enumerate()
             .map(|(idx, line)| {
-                let style = if Some(idx) == current_match_line {
+                let line_num_style = Style::default().fg(colors::text_dim()).add_modifier(Modifier::DIM);
+                let content_style = if Some(idx) == current_match_line {
                     current_match_style
                 } else if match_lines.contains(&idx) {
                     match_style
                 } else {
                     dim
                 };
-                Line::from(Span::styled(line.clone(), style))
+                let gutter_width = digit_count(total);
+                Line::from(vec![
+                    Span::styled(
+                        format!("{:>width$} ", idx + 1, width = gutter_width),
+                        line_num_style,
+                    ),
+                    Span::styled(line.clone(), content_style),
+                ])
             })
             .collect();
 
@@ -295,11 +304,15 @@ impl MemoriesSettingsView {
             TextViewerParent::Main => " back",
             TextViewerParent::RolloutList(_) => " back to list",
         };
-        let footer_lines = vec![shortcut_line(&[
+        let mut hints: Vec<KeyHint<'static>> = vec![
             hint_nav(" scroll"),
             KeyHint::new("/", " search"),
-            hint_esc(back_label),
-        ])];
+        ];
+        if viewer.search.as_ref().is_some_and(|s| !s.matches.is_empty()) {
+            hints.push(KeyHint::new("n/N", " next/prev"));
+        }
+        hints.push(hint_esc(back_label));
+        let footer_lines = vec![shortcut_line(&hints)];
 
         SettingsMessagePage::new(
             viewer.title,
@@ -389,4 +402,10 @@ fn format_age(when: DateTime<Utc>, now: DateTime<Utc>) -> String {
     } else {
         format!("{}d ago", secs / 86_400)
     }
+}
+
+/// Number of decimal digits needed to display `n`.
+fn digit_count(n: usize) -> usize {
+    if n == 0 { return 1; }
+    (n as f64).log10().floor() as usize + 1
 }

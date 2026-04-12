@@ -381,6 +381,9 @@ impl MemoriesSettingsView {
             KeyCode::Char('s') if key_event.modifiers.contains(KeyModifiers::CONTROL) => {
                 self.dispatch_apply();
             }
+            KeyCode::Char('r') if key_event.modifiers.contains(KeyModifiers::CONTROL) => {
+                self.trigger_action(MemoriesArtifactsAction::Refresh);
+            }
             _ => {
                 self.state.set(state);
                 return false;
