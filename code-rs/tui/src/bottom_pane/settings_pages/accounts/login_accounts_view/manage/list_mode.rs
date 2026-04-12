@@ -162,7 +162,7 @@ impl LoginAccountsState {
                 self.open_store_paths_editor();
                 true
             }
-            KeyCode::Enter => {
+            KeyCode::Enter | KeyCode::Char(' ') => {
                 self.activate_selected_row();
                 true
             }

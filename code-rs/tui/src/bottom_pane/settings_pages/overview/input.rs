@@ -34,7 +34,7 @@ impl SettingsOverviewView {
                 self.cancel();
                 true
             }
-            KeyCode::Enter => {
+            KeyCode::Enter | KeyCode::Char(' ') => {
                 self.open_selected();
                 true
             }

@@ -151,7 +151,7 @@ modifiers: KeyModifiers::NONE | KeyModifiers::SHIFT, .. } => self.adjust_selecte
                 }
             }
             KeyEvent {
-                code: KeyCode::Enter,
+                code: KeyCode::Enter | KeyCode::Char(' '),
                 modifiers: KeyModifiers::NONE,
                 ..
             } => {

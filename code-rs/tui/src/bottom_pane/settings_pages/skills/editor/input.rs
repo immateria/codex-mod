@@ -8,7 +8,7 @@ pub(super) fn handle_key_event_direct_inner(view: &mut SkillsSettingsView, key: 
                 true
             }
             KeyEvent {
-                code: KeyCode::Enter,
+                code: KeyCode::Enter | KeyCode::Char(' '),
                 modifiers: KeyModifiers::NONE,
                 ..
             } => {

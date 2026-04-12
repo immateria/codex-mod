@@ -46,6 +46,10 @@ impl ShellSelectionView {
                     }
                     true
                 }
+                (KeyCode::Char(' '), _) if matches!(self.edit_focus, EditFocus::Actions) => {
+                    self.activate_edit_action(self.selected_action);
+                    true
+                }
                 (KeyCode::Char('o'), mods) if mods.contains(KeyModifiers::CONTROL) => {
                     self.pick_shell_binary_from_dialog()
                 }
@@ -141,7 +145,7 @@ impl ShellSelectionView {
                 self.pin_selected_shell_binary();
                 true
             }
-            (KeyCode::Enter, _) => {
+            (KeyCode::Enter | KeyCode::Char(' '), _) => {
                 self.confirm_selection();
                 true
             }

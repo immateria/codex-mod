@@ -115,7 +115,7 @@ impl UpdateSettingsView {
                 self.toggle_auto();
                 true
             }
-            KeyCode::Enter => {
+            KeyCode::Enter | KeyCode::Char(' ') => {
                 self.activate_selected();
                 true
             }

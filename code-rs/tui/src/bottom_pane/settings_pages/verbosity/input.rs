@@ -63,7 +63,7 @@ impl VerbositySelectionView {
                 true
             }
             KeyEvent {
-                code: KeyCode::Enter,
+                code: KeyCode::Enter | KeyCode::Char(' '),
                 modifiers: KeyModifiers::NONE,
                 ..
             } => {

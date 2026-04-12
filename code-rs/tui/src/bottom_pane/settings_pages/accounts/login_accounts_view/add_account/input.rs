@@ -25,7 +25,7 @@ pub(super) fn handle_key_event(state: &mut LoginAddAccountState, key_event: KeyE
                 *selected = selected.saturating_add(1) % ADD_ACCOUNT_CHOICES.max(1);
                 true
             }
-            KeyCode::Enter => {
+            KeyCode::Enter | KeyCode::Char(' ') => {
                 if *selected == 0 {
                     state.feedback = Some(Feedback {
                         message: "Opening browser for ChatGPT sign-in…".to_owned(),

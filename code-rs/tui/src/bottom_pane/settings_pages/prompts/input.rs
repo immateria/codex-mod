@@ -23,7 +23,7 @@ impl PromptsSettingsView {
                     self.is_complete = true;
                     true
                 }
-                KeyEvent { code: KeyCode::Enter, modifiers: KeyModifiers::NONE, .. } => {
+                KeyEvent { code: KeyCode::Enter | KeyCode::Char(' '), modifiers: KeyModifiers::NONE, .. } => {
                     self.enter_editor();
                     true
                 }
