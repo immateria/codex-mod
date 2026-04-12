@@ -269,10 +269,14 @@ impl EventProcessor for EventProcessorWithHumanOutput {
             | EventMsg::WebSearchBegin(_)
             | EventMsg::ConversationPath(_)
             | EventMsg::UserMessage(_)
-            | EventMsg::CompactionCheckpointWarning(_) => {
-                // Environment context events are consumed by the TUI; the CLI runner
-                // does not surface them alongside the human-readable transcript.
-            }
+            | EventMsg::CompactionCheckpointWarning(_)
+            | EventMsg::ExecApprovalRequest(_)
+            | EventMsg::ApplyPatchApprovalRequest(_)
+            | EventMsg::GetHistoryEntryResponse(_)
+            | EventMsg::ReplayHistory(_)
+            | EventMsg::BrowserScreenshotUpdate(_)
+            | EventMsg::AgentStatusUpdate(_)
+            | EventMsg::CustomToolCallUpdate(_) => {}
             EventMsg::TaskStarted => {
                 // Reset per-turn diff cache so we only print new diffs once.
                 self.last_turn_diff = None;
@@ -625,12 +629,6 @@ impl EventProcessor for EventProcessorWithHumanOutput {
                 ts_println!(self, "{}", "turn diff:".style(self.magenta));
                 eprintln!("{unified_diff}");
             }
-            EventMsg::ExecApprovalRequest(_) => {
-                // Should we exit?
-            }
-            EventMsg::ApplyPatchApprovalRequest(_) => {
-                // Should we exit?
-            }
             EventMsg::AgentReasoning(agent_reasoning_event) => {
                 if self.show_agent_reasoning {
                     if self.reasoning_streams_started.remove(&id) {
@@ -674,18 +672,6 @@ impl EventProcessor for EventProcessorWithHumanOutput {
                 ts_println!(self, "name: {name:?}");
                 ts_println!(self, "plan: {plan:?}");
             }
-            EventMsg::GetHistoryEntryResponse(_) => {
-                // Currently ignored in exec output.
-            }
-            EventMsg::ReplayHistory(_) => {
-                // Replay is a TUI concern; ignore in headless output
-            }
-            EventMsg::BrowserScreenshotUpdate(_) => {
-                // Currently ignored in exec output.
-            }
-            EventMsg::AgentStatusUpdate(_) => {
-                // Currently ignored in exec output.
-            }
             EventMsg::CustomToolCallBegin(event) => {
                 ts_println!(
                     self,
@@ -699,9 +685,6 @@ impl EventProcessor for EventProcessorWithHumanOutput {
                             eprintln!("{}", line.style(self.dimmed));
                         }
                     }
-            }
-            EventMsg::CustomToolCallUpdate(_) => {
-                // Currently ignored in exec output.
             }
             EventMsg::CustomToolCallEnd(event) => {
                 let status = if event.result.is_ok() {

@@ -117,10 +117,9 @@ pub async fn spawn_process(
                 Ok(n) => {
                     let _ = stdout_tx.blocking_send(buf[..n].to_vec());
                 }
-                Err(ref e) if e.kind() == ErrorKind::Interrupted => continue,
+                Err(ref e) if e.kind() == ErrorKind::Interrupted => {}
                 Err(ref e) if e.kind() == ErrorKind::WouldBlock => {
                     std::thread::sleep(Duration::from_millis(5));
-                    continue;
                 }
                 Err(_) => break,
             }

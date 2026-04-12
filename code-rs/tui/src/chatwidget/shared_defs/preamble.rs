@@ -622,7 +622,7 @@ async fn allocate_fallback_auto_review_worktree(
                 .map_err(|e| format!("failed to prepare fallback worktree: {e}"))?;
                 return Ok((worktree_path, name, guard));
             }
-            Ok(None) => continue, // in use, try next suffix
+            Ok(None) => {} // in use, try next suffix
             Err(err) => return Err(format!("could not acquire fallback review lock: {err}")),
         }
     }

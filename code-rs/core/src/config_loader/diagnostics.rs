@@ -249,7 +249,7 @@ fn span_for_features_value(contents: &str) -> Option<std::ops::Range<usize>> {
     let features_table = features_item.as_table_like()?;
     for (_, item) in features_table.iter() {
         match item {
-            Item::Value(Value::Boolean(_)) | Item::None => continue,
+            Item::Value(Value::Boolean(_)) | Item::None => {}
             Item::Value(value) => return value.span(),
             Item::Table(table) => return table.span(),
             Item::ArrayOfTables(array) => return array.span(),

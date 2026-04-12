@@ -70,7 +70,7 @@ fn next_event_priority_impl(
                 *consecutive_high_events = 1;
                 return Some(ev);
             }
-            Err(Timeout) => continue,
+            Err(Timeout) => {}
             Err(Disconnected) => break,
         }
     }

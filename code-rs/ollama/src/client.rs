@@ -209,7 +209,6 @@ impl OllamaClient {
                     return Err(io::Error::other(format!("Pull failed: {err}")));
                 }
                 PullEvent::ChunkProgress { .. } | PullEvent::Status(_) => {
-                    continue;
                 }
             }
         }

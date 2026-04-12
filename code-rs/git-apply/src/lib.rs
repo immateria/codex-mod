@@ -439,8 +439,8 @@ pub fn parse_git_apply_output(
         }
 
         // === Warnings that imply conflicts ===
-        if let Some(c) = CANNOT_MERGE_BINARY_WARN.captures(line) {
-            if let Some(m) = c.name("path") {
+        if let Some(c) = CANNOT_MERGE_BINARY_WARN.captures(line)
+            && let Some(m) = c.name("path") {
                 add(&mut conflicted, m.as_str());
                 let p = conflicted.iter().next_back().cloned();
                 if let Some(p) = p {
@@ -449,8 +449,6 @@ pub fn parse_git_apply_output(
                     last_seen_path = Some(p);
                 }
             }
-            continue;
-        }
     }
 
     // Final precedence: conflicts > applied > skipped

@@ -142,7 +142,6 @@ where
                             reason: "rate limit window cleared".to_owned(),
                             is_rate_limit: true,
                         });
-                        continue;
                     }
                     RetryDecision::RetryAfterBackoff { reason } => {
                         let sleep = compute_delay(&options, attempt, &mut rng);
@@ -175,7 +174,6 @@ where
                             is_rate_limit: false,
                         });
                         wait_with_cancel(cancel, sleep).await?;
-                        continue;
                     }
                 }
             }

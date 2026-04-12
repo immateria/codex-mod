@@ -196,7 +196,6 @@ fn indent_js_lines(lines: Vec<String>) -> Vec<String> {
                 '}' | ']' => {
                     leading_closers += 1;
                     cut = idx + ch.len_utf8();
-                    continue;
                 }
                 _ => {
                     cut = idx;

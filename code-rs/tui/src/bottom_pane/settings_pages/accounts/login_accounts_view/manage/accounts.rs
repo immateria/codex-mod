@@ -21,7 +21,7 @@ fn cmp_ascii_case_insensitive(a: &str, b: &str) -> Ordering {
                 let a_lower = a_byte.to_ascii_lowercase();
                 let b_lower = b_byte.to_ascii_lowercase();
                 match a_lower.cmp(&b_lower) {
-                    Ordering::Equal => continue,
+                    Ordering::Equal => {}
                     other => return other,
                 }
             }

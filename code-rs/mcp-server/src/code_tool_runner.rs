@@ -214,7 +214,6 @@ async fn run_code_tool_session_inner(
                             approval_id,
                         })
                         .await;
-                        continue;
                     }
                     EventMsg::Error(err_event) => {
                         // Return a response to conclude the tool call when the Codex session reports an error (e.g., interruption).
@@ -242,7 +241,6 @@ async fn run_code_tool_session_inner(
                             event_id: event.id.clone(),
                         })
                         .await;
-                        continue;
                     }
                     EventMsg::RequestUserInput(ev) => {
                         let question_count = ev.questions.len();
@@ -292,7 +290,6 @@ async fn run_code_tool_session_inner(
                             ev,
                         )
                         .await;
-                        continue;
                     }
                     EventMsg::DynamicToolCallRequest(ev) => {
                         let response = DynamicToolResponse {
@@ -337,10 +334,8 @@ async fn run_code_tool_session_inner(
                     }
                     EventMsg::AgentMessageDelta(_)
                     | EventMsg::AgentReasoningDelta(_)
-                    | EventMsg::AgentMessage(AgentMessageEvent { .. }) => {
-                        // TODO: think how we want to support this in the MCP
-                    }
-                    EventMsg::AgentReasoningRawContent(_)
+                    | EventMsg::AgentMessage(AgentMessageEvent { .. })
+                    | EventMsg::AgentReasoningRawContent(_)
                     | EventMsg::AgentReasoningRawContentDelta(_)
                     | EventMsg::Warning(_)
                     | EventMsg::TaskStarted

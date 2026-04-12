@@ -83,7 +83,7 @@ where
             Ok(n) => {
                 let _ = output_tx.send(buf[..n].to_vec()).await;
             }
-            Err(ref e) if e.kind() == ErrorKind::Interrupted => continue,
+            Err(ref e) if e.kind() == ErrorKind::Interrupted => {}
             Err(_) => break,
         }
     }

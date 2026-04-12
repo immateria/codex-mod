@@ -260,7 +260,7 @@ fn discover_project_doc_paths_with_candidates(
                         break;
                     }
                 }
-                Err(e) if e.kind() == std::io::ErrorKind::NotFound => continue,
+                Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
                 Err(e) => return Err(e),
             }
         }

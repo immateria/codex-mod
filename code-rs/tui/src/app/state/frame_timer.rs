@@ -117,7 +117,6 @@ impl FrameTimer {
             state = new_state;
 
             if result.timed_out() {
-                continue;
             }
         }
     }

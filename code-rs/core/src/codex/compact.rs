@@ -325,7 +325,6 @@ pub(super) async fn perform_compaction(
                 tokio::time::sleep(retry_after.delay).await;
                 retries = 0;
                 truncated_count = 0;
-                continue;
             }
             Err(e) if is_context_overflow_error(&e) => {
                 if turn_input.len() > 1 && truncated_count < MAX_COMPACT_CONTEXT_OVERFLOW_TRIMS {
@@ -494,7 +493,6 @@ async fn run_compact_task_inner_inline(
                 tokio::time::sleep(retry_after.delay).await;
                 retries = 0;
                 truncated_count = 0;
-                continue;
             }
             Err(e) if is_context_overflow_error(&e) => {
                 if turn_input.len() > 1 && truncated_count < MAX_COMPACT_CONTEXT_OVERFLOW_TRIMS {
@@ -874,7 +872,7 @@ async fn drain_to_completed(
                 Ok(ResponseEvent::Completed { .. }) => {
                     return Ok(());
                 }
-                Ok(_) => continue,
+                Ok(_) => {}
                 Err(e) => return Err(e),
             }
         }

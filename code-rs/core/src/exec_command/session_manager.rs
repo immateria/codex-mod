@@ -337,7 +337,6 @@ impl SessionManager {
                             }
                             Ok(Err(tokio::sync::broadcast::error::RecvError::Lagged(_))) => {
                                 // Skip missed messages; keep trying within grace period.
-                                continue;
                             }
                             Ok(Err(tokio::sync::broadcast::error::RecvError::Closed))
                             | Err(_) => break,
@@ -689,12 +688,10 @@ async fn create_exec_command_session(
                 }
                 Err(ref e) if e.kind() == ErrorKind::Interrupted => {
                     // Retry on EINTR
-                    continue;
                 }
                 Err(ref e) if e.kind() == ErrorKind::WouldBlock => {
                     // We're in a blocking thread; back off briefly and retry.
                     std::thread::sleep(Duration::from_millis(5));
-                    continue;
                 }
                 Err(_) => break,
             }

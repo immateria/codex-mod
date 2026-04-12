@@ -1215,7 +1215,7 @@ pub async fn upsert_subagent_command(code_home: &Path, cmd: &SubagentCommandConf
                 // Update fields
                 tbl["name"] = toml_edit::value(cmd.name.clone());
                 tbl["read-only"] = toml_edit::value(cmd.read_only);
-                let agents = toml_edit::Array::from_iter(cmd.agents.iter().cloned());
+                let agents: toml_edit::Array = cmd.agents.iter().cloned().collect();
                 tbl["agents"] = toml_edit::Item::Value(toml_edit::Value::Array(agents));
                 if let Some(s) = &cmd.orchestrator_instructions { tbl["orchestrator-instructions"] = toml_edit::value(s.clone()); } else { tbl.remove("orchestrator-instructions"); }
                 if let Some(s) = &cmd.agent_instructions { tbl["agent-instructions"] = toml_edit::value(s.clone()); } else { tbl.remove("agent-instructions"); }
@@ -1229,7 +1229,7 @@ pub async fn upsert_subagent_command(code_home: &Path, cmd: &SubagentCommandConf
         t.set_implicit(true);
         t["name"] = toml_edit::value(cmd.name.clone());
         t["read-only"] = toml_edit::value(cmd.read_only);
-        let agents = toml_edit::Array::from_iter(cmd.agents.iter().cloned());
+        let agents: toml_edit::Array = cmd.agents.iter().cloned().collect();
         t["agents"] = toml_edit::Item::Value(toml_edit::Value::Array(agents));
         if let Some(s) = &cmd.orchestrator_instructions {
             t["orchestrator-instructions"] = toml_edit::value(s.clone());
@@ -1350,12 +1350,12 @@ pub async fn upsert_agent_config(
                 .is_some_and(|s| s.eq_ignore_ascii_case(name));
             if same {
                 if let Some(val) = enabled { tbl["enabled"] = toml_edit::value(val); }
-                if let Some(a) = args { tbl["args"] = toml_edit::value(toml_edit::Array::from_iter(a.iter().cloned())); }
+                if let Some(a) = args { tbl["args"] = toml_edit::value(a.iter().cloned().collect::<toml_edit::Array>()); }
                 if let Some(ro) = args_read_only {
-                    tbl["args-read-only"] = toml_edit::value(toml_edit::Array::from_iter(ro.iter().cloned()));
+                    tbl["args-read-only"] = toml_edit::value(ro.iter().cloned().collect::<toml_edit::Array>());
                 }
                 if let Some(w) = args_write {
-                    tbl["args-write"] = toml_edit::value(toml_edit::Array::from_iter(w.iter().cloned()));
+                    tbl["args-write"] = toml_edit::value(w.iter().cloned().collect::<toml_edit::Array>());
                 }
                 if let Some(instr) = instructions {
                     if instr.trim().is_empty() { tbl.remove("instructions"); }
@@ -1425,9 +1425,9 @@ fn append_agent_entry(
     t.set_implicit(true);
     t["name"] = toml_edit::value(name.to_owned());
     if let Some(val) = enabled { t["enabled"] = toml_edit::value(val); }
-    if let Some(a) = args { t["args"] = toml_edit::value(toml_edit::Array::from_iter(a.iter().cloned())); }
-    if let Some(ro) = args_read_only { t["args-read-only"] = toml_edit::value(toml_edit::Array::from_iter(ro.iter().cloned())); }
-    if let Some(w) = args_write { t["args-write"] = toml_edit::value(toml_edit::Array::from_iter(w.iter().cloned())); }
+    if let Some(a) = args { t["args"] = toml_edit::value(a.iter().cloned().collect::<toml_edit::Array>()); }
+    if let Some(ro) = args_read_only { t["args-read-only"] = toml_edit::value(ro.iter().cloned().collect::<toml_edit::Array>()); }
+    if let Some(w) = args_write { t["args-write"] = toml_edit::value(w.iter().cloned().collect::<toml_edit::Array>()); }
     if let Some(instr) = instructions && !instr.trim().is_empty() { t["instructions"] = toml_edit::value(instr.to_owned()); }
     if let Some(desc) = description && !desc.trim().is_empty() { t["description"] = toml_edit::value(desc.to_owned()); }
     if let Some(cmd) = command

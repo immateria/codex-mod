@@ -380,7 +380,6 @@ pub async fn run_main(cli: Cli, _code_linux_sandbox_exe: Option<PathBuf>) -> any
                             if next_deadline.is_none_or(|cur| at < cur) {
                                 next_deadline = Some(at);
                             }
-                            continue; // recompute sleep target
                         }
                         None => break,
                     }
@@ -811,7 +810,7 @@ pub async fn run_main(cli: Cli, _code_linux_sandbox_exe: Option<PathBuf>) -> any
                             if let Some(m) = app.env_modal.as_mut() {
                                 for ch in pasted.chars() {
                                     match ch {
-                                        '\r' | '\n' => continue,
+                                        '\r' | '\n' => {}
                                         '\t' => m.query.push(' '),
                                         _ => m.query.push(ch),
                                     }

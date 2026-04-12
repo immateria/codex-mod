@@ -103,12 +103,16 @@ impl SubscriptionOverride {
     fn fingerprint(&self) -> u64 {
         let mut hasher = DefaultHasher::new();
         let mut lvls = self.levels.clone();
-        lvls.iter_mut().for_each(|l| *l = l.to_lowercase());
+        for l in &mut lvls {
+            *l = l.to_lowercase();
+        }
         lvls.sort();
         lvls.hash(&mut hasher);
 
         let mut caps = self.capabilities.clone();
-        caps.iter_mut().for_each(|c| *c = c.to_lowercase());
+        for c in &mut caps {
+            *c = c.to_lowercase();
+        }
         caps.sort();
         caps.hash(&mut hasher);
 

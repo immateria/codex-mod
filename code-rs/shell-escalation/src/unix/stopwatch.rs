@@ -81,7 +81,6 @@ impl Stopwatch {
                         break;
                     }
                     _ = notify.notified() => {
-                        continue;
                     }
                 }
             }

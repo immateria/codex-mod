@@ -74,7 +74,6 @@
                         KeyEvent { code: KeyCode::Esc, kind: KeyEventKind::Press | KeyEventKind::Repeat, .. } => {
                             if let AppState::Chat { widget } = &mut self.app_state
                                 && widget.handle_app_esc(key_event, &mut self.last_esc_time) {
-                                    continue;
                                 }
                             // Otherwise fall through
                         }

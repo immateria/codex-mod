@@ -71,7 +71,6 @@ impl Page {
                             let delay_ms = 1000 * attempt as u64;
                             info!("Retrying navigation after {}ms...", delay_ms);
                             tokio::time::sleep(tokio::time::Duration::from_millis(delay_ms)).await;
-                            continue;
                         }
                     } else {
                         // Non-timeout error, fail immediately

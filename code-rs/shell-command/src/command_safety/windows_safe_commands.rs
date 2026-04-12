@@ -68,7 +68,6 @@ fn parse_powershell_invocation(executable: &str, args: &[String]) -> Option<Vec<
             // Benign, no-arg flags we tolerate.
             "-nologo" | "-noprofile" | "-noninteractive" | "-mta" | "-sta" => {
                 idx += 1;
-                continue;
             }
 
             // Explicitly forbidden/opaque or unnecessary for read-only operations.

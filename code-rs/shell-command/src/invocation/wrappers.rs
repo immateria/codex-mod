@@ -92,7 +92,6 @@ pub(crate) fn extract_cmd_wrapper(command: &[String]) -> Option<(String, String)
             }
             _ if lower.starts_with('/') => {
                 idx += 1;
-                continue;
             }
             _ => {
                 return None;
@@ -127,12 +126,10 @@ pub(crate) fn extract_powershell_script(command: &[String]) -> Option<String> {
             // Benign, no-arg flags we tolerate.
             "-nologo" | "-noprofile" | "-noninteractive" | "-mta" | "-sta" => {
                 idx += 1;
-                continue;
             }
             // Unknown switch -> skip it conservatively.
             _ if lower.starts_with('-') => {
                 idx += 1;
-                continue;
             }
             _ => {
                 return Some(join_arguments_as_script(&rest[idx..]));

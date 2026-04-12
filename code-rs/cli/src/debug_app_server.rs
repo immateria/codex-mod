@@ -272,7 +272,7 @@ impl AppServerClient {
         loop {
             match self.read_jsonrpc_message().await? {
                 JSONRPCMessage::Notification(notification) => return Ok(notification),
-                JSONRPCMessage::Response(_) | JSONRPCMessage::Error(_) => continue,
+                JSONRPCMessage::Response(_) | JSONRPCMessage::Error(_) => {}
                 JSONRPCMessage::Request(request) => {
                     self.handle_server_request(request).await?;
                 }

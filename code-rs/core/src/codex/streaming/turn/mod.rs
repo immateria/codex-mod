@@ -349,7 +349,6 @@ pub(super) async fn run_turn(
                 drain_scratchpad_into_attempt(&mut attempt_input);
                 tokio::time::sleep(retry_after.delay).await;
                 retries = 0;
-                continue;
             }
             Err(CodexErr::UsageNotIncluded) => return Err(CodexErr::UsageNotIncluded),
             Err(CodexErr::QuotaExceeded) => return Err(CodexErr::QuotaExceeded),

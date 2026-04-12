@@ -212,7 +212,7 @@ fn is_dangerous_cmd(command: &[String]) -> bool {
         let lower = arg.to_ascii_lowercase();
         match lower.as_str() {
             "/c" | "/r" | "-c" => break,
-            _ if lower.starts_with('/') => continue,
+            _ if lower.starts_with('/') => {}
             // Unknown tokens before the command body => bail.
             _ => return false,
         }

@@ -635,7 +635,7 @@ fn directory_stats(path: &Path) -> DirStats {
                         stats.bytes += meta.len();
                     }
                 }
-                Err(_) => continue,
+                Err(_) => {}
             }
         }
     }

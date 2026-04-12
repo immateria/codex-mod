@@ -147,22 +147,7 @@ impl OnboardingScreen {
         let mut out: Vec<&mut Step> = Vec::new();
         for step in &mut self.steps {
             match step.get_step_state() {
-                StepState::Hidden => continue,
-                StepState::Complete => out.push(step),
-                StepState::InProgress => {
-                    out.push(step);
-                    break;
-                }
-            }
-        }
-        out
-    }
-
-    fn current_steps(&self) -> Vec<&Step> {
-        let mut out: Vec<&Step> = Vec::new();
-        for step in &self.steps {
-            match step.get_step_state() {
-                StepState::Hidden => continue,
+                StepState::Hidden => {}
                 StepState::Complete => out.push(step),
                 StepState::InProgress => {
                     out.push(step);
@@ -177,6 +162,21 @@ impl OnboardingScreen {
         self.steps
             .iter_mut()
             .find(|step| matches!(step.get_step_state(), StepState::InProgress))
+    }
+
+    fn current_steps(&self) -> Vec<&Step> {
+        let mut out: Vec<&Step> = Vec::new();
+        for step in &self.steps {
+            match step.get_step_state() {
+                StepState::Hidden => {}
+                StepState::Complete => out.push(step),
+                StepState::InProgress => {
+                    out.push(step);
+                    break;
+                }
+            }
+        }
+        out
     }
 }
 

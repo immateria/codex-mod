@@ -893,15 +893,14 @@ impl AgentRunCell {
             segments.push(CardSegment::new(padded_time, time_style));
             remaining = remaining.saturating_sub(time_width);
 
-            if remaining >= ACTION_TIME_SEPARATOR_WIDTH {
-                segments.push(CardSegment::new(
-                    " ".repeat(ACTION_TIME_SEPARATOR_WIDTH),
-                    Style::default(),
-                ));
-                remaining = remaining.saturating_sub(ACTION_TIME_SEPARATOR_WIDTH);
-            } else {
+            if remaining < ACTION_TIME_SEPARATOR_WIDTH {
                 continue;
             }
+            segments.push(CardSegment::new(
+                " ".repeat(ACTION_TIME_SEPARATOR_WIDTH),
+                Style::default(),
+            ));
+            remaining = remaining.saturating_sub(ACTION_TIME_SEPARATOR_WIDTH);
 
             if remaining > 0 {
                 let mut desc_display = entry.label.clone();

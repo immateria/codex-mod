@@ -125,7 +125,6 @@
                             }
                             self.app_event_tx
                                 .send(AppEvent::ScheduleFrameIn(crate::timing::ANIMATION_FRAME_INTERVAL));
-                            continue;
                         }
                         Err(e) => return Err(e.into()),
                     }

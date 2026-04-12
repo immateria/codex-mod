@@ -142,14 +142,12 @@ pub async fn tail_events(target: &BridgeTarget, level: &str, raw: bool) -> Resul
                                 println!("{line}");
                             }
                     }
-                    Some(Ok(Message::Binary(_))) => {}
-                    Some(Ok(Message::Close(_))) => break,
+                    Some(Ok(Message::Close(_))) | None => break,
                     Some(Ok(_)) => {}
                     Some(Err(err)) => {
                         eprintln!("Bridge stream error: {err:?}");
                         break;
                     }
-                    None => break,
                 }
             }
             _ = tokio::signal::ctrl_c() => {
@@ -353,7 +351,6 @@ async fn wait_for_type(
                             return Some(val);
                         }
                 }
-                Ok(Message::Binary(_)) => {}
                 Ok(Message::Close(frame)) => {
                     let reason = frame.map(|f| f.reason.to_string()).unwrap_or_default();
                     return Some(serde_json::json!({"type":"close","reason":reason}));
@@ -390,7 +387,6 @@ async fn wait_for_forwarded(
                             return val.get("delivered").and_then(serde_json::Value::as_u64).map(|v| v as usize);
                         }
                 }
-                Ok(Message::Binary(_)) => {}
                 Ok(_) => {}
                 Err(_) => return None,
             }
@@ -444,7 +440,6 @@ async fn wait_for_control_and_screenshot(
                         }
                     }
                 }
-                Ok(Message::Binary(_)) => {}
                 Ok(_) => {}
                 Err(_) => break,
             }

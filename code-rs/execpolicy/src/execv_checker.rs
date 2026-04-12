@@ -80,9 +80,7 @@ impl ExecvChecker {
                 | ArgType::Unknown
                 | ArgType::PositiveInteger
                 | ArgType::SedCommand
-                | ArgType::Literal(_) => {
-                    continue;
-                }
+                | ArgType::Literal(_) => {}
             }
         }
 

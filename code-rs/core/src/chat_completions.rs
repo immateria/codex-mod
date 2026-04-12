@@ -223,7 +223,6 @@ pub(crate) async fn stream_chat_completions(
             ResponseItem::CompactionSummary { .. } => {
                 // Compaction summaries are only meaningful to the Responses API; omit them
                 // when translating to Chat Completions.
-                continue;
             }
             ResponseItem::FunctionCall {
                 name,
@@ -331,7 +330,6 @@ pub(crate) async fn stream_chat_completions(
             | ResponseItem::GhostSnapshot { .. }
             | ResponseItem::Other => {
                 // Omit these items from the conversation history.
-                continue;
             }
         }
     }
@@ -1192,7 +1190,6 @@ where
                             output_index: None,
                         })));
                     }
-                    continue;
                 }
                 Poll::Ready(Some(Ok(ResponseEvent::ReasoningContentDelta { delta, item_id, sequence_number, .. }))) => {
                     // Always accumulate reasoning deltas so we can emit a final Reasoning item at Completed.
@@ -1211,13 +1208,11 @@ where
                             content_index: None,
                         })));
                     }
-                    continue;
                 }
                 Poll::Ready(Some(Ok(
                     ResponseEvent::ReasoningSummaryDelta { .. }
                     | ResponseEvent::ReasoningSummaryPartAdded,
                 ))) => {
-                    continue;
                 }
                 Poll::Ready(Some(Ok(ResponseEvent::WebSearchCallBegin { call_id }))) => {
                     return Poll::Ready(Some(Ok(ResponseEvent::WebSearchCallBegin { call_id })));

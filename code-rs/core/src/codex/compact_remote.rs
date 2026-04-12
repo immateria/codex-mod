@@ -184,7 +184,6 @@ async fn run_remote_compact_task_inner(
                 sess.notify_stream_error(sub_id, message).await;
                 tokio::time::sleep(retry_after.delay).await;
                 retries = 0;
-                continue;
             }
             Err(err) => {
                 if retries < max_retries {

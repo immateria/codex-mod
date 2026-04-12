@@ -298,7 +298,6 @@ impl ChatWidget<'_> {
                     if !performed {
                         break;
                     }
-                    continue;
                 }
                 EscIntent::ShowUndoHint => {
                     if route.allows_double_esc && !double_ready {
