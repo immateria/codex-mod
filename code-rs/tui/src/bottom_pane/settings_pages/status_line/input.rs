@@ -101,6 +101,14 @@ impl StatusLineSetupView {
                 self.confirm();
                 true
             }
+            KeyEvent {
+                code: KeyCode::Char('s' | 'S'),
+                modifiers,
+                ..
+            } if modifiers.contains(KeyModifiers::CONTROL) => {
+                self.confirm();
+                true
+            }
             KeyEvent { code: KeyCode::Esc, .. } => {
                 self.cancel();
                 true

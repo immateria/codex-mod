@@ -39,6 +39,7 @@ impl StatusLineSetupView {
                 KeyHint::new(crate::icons::space(), " toggle"),
                 hint_nav_horizontal(" reorder"),
                 hint_enter(" apply"),
+                KeyHint::new(crate::icons::ctrl_combo("S"), " apply"),
                 hint_esc(" cancel"),
             ])
         });
