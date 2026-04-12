@@ -40,24 +40,28 @@ impl<'a> CreateGhostCommitOptions<'a> {
     }
 
     /// Sets a custom commit message for the ghost commit.
+    #[must_use]
     pub fn message(mut self, message: &'a str) -> Self {
         self.message = Some(message);
         self
     }
 
     /// Overrides the parent commit for the ghost snapshot when provided.
+    #[must_use]
     pub fn parent(mut self, parent: &'a str) -> Self {
         self.parent = Some(parent);
         self
     }
 
     /// Registers a hook to run after the ghost commit is created.
+    #[must_use]
     pub fn post_commit_hook(mut self, hook: &'a dyn Fn()) -> Self {
         self.post_commit_hook = Some(hook);
         self
     }
 
     /// Supplies the entire force-include path list at once.
+    #[must_use]
     pub fn force_include<I>(mut self, paths: I) -> Self
     where
         I: IntoIterator<Item = PathBuf>,
@@ -67,6 +71,7 @@ impl<'a> CreateGhostCommitOptions<'a> {
     }
 
     /// Adds a single path to the force-include list.
+    #[must_use]
     pub fn push_force_include<P>(mut self, path: P) -> Self
     where
         P: Into<PathBuf>,
