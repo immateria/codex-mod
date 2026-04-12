@@ -538,7 +538,7 @@ fn is_title_line(line: &Line) -> bool {
     }
 
     // Get the text content of the line
-    let text: String = line
+    let text = line
         .spans
         .iter()
         .map(|span| span.content.as_ref())

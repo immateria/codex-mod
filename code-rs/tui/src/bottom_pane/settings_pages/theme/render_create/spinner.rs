@@ -154,7 +154,7 @@ pub(super) fn render_create_spinner_mode_inner(
             let max_frame_len = u16::try_from(preview.as_str().width()).unwrap_or(u16::MAX);
             let border = crate::colors::style_border();
             let fg = crate::colors::style_info();
-            let x: u16 = max_frame_len.saturating_add(8);
+            let x = max_frame_len.saturating_add(8);
             let border_len = x.saturating_sub(max_frame_len);
             let spans: Vec<Span> = vec![
                 Span::styled("─".repeat(border_len as usize), border),

@@ -126,7 +126,7 @@ impl ThemeSelectionView {
             let suffix_width = "... ".width();
             let text_len =
                 u16::try_from(label_width.saturating_add(suffix_width)).unwrap_or(u16::MAX);
-            let x: u16 = max_frame_len.saturating_add(8);
+            let x = max_frame_len.saturating_add(8);
             let left_rule = x.saturating_sub(spinner_len);
             let right_rule = x.saturating_sub(text_len);
 

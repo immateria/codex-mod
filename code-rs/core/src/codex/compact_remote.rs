@@ -18,7 +18,6 @@ use crate::protocol::AgentMessageEvent;
 use crate::protocol::ErrorEvent;
 use crate::protocol::EventMsg;
 use crate::protocol::InputItem;
-use code_protocol::models::ResponseInputItem;
 use code_protocol::models::ResponseItem;
 use code_protocol::protocol::CompactedItem;
 use code_protocol::protocol::RolloutItem;
@@ -84,7 +83,7 @@ async fn run_remote_compact_task_inner(
         if extra_input.is_empty() {
             Vec::new()
         } else {
-            let response_input: ResponseInputItem = response_input_from_core_items(extra_input);
+            let response_input = response_input_from_core_items(extra_input);
             vec![ResponseItem::from(response_input)]
         }
     });

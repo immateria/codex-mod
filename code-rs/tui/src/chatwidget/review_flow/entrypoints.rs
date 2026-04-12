@@ -99,7 +99,7 @@ impl ChatWidget<'_> {
             })],
         });
 
-        let view: ListSelectionView = ListSelectionView::new(
+        let view = ListSelectionView::new(
             " Review options ".to_owned(),
             Some("Choose what scope to review".to_owned()),
             Some("Enter select · Esc cancel".to_owned()),

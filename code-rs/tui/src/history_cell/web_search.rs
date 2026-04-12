@@ -243,7 +243,7 @@ impl WebSearchSessionCell {
             .unwrap_or(0)
             .max(ACTION_TIME_COLUMN_MIN_WIDTH);
 
-        let indent_text: &str = " ";
+        let indent_text = " ";
         let indent_style = secondary_text_style(style);
         let time_style = primary_text_style(style);
         let separator_text = (ACTION_TIME_SEPARATOR_WIDTH > 0).then(|| " ".repeat(ACTION_TIME_SEPARATOR_WIDTH));

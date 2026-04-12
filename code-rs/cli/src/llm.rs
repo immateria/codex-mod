@@ -164,7 +164,7 @@ async fn run_llm_request(
 
     // Collect the assistant message text from the stream (no TUI events)
     let mut stream = client.stream(&prompt).await?;
-    let mut final_text: String = String::new();
+    let mut final_text = String::new();
     tracing::info!("LLM: created");
     while let Some(ev) = stream.next().await {
         let ev = ev?;
