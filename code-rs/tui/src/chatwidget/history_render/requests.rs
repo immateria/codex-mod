@@ -27,7 +27,7 @@ pub(crate) struct RenderRequest<'a> {
     pub cell: Option<&'a dyn HistoryCell>,
     pub assistant: Option<&'a AssistantMarkdownCell>,
     pub use_cache: bool,
-    pub fallback_lines: Option<Rc<Vec<Line<'static>>>>,
+    pub fallback_lines: Option<Rc<[Line<'static>]>>,
     pub kind: RenderRequestKind,
     pub config: &'a Config,
 }
@@ -88,7 +88,7 @@ impl<'a> RenderRequest<'a> {
         }
 
         if let Some(lines) = &self.fallback_lines {
-            return lines.as_ref().clone();
+            return lines.to_vec();
         }
         Vec::new()
     }

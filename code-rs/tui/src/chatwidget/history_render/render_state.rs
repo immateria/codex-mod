@@ -2,7 +2,7 @@
 pub(crate) struct HistoryRenderState {
     pub(crate) layout_cache: RefCell<HashMap<CacheKey, Rc<CachedLayout>>>,
     pub(crate) height_cache: RefCell<HashMap<CacheKey, u16>>,
-    fallback_cache: RefCell<HashMap<HistoryId, Rc<Vec<Line<'static>>>>>,
+    fallback_cache: RefCell<HashMap<HistoryId, Rc<[Line<'static>]>>>,
     pub(crate) height_cache_last_width: Cell<u16>,
     pub(crate) prefix_sums: RefCell<Vec<u16>>,
     pub(crate) last_prefix_width: Cell<u16>,
@@ -151,17 +151,17 @@ impl HistoryRenderState {
         self.prefix_valid.set(true);
     }
 
-    pub(crate) fn cached_fallback_lines<F>(&self, history_id: HistoryId, build: F) -> Rc<Vec<Line<'static>>>
+    pub(crate) fn cached_fallback_lines<F>(&self, history_id: HistoryId, build: F) -> Rc<[Line<'static>]>
     where
         F: FnOnce() -> Vec<Line<'static>>,
     {
         if history_id == HistoryId::ZERO {
-            return Rc::new(build());
+            return Rc::from(build());
         }
         if let Some(lines) = self.fallback_cache.borrow().get(&history_id) {
             return Rc::clone(lines);
         }
-        let lines = Rc::new(build());
+        let lines: Rc<[Line<'static>]> = Rc::from(build());
         self.fallback_cache
             .borrow_mut()
             .insert(history_id, Rc::clone(&lines));

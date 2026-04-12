@@ -40,7 +40,7 @@ pub(crate) struct AssistantMarkdownCell {
     cwd: PathBuf,
     model_name: String,
     layout_cache: RefCell<HashMap<u16, Rc<AssistantLayoutCache>>>,
-    rendered_lines_cache: RefCell<Option<Rc<Vec<Line<'static>>>>>,
+    rendered_lines_cache: RefCell<Option<Rc<[Line<'static>]>>>,
     collapsed: Cell<bool>,
     /// 1-indexed position among assistant cells; set by the render loop.
     reply_number: Cell<usize>,
@@ -184,7 +184,7 @@ impl AssistantMarkdownCell {
         &mut self.state
     }
 
-    fn ensure_rendered_lines(&self) -> Rc<Vec<Line<'static>>> {
+    fn ensure_rendered_lines(&self) -> Rc<[Line<'static>]> {
         if let Some(lines) = self.rendered_lines_cache.borrow().as_ref() {
             return Rc::clone(lines);
         }
@@ -194,7 +194,7 @@ impl AssistantMarkdownCell {
             self.file_opener,
             &self.cwd,
         ));
-        let out = Rc::new(lines);
+        let out: Rc<[Line<'static>]> = Rc::from(lines);
         *self.rendered_lines_cache.borrow_mut() = Some(Rc::clone(&out));
         out
     }
@@ -222,7 +222,7 @@ impl AssistantMarkdownCell {
         let rendered_lines = self.ensure_rendered_lines();
         let plan = Rc::new(compute_assistant_layout_from_rendered_lines(
             &self.state,
-            rendered_lines.as_slice(),
+            &rendered_lines,
             width,
         ));
         self.layout_cache

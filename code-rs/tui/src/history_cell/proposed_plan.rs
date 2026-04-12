@@ -11,7 +11,7 @@ pub(crate) struct ProposedPlanCell {
     state: ProposedPlanState,
     file_opener: UriBasedFileOpener,
     cwd: PathBuf,
-    rendered_lines_cache: RefCell<Option<Rc<Vec<Line<'static>>>>>,
+    rendered_lines_cache: RefCell<Option<Rc<[Line<'static>]>>>,
 }
 
 impl ProposedPlanCell {
@@ -32,7 +32,7 @@ impl ProposedPlanCell {
         &self.state.markdown
     }
 
-    fn ensure_rendered_lines(&self) -> Rc<Vec<Line<'static>>> {
+    fn ensure_rendered_lines(&self) -> Rc<[Line<'static>]> {
         if let Some(lines) = self.rendered_lines_cache.borrow().as_ref() {
             return Rc::clone(lines);
         }
@@ -73,7 +73,7 @@ impl ProposedPlanCell {
             line.style = line.style.patch(Style::default().fg(fg));
         }
 
-        let out = Rc::new(trim_empty_lines(out));
+        let out: Rc<[Line<'static>]> = Rc::from(trim_empty_lines(out));
         *self.rendered_lines_cache.borrow_mut() = Some(Rc::clone(&out));
         out
     }
@@ -81,7 +81,7 @@ impl ProposedPlanCell {
 
 impl HistoryCell for ProposedPlanCell {
     fn display_lines(&self) -> Vec<Line<'static>> {
-        self.ensure_rendered_lines().as_ref().clone()
+        self.ensure_rendered_lines().to_vec()
     }
 
     fn kind(&self) -> HistoryCellType {

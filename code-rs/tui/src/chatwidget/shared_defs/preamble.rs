@@ -661,7 +661,7 @@ struct PendingMcpElicitation {
 struct RenderRequestSeed {
     history_id: HistoryId,
     use_cache: bool,
-    fallback_lines: Option<Rc<Vec<Line<'static>>>>,
+    fallback_lines: Option<Rc<[Line<'static>]>>,
     kind: RenderRequestKind,
 }
 
