@@ -326,7 +326,7 @@ pub(crate) fn set_last_sequence_number(&mut self, kind: StreamKind, seq: Option<
                     let relax_list = self.config.tui.stream.relax_list_holdback;
                     let relax_code = self.config.tui.stream.relax_code_holdback;
                     let cfg2 = self.config.clone();
-                    let mut newly_completed = {
+                    let newly_completed = {
                         let state = self.state_mut(kind);
                         state.collector.commit_soft_lines(&cfg2, relax_list, relax_code)
                     };
@@ -337,7 +337,7 @@ pub(crate) fn set_last_sequence_number(&mut self, kind: StreamKind, seq: Option<
                             StreamKind::Answer => Some(c_text_bright),
                         };
                         let mut styled: Vec<Line<'static>> = Vec::with_capacity(newly_completed.len());
-                        for mut line in newly_completed.drain(..) {
+                        for mut line in newly_completed.into_iter() {
                             if let Some(c) = color { line.style = line.style.patch(ratatui::style::Style::default().fg(c)); }
                             styled.push(line);
                         }
@@ -389,7 +389,7 @@ pub(crate) fn set_last_sequence_number(&mut self, kind: StreamKind, seq: Option<
                 if saw_heading && at_boundary {
                     let relax_list = self.config.tui.stream.relax_list_holdback;
                     let relax_code = self.config.tui.stream.relax_code_holdback;
-                    let mut newly_completed = {
+                    let newly_completed = {
                         let state = self.state_mut(kind);
                         // This advances committed_count; ensure we enqueue the exact lines.
                         state
@@ -399,7 +399,7 @@ pub(crate) fn set_last_sequence_number(&mut self, kind: StreamKind, seq: Option<
                     if !newly_completed.is_empty() {
                         let color = Some(c_text_dim);
                         let mut styled: Vec<Line<'static>> = Vec::with_capacity(newly_completed.len());
-                        for mut line in newly_completed.drain(..) {
+                        for mut line in newly_completed.into_iter() {
                             if let Some(c) = color {
                                 line.style = line.style.patch(ratatui::style::Style::default().fg(c));
                             }
@@ -616,7 +616,7 @@ pub(crate) fn set_last_sequence_number(&mut self, kind: StreamKind, seq: Option<
                 let relax_list = self.config.tui.stream.relax_list_holdback;
                 let relax_code = self.config.tui.stream.relax_code_holdback;
                 let cfg2 = self.config.clone();
-                let mut newly_completed = {
+                let newly_completed = {
                     let state = self.state_mut(kind);
                     state.collector.commit_soft_lines(&cfg2, relax_list, relax_code)
                 };
@@ -626,7 +626,7 @@ pub(crate) fn set_last_sequence_number(&mut self, kind: StreamKind, seq: Option<
                         StreamKind::Answer => Some(c_text_bright),
                     };
                     let mut styled: Vec<Line<'static>> = Vec::with_capacity(newly_completed.len());
-                    for mut line in newly_completed.drain(..) {
+                    for mut line in newly_completed.into_iter() {
                         if let Some(c) = color { line.style = line.style.patch(ratatui::style::Style::default().fg(c)); }
                         styled.push(line);
                     }

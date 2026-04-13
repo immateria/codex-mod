@@ -553,7 +553,7 @@ fn compose_success_url(port: u16, issuer: &str, id_token: &str, access_token: &s
         "https://platform.api.openai.org"
     };
 
-    let mut params = vec![
+    let params = vec![
         ("id_token", id_token.to_owned()),
         ("needs_setup", needs_setup.to_string()),
         ("org_id", org_id.to_owned()),
@@ -562,7 +562,7 @@ fn compose_success_url(port: u16, issuer: &str, id_token: &str, access_token: &s
         ("platform_url", platform_url.to_owned()),
     ];
     let qs = params
-        .drain(..)
+        .into_iter()
         .map(|(k, v)| format!("{}={}", k, urlencoding::encode(&v)))
         .collect::<Vec<_>>()
         .join("&");
