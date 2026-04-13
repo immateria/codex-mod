@@ -793,7 +793,7 @@ impl ChatWidget<'_> {
         // if this run finishes with an error.
         let inflight = self.background_review.take();
         self.background_review_guard = None;
-        release_background_lock(&agent_id);
+        release_background_lock(agent_id.as_ref());
 
         let inflight_base = inflight.as_ref().and_then(|state| state.base.clone());
         let inflight_snapshot = snapshot.or_else(|| {

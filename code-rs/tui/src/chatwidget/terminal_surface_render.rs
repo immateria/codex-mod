@@ -543,7 +543,7 @@ impl ChatWidget<'_> {
         loop {
             let render = self.build_status_line_spans(
                 &resolved[..count],
-                &hovered_action,
+                hovered_action.as_ref(),
                 hover_style,
                 max_width,
             );
@@ -559,7 +559,7 @@ impl ChatWidget<'_> {
     fn build_status_line_spans(
         &self,
         resolved: &[(StatusLineItem, String)],
-        hovered_action: &Option<ClickableAction>,
+        hovered_action: Option<&ClickableAction>,
         hover_style: code_core::config_types::HeaderHoverStyle,
         max_width: usize,
     ) -> super::terminal_surface_header::HeaderTemplateRender {
@@ -629,7 +629,7 @@ impl ChatWidget<'_> {
                 style = super::terminal_surface_header::apply_hover_style(
                     style,
                     hover_style,
-                    hovered_action.as_ref() == Some(&action),
+                    hovered_action == Some(&action),
                 );
                 ranges.push((width..width + segment_width, action));
             }

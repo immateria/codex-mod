@@ -1047,10 +1047,10 @@ fn maybe_apply_terminal_theme_detection(config: &mut Config, theme_configured_ex
     if let Some(cached) = config.tui.cached_terminal_background.as_ref()
         && cached_background_matches_env(
             cached,
-            &term,
-            &term_program,
-            &term_program_version,
-            &colorfgbg,
+            term.as_ref(),
+            term_program.as_ref(),
+            term_program_version.as_ref(),
+            colorfgbg.as_ref(),
         ) {
             tracing::debug!(
                 source = cached.source.as_deref().unwrap_or("cached"),
@@ -1110,14 +1110,14 @@ fn apply_detected_theme(theme: &mut ThemeConfig, is_dark: bool) {
 
 fn cached_background_matches_env(
     cached: &CachedTerminalBackground,
-    term: &Option<String>,
-    term_program: &Option<String>,
-    term_program_version: &Option<String>,
-    colorfgbg: &Option<String>,
+    term: Option<&String>,
+    term_program: Option<&String>,
+    term_program_version: Option<&String>,
+    colorfgbg: Option<&String>,
 ) -> bool {
-    fn matches(expected: &Option<String>, actual: &Option<String>) -> bool {
+    fn matches(expected: &Option<String>, actual: Option<&String>) -> bool {
         match expected {
-            Some(expected) => actual.as_ref().is_some_and(|value| value == expected),
+            Some(expected) => actual.is_some_and(|value| value == expected),
             None => true,
         }
     }

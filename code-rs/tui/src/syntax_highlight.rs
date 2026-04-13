@@ -94,7 +94,7 @@ fn syntax_set() -> &'static SyntaxSet {
     PS.get_or_init(SyntaxSet::load_defaults_newlines)
 }
 
-fn extra_syntax_set() -> &'static Option<SyntaxSet> {
+fn extra_syntax_set() -> Option<&'static SyntaxSet> {
     PS_EXTRA.get_or_init(|| {
         use std::path::PathBuf;
         let mut folder = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
@@ -112,7 +112,7 @@ fn extra_syntax_set() -> &'static Option<SyntaxSet> {
         } else {
             None
         }
-    })
+    }).as_ref()
 }
 
 fn themes() -> &'static ThemeSet {
@@ -552,7 +552,7 @@ fn resolve_syntax_with_set<'a>(primary: &'a SyntaxSet, lang: &str) -> Option<(&'
     if let Some(s) = try_syntax_for_lang(primary, lang) {
         return Some((primary, s));
     }
-    if let Some(ref extra) = *extra_syntax_set()
+    if let Some(extra) = extra_syntax_set()
         && let Some(s) = try_syntax_for_lang(extra, lang) {
             return Some((extra, s));
     }
@@ -620,7 +620,7 @@ pub(crate) fn highlight_code_block_with_metrics(content: &str, lang: Option<&str
         if std::ptr::eq(syntax, ps.find_syntax_plain_text())
             && let Some(first) = content.lines().next() {
                 if let Some(s4) = ps.find_syntax_by_first_line(first) { syntax = s4; }
-                else if let Some(ref extra) = *extra_syntax_set()
+                else if let Some(extra) = extra_syntax_set()
                     && let Some(s5) = extra.find_syntax_by_first_line(first) { ps = extra; syntax = s5; }
             }
     }
@@ -630,7 +630,7 @@ pub(crate) fn highlight_code_block_with_metrics(content: &str, lang: Option<&str
         && std::ptr::eq(syntax, ps.find_syntax_plain_text())
     {
         if let Some(sini) = ps.find_syntax_by_name("INI").or_else(|| ps.find_syntax_by_extension("ini")) { syntax = sini; }
-        else if let Some(ref extra) = *extra_syntax_set()
+        else if let Some(extra) = extra_syntax_set()
             && let Some(sini2) = extra.find_syntax_by_name("INI").or_else(|| extra.find_syntax_by_extension("ini")) { ps = extra; syntax = sini2; }
     }
 

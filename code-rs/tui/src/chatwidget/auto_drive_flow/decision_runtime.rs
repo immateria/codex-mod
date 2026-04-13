@@ -61,8 +61,8 @@ impl ChatWidget<'_> {
         self.auto_state.suppress_next_cli_display = planning_turn;
 
         let summary_text = Self::compose_status_summary(
-            &self.auto_state.current_status_title,
-            &self.auto_state.current_status_sent_to_user,
+            self.auto_state.current_status_title.as_ref(),
+            self.auto_state.current_status_sent_to_user.as_ref(),
         );
         self.auto_state.last_decision_summary = Some(summary_text.clone());
         self.auto_state.set_coordinator_waiting(false);

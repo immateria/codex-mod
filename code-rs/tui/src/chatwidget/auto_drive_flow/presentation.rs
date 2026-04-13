@@ -519,19 +519,17 @@ impl ChatWidget<'_> {
     }
 
     pub(crate) fn compose_status_summary(
-        status_title: &Option<String>,
-        status_sent_to_user: &Option<String>,
+        status_title: Option<&String>,
+        status_sent_to_user: Option<&String>,
     ) -> String {
         let mut parts: Vec<String> = Vec::new();
         if let Some(title) = status_title
-            .as_ref()
             .map(|value| value.trim())
             .filter(|value| !value.is_empty())
         {
             parts.push(title.to_owned());
         }
         if let Some(sent) = status_sent_to_user
-            .as_ref()
             .map(|value| value.trim())
             .filter(|value| !value.is_empty())
             && !parts.iter().any(|existing| existing.eq_ignore_ascii_case(sent)) {

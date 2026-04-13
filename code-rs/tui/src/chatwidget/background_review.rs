@@ -186,7 +186,7 @@ pub(super) fn insert_background_lock_inner(
     }
 }
 
-pub(super) fn release_background_lock_inner(agent_id: &Option<String>) {
+pub(super) fn release_background_lock_inner(agent_id: Option<&String>) {
     if let Some(id) = agent_id
         && let Ok(mut map) = BACKGROUND_REVIEW_LOCKS.lock() {
             map.remove(id);

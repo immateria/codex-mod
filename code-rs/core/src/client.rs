@@ -789,8 +789,8 @@ impl ModelClient {
             }
 
             let base_auth = auth_manager.as_ref().and_then(|m| m.auth());
-            let auth = self.provider.effective_auth(&base_auth).await?;
-            let endpoint = self.provider.get_full_url(&auth);
+            let auth = self.provider.effective_auth(base_auth.as_ref()).await?;
+            let endpoint = self.provider.get_full_url(auth.as_ref());
 
             let url = reqwest::Url::parse(&endpoint).map_err(|err| {
                 CodexErr::Stream(
@@ -809,7 +809,7 @@ impl ModelClient {
                 .provider
                 .create_request_builder_for_url_with_auth(
                     &self.client,
-                    &auth,
+                    auth.as_ref(),
                     reqwest::Method::GET,
                     url,
                 )
@@ -1193,7 +1193,7 @@ impl ModelClient {
         // Compute endpoint with the latest available auth (may be None at this point).
         let endpoint = self
             .provider
-            .get_full_url(&auth_manager.as_ref().and_then(|m| m.auth()));
+            .get_full_url(auth_manager.as_ref().and_then(|m| m.auth()).as_ref());
 
         loop {
             attempt += 1;
@@ -1258,17 +1258,17 @@ impl ModelClient {
 
             // Always fetch the latest auth in case a prior attempt refreshed the token.
             let base_auth = auth_manager.as_ref().and_then(|m| m.auth());
-            let auth = self.provider.effective_auth(&base_auth).await?;
+            let auth = self.provider.effective_auth(base_auth.as_ref()).await?;
 
             trace!(
                 "POST to {}: {}",
-                self.provider.get_full_url(&auth),
+                self.provider.get_full_url(auth.as_ref()),
                 payload_body.as_str()
             );
 
             let mut req_builder = self
                 .provider
-                .create_request_builder_with_auth(&self.client, &auth)
+                .create_request_builder_with_auth(&self.client, auth.as_ref())
                 .await?;
 
             let has_beta_header = req_builder
@@ -1309,7 +1309,7 @@ impl ModelClient {
             }
 
             if request_id.is_empty() {
-                let endpoint_for_log = self.provider.get_full_url(&auth);
+                let endpoint_for_log = self.provider.get_full_url(auth.as_ref());
                 let header_snapshot = req_builder
                     .try_clone()
                     .and_then(|builder| builder.build().ok())
@@ -1883,10 +1883,10 @@ impl ModelClient {
 
         loop {
             let base_auth = auth_manager.as_ref().and_then(|m| m.auth());
-            let auth = self.provider.effective_auth(&base_auth).await?;
+            let auth = self.provider.effective_auth(base_auth.as_ref()).await?;
             let mut request = self
                 .provider
-                .create_compact_request_builder_with_auth(&self.client, &auth)
+                .create_compact_request_builder_with_auth(&self.client, auth.as_ref())
                 .await?;
 
             // Ensure Responses API beta header is present for compact calls. Mirror the
@@ -1931,8 +1931,8 @@ impl ModelClient {
             {
                 let endpoint = self
                     .provider
-                    .get_compact_url(&auth)
-                    .unwrap_or_else(|| self.provider.get_full_url(&auth));
+                    .get_compact_url(auth.as_ref())
+                    .unwrap_or_else(|| self.provider.get_full_url(auth.as_ref()));
                 request_id = logger
                     .start_request_log(
                         &endpoint,

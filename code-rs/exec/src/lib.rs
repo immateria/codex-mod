@@ -103,7 +103,7 @@ pub async fn run_main(cli: Cli, code_linux_sandbox_exe: Option<PathBuf>) -> anyh
         auto_drive_goal,
         images,
         timeboxed_auto_exec,
-    } = prepare_run_inputs(&command, prompt, images, auto_drive, max_seconds);
+    } = prepare_run_inputs(command.as_ref(), prompt, images, auto_drive, max_seconds);
 
     let _output_schema = load_output_schema(output_schema_path);
 

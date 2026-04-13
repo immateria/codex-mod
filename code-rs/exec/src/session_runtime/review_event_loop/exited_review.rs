@@ -10,7 +10,7 @@ use code_core::review_coord::current_snapshot_epoch_for;
 
 pub(super) async fn handle_exited_review_mode_event(
     config: &Config,
-    review_request: &Option<ReviewRequest>,
+    review_request: Option<&ReviewRequest>,
     state: &mut ReviewRuntimeState,
     event: &ExitedReviewModeEvent,
 ) -> anyhow::Result<LoopControl> {

@@ -374,12 +374,12 @@ impl EnvironmentContextSnapshot {
         let mut changes = BTreeMap::new();
 
         if self.cwd != previous.cwd {
-            changes.insert("cwd".to_owned(), option_string_to_json(&self.cwd));
+            changes.insert("cwd".to_owned(), option_string_to_json(self.cwd.as_ref()));
         }
         if self.git_project_root != previous.git_project_root {
             changes.insert(
                 "git_project_root".to_owned(),
-                option_string_to_json(&self.git_project_root),
+                option_string_to_json(self.git_project_root.as_ref()),
             );
         }
         if self.approval_policy != previous.approval_policy {
@@ -427,13 +427,13 @@ impl EnvironmentContextSnapshot {
         if self.git_branch != previous.git_branch {
             changes.insert(
                 "git_branch".to_owned(),
-                option_string_to_json(&self.git_branch),
+                option_string_to_json(self.git_branch.as_ref()),
             );
         }
         if self.reasoning_effort != previous.reasoning_effort {
             changes.insert(
                 "reasoning_effort".to_owned(),
-                option_string_to_json(&self.reasoning_effort),
+                option_string_to_json(self.reasoning_effort.as_ref()),
             );
         }
 
@@ -915,7 +915,7 @@ impl EnvironmentContextEmission {
     }
 }
 
-fn option_string_to_json(value: &Option<String>) -> JsonValue {
+fn option_string_to_json(value: Option<&String>) -> JsonValue {
     match value {
         Some(v) => JsonValue::String(v.clone()),
         None => JsonValue::Null,

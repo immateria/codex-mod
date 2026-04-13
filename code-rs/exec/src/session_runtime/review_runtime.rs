@@ -29,7 +29,7 @@ pub(crate) async fn run_session_runtime(
     let submitted = submit_initial_turn(
         &conversation,
         config,
-        &review_request,
+        review_request.as_ref(),
         prompt_to_send,
         images,
         is_auto_review,
@@ -49,7 +49,7 @@ pub(crate) async fn run_session_runtime(
         conversation: &conversation,
         config,
         event_processor,
-        review_request: &review_request,
+        review_request: review_request.as_ref(),
         run_deadline,
         max_seconds,
         rx: &mut rx,

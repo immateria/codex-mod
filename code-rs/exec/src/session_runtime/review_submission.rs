@@ -18,7 +18,7 @@ use tracing::info;
 pub(super) async fn submit_initial_turn(
     conversation: &Arc<CodexConversation>,
     config: &Config,
-    review_request: &Option<ReviewRequest>,
+    review_request: Option<&ReviewRequest>,
     prompt_to_send: String,
     images: Vec<PathBuf>,
     is_auto_review: bool,
@@ -30,7 +30,7 @@ pub(super) async fn submit_initial_turn(
     let skip_review_lock = std::env::var("CODE_REVIEW_LOCK_LEASE")
         .is_ok_and(|value| value == "1");
 
-    if let Some(mut request) = review_request.clone() {
+    if let Some(mut request) = review_request.cloned() {
         // Cross-process review coordination.
         if !skip_review_lock {
             match try_acquire_lock("review", &config.cwd) {

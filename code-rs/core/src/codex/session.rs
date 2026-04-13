@@ -1116,7 +1116,7 @@ impl Session {
     pub(super) fn scratchpad_push(
         &self,
         item: &ResponseItem,
-        response: &Option<ResponseInputItem>,
+        response: Option<&ResponseInputItem>,
         sub_id: &str,
     ) {
         let mut state = crate::codex::lock_or_panic!(self.state);

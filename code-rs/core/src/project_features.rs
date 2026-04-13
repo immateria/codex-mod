@@ -40,7 +40,7 @@ impl ProjectHooks {
                 event: cfg.event,
                 name: cfg.name.clone(),
                 command: cfg.command.clone(),
-                cwd: resolve_optional_path(&cfg.cwd, project_root),
+                cwd: resolve_optional_path(cfg.cwd.as_ref(), project_root),
                 env: cfg.env.clone().unwrap_or_default(),
                 timeout_ms: cfg.timeout_ms,
                 run_in_background: cfg.run_in_background.unwrap_or(false),
@@ -97,7 +97,7 @@ pub fn load_project_commands(configs: &[ProjectCommandConfig], project_root: &Pa
             name: name.to_owned(),
             command: cfg.command.clone(),
             description: cfg.description.clone(),
-            cwd: resolve_optional_path(&cfg.cwd, project_root),
+            cwd: resolve_optional_path(cfg.cwd.as_ref(), project_root),
             env: cfg.env.clone().unwrap_or_default(),
             timeout_ms: cfg.timeout_ms,
         };
@@ -111,8 +111,8 @@ pub fn load_project_commands(configs: &[ProjectCommandConfig], project_root: &Pa
     commands
 }
 
-fn resolve_optional_path(raw: &Option<String>, project_root: &Path) -> Option<PathBuf> {
-    let value = raw.as_ref()?.trim();
+fn resolve_optional_path(raw: Option<&String>, project_root: &Path) -> Option<PathBuf> {
+    let value = raw?.trim();
     if value.is_empty() {
         return None;
     }

@@ -25,7 +25,7 @@ pub(super) struct ReviewEventLoopParams<'a> {
     pub(super) conversation: &'a Arc<CodexConversation>,
     pub(super) config: &'a Config,
     pub(super) event_processor: &'a mut dyn EventProcessor,
-    pub(super) review_request: &'a Option<ReviewRequest>,
+    pub(super) review_request: Option<&'a ReviewRequest>,
     pub(super) run_deadline: Option<Instant>,
     pub(super) max_seconds: Option<u64>,
     pub(super) rx: &'a mut UnboundedReceiver<Event>,

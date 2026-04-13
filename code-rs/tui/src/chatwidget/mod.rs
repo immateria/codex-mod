@@ -495,7 +495,7 @@ fn insert_background_lock(agent_id: &str, guard: code_core::review_coord::Review
     background_review::insert_background_lock_inner(agent_id, guard);
 }
 
-fn release_background_lock(agent_id: &Option<String>) {
+fn release_background_lock(agent_id: Option<&String>) {
     background_review::release_background_lock_inner(agent_id);
 }
 

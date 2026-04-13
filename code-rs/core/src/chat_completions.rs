@@ -370,7 +370,7 @@ pub(crate) async fn stream_chat_completions(
         obj.entry("options").or_insert(json!(options));
     }
 
-    let endpoint = provider.get_full_url(&None);
+    let endpoint = provider.get_full_url(None);
     debug!(
         "POST to {}: {}",
         endpoint,
@@ -384,8 +384,8 @@ pub(crate) async fn stream_chat_completions(
         attempt += 1;
 
         let base_auth = auth_manager.as_ref().and_then(|m| m.auth());
-        let auth = provider.effective_auth(&base_auth).await?;
-        let mut req_builder = provider.create_request_builder_with_auth(client, &auth).await?;
+        let auth = provider.effective_auth(base_auth.as_ref()).await?;
+        let mut req_builder = provider.create_request_builder_with_auth(client, auth.as_ref()).await?;
 
         if let Some(auth) = auth.as_ref()
             && auth.mode.is_chatgpt()
@@ -399,7 +399,7 @@ pub(crate) async fn stream_chat_completions(
             .json(&payload);
 
         if request_id.is_empty() {
-            let endpoint_for_log = provider.get_full_url(&auth);
+            let endpoint_for_log = provider.get_full_url(auth.as_ref());
             let header_snapshot = req_builder
                 .try_clone()
                 .and_then(|builder| builder.build().ok())

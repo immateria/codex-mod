@@ -112,10 +112,10 @@ pub(crate) fn select_prompt_entries(
         .filter_map(|entry| {
             let platform_rank = platform_compatibility_rank(context.platform_family, entry.platform_family)?;
             let shell_rank = shell_compatibility_rank(target_shell, entry.shell_style)?;
-            let same_workspace = workspace_match(&context.workspace_root, &entry.workspace_root);
+            let same_workspace = workspace_match(context.workspace_root.as_ref(), entry.workspace_root.as_ref());
             Some((
                 same_workspace,
-                branch_affinity_rank(&context.git_branch, &entry.git_branch, same_workspace),
+                branch_affinity_rank(context.git_branch.as_ref(), entry.git_branch.as_ref(), same_workspace),
                 platform_rank,
                 shell_rank,
                 provenance_rank(entry.provenance),
@@ -170,7 +170,7 @@ pub(crate) fn select_prompt_entries(
     })
 }
 
-fn workspace_match(current: &Option<String>, candidate: &Option<String>) -> bool {
+fn workspace_match(current: Option<&String>, candidate: Option<&String>) -> bool {
     match (current, candidate) {
         (Some(current), Some(candidate)) => current == candidate,
         // Treat missing roots as neutral fallback rather than a positive match.
@@ -179,8 +179,8 @@ fn workspace_match(current: &Option<String>, candidate: &Option<String>) -> bool
 }
 
 fn branch_affinity_rank(
-    current: &Option<String>,
-    candidate: &Option<String>,
+    current: Option<&String>,
+    candidate: Option<&String>,
     same_workspace: bool,
 ) -> u8 {
     if !same_workspace {

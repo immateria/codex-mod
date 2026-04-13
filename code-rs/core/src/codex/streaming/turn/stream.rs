@@ -90,7 +90,7 @@ pub(super) async fn try_run_turn(
                     let output_pos = output.len();
                     // Persist finalized tool call items so retries can re-seed them if the
                     // stream disconnects before `response.completed`.
-                    sess.scratchpad_push(&item, &None, sub_id);
+                    sess.scratchpad_push(&item, None, sub_id);
                     output.push(ProcessedResponseItem {
                         item,
                         response: None,
@@ -113,7 +113,7 @@ pub(super) async fn try_run_turn(
                     .await?;
 
                     // Save into scratchpad so we can seed a retry if the stream drops later.
-                    sess.scratchpad_push(&item, &response, sub_id);
+                    sess.scratchpad_push(&item, response.as_ref(), sub_id);
 
                     // If this was a finalized assistant message, clear partial text buffer
                     if let ResponseItem::Message { .. } = &item {
@@ -211,7 +211,7 @@ pub(super) async fn try_run_turn(
                     for (pos, resp) in results {
                         if let Some(cell) = output.get_mut(pos) {
                             cell.response = resp;
-                            sess.scratchpad_push(&cell.item, &cell.response, sub_id);
+                            sess.scratchpad_push(&cell.item, cell.response.as_ref(), sub_id);
                         }
                     }
                 }

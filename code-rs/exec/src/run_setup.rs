@@ -16,7 +16,7 @@ pub(crate) struct PreparedRunInputs {
 }
 
 pub(crate) fn prepare_run_inputs(
-    command: &Option<ExecCommand>,
+    command: Option<&ExecCommand>,
     prompt: Option<String>,
     images: Vec<PathBuf>,
     auto_drive: bool,

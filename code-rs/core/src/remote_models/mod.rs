@@ -155,7 +155,7 @@ impl RemoteModelsManager {
             return;
         }
 
-        let url = match self.models_url(&auth) {
+        let url = match self.models_url(auth.as_ref()) {
             Ok(url) => url,
             Err(err) => {
                 tracing::debug!("remote /models URL construction failed: {err}");
@@ -167,7 +167,7 @@ impl RemoteModelsManager {
             .provider
             .create_request_builder_for_url(
                 &self.client,
-                &auth,
+                auth.as_ref(),
                 Method::GET,
                 url,
             )
@@ -324,7 +324,7 @@ impl RemoteModelsManager {
         }
     }
 
-    fn models_url(&self, auth: &Option<CodexAuth>) -> crate::error::Result<Url> {
+    fn models_url(&self, auth: Option<&CodexAuth>) -> crate::error::Result<Url> {
         let base_url = self.provider.base_url.clone().unwrap_or_else(|| {
             if matches!(
                 auth,

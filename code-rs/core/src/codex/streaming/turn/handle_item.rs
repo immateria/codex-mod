@@ -121,7 +121,7 @@ pub(super) async fn handle_response_item(
             if let Some(WebSearchAction::Search { query, queries }) = action {
                 sess.maybe_mark_memories_polluted("web_search_call");
                 let call_id = id.unwrap_or_default();
-                let query = web_search_query(&query, &queries);
+                let query = web_search_query(query.as_ref(), queries.as_ref());
                 let event = sess.make_event_with_hint(
                     sub_id,
                     EventMsg::WebSearchComplete(WebSearchCompleteEvent { call_id, query }),
@@ -140,20 +140,19 @@ pub(super) async fn handle_response_item(
     Ok(output)
 }
 
-fn web_search_query(query: &Option<String>, queries: &Option<Vec<String>>) -> Option<String> {
-    if let Some(value) = query.as_ref().filter(|q| !q.is_empty()).cloned() {
+fn web_search_query(query: Option<&String>, queries: Option<&Vec<String>>) -> Option<String> {
+    if let Some(value) = query.filter(|q| !q.is_empty()).cloned() {
         return Some(value);
     }
 
-    let items = queries.as_ref();
-    let first = items
+    let first = queries
         .and_then(|queries| queries.first())
         .cloned()
         .unwrap_or_default();
     if first.is_empty() {
         return None;
     }
-    if items.is_some_and(|queries| queries.len() > 1) {
+    if queries.is_some_and(|queries| queries.len() > 1) {
         Some(format!("{first} ..."))
     } else {
         Some(first)

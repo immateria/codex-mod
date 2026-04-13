@@ -287,24 +287,24 @@ impl ModelProviderInfo {
     pub async fn create_request_builder<'a>(
         &'a self,
         client: &'a reqwest::Client,
-        auth: &Option<CodexAuth>,
+        auth: Option<&CodexAuth>,
     ) -> crate::error::Result<reqwest::RequestBuilder> {
         let effective_auth = self.effective_auth(auth).await?;
 
-        self.create_request_builder_with_auth(client, &effective_auth)
+        self.create_request_builder_with_auth(client, effective_auth.as_ref())
             .await
     }
 
     pub async fn create_request_builder_with_auth<'a>(
         &'a self,
         client: &'a reqwest::Client,
-        auth: &Option<CodexAuth>,
+        auth: Option<&CodexAuth>,
     ) -> crate::error::Result<reqwest::RequestBuilder> {
         let url = self.get_full_url(auth);
 
         let mut builder = client.post(&url);
 
-        if let Some(auth) = auth.as_ref() {
+        if let Some(auth) = auth {
             builder = builder.bearer_auth(auth.get_token().await?);
         }
 
@@ -316,27 +316,27 @@ impl ModelProviderInfo {
     pub async fn create_request_builder_for_url<'a>(
         &'a self,
         client: &'a reqwest::Client,
-        auth: &Option<CodexAuth>,
+        auth: Option<&CodexAuth>,
         method: reqwest::Method,
         url: reqwest::Url,
     ) -> crate::error::Result<reqwest::RequestBuilder> {
         let effective_auth = self.effective_auth(auth).await?;
 
-        self.create_request_builder_for_url_with_auth(client, &effective_auth, method, url)
+        self.create_request_builder_for_url_with_auth(client, effective_auth.as_ref(), method, url)
             .await
     }
 
     pub async fn create_request_builder_for_url_with_auth<'a>(
         &'a self,
         client: &'a reqwest::Client,
-        auth: &Option<CodexAuth>,
+        auth: Option<&CodexAuth>,
         method: reqwest::Method,
         url: reqwest::Url,
     ) -> crate::error::Result<reqwest::RequestBuilder> {
 
         let mut builder = client.request(method, url);
 
-        if let Some(auth) = auth.as_ref() {
+        if let Some(auth) = auth {
             builder = builder.bearer_auth(auth.get_token().await?);
         }
 
@@ -346,17 +346,17 @@ impl ModelProviderInfo {
     pub async fn create_compact_request_builder<'a>(
         &'a self,
         client: &'a reqwest::Client,
-        auth: &Option<CodexAuth>,
+        auth: Option<&CodexAuth>,
     ) -> crate::error::Result<reqwest::RequestBuilder> {
         let effective_auth = self.effective_auth(auth).await?;
-        self.create_compact_request_builder_with_auth(client, &effective_auth)
+        self.create_compact_request_builder_with_auth(client, effective_auth.as_ref())
             .await
     }
 
     pub async fn create_compact_request_builder_with_auth<'a>(
         &'a self,
         client: &'a reqwest::Client,
-        auth: &Option<CodexAuth>,
+        auth: Option<&CodexAuth>,
     ) -> crate::error::Result<reqwest::RequestBuilder> {
         if !matches!(self.wire_api, WireApi::Responses | WireApi::ResponsesWebsocket) {
             return Err(CodexErr::UnsupportedOperation(
@@ -370,7 +370,7 @@ impl ModelProviderInfo {
         })?;
 
         let mut builder = client.post(url);
-        if let Some(auth) = auth.as_ref() {
+        if let Some(auth) = auth {
             builder = builder.bearer_auth(auth.get_token().await?);
         }
 
@@ -379,7 +379,7 @@ impl ModelProviderInfo {
 
     pub(crate) async fn effective_auth(
         &self,
-        auth: &Option<CodexAuth>,
+        auth: Option<&CodexAuth>,
     ) -> crate::error::Result<Option<CodexAuth>> {
         if let Some(token) = self
             .experimental_bearer_token
@@ -399,10 +399,10 @@ impl ModelProviderInfo {
 
         match self.api_key() {
             Ok(Some(key)) => Ok(Some(CodexAuth::from_api_key(&key))),
-            Ok(None) => Ok(auth.clone()),
+            Ok(None) => Ok(auth.cloned()),
             Err(err) => {
                 if auth.is_some() {
-                    Ok(auth.clone())
+                    Ok(auth.cloned())
                 } else {
                     Err(err)
                 }
@@ -428,9 +428,8 @@ impl ModelProviderInfo {
             })
     }
 
-    pub(crate) fn get_full_url(&self, auth: &Option<CodexAuth>) -> String {
+    pub(crate) fn get_full_url(&self, auth: Option<&CodexAuth>) -> String {
         let default_base_url = if auth
-            .as_ref()
             .is_some_and(|auth| auth.mode.is_chatgpt())
         {
             CHATGPT_CODEX_BASE_URL
@@ -451,7 +450,7 @@ impl ModelProviderInfo {
         }
     }
 
-    pub(crate) fn get_compact_url(&self, auth: &Option<CodexAuth>) -> Option<String> {
+    pub(crate) fn get_compact_url(&self, auth: Option<&CodexAuth>) -> Option<String> {
         if !matches!(self.wire_api, WireApi::Responses | WireApi::ResponsesWebsocket) {
             return None;
         }
