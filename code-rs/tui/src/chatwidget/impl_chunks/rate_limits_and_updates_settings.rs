@@ -10,12 +10,17 @@ impl ChatWidget<'_> {
         let snapshot = self.rate_limit_snapshot.clone();
         let needs_refresh = self.should_refresh_limits();
 
-        if self.rate_limit_fetch_inflight || needs_refresh {
+        // Always try to build tabs from cached data first so that accounts
+        // with stored snapshots remain visible even while a refresh for the
+        // active account is in-flight or pending.
+        let reset_info = self.rate_limit_reset_info();
+        let tabs = self.build_limits_tabs(snapshot.clone(), reset_info);
+        if !tabs.is_empty() {
+            self.set_limits_overlay_tabs(tabs);
+        } else if self.rate_limit_fetch_inflight || needs_refresh {
             self.set_limits_overlay_content(LimitsOverlayContent::Loading);
         } else {
-            let reset_info = self.rate_limit_reset_info();
-            let tabs = self.build_limits_tabs(snapshot.clone(), reset_info);
-            self.set_limits_overlay_tabs(tabs);
+            self.set_limits_overlay_content(LimitsOverlayContent::Placeholder);
         }
 
         self.request_redraw();
@@ -157,12 +162,22 @@ impl ChatWidget<'_> {
         self.rate_limit_fetch_inflight = false;
         self.rate_limit_fetch_inflight_since = None;
 
-        let content = if self.rate_limit_snapshot.is_some() {
-            LimitsOverlayContent::Error(message.clone())
+        // Record the failure time so should_refresh_limits() doesn't
+        // immediately retry and create an infinite loop when background
+        // account refreshes trigger show_limits_settings_ui().
+        self.rate_limit_last_fetch_at = Some(Utc::now());
+
+        // Instead of replacing all tabs with a single error, build tabs
+        // from cached data so other accounts' limits remain visible.
+        let snapshot = self.rate_limit_snapshot.clone();
+        let reset_info = self.rate_limit_reset_info();
+        let tabs = self.build_limits_tabs(snapshot, reset_info);
+
+        if tabs.is_empty() {
+            self.set_limits_overlay_content(LimitsOverlayContent::Placeholder);
         } else {
-            LimitsOverlayContent::Placeholder
-        };
-        self.set_limits_overlay_content(content);
+            self.set_limits_overlay_tabs(tabs);
+        }
         self.request_redraw();
 
         if self.rate_limit_snapshot.is_some() {

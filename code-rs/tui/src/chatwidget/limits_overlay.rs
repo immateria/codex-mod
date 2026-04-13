@@ -10,7 +10,6 @@ use crate::rate_limits_view::LimitsView;
 pub(crate) enum LimitsOverlayContent {
     Loading,
     Placeholder,
-    Error(String),
     Tabs(Vec<LimitsTab>),
 }
 
@@ -152,7 +151,6 @@ impl LimitsOverlay {
         let mut lines = match &self.content {
             LimitsOverlayContent::Loading => loading_lines(),
             LimitsOverlayContent::Placeholder => placeholder_lines(),
-            LimitsOverlayContent::Error(message) => error_lines(message),
             LimitsOverlayContent::Tabs(tabs) => {
                 let idx = self.selected_tab();
                 match tabs.get(idx) {
@@ -243,15 +241,6 @@ fn loading_lines() -> Vec<RtLine<'static>> {
         RtLine::from(Span::styled(
             "Loading...",
             Style::default().fg(colors::text_dim()),
-        )),
-    ]
-}
-
-fn error_lines(message: &str) -> Vec<RtLine<'static>> {
-    vec![
-        RtLine::from(Span::styled(
-            message.to_owned(),
-            Style::default().fg(colors::error()),
         )),
     ]
 }
