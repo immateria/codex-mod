@@ -14,7 +14,7 @@ use super::super::{BackgroundOrderTicket, ChatWidget};
 
 impl ChatWidget<'_> {
     pub(super) fn connect_to_chrome_after_launch(
-        &mut self,
+        &self,
         port: u16,
         ticket: BackgroundOrderTicket,
     ) {

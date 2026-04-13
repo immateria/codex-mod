@@ -332,7 +332,7 @@ impl MessageProcessor {
 
     /// Handle a standalone JSON-RPC response originating from the peer.
     pub(crate) async fn process_response(
-        &mut self,
+        &self,
         connection_id: ConnectionId,
         response: JSONRPCResponse,
     ) {
@@ -344,7 +344,7 @@ impl MessageProcessor {
     }
 
     /// Handle an error object received from the peer.
-    pub(crate) async fn process_error(&mut self, connection_id: ConnectionId, err: JSONRPCError) {
+    pub(crate) async fn process_error(&self, connection_id: ConnectionId, err: JSONRPCError) {
         tracing::error!("<- error: {:?}", err);
         self.outgoing
             .notify_client_error_for_connection(Some(connection_id), err.id, err.error)

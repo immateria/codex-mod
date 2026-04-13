@@ -3493,7 +3493,7 @@ impl MessageProcessor {
     }
 
     pub(super) async fn turn_interrupt_v2(
-        &mut self,
+        &self,
         connection_id: ConnectionId,
         request_id: mcp_types::RequestId,
         params: TurnInterruptParams,

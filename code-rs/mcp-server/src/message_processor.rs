@@ -302,14 +302,14 @@ impl MessageProcessor {
     }
 
     /// Handle a standalone JSON-RPC response originating from the peer.
-    pub(crate) async fn process_response(&mut self, response: JSONRPCResponse) {
+    pub(crate) async fn process_response(&self, response: JSONRPCResponse) {
         tracing::info!("<- response: {:?}", response);
         let JSONRPCResponse { id, result, .. } = response;
         self.outgoing.notify_client_response(id, result).await;
     }
 
     /// Handle a fire-and-forget JSON-RPC notification.
-    pub(crate) async fn process_notification(&mut self, notification: JSONRPCNotification) {
+    pub(crate) async fn process_notification(&self, notification: JSONRPCNotification) {
         if notification.method == acp::AGENT_METHOD_NAMES.session_cancel {
             tracing::info!("handling session/cancel via ACP shim");
             if let Some(params) = notification.params {
@@ -363,7 +363,7 @@ impl MessageProcessor {
     }
 
     /// Handle an error object received from the peer.
-    pub(crate) fn process_error(&mut self, err: JSONRPCError) {
+    pub(crate) fn process_error(&self, err: JSONRPCError) {
         tracing::error!("<- error: {:?}", err);
     }
 

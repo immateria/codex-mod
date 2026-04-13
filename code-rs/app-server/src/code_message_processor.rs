@@ -678,7 +678,7 @@ impl CodexMessageProcessor {
     }
 
     async fn interrupt_conversation(
-        &mut self,
+        &self,
         request_id: RequestId,
         params: InterruptConversationParams,
     ) {
@@ -1366,7 +1366,7 @@ impl CodexMessageProcessor {
     }
 
     #[allow(dead_code)]
-    async fn fuzzy_file_search(&mut self, request_id: RequestId, params: FuzzyFileSearchParams) {
+    async fn fuzzy_file_search(&self, request_id: RequestId, params: FuzzyFileSearchParams) {
         let FuzzyFileSearchParams {
             query,
             roots,

@@ -93,7 +93,7 @@ fn overlay_content(area: Rect) -> Rect {
     overlay_block().inner(area)
 }
 
-pub fn draw_new_task_page(frame: &mut Frame, area: Rect, app: &mut App) {
+pub fn draw_new_task_page(frame: &mut Frame, area: Rect, app: &App) {
     let title_spans = {
         let mut spans: Vec<ratatui::text::Span> = vec!["New Task".magenta().bold()];
         if let Some(id) = app
@@ -986,7 +986,7 @@ pub fn draw_env_modal(frame: &mut Frame, area: Rect, app: &mut App) {
     frame.render_stateful_widget(list, rows[2], &mut list_state);
 }
 
-pub fn draw_best_of_modal(frame: &mut Frame, area: Rect, app: &mut App) {
+pub fn draw_best_of_modal(frame: &mut Frame, area: Rect, app: &App) {
     use ratatui::widgets::Wrap;
 
     let inner = overlay_outer(area);
