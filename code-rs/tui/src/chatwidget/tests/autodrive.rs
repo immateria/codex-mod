@@ -176,6 +176,8 @@
             db_exists: true,
             thread_count: 3,
             stage1_epoch_count: 2,
+            empty_epoch_count: 0,
+            derived_epoch_count: 2,
             pending_stage1_count: 1,
             running_stage1_count: 0,
             dead_lettered_stage1_count: 1,

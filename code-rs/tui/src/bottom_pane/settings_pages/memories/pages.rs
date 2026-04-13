@@ -80,14 +80,28 @@ impl MemoriesSettingsView {
                             dim,
                         ),
                     ]),
-                    Line::from(Span::styled(
-                        format!(
-                            "Database: {} sessions · {} memories",
-                            status.db.thread_count,
-                            status.db.stage1_epoch_count,
-                        ),
-                        dim,
-                    )),
+                    {
+                        let total = status.db.stage1_epoch_count;
+                        let derived = status.db.derived_epoch_count;
+                        let empty = status.db.empty_epoch_count;
+                        let fallback = total.saturating_sub(derived).saturating_sub(empty);
+                        let quality = if total == 0 {
+                            format!(
+                                "Database: {} sessions · no memories yet",
+                                status.db.thread_count,
+                            )
+                        } else {
+                            format!(
+                                "Database: {} sessions · {} epochs ({} useful · {} empty{})",
+                                status.db.thread_count,
+                                total,
+                                derived,
+                                empty,
+                                if fallback > 0 { format!(" · {fallback} fallback") } else { String::new() },
+                            )
+                        };
+                        Line::from(Span::styled(quality, dim))
+                    },
                 ];
                 if self.active_profile.is_none() {
                     lines.push(Line::from(Span::styled(

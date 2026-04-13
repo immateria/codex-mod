@@ -116,6 +116,8 @@ pub use memories::read_memory_summary;
 pub use memories::read_raw_memories;
 pub use memories::read_rollout_summary;
 pub use memories::delete_rollout_summary;
+pub use memories::preview_model_prompt;
+pub use memories::preview_model_prompt_sync;
 pub use memories::refresh_memory_artifacts_now;
 mod conversation_manager;
 pub mod protocol;

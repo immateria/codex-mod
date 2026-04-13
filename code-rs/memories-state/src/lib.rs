@@ -242,6 +242,10 @@ pub struct MemoriesStateStatus {
     pub artifact_job_running: bool,
     pub artifact_dirty: bool,
     pub last_artifact_build_at: Option<String>,
+    /// Number of epochs with provenance = 'empty_derivation_fallback'.
+    pub empty_epoch_count: usize,
+    /// Number of epochs with provenance = 'derived'.
+    pub derived_epoch_count: usize,
 }
 
 #[derive(Debug, Clone)]
@@ -1543,6 +1547,16 @@ WHERE memory_jobs.lease_until IS NULL OR memory_jobs.lease_until < ? OR memory_j
         let stage1_epoch_count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM stage1_epochs")
             .fetch_one(&self.pool)
             .await?;
+        let empty_epoch_count: i64 = sqlx::query_scalar(
+            "SELECT COUNT(*) FROM stage1_epochs WHERE provenance = 'empty_derivation_fallback'",
+        )
+        .fetch_one(&self.pool)
+        .await?;
+        let derived_epoch_count: i64 = sqlx::query_scalar(
+            "SELECT COUNT(*) FROM stage1_epochs WHERE provenance = 'derived'",
+        )
+        .fetch_one(&self.pool)
+        .await?;
 
         let mut running_query = QueryBuilder::<Sqlite>::new(
             "
@@ -1690,6 +1704,8 @@ WHERE mj.kind = ",
             artifact_job_running: artifact_running > 0,
             artifact_dirty: artifact_dirty != 0,
             last_artifact_build_at: as_iso(last_artifact_build_at),
+            empty_epoch_count: empty_epoch_count as usize,
+            derived_epoch_count: derived_epoch_count as usize,
         })
     }
 }

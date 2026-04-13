@@ -90,6 +90,10 @@ pub struct MemoriesDbStatus {
     pub artifact_job_running: bool,
     pub artifact_dirty: bool,
     pub last_artifact_build_at: Option<String>,
+    /// Epochs with no useful content (empty derivation fallback).
+    pub empty_epoch_count: usize,
+    /// Epochs extracted from real session data.
+    pub derived_epoch_count: usize,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -315,6 +319,8 @@ fn empty_db_status() -> MemoriesDbStatus {
         artifact_job_running: false,
         artifact_dirty: false,
         last_artifact_build_at: None,
+        empty_epoch_count: 0,
+        derived_epoch_count: 0,
     }
 }
 
@@ -655,6 +661,8 @@ async fn load_memories_db_status(code_home: &Path) -> io::Result<MemoriesDbStatu
         artifact_job_running: db.artifact_job_running,
         artifact_dirty: db.artifact_dirty,
         last_artifact_build_at: db.last_artifact_build_at,
+        empty_epoch_count: db.empty_epoch_count,
+        derived_epoch_count: db.derived_epoch_count,
     };
     store_cached_db_status(code_home, status.clone());
     Ok(status)
@@ -791,6 +799,84 @@ pub fn delete_rollout_summary(code_home: &Path, slug: &str) -> io::Result<bool> 
         Err(e) if e.kind() == io::ErrorKind::NotFound => Ok(false),
         Err(e) => Err(e),
     }
+}
+
+/// Preview the developer instructions that would be injected into the model
+/// prompt for a session with the given context. Returns `None` if no memory
+/// artifacts are available.
+pub async fn preview_model_prompt(code_home: &Path) -> io::Result<Option<String>> {
+    // Use a representative context to show what a typical session would receive.
+    let context = manifest::MemoriesCurrentContext {
+        platform_family: code_memories_state::MemoryPlatformFamily::Unknown,
+        shell_style: None,
+        shell_program: None,
+        workspace_root: None,
+        git_branch: None,
+    };
+    match build_memory_tool_developer_instructions(code_home, &context).await {
+        Some(prompt) => Ok(Some(prompt.instructions)),
+        None => Ok(None),
+    }
+}
+
+/// Synchronous variant of [`preview_model_prompt`] for use by the TUI
+/// settings view where no tokio runtime may be active on the current thread.
+pub fn preview_model_prompt_sync(code_home: &Path) -> io::Result<Option<String>> {
+    use askama::Template;
+
+    let paths = published_artifact_paths(code_home)?;
+    let context = manifest::MemoriesCurrentContext {
+        platform_family: code_memories_state::MemoryPlatformFamily::Unknown,
+        shell_style: None,
+        shell_program: None,
+        workspace_root: None,
+        git_branch: None,
+    };
+
+    // Try manifest-based prompt first (same logic as the async version).
+    if paths.generation.is_some() {
+        let manifest_text = match std::fs::read_to_string(&paths.manifest_path) {
+            Ok(t) => t,
+            Err(e) if e.kind() == io::ErrorKind::NotFound => return Ok(None),
+            Err(e) => return Err(e),
+        };
+        let manifest = match serde_json::from_str::<manifest::SnapshotManifest>(&manifest_text) {
+            Ok(m) => m,
+            Err(_) => return Ok(None),
+        };
+        let selection = match manifest::select_prompt_entries(
+            &manifest,
+            &context,
+            12_000, // MAX_MEMORY_PROMPT_BYTES
+        ) {
+            Some(s) => s,
+            None => return Ok(None),
+        };
+        let base_path = paths.base_dir.display().to_string();
+        let template = prompts::MemoryToolDeveloperInstructionsTemplateSyncView {
+            base_path: &base_path,
+            memory_summary: &selection.summary_text,
+        };
+        return Ok(template.render().ok());
+    }
+
+    // Fallback: use summary file directly.
+    let summary = match std::fs::read_to_string(&paths.summary_path) {
+        Ok(s) => s,
+        Err(e) if e.kind() == io::ErrorKind::NotFound => return Ok(None),
+        Err(e) => return Err(e),
+    };
+    let summary = summary.trim();
+    if summary.is_empty() {
+        return Ok(None);
+    }
+    let (summary, _) = crate::truncate::truncate_middle(summary, 12_000);
+    let base_path = paths.base_dir.display().to_string();
+    let template = prompts::MemoryToolDeveloperInstructionsTemplateSyncView {
+        base_path: &base_path,
+        memory_summary: &summary,
+    };
+    Ok(template.render().ok())
 }
 
 fn read_optional_text_file(path: &Path) -> io::Result<Option<String>> {

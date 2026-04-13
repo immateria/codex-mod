@@ -37,6 +37,7 @@ enum RowKind {
     MinRolloutIdleHours,
     ViewSummary,
     ViewRawMemories,
+    ViewModelPrompt,
     BrowseRollouts,
     ViewStatus,
     RefreshArtifacts,

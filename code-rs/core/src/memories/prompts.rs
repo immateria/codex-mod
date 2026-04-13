@@ -16,9 +16,9 @@ const MAX_MEMORY_PROMPT_BYTES: usize = 12_000;
 
 #[derive(Template)]
 #[template(path = "memories/read_path.md", escape = "none")]
-struct MemoryToolDeveloperInstructionsTemplate<'a> {
-    base_path: &'a str,
-    memory_summary: &'a str,
+pub(crate) struct MemoryToolDeveloperInstructionsTemplateSyncView<'a> {
+    pub base_path: &'a str,
+    pub memory_summary: &'a str,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -64,7 +64,7 @@ pub(crate) async fn build_memory_tool_developer_instructions(
         let selection =
             select_prompt_entries(&manifest, current_context, MAX_MEMORY_PROMPT_BYTES)?;
         let base_path = paths.base_dir.display().to_string();
-        let template = MemoryToolDeveloperInstructionsTemplate {
+        let template = MemoryToolDeveloperInstructionsTemplateSyncView {
             base_path: &base_path,
             memory_summary: &selection.summary_text,
         };
@@ -95,7 +95,7 @@ pub(crate) async fn build_memory_tool_developer_instructions(
     };
 
     let base_path = paths.base_dir.display().to_string();
-    let template = MemoryToolDeveloperInstructionsTemplate {
+    let template = MemoryToolDeveloperInstructionsTemplateSyncView {
         base_path: &base_path,
         memory_summary: &summary,
     };

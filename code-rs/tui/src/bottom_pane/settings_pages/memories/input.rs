@@ -301,6 +301,7 @@ impl MemoriesSettingsView {
             }
             RowKind::ViewSummary => self.open_summary_viewer(),
             RowKind::ViewRawMemories => self.open_raw_viewer(),
+            RowKind::ViewModelPrompt => self.open_model_prompt_viewer(),
             RowKind::BrowseRollouts => self.open_rollout_list(),
             RowKind::ViewStatus => self.open_status_viewer(),
             RowKind::RefreshArtifacts => self.trigger_action(MemoriesArtifactsAction::Refresh),

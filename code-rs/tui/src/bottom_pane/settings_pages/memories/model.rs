@@ -40,7 +40,7 @@ impl MemoriesSettingsView {
         }
     }
 
-    const ROWS_WITH_FILE_MANAGER: [RowKind; 17] = [
+    const ROWS_WITH_FILE_MANAGER: [RowKind; 18] = [
             RowKind::Scope,
             RowKind::GenerateMemories,
             RowKind::UseMemories,
@@ -51,6 +51,7 @@ impl MemoriesSettingsView {
             RowKind::MinRolloutIdleHours,
             RowKind::ViewSummary,
             RowKind::ViewRawMemories,
+            RowKind::ViewModelPrompt,
             RowKind::BrowseRollouts,
             RowKind::ViewStatus,
             RowKind::RefreshArtifacts,
@@ -60,7 +61,7 @@ impl MemoriesSettingsView {
             RowKind::Close,
     ];
 
-    const ROWS_NO_FILE_MANAGER: [RowKind; 16] = [
+    const ROWS_NO_FILE_MANAGER: [RowKind; 17] = [
         RowKind::Scope,
         RowKind::GenerateMemories,
         RowKind::UseMemories,
@@ -71,6 +72,7 @@ impl MemoriesSettingsView {
         RowKind::MinRolloutIdleHours,
         RowKind::ViewSummary,
         RowKind::ViewRawMemories,
+        RowKind::ViewModelPrompt,
         RowKind::BrowseRollouts,
         RowKind::ViewStatus,
         RowKind::RefreshArtifacts,
@@ -320,6 +322,12 @@ impl MemoriesSettingsView {
                     _ => "not generated".to_owned(),
                 }
             }
+            RowKind::ViewModelPrompt => {
+                match self.current_status() {
+                    Ok(Some(status)) if status.artifacts.summary.exists => "available".to_owned(),
+                    _ => "no artifacts".to_owned(),
+                }
+            }
             RowKind::BrowseRollouts => {
                 match self.current_status() {
                     Ok(Some(status)) => {
@@ -369,8 +377,9 @@ impl MemoriesSettingsView {
             RowKind::MaxRolloutAgeDays => "Max rollout age (days)",
             RowKind::MaxRolloutsPerStartup => "Max rollouts per refresh",
             RowKind::MinRolloutIdleHours => "Min rollout idle (hours)",
-            RowKind::ViewSummary => "View injected summary",
+            RowKind::ViewSummary => "View memory summary",
             RowKind::ViewRawMemories => "View raw memories",
+            RowKind::ViewModelPrompt => "View LLM prompt",
             RowKind::BrowseRollouts => "Browse rollout summaries",
             RowKind::ViewStatus => "View diagnostic status",
             RowKind::RefreshArtifacts => "Refresh artifacts now",
@@ -383,22 +392,23 @@ impl MemoriesSettingsView {
 
     pub(super) fn row_description(&self, row: RowKind) -> &'static str {
         match row {
-            RowKind::Scope => "Switch between global, active-profile, and current-project memories settings.",
-            RowKind::GenerateMemories => "Controls whether this scope contributes sessions to future memory artifact rebuilds.",
-            RowKind::UseMemories => "Controls whether memory_summary.md is injected into future developer instructions.",
-            RowKind::SkipMcpOrWebSearch => "If enabled, sessions that use MCP or native web search are marked polluted for future extraction.",
-            RowKind::MaxRawMemories => "Cap retained sessions written into raw_memories.md and rollout_summaries/*.",
-            RowKind::MaxRolloutAgeDays => "Ignore sessions older than this many days during artifact rebuilds.",
-            RowKind::MaxRolloutsPerStartup => "Cap how many catalog sessions are scanned during each rebuild.",
-            RowKind::MinRolloutIdleHours => "Ignore sessions that are newer than this idle window.",
-            RowKind::ViewSummary => "View the memory_summary.md that gets injected into developer instructions.",
-            RowKind::ViewRawMemories => "View raw_memories.md containing all extracted session memories.",
-            RowKind::BrowseRollouts => "Browse individual rollout summary files in rollout_summaries/.",
-            RowKind::ViewStatus => "View detailed memories subsystem status: config sources, artifact freshness, DB stats.",
-            RowKind::RefreshArtifacts => "Rebuild memory_summary.md, raw_memories.md, and rollout_summaries/* immediately.",
-            RowKind::ClearArtifacts => "Delete generated artifacts only; catalog memory_mode values stay intact.",
+            RowKind::Scope => "Switch scope: global (all sessions), profile (named config), or project (workspace-specific).",
+            RowKind::GenerateMemories => "When on, each session's conversation is extracted into memory epochs after it ends. These become the building blocks of what the LLM remembers about your work.",
+            RowKind::UseMemories => "When on, the memory summary is injected into the LLM's system prompt at the start of each turn. The LLM uses this to recall workspace context, past decisions, and conventions.",
+            RowKind::SkipMcpOrWebSearch => "Sessions that use MCP tools or web search are skipped during extraction — they typically contain external data rather than your project-specific patterns.",
+            RowKind::MaxRawMemories => "Maximum number of session epochs retained in memory artifacts. Higher values give the LLM more context but use more prompt budget (12KB max).",
+            RowKind::MaxRolloutAgeDays => "Sessions older than this are ignored during extraction. Keeps memories focused on recent work.",
+            RowKind::MaxRolloutsPerStartup => "Maximum sessions scanned per refresh cycle. Limits startup time for projects with many sessions.",
+            RowKind::MinRolloutIdleHours => "Sessions must be idle for at least this long before extraction. Prevents extracting from sessions still in progress.",
+            RowKind::ViewSummary => "View the memory summary: a ranked list of your session interactions. Each entry shows workspace, branch, timestamp, and what you asked. Empty/trivial entries are filtered out.",
+            RowKind::ViewRawMemories => "View all extracted memory data including internal metadata (thread IDs, provenance, timestamps). Used for debugging the memory pipeline.",
+            RowKind::ViewModelPrompt => "Preview the exact developer instructions injected into the LLM prompt, including the decision boundary, memory layout, and selected memory entries.",
+            RowKind::BrowseRollouts => "Browse individual session summaries. Each rollout captures one session's metadata and the user's last request. Entries are ranked by relevance.",
+            RowKind::ViewStatus => "Detailed diagnostics: effective config with sources, artifact freshness, SQLite DB stats (sessions, epochs, pending jobs, build history).",
+            RowKind::RefreshArtifacts => "Force an immediate rebuild of all memory artifacts, bypassing the normal throttle. Use after changing settings or clearing artifacts.",
+            RowKind::ClearArtifacts => "Delete generated memory files (summary, raw, rollouts). The session catalog and database are preserved — a refresh will regenerate everything.",
             RowKind::OpenDirectory => "Open the memories directory in Finder/Explorer/your file manager.",
-            RowKind::Apply => "Persist the current scope to config.toml.",
+            RowKind::Apply => "Save the current settings for this scope to config.toml.",
             RowKind::Close => "Dismiss the Memories settings view.",
         }
     }
@@ -452,6 +462,20 @@ impl MemoriesSettingsView {
         }
     }
 
+    pub(super) fn open_model_prompt_viewer(&mut self) {
+        match code_core::preview_model_prompt_sync(&self.code_home) {
+            Ok(Some(content)) => {
+                self.open_text_viewer(" LLM Prompt Preview ", content, TextViewerParent::Main);
+            }
+            Ok(None) => {
+                self.status = Some(("No memory artifacts generated yet. Run Refresh first.".to_owned(), true));
+            }
+            Err(err) => {
+                self.status = Some((format!("Error generating prompt preview: {err}"), true));
+            }
+        }
+    }
+
     pub(super) fn open_rollout_list(&mut self) {
         match code_core::list_rollout_summaries(&self.code_home) {
             Ok(entries) => {
@@ -498,7 +522,22 @@ impl MemoriesSettingsView {
             format!("  {name}: {present} (modified: {modified})")
         }
 
-        let mut lines = Vec::with_capacity(24);
+        let mut lines = Vec::with_capacity(32);
+        lines.push("── How Memories Work ──".to_owned());
+        lines.push("  Sessions → Epochs: Each session's conversation is split into".to_owned());
+        lines.push("  memory epochs. An epoch captures your workspace, branch, and".to_owned());
+        lines.push("  what you asked. Empty sessions produce empty epochs (filtered".to_owned());
+        lines.push("  from prompts). Derived epochs contain real user interactions.".to_owned());
+        lines.push(String::new());
+        lines.push("  Epochs → Prompt: The best epochs are ranked by workspace match,".to_owned());
+        lines.push("  branch affinity, platform/shell compatibility, and recency,".to_owned());
+        lines.push("  then packed into a 12KB prompt budget. This becomes the".to_owned());
+        lines.push("  MEMORY_SUMMARY block in the LLM's developer instructions.".to_owned());
+        lines.push(String::new());
+        lines.push("  LLM behavior: The model skims the summary, searches MEMORY.md".to_owned());
+        lines.push("  for deeper context when relevant, and updates stale entries".to_owned());
+        lines.push("  when it detects conflicts with current workspace state.".to_owned());
+        lines.push(String::new());
         lines.push("── Effective Configuration ──".to_owned());
         lines.push(format!(
             "  generate_memories: {} (source: {})",
@@ -558,6 +597,16 @@ impl MemoriesSettingsView {
         ));
         lines.push(format!("  sessions:       {}", status.db.thread_count));
         lines.push(format!("  stage1 epochs:  {}", status.db.stage1_epoch_count));
+        lines.push(format!("  ├─ derived:     {}  (extracted from session data — used in prompts)", status.db.derived_epoch_count));
+        {
+            let fallback = status.db.stage1_epoch_count
+                .saturating_sub(status.db.derived_epoch_count)
+                .saturating_sub(status.db.empty_epoch_count);
+            if fallback > 0 {
+                lines.push(format!("  ├─ fallback:    {fallback}  (minimal extraction — used as backup)"));
+            }
+        }
+        lines.push(format!("  └─ empty:       {}  (no useful content — filtered from prompts)", status.db.empty_epoch_count));
         lines.push(format!("  pending:        {}", status.db.pending_stage1_count));
         lines.push(format!("  running:        {}", status.db.running_stage1_count));
         lines.push(format!("  dead-lettered:  {}", status.db.dead_lettered_stage1_count));
