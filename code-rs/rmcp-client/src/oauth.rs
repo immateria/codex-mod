@@ -11,7 +11,6 @@ use std::collections::BTreeMap;
 use std::fs;
 use std::io::ErrorKind;
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use anyhow::{Context, Error, Result};
@@ -21,22 +20,18 @@ use oauth2::RefreshToken;
 use oauth2::Scope;
 use oauth2::TokenResponse;
 use oauth2::basic::BasicTokenType;
-use rmcp::transport::auth::AuthorizationManager;
 use rmcp::transport::auth::OAuthTokenResponse;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use serde_json::map::Map as JsonMap;
 use sha2::{Digest, Sha256};
-use tokio::sync::Mutex;
 use tracing::warn;
 
 use code_keyring_store::DefaultKeyringStore;
 use code_keyring_store::KeyringStore;
 
 const KEYRING_SERVICE: &str = "Code MCP Credentials";
-#[allow(dead_code)]
-const REFRESH_SKEW_MILLIS: u64 = 30_000;
 
 const FALLBACK_FILENAME: &str = ".credentials.json";
 const MCP_SERVER_TYPE: &str = "http";
@@ -265,125 +260,6 @@ fn delete_oauth_tokens_from_keyring_and_file<K: KeyringStore>(
     Ok(keyring_removed || file_removed)
 }
 
-#[allow(dead_code)]
-#[derive(Clone)]
-pub(crate) struct OAuthPersistor {
-    inner: Arc<OAuthPersistorInner>,
-}
-
-#[allow(dead_code)]
-struct OAuthPersistorInner {
-    code_home: PathBuf,
-    server_name: String,
-    url: String,
-    authorization_manager: Arc<Mutex<AuthorizationManager>>,
-    store_mode: OAuthCredentialsStoreMode,
-    last_credentials: Mutex<Option<StoredOAuthTokens>>,
-}
-
-#[allow(dead_code)]
-impl OAuthPersistor {
-    pub(crate) fn new(
-        code_home: PathBuf,
-        server_name: String,
-        url: String,
-        authorization_manager: Arc<Mutex<AuthorizationManager>>,
-        store_mode: OAuthCredentialsStoreMode,
-        initial_credentials: Option<StoredOAuthTokens>,
-    ) -> Self {
-        Self {
-            inner: Arc::new(OAuthPersistorInner {
-                code_home,
-                server_name,
-                url,
-                authorization_manager,
-                store_mode,
-                last_credentials: Mutex::new(initial_credentials),
-            }),
-        }
-    }
-
-    /// Persists the latest stored credentials if they have changed.
-    /// Deletes the credentials if they are no longer present.
-    pub(crate) async fn persist_if_needed(&self) -> Result<()> {
-        let (client_id, maybe_credentials) = {
-            let manager = self.inner.authorization_manager.clone();
-            let guard = manager.lock().await;
-            guard.get_credentials().await
-        }?;
-
-        if let Some(credentials) = maybe_credentials {
-            let mut last_credentials = self.inner.last_credentials.lock().await;
-            let new_token_response = WrappedOAuthTokenResponse(credentials.clone());
-            let same_token = last_credentials
-                .as_ref()
-                .is_some_and(|prev| prev.token_response == new_token_response);
-            let expires_at = if same_token {
-                last_credentials.as_ref().and_then(|prev| prev.expires_at)
-            } else {
-                compute_expires_at_millis(&credentials)
-            };
-            let stored = StoredOAuthTokens {
-                server_name: self.inner.server_name.clone(),
-                url: self.inner.url.clone(),
-                client_id,
-                token_response: new_token_response,
-                expires_at,
-            };
-            if last_credentials.as_ref() != Some(&stored) {
-                save_oauth_tokens(
-                    &self.inner.code_home,
-                    &self.inner.server_name,
-                    &stored,
-                    self.inner.store_mode,
-                )?;
-                *last_credentials = Some(stored);
-            }
-        } else {
-            let mut last_serialized = self.inner.last_credentials.lock().await;
-            if last_serialized.take().is_some()
-                && let Err(error) = delete_oauth_tokens(
-                    &self.inner.code_home,
-                    &self.inner.server_name,
-                    &self.inner.url,
-                    self.inner.store_mode,
-                )
-            {
-                warn!(
-                    "failed to remove OAuth tokens for server {}: {error}",
-                    self.inner.server_name
-                );
-            }
-        }
-
-        Ok(())
-    }
-
-    pub(crate) async fn refresh_if_needed(&self) -> Result<()> {
-        let expires_at = {
-            let guard = self.inner.last_credentials.lock().await;
-            guard.as_ref().and_then(|tokens| tokens.expires_at)
-        };
-
-        if !token_needs_refresh(expires_at) {
-            return Ok(());
-        }
-
-        {
-            let manager = self.inner.authorization_manager.clone();
-            let guard = manager.lock().await;
-            guard.refresh_token().await.with_context(|| {
-                format!(
-                    "failed to refresh OAuth tokens for server {}",
-                    self.inner.server_name
-                )
-            })?;
-        }
-
-        self.persist_if_needed().await
-    }
-}
-
 type FallbackFile = BTreeMap<String, FallbackTokenEntry>;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -509,20 +385,6 @@ fn expires_in_from_timestamp(expires_at: u64) -> Option<u64> {
     } else {
         Some((expires_at - now_ms) / 1000)
     }
-}
-
-#[allow(dead_code)]
-fn token_needs_refresh(expires_at: Option<u64>) -> bool {
-    let Some(expires_at) = expires_at else {
-        return false;
-    };
-
-    let now = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap_or(Duration::ZERO)
-        .as_millis() as u64;
-
-    now.saturating_add(REFRESH_SKEW_MILLIS) >= expires_at
 }
 
 fn compute_store_key(server_name: &str, server_url: &str) -> Result<String> {
