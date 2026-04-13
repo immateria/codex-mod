@@ -4,6 +4,7 @@ use ratatui::text::Line;
 use ratatui::text::Span;
 use unicode_width::UnicodeWidthStr;
 
+#[allow(clippy::suspicious_operation_groupings)] // render.width vs input.inner_width is correct — different structs
 pub(super) fn render_dynamic_header_line(input: &DynamicHeaderLayoutInput<'_>) -> HeaderTemplateRender {
     let mut include_reasoning = !input.minimal_header;
     let mut include_model = !input.minimal_header;
