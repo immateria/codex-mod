@@ -120,48 +120,31 @@ impl MemoriesSettingsView {
         let _ = page.render_in_chrome(chrome, area, buf, field);
     }
 
-    pub(super) fn render_content_only(&self, area: Rect, buf: &mut Buffer) {
+    fn render_with_chrome(&self, area: Rect, buf: &mut Buffer, chrome: ChromeMode) {
         match &self.mode {
             ViewMode::Main | ViewMode::Transition => {
-                self.render_main_with(area, buf, ChromeMode::ContentOnly);
+                self.render_main_with(area, buf, chrome);
             }
             ViewMode::Edit { target, field, error } => {
-                self.render_edit_with(
-                    area,
-                    buf,
-                    *target,
-                    field,
-                    error.as_deref(),
-                    ChromeMode::ContentOnly,
-                );
+                self.render_edit_with(area, buf, *target, field, error.as_deref(), chrome);
             }
             ViewMode::TextViewer(viewer) => {
-                Self::render_text_viewer_with(viewer, area, buf, ChromeMode::ContentOnly);
+                Self::render_text_viewer_with(viewer, area, buf, chrome);
             }
             ViewMode::RolloutList(list) => {
-                Self::render_rollout_list_with(list, area, buf, ChromeMode::ContentOnly);
+                Self::render_rollout_list_with(list, area, buf, chrome);
             }
             ViewMode::SearchInput { viewer, field } => {
-                Self::render_search_input_with(viewer.title, field, area, buf, ChromeMode::ContentOnly);
+                Self::render_search_input_with(viewer.title, field, area, buf, chrome);
             }
         }
     }
 
+    pub(super) fn render_content_only(&self, area: Rect, buf: &mut Buffer) {
+        self.render_with_chrome(area, buf, ChromeMode::ContentOnly);
+    }
+
     pub(super) fn render_framed(&self, area: Rect, buf: &mut Buffer) {
-        match &self.mode {
-            ViewMode::Main | ViewMode::Transition => self.render_main_with(area, buf, ChromeMode::Framed),
-            ViewMode::Edit { target, field, error } => {
-                self.render_edit_with(area, buf, *target, field, error.as_deref(), ChromeMode::Framed);
-            }
-            ViewMode::TextViewer(viewer) => {
-                Self::render_text_viewer_with(viewer, area, buf, ChromeMode::Framed);
-            }
-            ViewMode::RolloutList(list) => {
-                Self::render_rollout_list_with(list, area, buf, ChromeMode::Framed);
-            }
-            ViewMode::SearchInput { viewer, field } => {
-                Self::render_search_input_with(viewer.title, field, area, buf, ChromeMode::Framed);
-            }
-        }
+        self.render_with_chrome(area, buf, ChromeMode::Framed);
     }
 }

@@ -118,7 +118,7 @@ async fn responses_request_uses_beta_header_for_public_openai() {
         .or_panic("client");
 
     let mut builder = provider
-        .create_request_builder(&client, &None)
+        .create_request_builder(&client, None)
         .await
         .or_panic("builder");
     let has_beta = builder
@@ -168,7 +168,7 @@ async fn responses_request_uses_experimental_for_backend() {
         .or_panic("client");
 
     let mut builder = provider
-        .create_request_builder(&client, &None)
+        .create_request_builder(&client, None)
         .await
         .or_panic("builder");
     let has_beta = builder
@@ -220,7 +220,7 @@ async fn responses_request_respects_preexisting_beta_header() {
         .or_panic("client");
 
     let request = provider
-        .create_request_builder(&client, &None)
+        .create_request_builder(&client, None)
         .await
         .or_panic("builder")
         .try_clone()

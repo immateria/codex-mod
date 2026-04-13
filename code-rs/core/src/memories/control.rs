@@ -1,9 +1,6 @@
 use std::path::Path;
 
-const MEMORY_SUMMARY_FILENAME: &str = "memory_summary.md";
-const RAW_MEMORIES_FILENAME: &str = "raw_memories.md";
-const ROLLOUT_SUMMARIES_SUBDIR: &str = "rollout_summaries";
-const SNAPSHOTS_SUBDIR: &str = "snapshots";
+use super::{MEMORY_SUMMARY_FILENAME, RAW_MEMORIES_FILENAME, ROLLOUT_SUMMARIES_SUBDIR, SNAPSHOTS_SUBDIR};
 
 pub(crate) async fn ensure_safe_memory_root(memory_root: &Path) -> std::io::Result<()> {
     match tokio::fs::symlink_metadata(memory_root).await {

@@ -406,7 +406,12 @@ fn format_age(when: DateTime<Utc>, now: DateTime<Utc>) -> String {
 }
 
 /// Number of decimal digits needed to display `n`.
-fn digit_count(n: usize) -> usize {
+fn digit_count(mut n: usize) -> usize {
     if n == 0 { return 1; }
-    (n as f64).log10().floor() as usize + 1
+    let mut count = 0;
+    while n > 0 {
+        count += 1;
+        n /= 10;
+    }
+    count
 }

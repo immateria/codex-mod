@@ -182,11 +182,13 @@ impl MemoriesSettingsView {
     }
 
     pub(super) fn current_scope_dirty(&self) -> bool {
-        self.current_scope_payload()
-            != self
-                .current_scope_saved_settings()
-                .cloned()
-                .unwrap_or_default()
+        let current = self.current_scope_settings();
+        let saved = self.current_scope_saved_settings();
+        match (current, saved) {
+            (Some(c), Some(s)) => c != s,
+            (None, None) => false,
+            _ => true,
+        }
     }
 
     pub(super) fn prune_optional_scope(&mut self) {
@@ -489,21 +491,14 @@ impl MemoriesSettingsView {
         fn on_off(v: bool) -> &'static str {
             if v { "on" } else { "off" }
         }
-        fn source(s: code_core::MemoriesSettingSource) -> &'static str {
-            match s {
-                code_core::MemoriesSettingSource::Default => "default",
-                code_core::MemoriesSettingSource::Global => "global",
-                code_core::MemoriesSettingSource::Profile => "profile",
-                code_core::MemoriesSettingSource::Project => "project",
-            }
-        }
+        let source = Self::source_label;
         fn artifact(name: &str, a: &code_core::MemoryArtifactStatus) -> String {
             let modified = a.modified_at.as_deref().unwrap_or("never");
             let present = if a.exists { "present" } else { "missing" };
             format!("  {name}: {present} (modified: {modified})")
         }
 
-        let mut lines = Vec::new();
+        let mut lines = Vec::with_capacity(24);
         lines.push("── Effective Configuration ──".to_owned());
         lines.push(format!(
             "  generate_memories: {} (source: {})",

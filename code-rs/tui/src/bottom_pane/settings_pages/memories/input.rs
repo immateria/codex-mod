@@ -4,6 +4,44 @@ use crate::app_event::{AppEvent, MemoriesArtifactsAction};
 use crate::components::mode_guard::ModeGuard;
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
+/// Parse a trimmed string as `usize`, requiring `>= 1`.
+fn parse_usize_min1(text: &str, label: &str) -> Result<usize, String> {
+    let value: usize = text
+        .trim()
+        .parse()
+        .map_err(|_| format!("{label} must be an integer >= 1"))?;
+    if value == 0 {
+        return Err(format!("{label} must be >= 1"));
+    }
+    Ok(value)
+}
+
+/// Parse a trimmed string as non-negative `i64`.
+fn parse_i64_min0(text: &str, label: &str) -> Result<i64, String> {
+    let value: i64 = text
+        .trim()
+        .parse()
+        .map_err(|_| format!("{label} must be an integer >= 0"))?;
+    if value < 0 {
+        return Err(format!("{label} must be >= 0"));
+    }
+    Ok(value)
+}
+
+/// Parse an optional field: empty → Ok(None), otherwise validate.
+fn parse_optional_usize_min1(text: &str, label: &str) -> Result<Option<usize>, String> {
+    let trimmed = text.trim();
+    if trimmed.is_empty() { return Ok(None); }
+    parse_usize_min1(trimmed, label).map(Some)
+}
+
+/// Parse an optional field: empty → Ok(None), otherwise validate.
+fn parse_optional_i64_min0(text: &str, label: &str) -> Result<Option<i64>, String> {
+    let trimmed = text.trim();
+    if trimmed.is_empty() { return Ok(None); }
+    parse_i64_min0(trimmed, label).map(Some)
+}
+
 impl MemoriesSettingsView {
     fn set_status(&mut self, text: impl Into<String>, is_error: bool) {
         self.status = Some((text.into(), is_error));
@@ -160,106 +198,45 @@ impl MemoriesSettingsView {
     fn apply_numeric_edit(&mut self, target: EditTarget, text: &str) -> Result<(), String> {
         match (self.scope, target) {
             (MemoriesScopeChoice::Global, EditTarget::MaxRawMemories) => {
-                let value: usize = text.trim().parse().map_err(|_| {
-                    "Max retained memories must be an integer >= 1".to_owned()
-                })?;
-                if value == 0 {
-                    return Err("Max retained memories must be >= 1".to_owned());
-                }
+                let value = parse_usize_min1(text, "Max retained memories")?;
                 self.global_settings.max_raw_memories_for_consolidation = Some(value);
                 self.global_settings.max_raw_memories_for_global = None;
             }
             (MemoriesScopeChoice::Global, EditTarget::MaxRolloutAgeDays) => {
-                let value: i64 = text.trim().parse().map_err(|_| {
-                    "Max rollout age must be an integer >= 0".to_owned()
-                })?;
-                if value < 0 {
-                    return Err("Max rollout age must be >= 0".to_owned());
-                }
-                self.global_settings.max_rollout_age_days = Some(value);
+                self.global_settings.max_rollout_age_days =
+                    Some(parse_i64_min0(text, "Max rollout age")?);
             }
             (MemoriesScopeChoice::Global, EditTarget::MaxRolloutsPerStartup) => {
-                let value: usize = text.trim().parse().map_err(|_| {
-                    "Max rollouts per refresh must be an integer >= 1".to_owned()
-                })?;
-                if value == 0 {
-                    return Err("Max rollouts per refresh must be >= 1".to_owned());
-                }
-                self.global_settings.max_rollouts_per_startup = Some(value);
+                self.global_settings.max_rollouts_per_startup =
+                    Some(parse_usize_min1(text, "Max rollouts per refresh")?);
             }
             (MemoriesScopeChoice::Global, EditTarget::MinRolloutIdleHours) => {
-                let value: i64 = text.trim().parse().map_err(|_| {
-                    "Min rollout idle must be an integer >= 0".to_owned()
-                })?;
-                if value < 0 {
-                    return Err("Min rollout idle must be >= 0".to_owned());
-                }
-                self.global_settings.min_rollout_idle_hours = Some(value);
+                self.global_settings.min_rollout_idle_hours =
+                    Some(parse_i64_min0(text, "Min rollout idle")?);
             }
             (_, EditTarget::MaxRawMemories) => {
                 let settings = self.ensure_current_scope_settings_mut();
-                let trimmed = text.trim();
-                if trimmed.is_empty() {
-                    settings.max_raw_memories_for_consolidation = None;
-                    settings.max_raw_memories_for_global = None;
-                } else {
-                    let value: usize = trimmed.parse().map_err(|_| {
-                        "Max retained memories must be an integer >= 1".to_owned()
-                    })?;
-                    if value == 0 {
-                        return Err("Max retained memories must be >= 1".to_owned());
-                    }
-                    settings.max_raw_memories_for_consolidation = Some(value);
-                    settings.max_raw_memories_for_global = None;
-                }
+                let value = parse_optional_usize_min1(text, "Max retained memories")?;
+                settings.max_raw_memories_for_consolidation = value;
+                settings.max_raw_memories_for_global = None;
                 self.prune_optional_scope();
             }
             (_, EditTarget::MaxRolloutAgeDays) => {
                 let settings = self.ensure_current_scope_settings_mut();
-                let trimmed = text.trim();
-                if trimmed.is_empty() {
-                    settings.max_rollout_age_days = None;
-                } else {
-                    let value: i64 = trimmed.parse().map_err(|_| {
-                        "Max rollout age must be an integer >= 0".to_owned()
-                    })?;
-                    if value < 0 {
-                        return Err("Max rollout age must be >= 0".to_owned());
-                    }
-                    settings.max_rollout_age_days = Some(value);
-                }
+                settings.max_rollout_age_days =
+                    parse_optional_i64_min0(text, "Max rollout age")?;
                 self.prune_optional_scope();
             }
             (_, EditTarget::MaxRolloutsPerStartup) => {
                 let settings = self.ensure_current_scope_settings_mut();
-                let trimmed = text.trim();
-                if trimmed.is_empty() {
-                    settings.max_rollouts_per_startup = None;
-                } else {
-                    let value: usize = trimmed.parse().map_err(|_| {
-                        "Max rollouts per refresh must be an integer >= 1".to_owned()
-                    })?;
-                    if value == 0 {
-                        return Err("Max rollouts per refresh must be >= 1".to_owned());
-                    }
-                    settings.max_rollouts_per_startup = Some(value);
-                }
+                settings.max_rollouts_per_startup =
+                    parse_optional_usize_min1(text, "Max rollouts per refresh")?;
                 self.prune_optional_scope();
             }
             (_, EditTarget::MinRolloutIdleHours) => {
                 let settings = self.ensure_current_scope_settings_mut();
-                let trimmed = text.trim();
-                if trimmed.is_empty() {
-                    settings.min_rollout_idle_hours = None;
-                } else {
-                    let value: i64 = trimmed.parse().map_err(|_| {
-                        "Min rollout idle must be an integer >= 0".to_owned()
-                    })?;
-                    if value < 0 {
-                        return Err("Min rollout idle must be >= 0".to_owned());
-                    }
-                    settings.min_rollout_idle_hours = Some(value);
-                }
+                settings.min_rollout_idle_hours =
+                    parse_optional_i64_min0(text, "Min rollout idle")?;
                 self.prune_optional_scope();
             }
         }
@@ -410,20 +387,11 @@ impl MemoriesSettingsView {
                     self.mode = ViewMode::Main;
                     true
                 }
-                KeyCode::Enter => {
-                    let text = field.text().to_owned();
-                    match self.apply_numeric_edit(*target, &text) {
-                        Ok(()) => {
-                            self.mode = ViewMode::Main;
-                            self.clear_status();
-                        }
-                        Err(err) => {
-                            *error = Some(err);
-                        }
-                    }
-                    true
-                }
-                KeyCode::Char('s') if key_event.modifiers.contains(KeyModifiers::CONTROL) => {
+                KeyCode::Enter
+                | KeyCode::Char('s')
+                    if key_event.code == KeyCode::Enter
+                        || key_event.modifiers.contains(KeyModifiers::CONTROL) =>
+                {
                     let text = field.text().to_owned();
                     match self.apply_numeric_edit(*target, &text) {
                         Ok(()) => {
@@ -575,10 +543,12 @@ impl MemoriesSettingsView {
     fn process_rollout_list_key_event(&mut self, key_event: KeyEvent) -> bool {
         // Handle delete confirmation first.
         if let ViewMode::RolloutList(ref mut list) = self.mode
-            && let Some(slug) = list.pending_delete.clone()
+            && list.pending_delete.is_some()
         {
             if let KeyCode::Char('y' | 'Y') = key_event.code {
-                self.delete_rollout(&slug);
+                if let Some(slug) = list.pending_delete.take() {
+                    self.delete_rollout(&slug);
+                }
             } else {
                 list.pending_delete = None;
             }

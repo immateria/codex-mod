@@ -22,11 +22,11 @@ mod storage;
 
 const MEMORIES_DIR: &str = "memories";
 const CURRENT_GENERATION_FILENAME: &str = "current";
-const MEMORY_SUMMARY_FILENAME: &str = "memory_summary.md";
-const RAW_MEMORIES_FILENAME: &str = "raw_memories.md";
+pub(super) const MEMORY_SUMMARY_FILENAME: &str = "memory_summary.md";
+pub(super) const RAW_MEMORIES_FILENAME: &str = "raw_memories.md";
 const MANIFEST_FILENAME: &str = "manifest.json";
-const ROLLOUT_SUMMARIES_SUBDIR: &str = "rollout_summaries";
-const SNAPSHOTS_SUBDIR: &str = "snapshots";
+pub(super) const ROLLOUT_SUMMARIES_SUBDIR: &str = "rollout_summaries";
+pub(super) const SNAPSHOTS_SUBDIR: &str = "snapshots";
 const REFRESH_INTERVAL: Duration = Duration::from_secs(300);
 
 #[derive(Debug, Clone, Copy, Default)]
