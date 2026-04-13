@@ -80,7 +80,7 @@ impl App<'_> {
 
         'main: loop {
             let Some(event) = self.next_event_priority() else { break 'main };
-            include!("history_insert.rs");
+            include!("history_insert.rs")
         }
         if self.alt_screen_active {
             terminal.clear()?;

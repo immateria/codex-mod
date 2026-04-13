@@ -324,6 +324,6 @@
                     }
                 }
                 event => {
-                    include!("file_search_chrome_jump_back_tail.rs");
+                    include!("file_search_chrome_jump_back_tail.rs")
                 }
             }

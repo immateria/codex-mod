@@ -211,7 +211,7 @@
                         _ => {
                             // Ignore Release key events.
                         }
-                    };
+                    }
                 }
                 AppEvent::MouseEvent(mouse_event) => {
                     self.dispatch_mouse_event(mouse_event);
@@ -265,6 +265,6 @@
                     break 'main;
                 }
                 event => {
-                    include!("terminal.rs");
+                    include!("terminal.rs")
                 }
             }

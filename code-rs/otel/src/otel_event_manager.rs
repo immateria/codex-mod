@@ -232,7 +232,7 @@ impl OtelEventManager {
                                         &"failed to parse response.output_item.done",
                                     );
                                 }
-                            };
+                            }
                         }
                         Ok(_) => {
                             self.sse_event(&sse.event, duration);

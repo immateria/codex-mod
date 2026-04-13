@@ -296,6 +296,6 @@
                     }
                 }
                 event => {
-                    include!("cloud_tasks.rs");
+                    include!("cloud_tasks.rs")
                 }
             }

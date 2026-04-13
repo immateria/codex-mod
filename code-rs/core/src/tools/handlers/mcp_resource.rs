@@ -382,7 +382,7 @@ impl McpResourceToolHandler {
                     Err(err) => {
                         tracing::warn!("Failed to list resources for MCP server '{server_name}': {err:#}");
                     }
-                };
+                }
             }
 
             let payload = ListResourcesPayload::from_all_servers(resources_by_server);
@@ -459,7 +459,7 @@ impl McpResourceToolHandler {
                     Err(err) => {
                         tracing::warn!("Failed to list resource templates for MCP server '{server_name}': {err:#}");
                     }
-                };
+                }
             }
 
             let payload = ListResourceTemplatesPayload::from_all_servers(templates_by_server);

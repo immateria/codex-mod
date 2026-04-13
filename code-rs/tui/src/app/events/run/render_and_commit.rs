@@ -172,6 +172,6 @@
                     }
                 }
                 event => {
-                    include!("input_and_exit.rs");
+                    include!("input_and_exit.rs")
                 }
             }

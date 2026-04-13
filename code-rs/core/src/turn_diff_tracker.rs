@@ -120,7 +120,7 @@ impl TurnDiffTracker {
                 self.external_to_temp_name.remove(path);
                 self.external_to_temp_name
                     .insert(dest.clone(), uuid_filename);
-            };
+            }
         }
     }
 

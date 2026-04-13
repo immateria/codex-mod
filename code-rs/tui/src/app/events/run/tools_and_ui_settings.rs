@@ -1096,6 +1096,6 @@
                     self.schedule_redraw();
                 }
                 event => {
-                    include!("accounts_and_auth_store.rs");
+                    include!("accounts_and_auth_store.rs")
                 }
             }

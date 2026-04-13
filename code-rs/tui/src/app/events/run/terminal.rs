@@ -242,6 +242,6 @@
                             }
                 }
                 event => {
-                    include!("memories.rs");
+                    include!("memories.rs")
                 }
             }

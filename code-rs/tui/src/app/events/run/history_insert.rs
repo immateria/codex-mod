@@ -51,6 +51,6 @@
                     AppState::Onboarding { .. } => {}
                 },
                 event => {
-                    include!("render_and_commit.rs");
+                    include!("render_and_commit.rs")
                 }
             }

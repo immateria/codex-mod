@@ -136,6 +136,6 @@
                     self.schedule_redraw();
                 }
                 event => {
-                    include!("tools_and_ui_settings.rs");
+                    include!("tools_and_ui_settings.rs")
                 }
             }

@@ -180,6 +180,6 @@
                     }
                 }
                 event => {
-                    include!("theme_spinner_and_login.rs");
+                    include!("theme_spinner_and_login.rs")
                 }
             }

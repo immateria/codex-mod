@@ -405,7 +405,7 @@ pub(super) async fn run_agent(sess: Arc<Session>, turn_context: Arc<TurnContext>
                         _ => {
                             warn!("Unexpected response item: {item:?} with response: {response:?}");
                         }
-                    };
+                    }
                     if let Some(response) = response {
                         responses.push(response);
                     }

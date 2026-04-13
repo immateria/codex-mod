@@ -2825,7 +2825,7 @@ async fn process_sse<S>(
                             debug!("failed to parse ResponseCompleted: {e}");
                             continue;
                         }
-                    };
+                    }
 
                     if let Some(completed) = response_completed.take() {
                         emit_completed_event(
@@ -2838,7 +2838,7 @@ async fn process_sse<S>(
                         .await;
                         return;
                     }
-                };
+                }
             }
             "response.done" => {
                 if let Some(resp_val) = event.response {
@@ -2853,7 +2853,7 @@ async fn process_sse<S>(
                             debug!("failed to parse ResponseDone: {e}");
                             continue;
                         }
-                    };
+                    }
                 } else {
                     response_completed = Some(ResponseCompleted {
                         id: String::new(),
