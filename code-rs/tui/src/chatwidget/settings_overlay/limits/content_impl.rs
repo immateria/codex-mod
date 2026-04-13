@@ -1,8 +1,8 @@
 impl LimitsSettingsContent {
-    const WIDE_LAYOUT_MIN_WIDTH: u16 = 110;
+    const WIDE_LAYOUT_MIN_WIDTH: u16 = 72;
     const WIDE_GUTTER_WIDTH: u16 = 1;
-    const WIDE_MIN_LEFT_WIDTH: u16 = 42;
-    const WIDE_MIN_RIGHT_WIDTH: u16 = 52;
+    const WIDE_MIN_LEFT_WIDTH: u16 = 30;
+    const WIDE_MIN_RIGHT_WIDTH: u16 = 38;
     const WIDE_MAX_LEFT_PERCENT: u16 = 58;
 
     pub(crate) fn new(

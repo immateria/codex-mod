@@ -23,7 +23,9 @@ impl SettingsOverlayView {
             return;
         }
 
-        let collapsed = self.sidebar_collapsed.get();
+        // Auto-collapse the sidebar on very narrow screens (< 40 cols)
+        // so the content pane gets enough room.
+        let collapsed = self.sidebar_collapsed.get() || area.width < 40;
 
         if collapsed {
             // Collapsed: thin 2-col toggle strip + full-width content.
@@ -36,10 +38,11 @@ impl SettingsOverlayView {
             self.render_section_panel(main, buf);
         } else {
             // Expanded: sidebar (with toggle row on top) + content.
-            // The toggle sits in a 1-row strip above the sidebar items,
-            // inside the same 22-col column — no extra horizontal space.
+            // Adaptive width: cap at 22 but shrink proportionally on
+            // narrow screens so the content pane always gets ≥ 60% width.
+            let sidebar_width = 22u16.min(area.width * 35 / 100).max(12);
             let [sidebar_col, main] =
-                Layout::horizontal([Constraint::Length(22), Constraint::Fill(1)])
+                Layout::horizontal([Constraint::Length(sidebar_width), Constraint::Fill(1)])
                     .areas(area);
 
             if sidebar_col.height > 1 {
@@ -95,7 +98,8 @@ impl SettingsOverlayView {
         // Use horizontal-only margin so the shortcut bar sits flush against
         // the bottom border.  A 1-row top inset is applied manually below
         // to keep content from touching the title bar.
-        let mut style = SettingsPanelStyle::overlay().with_margin(Margin::new(1, 0));
+        let h_margin = if area.width < 50 { 0 } else { 1 };
+        let mut style = SettingsPanelStyle::overlay().with_margin(Margin::new(h_margin, 0));
         style.border_style = Style::default()
             .fg(if self.is_content_focused() {
                 crate::colors::border_focused()

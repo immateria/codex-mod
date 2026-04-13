@@ -186,7 +186,7 @@ fn split_content_wide(content: Rect) -> (Rect, Rect) {
     let list_width = (content.width / 3).clamp(15, 30);
     let chunks = Layout::default()
         .direction(Direction::Horizontal)
-        .constraints([Constraint::Length(list_width), Constraint::Min(24)])
+        .constraints([Constraint::Length(list_width), Constraint::Min(12)])
         .split(content);
     (chunks[0], chunks[1])
 }
