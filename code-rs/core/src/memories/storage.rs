@@ -460,7 +460,6 @@ struct EpochRenderView<'a> {
     provenance: Stage1EpochProvenance,
     rollout_path: Option<&'a Path>,
     rollout_summary_filename: Option<&'a str>,
-    last_user_request: &'a str,
 }
 
 fn push_epoch_metadata_lines(body: &mut String, view: &EpochRenderView<'_>) {
@@ -502,19 +501,6 @@ fn push_epoch_metadata_lines(body: &mut String, view: &EpochRenderView<'_>) {
     }
 }
 
-fn render_epoch_summary_block(view: &EpochRenderView<'_>) -> String {
-    use std::fmt::Write;
-    let mut entry = String::new();
-    let _ = writeln!(
-        entry,
-        "## {} | {}#{}",
-        view.updated_at_label, view.id.thread_id, view.id.epoch_index
-    );
-    push_epoch_metadata_lines(&mut entry, view);
-    let _ = write!(entry, "last_user_request: {}", view.last_user_request);
-    entry
-}
-
 fn render_raw_memory_body(
     claim: &Stage1Claim,
     epoch_index: i64,
@@ -542,7 +528,6 @@ fn render_raw_memory_body(
         provenance,
         rollout_path: Some(&claim.rollout_path),
         rollout_summary_filename: Some(&rollout_summary_filename),
-        last_user_request: snippet,
     };
     push_epoch_metadata_lines(&mut body, &view);
     body.push('\n');
@@ -576,7 +561,6 @@ fn render_rollout_summary_body(
         provenance,
         rollout_path: Some(&claim.rollout_path),
         rollout_summary_filename: None,
-        last_user_request: snippet,
     };
     push_epoch_metadata_lines(&mut body, &view);
     body.push('\n');
@@ -622,10 +606,53 @@ async fn maybe_build_artifacts_from_state(
         .map_err(io::Error::other)
 }
 
+/// Minimum snippet length to be considered useful for prompt injection.
+const MIN_USEFUL_SNIPPET_LEN: usize = 10;
+
+/// Returns true if this epoch has meaningful content worth injecting into
+/// model prompts. Empty derivation fallbacks and trivially short snippets
+/// are filtered out to avoid wasting prompt budget.
+fn epoch_has_useful_content(record: &Stage1EpochRecord) -> bool {
+    if record.provenance == Stage1EpochProvenance::EmptyDerivationFallback {
+        return false;
+    }
+    let snippet = summary_snippet_from_rollout_summary(&record.rollout_summary);
+    snippet != "(no user snippet)" && snippet.len() >= MIN_USEFUL_SNIPPET_LEN
+}
+
+/// Collapse near-duplicate epochs by normalized snippet. When multiple epochs
+/// share the same normalized user snippet (lowercased, trimmed), only the most
+/// recent one (by source_updated_at) is retained.
+fn deduplicate_epochs<'a>(epochs: &[&'a Stage1EpochRecord]) -> Vec<&'a Stage1EpochRecord> {
+    let mut seen = std::collections::HashMap::<String, usize>::new();
+    let mut result: Vec<&'a Stage1EpochRecord> = Vec::with_capacity(epochs.len());
+    for &record in epochs {
+        let snippet = summary_snippet_from_rollout_summary(&record.rollout_summary);
+        let key = snippet.trim().to_lowercase();
+        if let Some(&existing_idx) = seen.get(&key) {
+            // Keep the more recent one.
+            if record.source_updated_at > result[existing_idx].source_updated_at {
+                result[existing_idx] = record;
+            }
+        } else {
+            seen.insert(key, result.len());
+            result.push(record);
+        }
+    }
+    result
+}
+
 fn render_artifacts_from_state(selected: &[Stage1EpochRecord]) -> io::Result<MemoryArtifacts> {
-    let manifest = render_manifest(selected)?;
+    // Filter to only epochs with useful content for prompt injection.
+    // Raw memories and rollout summaries still include all epochs for debugging.
+    let useful: Vec<&Stage1EpochRecord> = selected
+        .iter()
+        .filter(|r| epoch_has_useful_content(r))
+        .collect();
+    let useful_deduped = deduplicate_epochs(&useful);
+    let manifest = render_manifest_from_refs(&useful_deduped)?;
     Ok(MemoryArtifacts {
-        memory_summary: render_memory_summary(selected),
+        memory_summary: render_memory_summary_from_refs(&useful_deduped),
         raw_memories: render_raw_memories(selected),
         rollout_summaries: render_rollout_summaries(selected),
         manifest: serde_json::to_string_pretty(&manifest).map_err(io::Error::other)?,
@@ -670,7 +697,13 @@ fn maybe_fail_before_pointer_swap() -> io::Result<()> {
     Ok(())
 }
 
+#[cfg(test)]
 fn render_memory_summary(selected: &[Stage1EpochRecord]) -> String {
+    let refs: Vec<&Stage1EpochRecord> = selected.iter().collect();
+    render_memory_summary_from_refs(&refs)
+}
+
+fn render_memory_summary_from_refs(selected: &[&Stage1EpochRecord]) -> String {
     let mut body = String::from("# Memory Summary\n\n");
     if selected.is_empty() {
         body.push_str("No prior interactive memory epochs found.\n");
@@ -718,7 +751,7 @@ fn render_rollout_summaries(selected: &[Stage1EpochRecord]) -> HashMap<String, S
         .collect()
 }
 
-fn render_manifest(selected: &[Stage1EpochRecord]) -> io::Result<SnapshotManifest> {
+fn render_manifest_from_refs(selected: &[&Stage1EpochRecord]) -> io::Result<SnapshotManifest> {
     let epochs = selected
         .iter()
         .map(|record| {
@@ -746,24 +779,37 @@ fn render_manifest(selected: &[Stage1EpochRecord]) -> io::Result<SnapshotManifes
 }
 
 fn render_prompt_entry(record: &Stage1EpochRecord) -> String {
-    let rollout_summary_filename = epoch_rollout_summary_filename(record.id);
-    let view = EpochRenderView {
-        updated_at_label: &record.updated_at_label,
-        id: record.id,
-        epoch_start_at: record.epoch_start_at,
-        epoch_end_at: record.epoch_end_at,
-        platform_family: record.platform_family,
-        shell_style: record.shell_style,
-        shell_program: record.shell_program.as_deref(),
-        workspace_root: record.workspace_root.as_deref(),
-        cwd_display: &record.cwd_display,
-        git_branch: record.git_branch.as_deref(),
-        provenance: record.provenance,
-        rollout_path: None,
-        rollout_summary_filename: Some(&rollout_summary_filename),
-        last_user_request: summary_snippet_from_rollout_summary(&record.rollout_summary),
-    };
-    render_epoch_summary_block(&view)
+    render_clean_prompt_entry(record)
+}
+
+/// Render a prompt entry optimized for model consumption.
+///
+/// Unlike the raw_memory / rollout_summary (which retain full metadata for
+/// debugging), this strips internal identifiers (thread_id, epoch_index,
+/// provenance, rollout paths) and keeps only context that helps the model
+/// serve the user: workspace, branch, shell, and the user's request.
+fn render_clean_prompt_entry(record: &Stage1EpochRecord) -> String {
+    use std::fmt::Write;
+    let snippet = summary_snippet_from_rollout_summary(&record.rollout_summary);
+    let mut entry = String::with_capacity(snippet.len() + 200);
+    // Contextual header: when and where this interaction happened.
+    if let Some(ref workspace) = record.workspace_root {
+        let _ = write!(entry, "[{workspace}");
+        if let Some(ref branch) = record.git_branch {
+            let _ = write!(entry, " @ {branch}");
+        }
+        entry.push_str("] ");
+    } else if let Some(ref branch) = record.git_branch {
+        let _ = write!(entry, "[branch: {branch}] ");
+    }
+    // Timestamp for recency context.
+    if let Some(end_at) = record.epoch_end_at {
+        let _ = writeln!(entry, "({})", iso_timestamp(end_at));
+    } else {
+        entry.push('\n');
+    }
+    entry.push_str(snippet);
+    entry
 }
 
 async fn sync_rollout_summaries(
@@ -1859,8 +1905,21 @@ mod tests {
 
         assert!(raw_memory.contains("provenance: catalog_fallback"));
         assert!(rollout_summary.contains("provenance: catalog_fallback"));
-        assert!(summary.contains("provenance: catalog_fallback"));
-        assert!(prompt_entry.contains("provenance: catalog_fallback"));
+        // Memory summary and prompt_entry use the clean format (no internal
+        // metadata like provenance/thread_id). They should contain the useful
+        // context: workspace and the user's request snippet.
+        assert!(
+            summary.contains("/tmp/project"),
+            "summary should contain workspace"
+        );
+        assert!(
+            prompt_entry.contains("/tmp/project"),
+            "prompt_entry should contain workspace"
+        );
+        assert!(
+            prompt_entry.contains("remember fallback"),
+            "prompt_entry should contain user snippet"
+        );
     }
 
     #[tokio::test]
