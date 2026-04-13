@@ -1153,7 +1153,7 @@ fn is_valid_sed_n_arg(arg: Option<&str>) -> bool {
 
 /// Normalize a command by:
 /// - Removing `yes`/`no`/`<shell> -c`/`<shell> -lc` prefixes.
-/// - Splitting on `|` and `&&`/`||`/`;
+/// - Splitting on `|` and `&&`/`||`/`;`
 fn normalize_tokens(cmd: &[String]) -> Vec<String> {
     if let [first, pipe, rest @ ..] = cmd
         && (first == "yes" || first == "y")

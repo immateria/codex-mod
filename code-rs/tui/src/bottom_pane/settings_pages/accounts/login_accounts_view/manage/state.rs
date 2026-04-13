@@ -22,7 +22,7 @@ pub(super) struct AccountRow {
     pub(super) detail_items: Vec<String>,
     pub(super) mode: AuthMode,
     pub(super) is_active: bool,
-    /// True when this ChatGPT account's refresh token appears expired or
+    /// True when this `ChatGPT` account's refresh token appears expired or
     /// the account has no tokens at all (needs re-authentication).
     pub(super) needs_reauth: bool,
 }

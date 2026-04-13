@@ -535,7 +535,7 @@ fn compute_assistant_layout_from_rendered_lines(
     let c_assistant_hr = crate::colors::assistant_hr();
 
     let text_wrap_width = width;
-    let mut segs: Vec<AssistantSeg> = Vec::new();
+    let mut segs: Vec<AssistantSeg> = Vec::with_capacity(rendered_lines.len() / 4 + 1);
 
     let mut idx = 0usize;
     let mut text_start = 0usize;

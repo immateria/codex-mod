@@ -245,7 +245,7 @@ impl ChatWidget<'_> {
         let cwd_short_str = cwd_str
             .rsplit(['/', '\\'])
             .find(|segment| !segment.is_empty())
-            .unwrap_or(cwd_str.as_str()).to_owned();
+            .unwrap_or(cwd_str.as_str());
 
         let branch_opt = self.get_git_branch();
 
@@ -298,8 +298,8 @@ impl ChatWidget<'_> {
         };
         let reasoning_display = Self::format_reasoning_effort(self.config.model_reasoning_effort);
         let mcp_display = mcp_indicator
-            .as_ref().map_or_else(|| "ok".to_owned(), |(_, value)| value.clone());
-        let branch_display = branch_opt.clone().unwrap_or_default();
+            .as_ref().map_or("ok", |(_, value)| value.as_str());
+        let branch_display = branch_opt.as_deref().unwrap_or("");
         let hovered_action = self.hovered_clickable_action.borrow().clone();
         let hover_style = header_cfg.hover_style;
 
@@ -325,7 +325,7 @@ impl ChatWidget<'_> {
                 shell: shell_display.as_str(),
                 reasoning: reasoning_display,
                 directory_full: cwd_str.as_str(),
-                directory_short: cwd_short_str.as_str(),
+                directory_short: cwd_short_str,
                 branch: branch_opt.as_deref(),
                 mcp_indicator: mcp_indicator
                     .as_ref()
@@ -368,8 +368,8 @@ impl ChatWidget<'_> {
             shell: shell_display.as_str(),
             reasoning: reasoning_display,
             directory: cwd_str.as_str(),
-            branch: branch_display.as_str(),
-            mcp: mcp_display.as_str(),
+            branch: branch_display,
+            mcp: mcp_display,
             mcp_kind,
             hovered_action,
             hover_style,

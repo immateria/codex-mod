@@ -312,7 +312,7 @@ impl MarkdownStreamCollector {
 
     /// Finalize the stream: emit all remaining lines beyond the last commit.
     /// If the buffer does not end with a newline, a temporary one is appended
-    /// for rendering. Optionally unwraps ```markdown language fences in
+    /// for rendering. Optionally unwraps markdown language fences in
     /// non-test builds.
     pub fn finalize_and_drain(&mut self, config: &Config) -> Vec<Line<'static>> {
         let needs_newline = !self.buffer.ends_with('\n');

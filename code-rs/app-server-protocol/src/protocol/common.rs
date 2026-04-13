@@ -532,7 +532,7 @@ client_request_definitions! {
         params: v1::GitDiffToRemoteParams,
         response: v1::GitDiffToRemoteResponse,
     },
-    /// DEPRECATED in favor of GetAccount
+    /// DEPRECATED in favor of `GetAccount`
     GetAuthStatus {
         params: v1::GetAuthStatusParams,
         response: v1::GetAuthStatusResponse,
@@ -795,13 +795,13 @@ server_request_definitions! {
 
     /// DEPRECATED APIs below
     /// Request to approve a patch.
-    /// This request is used for Turns started via the legacy APIs (i.e. SendUserTurn, SendUserMessage).
+    /// This request is used for Turns started via the legacy APIs (i.e. `SendUserTurn`, `SendUserMessage`).
     ApplyPatchApproval {
         params: v1::ApplyPatchApprovalParams,
         response: v1::ApplyPatchApprovalResponse,
     },
     /// Request to exec a command.
-    /// This request is used for Turns started via the legacy APIs (i.e. SendUserTurn, SendUserMessage).
+    /// This request is used for Turns started via the legacy APIs (i.e. `SendUserTurn`, `SendUserMessage`).
     ExecCommandApproval {
         params: v1::ExecCommandApprovalParams,
         response: v1::ExecCommandApprovalResponse,

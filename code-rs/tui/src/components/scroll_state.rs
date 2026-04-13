@@ -137,7 +137,7 @@ impl ScrollState {
         self.ensure_visible(len, visible_rows.max(1));
     }
 
-    /// Move selection up by a page (visible_rows) worth of items.
+    /// Move selection up by a page (`visible_rows`) worth of items.
     pub fn page_up(&mut self, len: usize, visible_rows: usize) {
         if len == 0 {
             self.selected_idx = None;
@@ -150,7 +150,7 @@ impl ScrollState {
         self.ensure_visible(len, visible_rows.max(1));
     }
 
-    /// Move selection down by a page (visible_rows) worth of items.
+    /// Move selection down by a page (`visible_rows`) worth of items.
     pub fn page_down(&mut self, len: usize, visible_rows: usize) {
         if len == 0 {
             self.selected_idx = None;
