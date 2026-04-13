@@ -2909,7 +2909,7 @@ fn default_spinner_name() -> String { "diamond".to_owned() }
 
 impl Default for SpinnerSelection {
     fn default() -> Self {
-        Self { name: default_spinner_name(), custom: Default::default() }
+        Self { name: default_spinner_name(), custom: HashMap::default() }
     }
 }
 

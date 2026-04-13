@@ -6,6 +6,7 @@ use std::io;
 use std::path::Path;
 use std::path::PathBuf;
 use toml::Value as TomlValue;
+use toml::map::Map;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ExternalAgentConfigDetectOptions {
@@ -112,7 +113,7 @@ impl ExternalAgentConfigService {
                 let should_include = if target_config.exists() {
                     let existing_raw = fs::read_to_string(&target_config)?;
                     let mut existing = if existing_raw.trim().is_empty() {
-                        TomlValue::Table(Default::default())
+                        TomlValue::Table(Map::default())
                     } else {
                         toml::from_str::<TomlValue>(&existing_raw).map_err(|err| {
                             invalid_data_error(format!("invalid existing config.toml: {err}"))
@@ -227,7 +228,7 @@ impl ExternalAgentConfigService {
 
         let existing_raw = fs::read_to_string(&target_config)?;
         let mut existing = if existing_raw.trim().is_empty() {
-            TomlValue::Table(Default::default())
+            TomlValue::Table(Map::default())
         } else {
             toml::from_str::<TomlValue>(&existing_raw)
                 .map_err(|err| invalid_data_error(format!("invalid existing config.toml: {err}")))?

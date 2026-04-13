@@ -53,6 +53,7 @@ use serde_json::json;
 use sha1::Digest;
 use sha1::Sha1;
 use toml::Value as TomlValue;
+use toml::map::Map;
 
 mod v2;
 
@@ -854,7 +855,7 @@ impl MessageProcessor {
         }
 
         let mut root = if current_contents.trim().is_empty() {
-            TomlValue::Table(Default::default())
+            TomlValue::Table(Map::default())
         } else {
             current_contents.parse::<TomlValue>().map_err(|err| {
                 config_write_error(
@@ -988,7 +989,7 @@ fn set_toml_path(root: &mut TomlValue, key_path: &str, value: TomlValue) -> Resu
     let mut current = root;
     for segment in &segments[..segments.len() - 1] {
         if !current.is_table() {
-            *current = TomlValue::Table(Default::default());
+            *current = TomlValue::Table(Map::default());
         }
         let table = current
             .as_table_mut()
@@ -998,11 +999,11 @@ fn set_toml_path(root: &mut TomlValue, key_path: &str, value: TomlValue) -> Resu
             ))?;
         current = table
             .entry((*segment).to_owned())
-            .or_insert_with(|| TomlValue::Table(Default::default()));
+            .or_insert_with(|| TomlValue::Table(Map::default()));
     }
 
     if !current.is_table() {
-        *current = TomlValue::Table(Default::default());
+        *current = TomlValue::Table(Map::default());
     }
     let table = current
         .as_table_mut()
@@ -1040,7 +1041,7 @@ fn upsert_toml_path(
     let mut current = root;
     for segment in &segments[..segments.len() - 1] {
         if !current.is_table() {
-            *current = TomlValue::Table(Default::default());
+            *current = TomlValue::Table(Map::default());
         }
         let table = current
             .as_table_mut()
@@ -1050,11 +1051,11 @@ fn upsert_toml_path(
             ))?;
         current = table
             .entry((*segment).to_owned())
-            .or_insert_with(|| TomlValue::Table(Default::default()));
+            .or_insert_with(|| TomlValue::Table(Map::default()));
     }
 
     if !current.is_table() {
-        *current = TomlValue::Table(Default::default());
+        *current = TomlValue::Table(Map::default());
     }
 
     let table = current

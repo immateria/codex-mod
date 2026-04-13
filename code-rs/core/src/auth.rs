@@ -18,6 +18,7 @@ use std::time::Duration;
 use code_app_server_protocol::AuthMode;
 
 use crate::token_data::TokenData;
+use crate::token_data::IdTokenInfo;
 use crate::token_data::KnownPlan;
 use crate::token_data::PlanType;
 use crate::token_data::parse_id_token;
@@ -277,7 +278,7 @@ impl CodexAuth {
             auth_mode: Some(AuthMode::ChatGPT),
             openai_api_key: None,
             tokens: Some(TokenData {
-                id_token: Default::default(),
+                id_token: IdTokenInfo::default(),
                 access_token: "Access Token".to_owned(),
                 refresh_token: "test".to_owned(),
                 account_id: Some("account_id".to_owned()),

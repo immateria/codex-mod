@@ -548,7 +548,7 @@ impl UserApprovalWidget<'_> {
                     ReviewDecision::Approved | ReviewDecision::ApprovedForSession => {
                         permissions.clone()
                     }
-                    ReviewDecision::Denied | ReviewDecision::Abort => Default::default(),
+                    ReviewDecision::Denied | ReviewDecision::Abort => RequestPermissionProfile::default(),
                 };
                 let scope = if matches!(decision, ReviewDecision::ApprovedForSession) {
                     PermissionGrantScope::Session

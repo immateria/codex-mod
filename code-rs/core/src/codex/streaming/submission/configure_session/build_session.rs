@@ -179,7 +179,7 @@ impl Runner<'_> {
                 let message = format!("Failed to create MCP connection manager: {e:#}");
                 error!("{message}");
                 mcp_connection_errors.push(message);
-                (McpConnectionManager::default(), Default::default())
+                (McpConnectionManager::default(), HashMap::default())
             }
         };
 

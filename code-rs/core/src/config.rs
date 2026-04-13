@@ -72,6 +72,7 @@ use serde::de::{self, Unexpected};
 use std::path::Path;
 use std::path::PathBuf;
 use toml::Value as TomlValue;
+use toml::map::Map;
 
 mod builder;
 mod defaults;
@@ -687,7 +688,7 @@ impl Config {
         overrides: ConfigOverrides,
     ) -> std::io::Result<Self> {
         let code_home = find_code_home()?;
-        let mut root_value = TomlValue::Table(Default::default());
+        let mut root_value = TomlValue::Table(Map::default());
         let cli_paths: Vec<String> = cli_overrides.iter().map(|(path, _)| path.clone()).collect();
         for (path, value) in cli_overrides {
             validation::apply_toml_override(&mut root_value, &path, value);

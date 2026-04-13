@@ -1,3 +1,4 @@
+use std::collections::BTreeMap;
 use std::collections::HashMap;
 
 use anyhow::Context;
@@ -11,6 +12,7 @@ use code_core::config::find_code_home;
 use code_core::config::load_global_mcp_servers;
 use code_core::config::write_global_mcp_servers;
 use code_core::config_types::McpServerConfig;
+use code_core::config_types::McpServerSchedulingToml;
 use code_core::config_types::McpServerTransportConfig;
 
 /// Subcommands:
@@ -193,8 +195,8 @@ fn run_add(config_overrides: &CliConfigOverrides, add_args: AddArgs) -> Result<(
         transport,
         startup_timeout_sec: None,
         tool_timeout_sec: None,
-        scheduling: Default::default(),
-        tool_scheduling: Default::default(),
+        scheduling: McpServerSchedulingToml::default(),
+        tool_scheduling: BTreeMap::default(),
         disabled_tools: Vec::new(),
     };
 

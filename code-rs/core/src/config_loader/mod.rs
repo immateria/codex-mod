@@ -23,6 +23,7 @@ use std::path::Path;
 use std::path::PathBuf;
 use tokio::runtime::{Builder as RuntimeBuilder, Handle};
 use toml::Value as TomlValue;
+use toml::map::Map;
 
 #[derive(Debug, Default, Clone)]
 pub struct LoaderOverrides {
@@ -199,7 +200,7 @@ pub async fn load_config_as_toml(code_home: &Path) -> io::Result<TomlValue> {
 }
 
 fn default_empty_table() -> TomlValue {
-    TomlValue::Table(Default::default())
+    TomlValue::Table(Map::default())
 }
 
 pub async fn load_config_layers_state(

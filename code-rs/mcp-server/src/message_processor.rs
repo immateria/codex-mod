@@ -26,7 +26,7 @@ use code_protocol::protocol::SessionSource;
 use code_common::model_presets::{builtin_model_presets, clamp_reasoning_effort_for_model, ModelPreset};
 use code_core::AuthManager;
 use code_core::ConversationManager;
-use code_core::config_types::{ClientTools, McpServerConfig, McpServerTransportConfig, ReasoningEffort};
+use code_core::config_types::{ClientTools, McpServerConfig, McpServerSchedulingToml, McpServerTransportConfig, ReasoningEffort};
 use code_core::config::Config;
 use code_core::default_client::USER_AGENT_SUFFIX;
 use code_core::default_client::get_code_user_agent_default;
@@ -49,6 +49,8 @@ use mcp_types::RequestId;
 use mcp_types::ServerNotification;
 use mcp_types::TextContent;
 use serde_json::json;
+use serde_json::Map;
+use std::collections::BTreeMap;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use tokio::task;
@@ -224,7 +226,7 @@ impl MessageProcessor {
                     if !map.contains_key("capabilities") {
                         let capabilities = map
                             .remove("clientCapabilities")
-                            .unwrap_or_else(|| serde_json::Value::Object(Default::default()));
+                            .unwrap_or_else(|| serde_json::Value::Object(Map::default()));
 
                         let mut cap_wrapper = serde_json::Map::new();
                         cap_wrapper.insert("experimental".to_owned(), capabilities);
@@ -968,7 +970,7 @@ impl MessageProcessor {
             ..Default::default()
         };
 
-        Ok(Config::load_with_cli_overrides(Default::default(), overrides)?)
+        Ok(Config::load_with_cli_overrides(Vec::default(), overrides)?)
     }
 
     async fn handle_session_prompt(
@@ -1432,8 +1434,8 @@ fn convert_mcp_servers(
                         },
                         startup_timeout_sec: None,
                         tool_timeout_sec: None,
-                        scheduling: Default::default(),
-                        tool_scheduling: Default::default(),
+                        scheduling: McpServerSchedulingToml::default(),
+                        tool_scheduling: BTreeMap::default(),
                         disabled_tools: Vec::new(),
                     },
                 );

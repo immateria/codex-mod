@@ -29,6 +29,7 @@ use std::path::PathBuf;
 use tempfile::NamedTempFile;
 use thiserror::Error;
 use toml::Value as TomlValue;
+use toml::map::Map;
 
 #[derive(Debug, Error)]
 pub enum ConfigServiceError {
@@ -257,7 +258,7 @@ impl ConfigService {
         };
 
         let mut root = if current_contents.trim().is_empty() {
-            TomlValue::Table(Default::default())
+            TomlValue::Table(Map::default())
         } else {
             current_contents.parse::<TomlValue>().map_err(|err| {
                 ConfigServiceError::write(
@@ -489,7 +490,7 @@ fn set_toml_path(
     let mut current = root;
     for segment in &segments[..segments.len() - 1] {
         if !current.is_table() {
-            *current = TomlValue::Table(Default::default());
+            *current = TomlValue::Table(Map::default());
         }
         let Some(table) = current.as_table_mut() else {
             return Err(ConfigServiceError::write(
@@ -499,11 +500,11 @@ fn set_toml_path(
         };
         current = table
             .entry((*segment).to_owned())
-            .or_insert_with(|| TomlValue::Table(Default::default()));
+            .or_insert_with(|| TomlValue::Table(Map::default()));
     }
 
     if !current.is_table() {
-        *current = TomlValue::Table(Default::default());
+        *current = TomlValue::Table(Map::default());
     }
     let Some(table) = current.as_table_mut() else {
         return Err(ConfigServiceError::write(
@@ -538,7 +539,7 @@ fn upsert_toml_path(
     let mut current = root;
     for segment in &segments[..segments.len() - 1] {
         if !current.is_table() {
-            *current = TomlValue::Table(Default::default());
+            *current = TomlValue::Table(Map::default());
         }
         let Some(table) = current.as_table_mut() else {
             return Err(ConfigServiceError::write(
@@ -548,11 +549,11 @@ fn upsert_toml_path(
         };
         current = table
             .entry((*segment).to_owned())
-            .or_insert_with(|| TomlValue::Table(Default::default()));
+            .or_insert_with(|| TomlValue::Table(Map::default()));
     }
 
     if !current.is_table() {
-        *current = TomlValue::Table(Default::default());
+        *current = TomlValue::Table(Map::default());
     }
 
     let Some(table) = current.as_table_mut() else {

@@ -1,5 +1,6 @@
 use super::*;
 use super::session::{HookGuard, RunningExecMeta};
+use code_protocol::models::SandboxPermissions;
 
 fn synthetic_exec_end_payload(cancelled: bool) -> (i32, String) {
     if cancelled {
@@ -807,7 +808,7 @@ impl Session {
             cwd: hook.resolved_cwd(self.get_cwd()),
             timeout_ms: hook.timeout_ms,
             env,
-            sandbox_permissions: Default::default(),
+            sandbox_permissions: SandboxPermissions::default(),
             additional_permissions: None,
             justification: None,
         };
@@ -821,7 +822,7 @@ impl Session {
             parent_call_id: None,
         };
 
-        let sandbox_type = self.resolve_internal_sandbox(Default::default());
+        let sandbox_type = self.resolve_internal_sandbox(SandboxPermissions::default());
         let exec_args = ExecInvokeArgs {
             params: exec_params,
             sandbox_type,
@@ -900,7 +901,7 @@ impl Session {
             cwd: command.resolved_cwd(self.get_cwd()),
             timeout_ms: command.timeout_ms,
             env,
-            sandbox_permissions: Default::default(),
+            sandbox_permissions: SandboxPermissions::default(),
             additional_permissions: None,
             justification: None,
         };
@@ -915,7 +916,7 @@ impl Session {
             parent_call_id: None,
         };
 
-        let sandbox_type = self.resolve_internal_sandbox(Default::default());
+        let sandbox_type = self.resolve_internal_sandbox(SandboxPermissions::default());
         let exec_args = ExecInvokeArgs {
             params: exec_params,
             sandbox_type,

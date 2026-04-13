@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use std::io;
+use std::collections::BTreeMap;use std::io;
 use std::path::Path;
 use std::time::Duration;
 
@@ -179,7 +179,7 @@ pub async fn build_codex_apps_source_servers(
             startup_timeout_sec: Some(Duration::from_secs(30)),
             tool_timeout_sec: None,
             scheduling: crate::config_types::McpServerSchedulingToml::default(),
-            tool_scheduling: Default::default(),
+            tool_scheduling: BTreeMap::default(),
             disabled_tools: Vec::new(),
         };
 

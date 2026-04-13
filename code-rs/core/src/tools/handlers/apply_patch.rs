@@ -7,6 +7,7 @@ use crate::tools::registry::unsupported_tool_call_output;
 use crate::turn_diff_tracker::TurnDiffTracker;
 use async_trait::async_trait;
 use code_protocol::models::ResponseInputItem;
+use code_protocol::models::SandboxPermissions;
 use serde::Deserialize;
 use std::collections::HashMap;
 
@@ -66,7 +67,7 @@ impl ToolHandler for ApplyPatchToolHandler {
                     cwd: sess.get_cwd().to_path_buf(),
                     timeout_ms: None,
                     env: HashMap::new(),
-                    sandbox_permissions: Default::default(),
+                    sandbox_permissions: SandboxPermissions::default(),
                     additional_permissions: None,
                     justification: None,
                 };

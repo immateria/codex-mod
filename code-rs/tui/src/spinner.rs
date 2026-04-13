@@ -1,6 +1,7 @@
 use lazy_static::lazy_static;
 use serde::Deserialize;
 use serde_json::Value;
+use serde_json::Map;
 // Keep JSON insertion order; no need for BTreeMap
 use std::sync::LockResult;
 use std::sync::RwLock;
@@ -41,7 +42,7 @@ lazy_static! {
     };
     static ref ALL_SPINNERS: Vec<Spinner> = {
         let mut list: Vec<Spinner> = Vec::new();
-        let val: Value = serde_json::from_str(SPINNERS_JSON).unwrap_or(Value::Object(Default::default()));
+        let val: Value = serde_json::from_str(SPINNERS_JSON).unwrap_or(Value::Object(Map::default()));
         if let Value::Object(map) = val {
             // Mixed-mode tolerant parse: for each top-level entry
             for (k, v) in map {
@@ -70,7 +71,7 @@ lazy_static! {
         list
     };
     static ref DEFAULT_INDEX: usize = {
-        let val: Value = serde_json::from_str(SPINNERS_JSON).unwrap_or(Value::Object(Default::default()));
+        let val: Value = serde_json::from_str(SPINNERS_JSON).unwrap_or(Value::Object(Map::default()));
         if let Value::Object(map) = val
             && let Some(Value::String(def)) = map.get("Default")
                 && let Some(found) = ALL_SPINNERS.iter().position(|s| s.name == *def) {
