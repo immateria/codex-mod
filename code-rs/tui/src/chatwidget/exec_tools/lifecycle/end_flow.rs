@@ -158,7 +158,7 @@ pub(in super::super::super) fn handle_exec_end_now(
         let action = history_cell::action_enum_from_parsed(&parsed);
         let status = match (exit_code, action) {
             (0, _) => history_cell::ExploreEntryStatus::Success,
-            (1, ExecAction::Search) | (1, ExecAction::List) => history_cell::ExploreEntryStatus::NotFound,
+            (1, ExecAction::Search | ExecAction::List) => history_cell::ExploreEntryStatus::NotFound,
             _ => history_cell::ExploreEntryStatus::Error {
                 exit_code: Some(exit_code),
             },

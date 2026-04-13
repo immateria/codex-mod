@@ -70,8 +70,8 @@ pub(super) fn render_create_theme_mode_inner(
                     view.app_event_tx.send(AppEvent::RequestRedraw);
                 }
                 Ok(ProgressMsg::CompletedOk { .. }) => {}
-                Err(std::sync::mpsc::TryRecvError::Empty)
-                | Err(std::sync::mpsc::TryRecvError::Disconnected) => break,
+                Err(std::sync::mpsc::TryRecvError::Empty
+                | std::sync::mpsc::TryRecvError::Disconnected) => break,
             }
         }
     }

@@ -333,10 +333,8 @@ impl ChatWidget<'_> {
                     } else if crate::icons::is_patch(symbol) {
                         match item_kind {
                             crate::history_cell::HistoryCellType::Patch {
-                                kind: crate::history_cell::PatchKind::ApplySuccess,
-                            }
-                            | crate::history_cell::HistoryCellType::Patch {
-                                kind: crate::history_cell::PatchKind::ApplyBegin,
+                                kind: crate::history_cell::PatchKind::ApplySuccess
+                                | crate::history_cell::PatchKind::ApplyBegin,
                             } => c_success,
                             crate::history_cell::HistoryCellType::Patch {
                                 kind: crate::history_cell::PatchKind::ApplyFailure,

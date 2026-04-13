@@ -471,7 +471,7 @@ impl MemoriesSettingsView {
                 }
                 return true;
             }
-            KeyCode::Char('/') | KeyCode::Char('f')
+            KeyCode::Char('/' | 'f')
                 if key_event.code == KeyCode::Char('/')
                     || key_event.modifiers.contains(KeyModifiers::CONTROL) =>
             {
@@ -578,7 +578,7 @@ impl MemoriesSettingsView {
             && let Some(slug) = list.pending_delete.clone()
         {
             match key_event.code {
-                KeyCode::Char('y') | KeyCode::Char('Y') => {
+                KeyCode::Char('y' | 'Y') => {
                     self.delete_rollout(&slug);
                     return true;
                 }

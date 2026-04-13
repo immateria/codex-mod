@@ -69,8 +69,8 @@ pub(super) fn render_create_spinner_mode_inner(
                     view.app_event_tx.send(AppEvent::RequestRedraw);
                 }
                 Ok(ProgressMsg::CompletedThemeOk(..)) => {}
-                Err(std::sync::mpsc::TryRecvError::Empty)
-                | Err(std::sync::mpsc::TryRecvError::Disconnected) => break,
+                Err(std::sync::mpsc::TryRecvError::Empty
+                | std::sync::mpsc::TryRecvError::Disconnected) => break,
             }
         }
     }

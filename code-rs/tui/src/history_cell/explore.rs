@@ -200,7 +200,7 @@ pub(crate) fn explore_record_push_from_parsed(
                             *existing_ann = annot.clone().or_else(|| annotation_for_range(ns, ne));
                             true
                         }
-                        (Some(_), None) | (None, None) => {
+                        (Some(_) | None, None) => {
                             if annot.is_some() {
                                 existing_ann.clone_from(&annot);
                             }

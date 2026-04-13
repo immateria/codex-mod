@@ -296,7 +296,7 @@ impl InterfaceSettingsView {
                 Some(n) => FunctionKeyHotkey::from_u8(n.saturating_add(1)).map(TuiHotkey::Function),
                 None => None,
             },
-            None | Some(TuiHotkey::Legacy) | Some(TuiHotkey::Chord(_)) => Some(TuiHotkey::disabled()),
+            None | Some(TuiHotkey::Legacy | TuiHotkey::Chord(_)) => Some(TuiHotkey::disabled()),
         }
     }
 
