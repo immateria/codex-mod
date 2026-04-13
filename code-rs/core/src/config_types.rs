@@ -315,7 +315,7 @@ pub enum AuthCredentialsStoreMode {
     Ephemeral,
 }
 
-#[derive(Deserialize, Debug, Clone, PartialEq, JsonSchema)]
+#[derive(Deserialize, Debug, Clone, PartialEq, Eq, JsonSchema)]
 #[serde(rename_all = "kebab-case")]
 pub enum OtelHttpProtocol {
     Binary,
@@ -694,7 +694,7 @@ impl<'de> Deserialize<'de> for McpServerConfig {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, JsonSchema)]
 pub struct ShellConfig {
     pub path: String,
     #[serde(default)]
@@ -880,7 +880,7 @@ pub struct ShellStyleProfileConfig {
     pub dangerous_command_detection: Option<bool>,
 }
 
-#[derive(Deserialize, Debug, Clone, PartialEq, JsonSchema)]
+#[derive(Deserialize, Debug, Clone, PartialEq, Eq, JsonSchema)]
 pub struct ShellPresetConfig {
     pub id: String,
     pub command: String,
@@ -898,7 +898,7 @@ fn default_shell_preset_show_in_picker() -> bool {
     true
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, JsonSchema)]
 #[serde(untagged, deny_unknown_fields, rename_all = "snake_case")]
 pub enum McpServerTransportConfig {
     /// <https://modelcontextprotocol.io/specification/2025-06-18/basic/transports#stdio>
@@ -977,7 +977,7 @@ impl Default for ConfirmGuardConfig {
     }
 }
 
-#[derive(Deserialize, Debug, Clone, PartialEq, JsonSchema)]
+#[derive(Deserialize, Debug, Clone, PartialEq, Eq, JsonSchema)]
 pub struct ConfirmGuardPattern {
     /// ECMA-style regular expression matched against the command string.
     pub regex: String,
@@ -1076,7 +1076,7 @@ pub struct AllowedCommand {
 }
 
 /// Configuration for a subagent slash command (e.g., plan/solve/code or custom)
-#[derive(Deserialize, Debug, Clone, PartialEq, Default, JsonSchema)]
+#[derive(Deserialize, Debug, Clone, PartialEq, Eq, Default, JsonSchema)]
 #[serde(rename_all = "kebab-case")]
 pub struct SubagentCommandConfig {
     /// Name of the command (e.g., "plan", "solve", "code", or custom)
@@ -1136,7 +1136,7 @@ pub struct McpToolId {
 }
 
 /// Configuration for external agent models
-#[derive(Deserialize, Debug, Clone, PartialEq, JsonSchema)]
+#[derive(Deserialize, Debug, Clone, PartialEq, Eq, JsonSchema)]
 #[serde(rename_all = "kebab-case")]
 pub struct AgentConfig {
     /// Name of the agent (e.g., "claude", "gemini", "gpt-4")
@@ -1190,7 +1190,7 @@ fn default_true() -> bool {
 }
 
 /// GitHub integration settings.
-#[derive(Deserialize, Debug, Clone, PartialEq, Default, JsonSchema)]
+#[derive(Deserialize, Debug, Clone, PartialEq, Eq, Default, JsonSchema)]
 pub struct GithubConfig {
     /// When true, Codex watches for GitHub Actions workflow runs after a
     /// successful `git push` and reports failures as background messages.
@@ -1236,7 +1236,7 @@ pub struct ValidationConfig {
     pub tools: ValidationTools,
 }
 
-#[derive(Deserialize, Debug, Clone, PartialEq, Default, JsonSchema)]
+#[derive(Deserialize, Debug, Clone, PartialEq, Eq, Default, JsonSchema)]
 pub struct ValidationGroups {
     /// Functional checks catch correctness regressions.
     #[serde(default = "default_true")]
@@ -1247,7 +1247,7 @@ pub struct ValidationGroups {
     pub stylistic: bool,
 }
 
-#[derive(Deserialize, Debug, Clone, PartialEq, Default, JsonSchema)]
+#[derive(Deserialize, Debug, Clone, PartialEq, Eq, Default, JsonSchema)]
 pub struct ValidationTools {
     pub shellcheck: Option<bool>,
     pub markdownlint: Option<bool>,
@@ -1304,7 +1304,7 @@ pub fn validation_tool_category(name: &str) -> ValidationCategory {
     }
 }
 
-#[derive(Deserialize, Debug, Copy, Clone, PartialEq, JsonSchema)]
+#[derive(Deserialize, Debug, Copy, Clone, PartialEq, Eq, JsonSchema)]
 pub enum UriBasedFileOpener {
     #[serde(rename = "vscode")]
     VsCode,
@@ -1343,7 +1343,7 @@ pub struct History {
     pub persistence: HistoryPersistence,
 }
 
-#[derive(Deserialize, Debug, Copy, Clone, PartialEq, Default, JsonSchema)]
+#[derive(Deserialize, Debug, Copy, Clone, PartialEq, Eq, Default, JsonSchema)]
 #[serde(rename_all = "kebab-case")]
 pub enum HistoryPersistence {
     /// Save all history entries to disk.
@@ -1367,7 +1367,7 @@ impl Default for Notifications {
 }
 
 /// Collection of settings that are specific to the TUI.
-#[derive(Deserialize, Serialize, Debug, Clone, PartialEq, JsonSchema)]
+#[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq, JsonSchema)]
 pub struct CachedTerminalBackground {
     pub is_dark: bool,
     #[serde(default)]
@@ -2620,7 +2620,7 @@ impl Tui {
 }
 
 /// User acknowledgements for in-product notices (distinct from notifications).
-#[derive(Deserialize, Debug, Clone, PartialEq, Default, JsonSchema)]
+#[derive(Deserialize, Debug, Clone, PartialEq, Eq, Default, JsonSchema)]
 pub struct Notice {
     pub hide_full_access_warning: Option<bool>,
     pub hide_gpt5_1_migration_prompt: Option<bool>,
@@ -2703,7 +2703,7 @@ pub fn default_auto_drive_model_routing_entries() -> Vec<AutoDriveModelRoutingEn
 }
 
 /// Auto Drive behavioral defaults persisted via `config.toml`.
-#[derive(Deserialize, Debug, Clone, PartialEq, JsonSchema)]
+#[derive(Deserialize, Debug, Clone, PartialEq, Eq, JsonSchema)]
 pub struct AutoDriveSettings {
     #[serde(default = "default_true")]
     pub review_enabled: bool,
@@ -2811,7 +2811,7 @@ impl AutoDriveContinueMode {
 
 
 /// Streaming behavior configuration for the TUI.
-#[derive(Deserialize, Debug, Clone, PartialEq, JsonSchema)]
+#[derive(Deserialize, Debug, Clone, PartialEq, Eq, JsonSchema)]
 pub struct StreamConfig {
     /// Emit the Answer header immediately when a stream begins (before first newline).
     #[serde(default)]
@@ -2914,7 +2914,7 @@ impl Default for SpinnerSelection {
 }
 
 /// User-defined custom spinner
-#[derive(Deserialize, Debug, Clone, PartialEq, JsonSchema)]
+#[derive(Deserialize, Debug, Clone, PartialEq, Eq, JsonSchema)]
 pub struct CustomSpinner {
     pub interval: u64,
     pub frames: Vec<String>,
@@ -2929,7 +2929,7 @@ pub struct CustomSpinner {
 /// - "auto" (default): choose a sensible built-in syntect theme based on
 ///   whether the current UI theme is light or dark.
 /// - "<name>": use a specific syntect theme by name from the default `ThemeSet`.
-#[derive(Deserialize, Debug, Clone, PartialEq, Default, JsonSchema)]
+#[derive(Deserialize, Debug, Clone, PartialEq, Eq, Default, JsonSchema)]
 pub struct HighlightConfig {
     /// Theme selection preference (see docstring for accepted values)
     #[serde(default)]
@@ -2937,7 +2937,7 @@ pub struct HighlightConfig {
 }
 
 /// Available predefined themes
-#[derive(Deserialize, Debug, Clone, Copy, PartialEq, Default, JsonSchema)]
+#[derive(Deserialize, Debug, Clone, Copy, PartialEq, Eq, Default, JsonSchema)]
 #[serde(rename_all = "kebab-case")]
 pub enum ThemeName {
     // Light themes (at top)
@@ -2963,7 +2963,7 @@ pub enum ThemeName {
 }
 
 /// Theme colors that can be customized
-#[derive(Deserialize, Debug, Clone, PartialEq, Default, JsonSchema)]
+#[derive(Deserialize, Debug, Clone, PartialEq, Eq, Default, JsonSchema)]
 pub struct ThemeColors {
     // Primary colors
     pub primary: Option<String>,
@@ -3042,21 +3042,21 @@ pub struct BrowserViewportConfig {
     pub mobile: bool,
 }
 
-#[derive(Deserialize, Debug, Clone, PartialEq, JsonSchema)]
+#[derive(Deserialize, Debug, Clone, PartialEq, Eq, JsonSchema)]
 #[serde(untagged)]
 pub enum BrowserWaitStrategy {
     Event(String),
     Delay { delay_ms: u64 },
 }
 
-#[derive(Deserialize, Debug, Clone, Copy, PartialEq, JsonSchema)]
+#[derive(Deserialize, Debug, Clone, Copy, PartialEq, Eq, JsonSchema)]
 #[serde(rename_all = "lowercase")]
 pub enum BrowserImageFormat {
     Png,
     Webp,
 }
 
-#[derive(Deserialize, Debug, Clone, PartialEq, Default, JsonSchema)]
+#[derive(Deserialize, Debug, Clone, PartialEq, Eq, Default, JsonSchema)]
 pub struct SandboxWorkspaceWrite {
     #[serde(default)]
     pub writable_roots: Vec<PathBuf>,
@@ -3075,7 +3075,7 @@ pub struct SandboxWorkspaceWrite {
 // Serde helper: default to true for `allow_git_writes` when omitted.
 pub(crate) const fn default_true_bool() -> bool { true }
 
-#[derive(Deserialize, Debug, Clone, PartialEq, Default, JsonSchema)]
+#[derive(Deserialize, Debug, Clone, PartialEq, Eq, Default, JsonSchema)]
 #[serde(rename_all = "kebab-case")]
 pub enum ShellEnvironmentPolicyInherit {
     /// "Core" environment variables for the platform. On UNIX, this would
@@ -3315,7 +3315,7 @@ impl ProjectHookEvent {
     }
 }
 
-#[derive(Deserialize, Debug, Clone, PartialEq, JsonSchema)]
+#[derive(Deserialize, Debug, Clone, PartialEq, Eq, JsonSchema)]
 pub struct ProjectHookConfig {
     pub event: ProjectHookEvent,
     #[serde(default)]
@@ -3332,7 +3332,7 @@ pub struct ProjectHookConfig {
     pub run_in_background: Option<bool>,
 }
 
-#[derive(Deserialize, Debug, Clone, PartialEq, JsonSchema)]
+#[derive(Deserialize, Debug, Clone, PartialEq, Eq, JsonSchema)]
 pub struct ProjectCommandConfig {
     pub name: String,
     #[serde(alias = "run", deserialize_with = "deserialize_command_vec")]

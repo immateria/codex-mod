@@ -22,7 +22,7 @@ pub struct OutgoingNotificationParams {
 // Additional MCP-specific data to be added to a [`code_core::protocol::Event`] as notification.params._meta
 // MCP Spec: https://modelcontextprotocol.io/specification/2025-06-18/basic#meta
 // Typescript Schema: https://github.com/modelcontextprotocol/modelcontextprotocol/blob/0695a497eb50a804fc0e88c18a93a21a675d6b3e/schema/2025-06-18/schema.ts
-#[derive(Debug, Clone, PartialEq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct OutgoingNotificationMeta {
     pub request_id: Option<RequestId>,

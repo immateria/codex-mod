@@ -89,7 +89,7 @@ pub struct ReasoningEffortPreset {
     pub description: String,
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize, TS, JsonSchema, PartialEq)]
+#[derive(Debug, Clone, Deserialize, Serialize, TS, JsonSchema, PartialEq, Eq)]
 pub struct ModelUpgrade {
     pub id: String,
     pub reasoning_effort_mapping: Option<HashMap<ReasoningEffort, ReasoningEffort>>,

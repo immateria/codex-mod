@@ -11,7 +11,7 @@
 use serde::Deserialize;
 use serde::Serialize;
 
-#[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Default, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct GitPullRequest {
     #[serde(rename = "number")]
     pub number: i32,

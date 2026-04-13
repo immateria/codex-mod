@@ -21,7 +21,7 @@ pub struct FreeformTool {
     pub(crate) format: FreeformToolFormat,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct FreeformToolFormat {
     pub(crate) r#type: String,
     pub(crate) syntax: String,
@@ -53,7 +53,7 @@ pub struct WebSearchTool {
     pub filters: Option<WebSearchFilters>,
 }
 
-#[derive(Debug, Clone, Serialize, PartialEq, Default)]
+#[derive(Debug, Clone, Serialize, PartialEq, Eq, Default)]
 pub struct WebSearchFilters {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub allowed_domains: Option<Vec<String>>,

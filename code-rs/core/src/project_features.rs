@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 
 use crate::config_types::{ProjectCommandConfig, ProjectHookConfig, ProjectHookEvent};
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ProjectHook {
     pub event: ProjectHookEvent,
     pub name: Option<String>,
@@ -62,7 +62,7 @@ impl ProjectHooks {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ProjectCommand {
     pub name: String,
     pub command: Vec<String>,

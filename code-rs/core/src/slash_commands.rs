@@ -59,7 +59,7 @@ fn get_default_models() -> Vec<String> {
 }
 
 /// Resolution result for a subagent command.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SubagentResolution {
     pub name: String,
     pub read_only: bool,

@@ -577,16 +577,12 @@ impl MemoriesSettingsView {
         if let ViewMode::RolloutList(ref mut list) = self.mode
             && let Some(slug) = list.pending_delete.clone()
         {
-            match key_event.code {
-                KeyCode::Char('y' | 'Y') => {
-                    self.delete_rollout(&slug);
-                    return true;
-                }
-                _ => {
-                    list.pending_delete = None;
-                    return true;
-                }
+            if let KeyCode::Char('y' | 'Y') = key_event.code {
+                self.delete_rollout(&slug);
+            } else {
+                list.pending_delete = None;
             }
+            return true;
         }
 
         let ViewMode::RolloutList(ref list) = self.mode else {

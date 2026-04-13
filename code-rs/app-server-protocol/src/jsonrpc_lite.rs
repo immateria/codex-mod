@@ -29,7 +29,7 @@ pub enum JSONRPCMessage {
 }
 
 /// A request that expects a response.
-#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema, TS)]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize, JsonSchema, TS)]
 pub struct JSONRPCRequest {
     pub id: RequestId,
     pub method: String,
@@ -42,7 +42,7 @@ pub struct JSONRPCRequest {
 }
 
 /// A notification which does not expect a response.
-#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema, TS)]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize, JsonSchema, TS)]
 pub struct JSONRPCNotification {
     pub method: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -51,7 +51,7 @@ pub struct JSONRPCNotification {
 }
 
 /// A successful (non-error) response to a request.
-#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema, TS)]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize, JsonSchema, TS)]
 pub struct JSONRPCResponse {
     pub id: RequestId,
     pub result: Result,
@@ -64,7 +64,7 @@ pub struct JSONRPCError {
     pub id: RequestId,
 }
 
-#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema, TS)]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize, JsonSchema, TS)]
 pub struct JSONRPCErrorError {
     pub code: i64,
     #[serde(default, skip_serializing_if = "Option::is_none")]

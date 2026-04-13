@@ -14,7 +14,7 @@ use serde::Serialize;
 use strum_macros::Display;
 use ts_rs::TS;
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema, TS)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema, TS)]
 #[ts(type = "string")]
 pub struct GitSha(pub String);
 
@@ -808,7 +808,7 @@ server_request_definitions! {
     },
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema, TS)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, JsonSchema, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(rename_all = "camelCase")]
 pub struct FuzzyFileSearchParams {
@@ -819,7 +819,7 @@ pub struct FuzzyFileSearchParams {
 }
 
 /// Superset of [`codex_file_search::FileMatch`]
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema, TS)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, JsonSchema, TS)]
 pub struct FuzzyFileSearchResult {
     pub root: String,
     pub path: String,
@@ -842,7 +842,7 @@ pub struct FuzzyFileSearchResponse {
     pub files: Vec<FuzzyFileSearchResult>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema, TS)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, JsonSchema, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(rename_all = "camelCase")]
 pub struct FuzzyFileSearchSessionStartParams {
@@ -850,10 +850,10 @@ pub struct FuzzyFileSearchSessionStartParams {
     pub roots: Vec<String>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema, TS, Default)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, JsonSchema, TS, Default)]
 pub struct FuzzyFileSearchSessionStartResponse {}
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema, TS)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, JsonSchema, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(rename_all = "camelCase")]
 pub struct FuzzyFileSearchSessionUpdateParams {
@@ -861,17 +861,17 @@ pub struct FuzzyFileSearchSessionUpdateParams {
     pub query: String,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema, TS, Default)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, JsonSchema, TS, Default)]
 pub struct FuzzyFileSearchSessionUpdateResponse {}
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema, TS)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, JsonSchema, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(rename_all = "camelCase")]
 pub struct FuzzyFileSearchSessionStopParams {
     pub session_id: String,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema, TS, Default)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, JsonSchema, TS, Default)]
 pub struct FuzzyFileSearchSessionStopResponse {}
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema, TS)]
@@ -883,7 +883,7 @@ pub struct FuzzyFileSearchSessionUpdatedNotification {
     pub files: Vec<FuzzyFileSearchResult>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema, TS)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, JsonSchema, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(rename_all = "camelCase")]
 pub struct FuzzyFileSearchSessionCompletedNotification {

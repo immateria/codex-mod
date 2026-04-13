@@ -643,7 +643,7 @@ pub struct ExecRecord {
     pub tags: Vec<String>,
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct MergedExecRecord {
     pub id: HistoryId,
     pub action: ExecAction,

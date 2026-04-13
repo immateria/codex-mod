@@ -27,7 +27,7 @@ impl std::fmt::Display for RequestId {
 }
 
 /// Definition for a tool the client can call.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema, TS)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct Tool {
     pub name: String,
@@ -53,7 +53,7 @@ pub struct Tool {
 }
 
 /// A known resource that the server is capable of reading.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema, TS)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct Resource {
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -83,7 +83,7 @@ pub struct Resource {
 }
 
 /// A template description for resources available on the server.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema, TS)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct ResourceTemplate {
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -103,7 +103,7 @@ pub struct ResourceTemplate {
 }
 
 /// The server's response to a tool call.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema, TS)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct CallToolResult {
     pub content: Vec<serde_json::Value>,

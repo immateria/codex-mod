@@ -84,7 +84,7 @@ pub struct Submission {
 }
 
 /// Config payload for refreshing MCP servers.
-#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, JsonSchema)]
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq, JsonSchema)]
 pub struct McpServerRefreshConfig {
     pub mcp_servers: Value,
     pub mcp_oauth_credentials_store_mode: Value,
@@ -1512,7 +1512,7 @@ pub struct RateLimitWindow {
     pub resets_at: Option<i64>,
 }
 
-#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema, TS)]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize, JsonSchema, TS)]
 pub struct CreditsSnapshot {
     pub has_credits: bool,
     pub unlimited: bool,
@@ -1714,7 +1714,7 @@ pub struct CompactionCheckpointWarningEvent {
     pub message: String,
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize, JsonSchema, TS, PartialEq)]
+#[derive(Debug, Clone, Deserialize, Serialize, JsonSchema, TS, PartialEq, Eq)]
 pub struct McpInvocation {
     /// Name of the MCP server as defined in the config.
     pub server: String,
@@ -2105,7 +2105,7 @@ pub enum ReviewDelivery {
     Detached,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema, TS)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema, TS)]
 #[serde(tag = "type", rename_all = "camelCase")]
 #[ts(tag = "type")]
 pub enum ReviewTarget {
@@ -2145,7 +2145,7 @@ pub struct ReviewRequest {
     pub prompt: String,
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, JsonSchema, TS)]
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq, JsonSchema, TS)]
 pub struct ReviewSnapshotInfo {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub snapshot_commit: Option<String>,
@@ -2201,7 +2201,7 @@ pub struct ReviewCodeLocation {
 }
 
 /// Inclusive line range in a file associated with the finding.
-#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, JsonSchema, TS)]
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq, JsonSchema, TS)]
 pub struct ReviewLineRange {
     pub start: u32,
     pub end: u32,
@@ -2295,7 +2295,7 @@ pub struct ViewImageToolCallEvent {
     pub path: PathBuf,
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, JsonSchema, TS)]
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq, JsonSchema, TS)]
 #[serde(rename_all = "snake_case")]
 pub enum ExecOutputStream {
     Stdout,
@@ -2317,7 +2317,7 @@ pub struct ExecCommandOutputDeltaEvent {
 }
 
 #[serde_as]
-#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, JsonSchema, TS)]
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq, JsonSchema, TS)]
 pub struct TerminalInteractionEvent {
     /// Identifier for the `ExecCommandBegin` that produced this chunk.
     pub call_id: String,
@@ -2763,7 +2763,7 @@ impl ReviewDecision {
     }
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, JsonSchema, TS)]
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq, JsonSchema, TS)]
 #[serde(tag = "type", rename_all = "snake_case")]
 #[ts(tag = "type")]
 pub enum FileChange {
@@ -2792,7 +2792,7 @@ pub struct TurnAbortedEvent {
     pub reason: TurnAbortReason,
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, JsonSchema, TS)]
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq, JsonSchema, TS)]
 #[serde(rename_all = "snake_case")]
 pub enum TurnAbortReason {
     Interrupted,
@@ -2800,7 +2800,7 @@ pub enum TurnAbortReason {
     ReviewEnded,
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, JsonSchema, TS)]
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq, JsonSchema, TS)]
 pub struct CollabAgentSpawnBeginEvent {
     /// Identifier for the collab tool call.
     pub call_id: String,
@@ -2811,7 +2811,7 @@ pub struct CollabAgentSpawnBeginEvent {
     pub prompt: String,
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, JsonSchema, TS)]
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq, JsonSchema, TS)]
 pub struct CollabAgentSpawnEndEvent {
     /// Identifier for the collab tool call.
     pub call_id: String,
@@ -2826,7 +2826,7 @@ pub struct CollabAgentSpawnEndEvent {
     pub status: AgentStatus,
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, JsonSchema, TS)]
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq, JsonSchema, TS)]
 pub struct CollabAgentInteractionBeginEvent {
     /// Identifier for the collab tool call.
     pub call_id: String,
@@ -2839,7 +2839,7 @@ pub struct CollabAgentInteractionBeginEvent {
     pub prompt: String,
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, JsonSchema, TS)]
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq, JsonSchema, TS)]
 pub struct CollabAgentInteractionEndEvent {
     /// Identifier for the collab tool call.
     pub call_id: String,
@@ -2854,7 +2854,7 @@ pub struct CollabAgentInteractionEndEvent {
     pub status: AgentStatus,
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, JsonSchema, TS)]
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq, JsonSchema, TS)]
 pub struct CollabWaitingBeginEvent {
     /// Thread ID of the sender.
     pub sender_thread_id: ThreadId,
@@ -2864,7 +2864,7 @@ pub struct CollabWaitingBeginEvent {
     pub call_id: String,
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, JsonSchema, TS)]
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq, JsonSchema, TS)]
 pub struct CollabWaitingEndEvent {
     /// Thread ID of the sender.
     pub sender_thread_id: ThreadId,
@@ -2874,7 +2874,7 @@ pub struct CollabWaitingEndEvent {
     pub statuses: HashMap<ThreadId, AgentStatus>,
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, JsonSchema, TS)]
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq, JsonSchema, TS)]
 pub struct CollabCloseBeginEvent {
     /// Identifier for the collab tool call.
     pub call_id: String,
@@ -2884,7 +2884,7 @@ pub struct CollabCloseBeginEvent {
     pub receiver_thread_id: ThreadId,
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, JsonSchema, TS)]
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq, JsonSchema, TS)]
 pub struct CollabCloseEndEvent {
     /// Identifier for the collab tool call.
     pub call_id: String,
@@ -2897,7 +2897,7 @@ pub struct CollabCloseEndEvent {
     pub status: AgentStatus,
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, JsonSchema, TS)]
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq, JsonSchema, TS)]
 pub struct CollabResumeBeginEvent {
     /// Identifier for the collab tool call.
     pub call_id: String,
@@ -2907,7 +2907,7 @@ pub struct CollabResumeBeginEvent {
     pub receiver_thread_id: ThreadId,
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, JsonSchema, TS)]
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq, JsonSchema, TS)]
 pub struct CollabResumeEndEvent {
     /// Identifier for the collab tool call.
     pub call_id: String,

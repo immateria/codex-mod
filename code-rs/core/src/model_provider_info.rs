@@ -199,7 +199,7 @@ pub struct OpenRouterProviderConfig {
     pub extra: BTreeMap<String, Value>,
 }
 
-#[derive(Debug, Clone, Default, Deserialize, Serialize, PartialEq)]
+#[derive(Debug, Clone, Default, Deserialize, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]
 pub enum OpenRouterDataCollectionPolicy {
     #[default]
@@ -207,7 +207,7 @@ pub enum OpenRouterDataCollectionPolicy {
     Deny,
 }
 
-#[derive(Debug, Clone, Default, Deserialize, Serialize, PartialEq)]
+#[derive(Debug, Clone, Default, Deserialize, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]
 pub enum OpenRouterProviderSort {
     #[default]

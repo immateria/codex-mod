@@ -46,7 +46,7 @@ const EMPTY_CHANGE_CONTEXT_MARKER: &str = "@@";
 /// gpt-4.1.
 const PARSE_IN_STRICT_MODE: bool = false;
 
-#[derive(Debug, PartialEq, Error, Clone)]
+#[derive(Debug, PartialEq, Eq, Error, Clone)]
 pub enum ParseError {
     #[error("invalid patch: {0}")]
     InvalidPatchError(String),
@@ -87,7 +87,7 @@ impl Hunk {
 
 use Hunk::*;
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct UpdateFileChunk {
     /// A single line of context used to narrow down the position of the chunk
     /// (this is usually a class, method, or function definition.)

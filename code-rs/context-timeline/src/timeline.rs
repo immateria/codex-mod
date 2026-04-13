@@ -28,7 +28,7 @@ pub enum TimelineError {
 }
 
 /// Entry representing a delta in the timeline.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct DeltaEntry<D> {
     pub sequence: u64,
     pub delta: D,
@@ -37,7 +37,7 @@ pub struct DeltaEntry<D> {
 }
 
 /// Entry representing a snapshot in the timeline.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct SnapshotEntry<S> {
     pub fingerprint: String,
     pub snapshot: S,

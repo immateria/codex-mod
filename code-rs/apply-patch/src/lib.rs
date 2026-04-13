@@ -205,7 +205,7 @@ pub fn maybe_parse_apply_patch(argv: &[String]) -> MaybeApplyPatch {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum ApplyPatchFileChange {
     Add {
         content: String,
@@ -530,7 +530,7 @@ fn extract_apply_patch_from_bash(
     Err(ExtractHeredocError::CommandDidNotStartWithApplyPatch)
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum ExtractHeredocError {
     CommandDidNotStartWithApplyPatch,
     FailedToLoadBashGrammar(LanguageError),

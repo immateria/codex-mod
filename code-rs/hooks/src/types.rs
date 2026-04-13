@@ -90,7 +90,7 @@ pub enum HookToolKind {
     Mcp,
 }
 
-#[derive(Debug, Clone, Serialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub struct HookToolInputLocalShell {
     pub command: Vec<String>,

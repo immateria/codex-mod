@@ -418,7 +418,7 @@ impl From<OutgoingMessage> for JSONRPCMessage {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct OutgoingRequest {
     pub id: RequestId,
     pub method: String,
@@ -426,14 +426,14 @@ pub struct OutgoingRequest {
     pub params: Option<serde_json::Value>,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct OutgoingNotification {
     pub method: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub params: Option<serde_json::Value>,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct OutgoingResponse {
     pub id: RequestId,
     pub result: JsonRpcResult,

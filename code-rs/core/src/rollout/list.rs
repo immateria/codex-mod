@@ -36,7 +36,7 @@ pub struct ConversationsPage {
 }
 
 /// Summary information for a conversation rollout file.
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct ConversationItem {
     /// Absolute path to the rollout file.
     pub path: PathBuf,

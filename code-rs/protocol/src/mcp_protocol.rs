@@ -86,7 +86,7 @@ impl<'de> Deserialize<'de> for ConversationId {
     }
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, TS)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, TS)]
 #[ts(type = "string")]
 pub struct GitSha(pub String);
 
@@ -290,7 +290,7 @@ pub struct InitializeCapabilities {
     pub opt_out_notification_methods: Option<Vec<String>>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default, TS)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Default, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct ClientInfo {
     pub name: String,
@@ -299,7 +299,7 @@ pub struct ClientInfo {
     pub version: String,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, TS)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct InitializeResponse {
     pub user_agent: String,
@@ -352,7 +352,7 @@ pub struct NewConversationParams {
     pub dynamic_tools: Option<Vec<DynamicToolSpec>>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, TS)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct NewConversationResponse {
     pub conversation_id: ConversationId,
@@ -372,7 +372,7 @@ pub struct ResumeConversationResponse {
     pub initial_messages: Option<Vec<EventMsg>>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default, TS)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Default, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct ListConversationsParams {
     /// Optional page size; defaults to a reasonable server-side value.
@@ -383,7 +383,7 @@ pub struct ListConversationsParams {
     pub cursor: Option<String>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, TS)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct ConversationSummary {
     pub conversation_id: ConversationId,
@@ -414,39 +414,39 @@ pub struct ResumeConversationParams {
     pub overrides: Option<NewConversationParams>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, TS)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct AddConversationSubscriptionResponse {
     pub subscription_id: Uuid,
 }
 
 /// The [`ConversationId`] must match the `rollout_path`.
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, TS)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct ArchiveConversationParams {
     pub conversation_id: ConversationId,
     pub rollout_path: PathBuf,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, TS)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct ArchiveConversationResponse {}
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, TS)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct RemoveConversationSubscriptionResponse {}
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, TS)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct LoginApiKeyParams {
     pub api_key: String,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, TS)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct LoginApiKeyResponse {}
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, TS)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct LoginChatGptResponse {
     pub login_id: Uuid,
@@ -461,31 +461,31 @@ pub struct GitDiffToRemoteResponse {
     pub diff: String,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, TS)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct CancelLoginChatGptParams {
     pub login_id: Uuid,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, TS)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct GitDiffToRemoteParams {
     pub cwd: PathBuf,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, TS)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct CancelLoginChatGptResponse {}
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, TS)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct LogoutChatGptParams {}
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, TS)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct LogoutChatGptResponse {}
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, TS)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct GetAuthStatusParams {
     /// If true, include the current auth token (if available) in the response.
@@ -496,7 +496,7 @@ pub struct GetAuthStatusParams {
     pub refresh_token: Option<bool>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, TS)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct ExecOneOffCommandParams {
     /// Command argv to execute.
@@ -512,7 +512,7 @@ pub struct ExecOneOffCommandParams {
     pub sandbox_policy: Option<SandboxPolicy>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, TS)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct ExecArbitraryCommandResponse {
     pub exit_code: i32,
@@ -520,7 +520,7 @@ pub struct ExecArbitraryCommandResponse {
     pub stderr: String,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, TS)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct GetAuthStatusResponse {
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -535,13 +535,13 @@ pub struct GetAuthStatusResponse {
     pub requires_openai_auth: Option<bool>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, TS)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct GetUserAgentResponse {
     pub user_agent: String,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, TS)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct UserInfoResponse {
     /// Note: `alleged_user_email` is not currently verified. We read it from
@@ -557,7 +557,7 @@ pub struct GetUserSavedConfigResponse {
     pub config: UserSavedConfig,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, TS)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct SetDefaultModelParams {
     /// If set to None, this means `model` should be cleared in config.toml.
@@ -569,7 +569,7 @@ pub struct SetDefaultModelParams {
     pub reasoning_effort: Option<ReasoningEffort>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, TS)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct SetDefaultModelResponse {}
 
@@ -609,7 +609,7 @@ pub struct UserSavedConfig {
 }
 
 /// MCP representation of a [`code_core::config_profile::ConfigProfile`].
-#[derive(Deserialize, Debug, Clone, PartialEq, Serialize, TS)]
+#[derive(Deserialize, Debug, Clone, PartialEq, Eq, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct Profile {
     pub model: Option<String>,
@@ -623,7 +623,7 @@ pub struct Profile {
     pub chatgpt_base_url: Option<String>,
 }
 /// MCP representation of a [`code_core::config::ToolsToml`].
-#[derive(Deserialize, Debug, Clone, PartialEq, Serialize, TS)]
+#[derive(Deserialize, Debug, Clone, PartialEq, Eq, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct Tools {
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -633,7 +633,7 @@ pub struct Tools {
 }
 
 /// MCP representation of a [`code_core::config_types::SandboxWorkspaceWrite`].
-#[derive(Deserialize, Debug, Clone, PartialEq, Serialize, TS)]
+#[derive(Deserialize, Debug, Clone, PartialEq, Eq, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct SandboxSettings {
     #[serde(default)]
@@ -667,11 +667,11 @@ pub struct SendUserTurnParams {
     pub summary: ReasoningSummary,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, TS)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct SendUserTurnResponse {}
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, TS)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct InterruptConversationParams {
     pub conversation_id: ConversationId,
@@ -683,23 +683,23 @@ pub struct InterruptConversationResponse {
     pub abort_reason: TurnAbortReason,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, TS)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct SendUserMessageResponse {}
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, TS)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct AddConversationListenerParams {
     pub conversation_id: ConversationId,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, TS)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct RemoveConversationListenerParams {
     pub subscription_id: Uuid,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, TS)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, TS)]
 #[serde(rename_all = "camelCase")]
 #[serde(tag = "type", content = "data")]
 pub enum InputItem {
@@ -764,7 +764,7 @@ pub struct ApplyPatchApprovalParams {
     pub grant_root: Option<PathBuf>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, TS)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, TS)]
 pub struct ExecCommandApprovalParams {
     pub conversation_id: ConversationId,
     /// Use to correlate this with [`code_core::protocol::ExecCommandBeginEvent`]
@@ -781,12 +781,12 @@ pub struct ExecCommandApprovalParams {
     pub additional_permissions: Option<PermissionProfile>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, TS)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, TS)]
 pub struct ExecCommandApprovalResponse {
     pub decision: ReviewDecision,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, TS)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, TS)]
 pub struct DynamicToolCallParams {
     pub conversation_id: ConversationId,
     pub turn_id: String,
@@ -795,18 +795,18 @@ pub struct DynamicToolCallParams {
     pub arguments: serde_json::Value,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, TS)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, TS)]
 pub struct DynamicToolCallResponse {
     pub output: String,
     pub success: bool,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, TS)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, TS)]
 pub struct ApplyPatchApprovalResponse {
     pub decision: ReviewDecision,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, TS)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(rename_all = "camelCase")]
 pub struct FuzzyFileSearchParams {
@@ -818,7 +818,7 @@ pub struct FuzzyFileSearchParams {
 }
 
 /// Superset of [`code_file_search::FileMatch`]
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, TS)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, TS)]
 pub struct FuzzyFileSearchResult {
     pub root: String,
     pub path: String,
@@ -833,7 +833,7 @@ pub struct FuzzyFileSearchResponse {
     pub files: Vec<FuzzyFileSearchResult>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, TS)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(rename_all = "camelCase")]
 pub struct FuzzyFileSearchSessionStartParams {
@@ -841,10 +841,10 @@ pub struct FuzzyFileSearchSessionStartParams {
     pub roots: Vec<String>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, TS, Default)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, TS, Default)]
 pub struct FuzzyFileSearchSessionStartResponse {}
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, TS)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(rename_all = "camelCase")]
 pub struct FuzzyFileSearchSessionUpdateParams {
@@ -852,20 +852,20 @@ pub struct FuzzyFileSearchSessionUpdateParams {
     pub query: String,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, TS, Default)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, TS, Default)]
 pub struct FuzzyFileSearchSessionUpdateResponse {}
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, TS)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(rename_all = "camelCase")]
 pub struct FuzzyFileSearchSessionStopParams {
     pub session_id: String,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, TS, Default)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, TS, Default)]
 pub struct FuzzyFileSearchSessionStopResponse {}
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, TS)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct LoginChatGptCompleteNotification {
     pub login_id: Uuid,
@@ -901,7 +901,7 @@ pub struct SessionConfiguredNotification {
     pub rollout_path: PathBuf,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, TS)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct AuthStatusChangeNotification {
     /// Current authentication method; omitted if signed out.

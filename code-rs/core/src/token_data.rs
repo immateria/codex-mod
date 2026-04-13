@@ -8,7 +8,7 @@ use thiserror::Error;
 use tracing::Level;
 
 
-#[derive(Deserialize, Serialize, Clone, Debug, PartialEq, Default)]
+#[derive(Deserialize, Serialize, Clone, Debug, PartialEq, Eq, Default)]
 pub struct TokenData {
     /// Flat info parsed from the JWT in auth.json.
     #[serde(

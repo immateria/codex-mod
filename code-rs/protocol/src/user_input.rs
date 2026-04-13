@@ -39,7 +39,7 @@ pub enum UserInput {
     Mention { name: String, path: String },
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, TS, JsonSchema)]
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq, TS, JsonSchema)]
 pub struct TextElement {
     /// Byte range in the parent `text` buffer that this element occupies.
     pub byte_range: ByteRange,

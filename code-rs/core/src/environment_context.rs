@@ -287,7 +287,7 @@ impl From<EnvironmentContext> for ResponseItem {
 }
 
 /// Canonical snapshot of the environment context that is safe to serialize as JSON.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct EnvironmentContextSnapshot {
     pub version: u32,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -557,7 +557,7 @@ impl From<EnvironmentContext> for EnvironmentContextSnapshot {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct EnvironmentContextDelta {
     pub version: u32,
     pub base_fingerprint: String,
@@ -750,7 +750,7 @@ pub(crate) fn assemble_env_context_prompt_items(
     Ok(items)
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct BrowserSnapshot {
     pub version: u32,
     pub url: String,

@@ -238,7 +238,7 @@ pub enum ResponseInputItem {
     },
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, JsonSchema, TS)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, JsonSchema, TS)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum ContentItem {
     InputText { text: String },
@@ -412,7 +412,7 @@ pub enum ResponseItem {
 pub const BASE_INSTRUCTIONS_DEFAULT: &str = include_str!("prompts/base_instructions/default.md");
 
 /// Base instructions for the model in a thread. Corresponds to the `instructions` field in the `ResponsesAPI`.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, JsonSchema, TS)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, JsonSchema, TS)]
 #[serde(rename = "base_instructions", rename_all = "snake_case")]
 pub struct BaseInstructions {
     pub text: String,
@@ -428,7 +428,7 @@ impl Default for BaseInstructions {
 
 /// Developer-provided guidance that is injected into a turn as a developer role
 /// message.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, JsonSchema, TS)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, JsonSchema, TS)]
 #[serde(rename = "developer_instructions", rename_all = "snake_case")]
 pub struct DeveloperInstructions {
     text: String,
@@ -888,7 +888,7 @@ impl From<ResponseInputItem> for ResponseItem {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, JsonSchema, TS)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, JsonSchema, TS)]
 #[serde(rename_all = "snake_case")]
 pub enum LocalShellStatus {
     Completed,
@@ -902,7 +902,7 @@ pub enum LocalShellAction {
     Exec(LocalShellExecAction),
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, JsonSchema, TS)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, JsonSchema, TS)]
 pub struct LocalShellExecAction {
     pub command: Vec<String>,
     pub timeout_ms: Option<u64>,
@@ -911,7 +911,7 @@ pub struct LocalShellExecAction {
     pub user: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, JsonSchema, TS)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, JsonSchema, TS)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum WebSearchAction {
     Search {
@@ -940,13 +940,13 @@ pub enum WebSearchAction {
     Other,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, JsonSchema, TS)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, JsonSchema, TS)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum ReasoningItemReasoningSummary {
     SummaryText { text: String },
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, JsonSchema, TS)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, JsonSchema, TS)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum ReasoningItemContent {
     ReasoningText { text: String },
@@ -984,7 +984,7 @@ impl From<Vec<UserInput>> for ResponseInputItem {
 
 /// If the `name` of a `ResponseItem::FunctionCall` is either `container.exec`
 /// or `shell`, the `arguments` field should deserialize to this struct.
-#[derive(Deserialize, Debug, Clone, PartialEq, JsonSchema, TS)]
+#[derive(Deserialize, Debug, Clone, PartialEq, Eq, JsonSchema, TS)]
 pub struct ShellToolCallParams {
     pub command: Vec<String>,
     pub workdir: Option<String>,
@@ -1008,7 +1008,7 @@ pub struct ShellToolCallParams {
 
 /// If the `name` of a `ResponseItem::FunctionCall` is `shell_command`, the
 /// `arguments` field should deserialize to this struct.
-#[derive(Deserialize, Debug, Clone, PartialEq, JsonSchema, TS)]
+#[derive(Deserialize, Debug, Clone, PartialEq, Eq, JsonSchema, TS)]
 pub struct ShellCommandToolCallParams {
     pub command: String,
     pub workdir: Option<String>,
@@ -1034,7 +1034,7 @@ pub struct ShellCommandToolCallParams {
 
 /// Responses API compatible content items that can be returned by a tool call.
 /// This is a subset of `ContentItem` with the types we support as function call outputs.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, JsonSchema, TS)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, JsonSchema, TS)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum FunctionCallOutputContentItem {
     // Do not rename, these are serialized and used directly in the responses API.

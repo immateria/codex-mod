@@ -4,7 +4,7 @@ use serde::Serialize;
 use serde_json::Value as JsonValue;
 use ts_rs::TS;
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, JsonSchema, TS)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, JsonSchema, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct DynamicToolSpec {
     pub name: String,
@@ -12,7 +12,7 @@ pub struct DynamicToolSpec {
     pub input_schema: JsonValue,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, JsonSchema, TS)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, JsonSchema, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct DynamicToolCallRequest {
     pub call_id: String,
@@ -28,7 +28,7 @@ pub struct DynamicToolResponse {
     pub success: bool,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, JsonSchema, TS)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, JsonSchema, TS)]
 #[serde(tag = "type", rename_all = "camelCase")]
 #[ts(tag = "type")]
 pub enum DynamicToolCallOutputContentItem {

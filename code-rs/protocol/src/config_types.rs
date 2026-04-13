@@ -53,7 +53,7 @@ pub enum Verbosity {
 }
 
 #[derive(
-    Deserialize, Debug, Clone, Copy, PartialEq, Default, Serialize, Display, JsonSchema, TS,
+    Deserialize, Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Display, JsonSchema, TS,
 )]
 #[serde(rename_all = "kebab-case")]
 #[strum(serialize_all = "kebab-case")]
@@ -153,7 +153,7 @@ const DEFAULT_PROVIDER_AUTH_TIMEOUT_MS: u64 = 5_000;
 const DEFAULT_PROVIDER_AUTH_REFRESH_INTERVAL_MS: u64 = 300_000;
 
 /// Configuration for obtaining a provider bearer token from a command.
-#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, JsonSchema)]
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq, JsonSchema)]
 #[schemars(deny_unknown_fields)]
 pub struct ModelProviderAuthInfo {
     /// Command to execute. Bare names are resolved via `PATH`; paths are resolved against `cwd`.

@@ -214,7 +214,7 @@ pub struct LegacyFeatureUsage {
 }
 
 /// Holds the effective set of enabled features.
-#[derive(Debug, Clone, Default, PartialEq)]
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct Features {
     enabled: BTreeSet<Feature>,
     legacy_usages: BTreeSet<LegacyFeatureUsage>,
@@ -497,7 +497,7 @@ pub fn is_known_feature_key(key: &str) -> bool {
 }
 
 /// Deserializable features table for TOML.
-#[derive(Serialize, Deserialize, Debug, Clone, Default, PartialEq, JsonSchema)]
+#[derive(Serialize, Deserialize, Debug, Clone, Default, PartialEq, Eq, JsonSchema)]
 pub struct FeaturesToml {
     #[serde(flatten)]
     pub entries: BTreeMap<String, bool>,

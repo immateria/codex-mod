@@ -332,7 +332,7 @@ impl From<TextVerbosityConfig> for OpenAiTextVerbosity {
 }
 
 /// Optional structured output format for `text.format` in the Responses API.
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 pub struct TextFormat {
     #[serde(rename = "type")]
     pub r#type: String, // e.g. "json_schema"

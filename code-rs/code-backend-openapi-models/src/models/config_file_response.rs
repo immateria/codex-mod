@@ -11,7 +11,7 @@
 use serde::Deserialize;
 use serde::Serialize;
 
-#[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Default, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ConfigFileResponse {
     #[serde(rename = "contents", skip_serializing_if = "Option::is_none")]
     pub contents: Option<String>,
