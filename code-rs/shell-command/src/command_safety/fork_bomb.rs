@@ -5,7 +5,7 @@
 
 fn strip_quoted_regions(script: &str) -> String {
     let mut out = String::with_capacity(script.len());
-    let mut chars = script.chars().peekable();
+    let mut chars = script.chars();
     let mut in_single = false;
     let mut in_double = false;
 

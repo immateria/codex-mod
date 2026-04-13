@@ -125,12 +125,14 @@ pub(crate) fn current_spinner() -> &'static Spinner {
 
 pub(crate) fn find_spinner_by_name(name: &str) -> Option<&'static Spinner> {
     let raw = name.trim();
-    // custom first
-    if let Some(pos) = read_lock(&CUSTOM_SPINNERS).iter().position(|s| s.name == raw) {
-        // Leak to 'static for shared ref (only for custom preview; safe for session lifetime)
-        let s = read_lock(&CUSTOM_SPINNERS)[pos].clone();
-        let b = Box::leak(Box::new(s));
-        return Some(b);
+    // custom first — single lock acquisition for both search and clone
+    {
+        let customs = read_lock(&CUSTOM_SPINNERS);
+        if let Some(s) = customs.iter().find(|s| s.name == raw) {
+            // Leak to 'static for shared ref (only for custom preview; safe for session lifetime)
+            let b = Box::leak(Box::new(s.clone()));
+            return Some(b);
+        }
     }
     ALL_SPINNERS
         .iter()

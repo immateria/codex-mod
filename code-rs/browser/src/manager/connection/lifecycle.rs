@@ -13,7 +13,8 @@ impl BrowserManager {
         self.stop_idle_monitor().await;
 
         // stop event handler task cleanly
-        if let Some(task) = self.event_task.lock().await.take() {
+        let task = self.event_task.lock().await.take();
+        if let Some(task) = task {
             task.abort();
         }
 

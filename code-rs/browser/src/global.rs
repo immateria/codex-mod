@@ -19,7 +19,8 @@ static LAST_CONNECTION: Lazy<SharedConnectionCache> =
 /// Get or create the global browser manager
 pub async fn get_or_create_browser_manager() -> Arc<BrowserManager> {
     // Fast path: try read lock to avoid contending on writer when already initialized
-    if let Some(existing) = GLOBAL_BROWSER_MANAGER.read().await.as_ref().cloned() {
+    let existing = GLOBAL_BROWSER_MANAGER.read().await.as_ref().cloned();
+    if let Some(existing) = existing {
         return existing;
     }
 

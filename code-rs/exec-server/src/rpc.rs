@@ -400,13 +400,15 @@ async fn handle_server_message(
 ) -> Result<(), String> {
     match message {
         JSONRPCMessage::Response(JSONRPCResponse { id, result }) => {
-            if let Some(pending) = pending.lock().await.remove(&id) {
-                let _ = pending.send(Ok(result));
+            let sender = pending.lock().await.remove(&id);
+            if let Some(sender) = sender {
+                let _ = sender.send(Ok(result));
             }
         }
         JSONRPCMessage::Error(JSONRPCError { id, error }) => {
-            if let Some(pending) = pending.lock().await.remove(&id) {
-                let _ = pending.send(Err(error));
+            let sender = pending.lock().await.remove(&id);
+            if let Some(sender) = sender {
+                let _ = sender.send(Err(error));
             }
         }
         JSONRPCMessage::Notification(notification) => {

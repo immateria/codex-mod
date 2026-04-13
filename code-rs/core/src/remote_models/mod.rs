@@ -251,10 +251,11 @@ impl RemoteModelsManager {
             state.fetched_at = Some(fetched_at);
         }
 
+        let models = self.state.read().await.models.clone();
         if let Err(err) = cache::save_cache(&self.cache_path(), &cache::ModelsCache {
             fetched_at,
             etag,
-            models: self.state.read().await.models.clone(),
+            models,
         }) {
             tracing::debug!("failed to write /models cache: {err}");
         }
