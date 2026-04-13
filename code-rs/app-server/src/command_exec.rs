@@ -272,14 +272,14 @@ impl CommandExecManager {
                 args,
                 cwd.as_path(),
                 &env,
-                &arg0,
+                arg0.as_deref(),
                 size.unwrap_or_default(),
             )
             .await
         } else if stream_stdin {
-            code_utils_pty::spawn_pipe_process(program, args, cwd.as_path(), &env, &arg0).await
+            code_utils_pty::spawn_pipe_process(program, args, cwd.as_path(), &env, arg0.as_deref()).await
         } else {
-            code_utils_pty::spawn_pipe_process_no_stdin(program, args, cwd.as_path(), &env, &arg0)
+            code_utils_pty::spawn_pipe_process_no_stdin(program, args, cwd.as_path(), &env, arg0.as_deref())
                 .await
         };
         let spawned = match spawned {

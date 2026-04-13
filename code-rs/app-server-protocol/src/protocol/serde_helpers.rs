@@ -11,6 +11,7 @@ where
     serde_with::rust::double_option::deserialize(deserializer)
 }
 
+#[allow(clippy::ref_option)]
 pub fn serialize_double_option<T, S>(
     value: &Option<Option<T>>,
     serializer: S,

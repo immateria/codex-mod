@@ -941,6 +941,7 @@ mod option_duration_secs {
     use serde::Serializer;
     use std::time::Duration;
 
+    #[allow(clippy::ref_option)]
     pub fn serialize<S>(value: &Option<Duration>, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,

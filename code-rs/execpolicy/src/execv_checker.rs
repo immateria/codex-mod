@@ -1,5 +1,5 @@
 use std::borrow::Cow;
-use std::ffi::OsString;
+use std::ffi::OsStr;
 use std::path::Path;
 use std::path::PathBuf;
 
@@ -44,7 +44,7 @@ impl ExecvChecker {
     pub fn check(
         &self,
         valid_exec: ValidExec,
-        cwd: &Option<OsString>,
+        cwd: Option<&OsStr>,
         readable_folders: &[PathBuf],
         writeable_folders: &[PathBuf],
     ) -> Result<String> {
@@ -96,7 +96,7 @@ impl ExecvChecker {
     }
 }
 
-fn ensure_absolute_path(path: &str, cwd: &Option<OsString>) -> Result<PathBuf> {
+fn ensure_absolute_path(path: &str, cwd: Option<&OsStr>) -> Result<PathBuf> {
     let file = PathBuf::from(path);
     let result = if file.is_relative() {
         match cwd {
@@ -206,7 +206,7 @@ system_path=[{fake_cp:?}]
 
         // No readable or writeable folders specified.
         assert_eq!(
-            checker.check(valid_exec.clone(), &cwd, &[], &[]),
+            checker.check(valid_exec.clone(), cwd.as_deref(), &[], &[]),
             Err(ReadablePathNotInReadableFolders {
                 file: source_path,
                 folders: vec![]
@@ -217,7 +217,7 @@ system_path=[{fake_cp:?}]
         assert_eq!(
             checker.check(
                 valid_exec.clone(),
-                &cwd,
+                cwd.as_deref(),
                 std::slice::from_ref(&root_path),
                 &[]
             ),
@@ -231,7 +231,7 @@ system_path=[{fake_cp:?}]
         assert_eq!(
             checker.check(
                 valid_exec,
-                &cwd,
+                cwd.as_deref(),
                 std::slice::from_ref(&root_path),
                 std::slice::from_ref(&root_path)
             ),
@@ -254,7 +254,7 @@ system_path=[{fake_cp:?}]
         assert_eq!(
             checker.check(
                 valid_exec_call_folders_as_args,
-                &cwd,
+                cwd.as_deref(),
                 std::slice::from_ref(&root_path),
                 std::slice::from_ref(&root_path)
             ),
@@ -278,7 +278,7 @@ system_path=[{fake_cp:?}]
         assert_eq!(
             checker.check(
                 exec_with_parent_of_readable_folder,
-                &cwd,
+                cwd.as_deref(),
                 std::slice::from_ref(&root_path),
                 std::slice::from_ref(&dest_path)
             ),

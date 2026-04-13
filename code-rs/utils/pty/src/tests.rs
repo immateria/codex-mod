@@ -259,7 +259,7 @@ async fn pty_python_repl_emits_output_and_exits() -> anyhow::Result<()> {
         &[],
         Path::new("."),
         &env_map,
-        &None,
+        None,
         TerminalSize::default(),
     )
     .await?;
@@ -301,7 +301,7 @@ async fn pipe_process_round_trips_stdin() -> anyhow::Result<()> {
         "import sys; print(sys.stdin.readline().strip());".to_string(),
     ];
     let env_map: HashMap<String, String> = std::env::vars().collect();
-    let spawned = spawn_pipe_process(&python, &args, Path::new("."), &env_map, &None).await?;
+    let spawned = spawn_pipe_process(&python, &args, Path::new("."), &env_map, None).await?;
     let (session, output_rx, exit_rx) = combine_spawned_output(spawned);
     let writer = session.writer_sender();
     writer.send(b"roundtrip\n".to_vec()).await?;
@@ -329,7 +329,7 @@ async fn pipe_process_detaches_from_parent_session() -> anyhow::Result<()> {
     let env_map: HashMap<String, String> = std::env::vars().collect();
     let script = "echo $$; sleep 0.2";
     let (program, args) = shell_command(script);
-    let spawned = spawn_pipe_process(&program, &args, Path::new("."), &env_map, &None).await?;
+    let spawned = spawn_pipe_process(&program, &args, Path::new("."), &env_map, None).await?;
 
     let (_session, mut output_rx, exit_rx) = combine_spawned_output(spawned);
     let pid_bytes =
@@ -369,13 +369,13 @@ async fn pipe_and_pty_share_interface() -> anyhow::Result<()> {
     let (pty_program, pty_args) = shell_command(&echo_sleep_command("pty_ok"));
 
     let pipe =
-        spawn_pipe_process(&pipe_program, &pipe_args, Path::new("."), &env_map, &None).await?;
+        spawn_pipe_process(&pipe_program, &pipe_args, Path::new("."), &env_map, None).await?;
     let pty = spawn_pty_process(
         &pty_program,
         &pty_args,
         Path::new("."),
         &env_map,
-        &None,
+        None,
         TerminalSize::default(),
     )
     .await?;
@@ -412,7 +412,7 @@ async fn pipe_drains_stderr_without_stdout_activity() -> anyhow::Result<()> {
     let script = "import sys\nchunk = 'E' * 65536\nfor _ in range(64):\n    sys.stderr.write(chunk)\n    sys.stderr.flush()\n";
     let args = vec!["-c".to_string(), script.to_string()];
     let env_map: HashMap<String, String> = std::env::vars().collect();
-    let spawned = spawn_pipe_process(&python, &args, Path::new("."), &env_map, &None).await?;
+    let spawned = spawn_pipe_process(&python, &args, Path::new("."), &env_map, None).await?;
     let (_session, output_rx, exit_rx) = combine_spawned_output(spawned);
 
     let (output, code) = collect_output_until_exit(output_rx, exit_rx, 10_000).await;
@@ -442,7 +442,7 @@ async fn pipe_process_can_expose_split_stdout_and_stderr() -> anyhow::Result<()>
         shell_command(&split_stdout_stderr_command())
     };
     let spawned =
-        spawn_pipe_process_no_stdin(&program, &args, Path::new("."), &env_map, &None).await?;
+        spawn_pipe_process_no_stdin(&program, &args, Path::new("."), &env_map, None).await?;
     let SpawnedProcess {
         session: _session,
         stdout_rx,
@@ -481,7 +481,7 @@ async fn pipe_terminate_aborts_detached_readers() -> anyhow::Result<()> {
     let script =
         "setsid sh -c 'i=0; while [ $i -lt 200 ]; do echo tick; sleep 0.01; i=$((i+1)); done' &";
     let (program, args) = shell_command(script);
-    let spawned = spawn_pipe_process(&program, &args, Path::new("."), &env_map, &None).await?;
+    let spawned = spawn_pipe_process(&program, &args, Path::new("."), &env_map, None).await?;
     let (session, mut output_rx, _exit_rx) = combine_spawned_output(spawned);
 
     let _ = tokio::time::timeout(tokio::time::Duration::from_millis(500), output_rx.recv())
@@ -519,7 +519,7 @@ async fn pty_terminate_kills_background_children_in_same_process_group() -> anyh
         &args,
         Path::new("."),
         &env_map,
-        &None,
+        None,
         TerminalSize::default(),
     )
     .await?;

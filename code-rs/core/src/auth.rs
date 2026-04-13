@@ -1646,7 +1646,7 @@ impl AuthManager {
             cached
                 .permanent_refresh_failure
                 .as_ref()
-                .filter(|failure| Self::auths_equal_for_refresh(&Some(auth.clone()), &Some(failure.auth.clone())))
+                .filter(|failure| Self::auths_equal_for_refresh(Some(auth), Some(&failure.auth)))
                 .map(|failure| failure.error.clone())
         })
     }
@@ -1679,8 +1679,8 @@ impl AuthManager {
                 .flatten()
         });
         if let Ok(mut guard) = self.inner.write() {
-            let changed = !AuthManager::auths_equal(&guard.auth, &new_auth);
-            let auth_changed_for_refresh = !AuthManager::auths_equal_for_refresh(&guard.auth, &new_auth);
+            let changed = !AuthManager::auths_equal(guard.auth.as_ref(), new_auth.as_ref());
+            let auth_changed_for_refresh = !AuthManager::auths_equal_for_refresh(guard.auth.as_ref(), new_auth.as_ref());
             if auth_changed_for_refresh {
                 guard.permanent_refresh_failure = None;
             }
@@ -1723,7 +1723,7 @@ impl AuthManager {
 
         tracing::info!("Reloading auth for account {expected_account_id}");
         if let Ok(mut guard) = self.inner.write() {
-            let changed = !Self::auths_equal_for_refresh(&guard.auth, &new_auth);
+            let changed = !Self::auths_equal_for_refresh(guard.auth.as_ref(), new_auth.as_ref());
             if changed {
                 guard.permanent_refresh_failure = None;
             }
@@ -1741,11 +1741,11 @@ impl AuthManager {
         }
     }
 
-    fn auths_equal(a: &Option<CodexAuth>, b: &Option<CodexAuth>) -> bool {
+    fn auths_equal(a: Option<&CodexAuth>, b: Option<&CodexAuth>) -> bool {
         a == b
     }
 
-    fn auths_equal_for_refresh(a: &Option<CodexAuth>, b: &Option<CodexAuth>) -> bool {
+    fn auths_equal_for_refresh(a: Option<&CodexAuth>, b: Option<&CodexAuth>) -> bool {
         match (a, b) {
             (None, None) => true,
             (Some(a), Some(b)) => match (a.mode, b.mode) {
@@ -1771,7 +1771,7 @@ impl AuthManager {
 
         if let Ok(mut guard) = self.inner.write() {
             let current_auth_matches =
-                Self::auths_equal_for_refresh(&Some(attempted_auth.clone()), &guard.auth);
+                Self::auths_equal_for_refresh(Some(attempted_auth), guard.auth.as_ref());
             if current_auth_matches {
                 guard.permanent_refresh_failure = Some(AuthScopedRefreshFailure {
                     auth: attempted_auth.clone(),

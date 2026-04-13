@@ -100,7 +100,7 @@ async fn spawn_process_with_stdin_mode(
     args: &[String],
     cwd: &Path,
     env: &HashMap<String, String>,
-    arg0: &Option<String>,
+    arg0: Option<&str>,
     stdin_mode: PipeStdinMode,
 ) -> Result<SpawnedProcess> {
     if program.is_empty() {
@@ -248,7 +248,7 @@ pub async fn spawn_process(
     args: &[String],
     cwd: &Path,
     env: &HashMap<String, String>,
-    arg0: &Option<String>,
+    arg0: Option<&str>,
 ) -> Result<SpawnedProcess> {
     spawn_process_with_stdin_mode(program, args, cwd, env, arg0, PipeStdinMode::Piped).await
 }
@@ -259,7 +259,7 @@ pub async fn spawn_process_no_stdin(
     args: &[String],
     cwd: &Path,
     env: &HashMap<String, String>,
-    arg0: &Option<String>,
+    arg0: Option<&str>,
 ) -> Result<SpawnedProcess> {
     spawn_process_with_stdin_mode(program, args, cwd, env, arg0, PipeStdinMode::Null).await
 }

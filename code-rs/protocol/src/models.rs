@@ -182,7 +182,7 @@ impl PermissionProfile {
     }
 }
 
-#[allow(clippy::trivially_copy_pass_by_ref)]
+#[allow(clippy::trivially_copy_pass_by_ref, clippy::ref_option)]
 fn serialize_network_permission<S>(
     network: &Option<bool>,
     serializer: S,
@@ -712,6 +712,7 @@ impl From<SandboxMode> for DeveloperInstructions {
     }
 }
 
+#[allow(clippy::ref_option)]
 fn should_serialize_reasoning_content(content: &Option<Vec<ReasoningItemContent>>) -> bool {
     match content {
         Some(content) => !content

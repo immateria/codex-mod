@@ -177,7 +177,7 @@ impl LocalProcess {
                 args,
                 params.cwd.as_path(),
                 &params.env,
-                &params.arg0,
+                params.arg0.as_deref(),
                 TerminalSize::default(),
             )
             .await
@@ -187,7 +187,7 @@ impl LocalProcess {
                 args,
                 params.cwd.as_path(),
                 &params.env,
-                &params.arg0,
+                params.arg0.as_deref(),
             )
             .await
         };

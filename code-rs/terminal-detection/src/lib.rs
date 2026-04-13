@@ -182,20 +182,20 @@ impl TerminalInfo {
         } else {
             match self.name {
                 TerminalName::AppleTerminal => {
-                    format_terminal_version("Apple_Terminal", &self.version)
+                    format_terminal_version("Apple_Terminal", self.version.as_deref())
                 }
-                TerminalName::Ghostty => format_terminal_version("Ghostty", &self.version),
-                TerminalName::Iterm2 => format_terminal_version("iTerm.app", &self.version),
+                TerminalName::Ghostty => format_terminal_version("Ghostty", self.version.as_deref()),
+                TerminalName::Iterm2 => format_terminal_version("iTerm.app", self.version.as_deref()),
                 TerminalName::WarpTerminal => {
-                    format_terminal_version("WarpTerminal", &self.version)
+                    format_terminal_version("WarpTerminal", self.version.as_deref())
                 }
-                TerminalName::VsCode => format_terminal_version("vscode", &self.version),
-                TerminalName::WezTerm => format_terminal_version("WezTerm", &self.version),
+                TerminalName::VsCode => format_terminal_version("vscode", self.version.as_deref()),
+                TerminalName::WezTerm => format_terminal_version("WezTerm", self.version.as_deref()),
                 TerminalName::Kitty => "kitty".to_owned(),
                 TerminalName::Alacritty => "Alacritty".to_owned(),
-                TerminalName::Konsole => format_terminal_version("Konsole", &self.version),
+                TerminalName::Konsole => format_terminal_version("Konsole", self.version.as_deref()),
                 TerminalName::GnomeTerminal => "gnome-terminal".to_owned(),
-                TerminalName::Vte => format_terminal_version("VTE", &self.version),
+                TerminalName::Vte => format_terminal_version("VTE", self.version.as_deref()),
                 TerminalName::WindowsTerminal => "WindowsTerminal".to_owned(),
                 TerminalName::Dumb => "dumb".to_owned(),
                 TerminalName::Unknown => "unknown".to_owned(),
@@ -487,8 +487,8 @@ fn terminal_name_from_term_program(value: &str) -> Option<TerminalName> {
     }
 }
 
-fn format_terminal_version(name: &str, version: &Option<String>) -> String {
-    match version.as_ref().filter(|value| !value.is_empty()) {
+fn format_terminal_version(name: &str, version: Option<&str>) -> String {
+    match version.filter(|value| !value.is_empty()) {
         Some(version) => format!("{name}/{version}"),
         None => name.to_owned(),
     }

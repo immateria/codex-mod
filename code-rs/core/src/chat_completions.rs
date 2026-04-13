@@ -603,7 +603,7 @@ async fn process_chat_sse<S>(
         tx_event: &mpsc::Sender<Result<ResponseEvent>>,
         assistant_text: &mut String,
         reasoning_text: &mut String,
-        current_item_id: &Option<String>,
+        current_item_id: Option<&str>,
         response_id: Option<&str>,
         debug_logger: &Arc<Mutex<DebugLogger>>,
         request_id: &str,
@@ -616,7 +616,7 @@ async fn process_chat_sse<S>(
                 content: vec![ContentItem::OutputText {
                     text: std::mem::take(assistant_text),
                 }],
-                id: current_item_id.clone(), end_turn: None, phase: None};
+                id: current_item_id.map(str::to_owned), end_turn: None, phase: None};
             let _ = tx_event
                 .send(Ok(ResponseEvent::OutputItemDone {
                     item,
@@ -628,7 +628,7 @@ async fn process_chat_sse<S>(
 
         if !reasoning_text.is_empty() {
             let item = ResponseItem::Reasoning {
-                id: current_item_id.clone().unwrap_or_default(),
+                id: current_item_id.unwrap_or_default().to_owned(),
                 summary: Vec::new(),
                 content: Some(vec![ReasoningItemContent::ReasoningText {
                     text: std::mem::take(reasoning_text),
@@ -693,7 +693,7 @@ async fn process_chat_sse<S>(
                     &tx_event,
                     &mut assistant_text,
                     &mut reasoning_text,
-                    &current_item_id,
+                    current_item_id.as_deref(),
                     current_response_id.as_deref(),
                     &debug_logger,
                     &request_id,
@@ -725,7 +725,7 @@ async fn process_chat_sse<S>(
                 &tx_event,
                 &mut assistant_text,
                 &mut reasoning_text,
-                &current_item_id,
+                current_item_id.as_deref(),
                 current_response_id.as_deref(),
                 &debug_logger,
                 &request_id,

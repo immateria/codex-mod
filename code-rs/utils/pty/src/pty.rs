@@ -77,7 +77,7 @@ pub async fn spawn_process(
     args: &[String],
     cwd: &Path,
     env: &HashMap<String, String>,
-    arg0: &Option<String>,
+    arg0: Option<&str>,
     size: TerminalSize,
 ) -> Result<SpawnedProcess> {
     if program.is_empty() {
@@ -87,8 +87,7 @@ pub async fn spawn_process(
     let pty_system = platform_native_pty_system();
     let pair = pty_system.openpty(size.into())?;
 
-    let default_program = program.to_owned();
-    let mut command_builder = CommandBuilder::new(arg0.as_ref().unwrap_or(&default_program));
+    let mut command_builder = CommandBuilder::new(arg0.unwrap_or(program));
     command_builder.cwd(cwd);
     command_builder.env_clear();
     for arg in args {
