@@ -158,7 +158,7 @@ impl LimitsSettingsContent {
         if range.start >= range.end || range.end > lines.len() {
             return Vec::new();
         }
-        lines[range.start..range.end].to_vec()
+        lines[range].to_vec()
     }
 
     fn structured_wide_lines(&self, detail_width: u16) -> Option<(Vec<Line<'static>>, Vec<Line<'static>>)> {

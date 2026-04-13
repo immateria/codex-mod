@@ -28,7 +28,7 @@ fn assume_init<T>(buf: &[MaybeUninit<T>]) -> &[T] {
 }
 
 fn assume_init_slice<T, const N: usize>(buf: &[MaybeUninit<T>; N]) -> &[T; N] {
-    unsafe { &*(buf as *const [MaybeUninit<T>; N]).cast::<[T; N]>() }
+    unsafe { &*std::ptr::from_ref::<[MaybeUninit<T>; N]>(buf).cast::<[T; N]>() }
 }
 
 fn assume_init_vec<T>(mut buf: Vec<MaybeUninit<T>>) -> Vec<T> {
@@ -49,11 +49,11 @@ fn control_space_for_fds(count: usize) -> usize {
 fn extract_fds(control: &[u8]) -> Vec<OwnedFd> {
     let mut fds = Vec::new();
     let mut hdr: libc::msghdr = unsafe { std::mem::zeroed() };
-    hdr.msg_control = control.as_ptr() as *mut libc::c_void;
+    hdr.msg_control = control.as_ptr().cast_mut().cast::<libc::c_void>();
     hdr.msg_controllen = control.len() as _;
     let hdr = hdr; // drop mut
 
-    let mut cmsg = unsafe { libc::CMSG_FIRSTHDR(&hdr) as *const libc::cmsghdr };
+    let mut cmsg = unsafe { libc::CMSG_FIRSTHDR(&hdr).cast_const() };
     while !cmsg.is_null() {
         let level = unsafe { (*cmsg).cmsg_level };
         let ty = unsafe { (*cmsg).cmsg_type };

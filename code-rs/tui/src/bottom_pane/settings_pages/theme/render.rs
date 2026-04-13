@@ -50,12 +50,7 @@ impl ThemeSelectionView {
 
     fn render_shell(&self, area: Rect, buf: &mut Buffer) -> Rect {
         // Use full width and draw an outer window styled like the Diff overlay.
-        let render_area = Rect {
-            x: area.x,
-            y: area.y,
-            width: area.width,
-            height: area.height,
-        };
+        let render_area = area;
         Clear.render(render_area, buf);
 
         // Add one row of padding above the top border (clear + background).

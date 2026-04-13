@@ -72,8 +72,7 @@ fn browser_anchor_line(tracker: &BrowserSessionTracker) -> Line<'static> {
     let mut title = label;
     if title.trim().is_empty() {
         title = url
-            .as_ref()
-            .cloned()
+            .clone()
             .unwrap_or_else(|| "browser session".to_owned());
     }
     spans.push(Span::styled(title.clone(), Style::new().bold()));

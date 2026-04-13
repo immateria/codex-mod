@@ -132,7 +132,7 @@ impl Runner<'_> {
         manager.set_event_sender(agent_tx);
         drop(manager);
 
-        let Some(sess_for_agents) = self.sess.as_ref().cloned() else {
+        let Some(sess_for_agents) = self.sess.clone() else {
             self.send_no_session_event(&submission_id).await;
             return;
         };
