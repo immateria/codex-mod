@@ -1095,8 +1095,7 @@ impl ModelClient {
         if let Some(path) = &*CODEX_RS_SSE_FIXTURE {
             // short circuit for tests
             warn!(path, "Streaming from fixture");
-            return stream_from_fixture(path, self.provider.clone(), self.otel_event_manager.clone())
-                .await;
+            return stream_from_fixture(path, self.provider.clone(), self.otel_event_manager.clone());
         }
 
         let auth_manager = self.auth_manager.clone();
@@ -2914,7 +2913,7 @@ async fn process_sse<S>(
 }
 
 /// used in tests to stream from a text SSE file
-async fn stream_from_fixture(
+fn stream_from_fixture(
     path: impl AsRef<Path>,
     provider: ModelProviderInfo,
     otel_event_manager: Option<OtelEventManager>,

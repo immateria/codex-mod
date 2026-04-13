@@ -54,12 +54,12 @@ pub async fn apply_diff_from_task(
         OutputItem::Other => None,
     });
     match output_diff {
-        Some(output_diff) => apply_diff(&output_diff.diff, cwd).await,
+        Some(output_diff) => apply_diff(&output_diff.diff, cwd),
         None => anyhow::bail!("No PR output item found"),
     }
 }
 
-async fn apply_diff(diff: &str, cwd: Option<PathBuf>) -> anyhow::Result<()> {
+fn apply_diff(diff: &str, cwd: Option<PathBuf>) -> anyhow::Result<()> {
     let cwd = cwd.unwrap_or_else(|| std::env::current_dir().unwrap_or_else(|_| std::env::temp_dir()));
     let req = code_git_apply::ApplyGitRequest {
         cwd,

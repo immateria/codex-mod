@@ -158,7 +158,6 @@ impl CodexAuth {
             refresh_response.access_token,
             refresh_response.refresh_token,
         )
-        .await
         .map_err(|err| RefreshTokenError::permanent(err.to_string()))?;
 
         if let Ok(mut auth_lock) = self.auth_dot_json.lock() {
@@ -810,7 +809,7 @@ pub fn save_auth(
     write_auth_json(&auth_file, auth)
 }
 
-async fn update_tokens(
+fn update_tokens(
     auth_file: &Path,
     id_token: Option<String>,
     access_token: Option<String>,
@@ -1511,7 +1510,6 @@ mod tests {
             Some("updated-access-token".to_string()),
             Some("updated-refresh-token".to_string()),
         )
-        .await
         .expect("update tokens");
 
         let tokens = updated.tokens.expect("tokens after refresh");

@@ -319,7 +319,7 @@ impl RolloutRecorder {
     }
 
     /// No-op compatibility shim for older APIs expecting a state snapshot.
-    pub async fn record_state(&self, _snapshot: SessionStateSnapshot) -> std::io::Result<()> {
+    pub fn record_state(&self, _snapshot: SessionStateSnapshot) -> std::io::Result<()> {
         Ok(())
     }
 
@@ -635,9 +635,7 @@ async fn rollout_writer(
                         &state.code_home,
                         state.session_id.into(),
                         memory_mode,
-                    )
-                    .await
-                    {
+                    ) {
                         warn!("failed to update session catalog memory mode: {err}");
                     }
                 }

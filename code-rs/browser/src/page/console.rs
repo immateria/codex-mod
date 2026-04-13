@@ -10,7 +10,7 @@ impl Page {
         Ok(result.value().cloned().unwrap_or(serde_json::Value::Null))
     }
 
-    pub async fn close(&self) -> Result<()> {
+    pub fn close(&self) -> Result<()> {
         // Note: chromiumoxide's close() takes ownership, so we can't call it on Arc<Page>
         // The page will be closed when the Arc is dropped
         Ok(())

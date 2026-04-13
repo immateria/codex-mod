@@ -946,7 +946,7 @@ impl Session {
             .map_or_else(|| self.cwd.clone(), |p| self.cwd.join(p))
     }
 
-    pub(crate) async fn maybe_parse_apply_patch_verified(
+    pub(crate) fn maybe_parse_apply_patch_verified(
         &self,
         argv: &[String],
         cwd: &Path,
@@ -1214,7 +1214,7 @@ impl Session {
             return false;
         }
 
-        self.cleanup_old_status_items().await;
+        self.cleanup_old_status_items();
         let turn_context = self.make_turn_context();
         let sub_id = self.next_internal_sub_id();
         let sentinel_input = vec![InputItem::Text {
@@ -1701,7 +1701,7 @@ impl Session {
 
     /// Clean up old screenshots and system status messages from conversation history
     /// This is called when a new user message arrives to keep history manageable
-    pub(super) async fn cleanup_old_status_items(&self) {
+    pub(super) fn cleanup_old_status_items(&self) {
         let mut state = crate::codex::lock_or_panic!(self.state);
         let current_items = state.history.take_contents();
 
@@ -1758,7 +1758,7 @@ impl Session {
         let recorder = self.clone_rollout_recorder();
 
         if let Some(rec) = recorder {
-            if let Err(e) = rec.record_state(snapshot).await {
+            if let Err(e) = rec.record_state(snapshot) {
                 error!("failed to record rollout state: {e:#}");
             }
             if let Err(e) = rec.record_response_items(items).await {

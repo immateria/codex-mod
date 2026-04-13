@@ -320,7 +320,7 @@ impl ExecServerClient {
                         RpcClientEvent::Notification(notification) => {
                             if let Some(inner) = weak.upgrade()
                                 && let Err(err) =
-                                    handle_server_notification(&inner, notification).await
+                                    handle_server_notification(&inner, notification)
                             {
                                 warn!("exec-server client closing after protocol error: {err}");
                                 return;
@@ -370,7 +370,8 @@ impl From<RpcCallError> for ExecServerError {
     }
 }
 
-async fn handle_server_notification(
+#[allow(clippy::result_large_err)] // ExecServerError is intentionally large
+fn handle_server_notification(
     inner: &Arc<Inner>,
     notification: JSONRPCNotification,
 ) -> Result<(), ExecServerError> {

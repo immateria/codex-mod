@@ -95,7 +95,7 @@ enum PipeStdinMode {
     Null,
 }
 
-async fn spawn_process_with_stdin_mode(
+fn spawn_process_with_stdin_mode(
     program: &str,
     args: &[String],
     cwd: &Path,
@@ -250,7 +250,7 @@ pub async fn spawn_process(
     env: &HashMap<String, String>,
     arg0: Option<&str>,
 ) -> Result<SpawnedProcess> {
-    spawn_process_with_stdin_mode(program, args, cwd, env, arg0, PipeStdinMode::Piped).await
+    spawn_process_with_stdin_mode(program, args, cwd, env, arg0, PipeStdinMode::Piped)
 }
 
 /// Spawn a process using regular pipes, but close stdin immediately.
@@ -261,5 +261,5 @@ pub async fn spawn_process_no_stdin(
     env: &HashMap<String, String>,
     arg0: Option<&str>,
 ) -> Result<SpawnedProcess> {
-    spawn_process_with_stdin_mode(program, args, cwd, env, arg0, PipeStdinMode::Null).await
+    spawn_process_with_stdin_mode(program, args, cwd, env, arg0, PipeStdinMode::Null)
 }

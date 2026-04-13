@@ -62,7 +62,7 @@ const COMPACTION_EMERGENCY_MESSAGE: &str = "Compaction failed: the conversation 
 ///     .is_some_and(|auth| auth.mode == AuthMode::ChatGPT)
 ///     && session.enabled(Feature::RemoteCompaction).await
 /// ```
-pub(super) async fn should_use_remote_compact_task(session: &Session) -> bool {
+pub(super) fn should_use_remote_compact_task(session: &Session) -> bool {
     session
         .client
         .get_auth_manager()
@@ -188,7 +188,7 @@ pub(super) async fn run_compact_task(
 ) {
     let start_event = sess.make_event(&sub_id, EventMsg::TaskStarted);
     sess.send_event(start_event).await;
-    let compaction_result = if should_use_remote_compact_task(&sess).await {
+    let compaction_result = if should_use_remote_compact_task(&sess) {
         compact_remote::run_remote_compact_task(
             Arc::clone(&sess),
             Arc::clone(&turn_context),

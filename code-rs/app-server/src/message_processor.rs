@@ -299,7 +299,7 @@ impl MessageProcessor {
             .await;
     }
 
-    pub(crate) async fn process_notification(&self, notification: JSONRPCNotification) {
+    pub(crate) fn process_notification(&self, notification: JSONRPCNotification) {
         // Currently, we do not expect to receive any notifications from the
         // client, so we just log them.
         tracing::info!("<- notification: {:?}", notification);
@@ -326,8 +326,7 @@ impl MessageProcessor {
             .await;
         self.fs_watch_manager.connection_closed(connection_id).await;
         self.code_message_processor
-            .on_connection_closed(connection_id)
-            .await;
+            .on_connection_closed(connection_id);
     }
 
     /// Handle a standalone JSON-RPC response originating from the peer.
@@ -471,7 +470,7 @@ impl MessageProcessor {
                 }
             }
             AppServerClientRequest::ExternalAgentConfigDetect { params, .. } => {
-                match self.external_agent_config_api.detect(params).await {
+                match self.external_agent_config_api.detect(params) {
                     Ok(response) => {
                         self.outgoing
                             .send_response_to_connection(connection_id, request_id, response)
@@ -485,7 +484,7 @@ impl MessageProcessor {
                 }
             }
             AppServerClientRequest::ExternalAgentConfigImport { params, .. } => {
-                match self.external_agent_config_api.import(params).await {
+                match self.external_agent_config_api.import(params) {
                     Ok(response) => {
                         self.outgoing
                             .send_response_to_connection(connection_id, request_id, response)

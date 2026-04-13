@@ -187,8 +187,7 @@ pub(crate) async fn execute_agent(agent_id: String, config: Option<AgentConfig>)
                                 &agent_id,
                                 worktree_path.display().to_string(),
                                 used_branch.clone(),
-                            )
-                            .await;
+                            );
                         drop(manager);
 
                         // Prepare optional review-output JSON path for /review agents

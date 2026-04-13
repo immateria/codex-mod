@@ -354,7 +354,7 @@ pub async fn run_main_with_transport(
                             processor.process_response(connection_id, response).await;
                         }
                         JSONRPCMessage::Notification(notification) => {
-                            processor.process_notification(notification).await;
+                            processor.process_notification(notification);
                         }
                         JSONRPCMessage::Error(err) => {
                             processor.process_error(connection_id, err).await;

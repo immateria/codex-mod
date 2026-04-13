@@ -1300,7 +1300,7 @@ async fn handle_cancel_agent(
                             },
                         };
                     }
-                if manager.cancel_agent(&agent_id).await {
+                if manager.cancel_agent(&agent_id) {
                     ResponseInputItem::FunctionCallOutput {
                         call_id: call_id_clone,
                         output: FunctionCallOutputPayload {
@@ -2001,7 +2001,7 @@ pub(super) async fn enqueue_agent_completion_wake(
     }
 
     if should_start_turn {
-        sess.cleanup_old_status_items().await;
+        sess.cleanup_old_status_items();
         let turn_context = sess.make_turn_context();
         let sub_id = sess.next_internal_sub_id();
         let sentinel_input = vec![InputItem::Text {

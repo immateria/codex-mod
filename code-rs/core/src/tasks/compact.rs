@@ -28,7 +28,7 @@ impl SessionTask for CompactTask {
         input: Vec<InputItem>,
     ) -> Option<String> {
         let session_arc = session.clone_session();
-        if compact::should_use_remote_compact_task(&session_arc).await {
+        if compact::should_use_remote_compact_task(&session_arc) {
             compact_remote::run_remote_compact_task(session_arc, ctx, sub_id, input).await;
         } else {
             compact::run_compact_task(session_arc, ctx, sub_id, input).await;

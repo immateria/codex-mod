@@ -701,7 +701,7 @@ pub async fn update_catalog_entry(
     Ok(())
 }
 
-pub async fn update_catalog_memory_mode(
+pub fn update_catalog_memory_mode(
     code_home: &Path,
     session_id: Uuid,
     memory_mode: SessionMemoryMode,

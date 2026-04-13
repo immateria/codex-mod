@@ -25,7 +25,7 @@ impl ExternalAgentConfigApi {
         }
     }
 
-    pub(crate) async fn detect(
+    pub(crate) fn detect(
         &self,
         params: ExternalAgentConfigDetectParams,
     ) -> Result<ExternalAgentConfigDetectResponse, JSONRPCErrorError> {
@@ -62,7 +62,7 @@ impl ExternalAgentConfigApi {
         })
     }
 
-    pub(crate) async fn import(
+    pub(crate) fn import(
         &self,
         params: ExternalAgentConfigImportParams,
     ) -> Result<ExternalAgentConfigImportResponse, JSONRPCErrorError> {

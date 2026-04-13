@@ -264,7 +264,7 @@ impl CodexMessageProcessor {
         }
     }
 
-    pub(crate) async fn on_connection_closed(&mut self, connection_id: ConnectionId) {
+    pub(crate) fn on_connection_closed(&mut self, connection_id: ConnectionId) {
         let subscription_ids: Vec<Uuid> = self
             .conversation_listeners
             .iter()

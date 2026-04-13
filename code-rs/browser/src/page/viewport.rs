@@ -24,7 +24,7 @@ impl Page {
         })
     }
 
-    pub async fn update_viewport(&self, _viewport: ViewportConfig) -> Result<()> {
+    pub fn update_viewport(&self, _viewport: ViewportConfig) -> Result<()> {
         Ok(())
     }
 

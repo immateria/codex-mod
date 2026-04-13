@@ -378,7 +378,7 @@ pub(super) async fn run_turn(
                                 .await;
 
                             let previous_input_snapshot = input.clone();
-                            let compacted_history = if compact::should_use_remote_compact_task(sess).await {
+                            let compacted_history = if compact::should_use_remote_compact_task(sess) {
                                 run_inline_remote_auto_compact_task(
                                     Arc::clone(sess),
                                     Arc::clone(turn_context),

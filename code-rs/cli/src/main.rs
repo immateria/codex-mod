@@ -864,7 +864,7 @@ async fn cli_main(code_linux_sandbox_exe: Option<PathBuf>) -> anyhow::Result<()>
                         std::process::exit(1);
                     } else if login_cli.with_api_key {
                         let api_key = read_api_key_from_stdin();
-                        run_login_with_api_key(login_cli.config_overrides, api_key).await;
+                        run_login_with_api_key(login_cli.config_overrides, api_key);
                     } else {
                         run_login_with_chatgpt(login_cli.config_overrides).await;
                     }

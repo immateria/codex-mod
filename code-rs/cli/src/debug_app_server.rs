@@ -48,7 +48,7 @@ pub async fn send_message_v2(
     config_overrides: &[String],
     user_message: String,
 ) -> Result<()> {
-    let mut client = AppServerClient::spawn_stdio(code_bin, config_overrides).await?;
+    let mut client = AppServerClient::spawn_stdio(code_bin, config_overrides)?;
     client.initialize().await?;
 
     let thread_response = client.thread_start(ThreadStartParams::default()).await?;
@@ -80,7 +80,7 @@ struct AppServerClient {
 }
 
 impl AppServerClient {
-    async fn spawn_stdio(code_bin: &Path, config_overrides: &[String]) -> Result<Self> {
+    fn spawn_stdio(code_bin: &Path, config_overrides: &[String]) -> Result<Self> {
         let code_bin_display = code_bin.display();
         let mut cmd = Command::new(code_bin);
         for override_kv in config_overrides {

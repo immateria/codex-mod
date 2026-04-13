@@ -59,7 +59,6 @@ impl ToolHandler for ApplyPatchToolHandler {
         let command = vec!["apply_patch".to_owned(), patch_input];
         match sess
             .maybe_parse_apply_patch_verified(&command, sess.get_cwd())
-            .await
         {
             code_apply_patch::MaybeApplyPatchVerified::Body(action) => {
                 let params = ExecParams {

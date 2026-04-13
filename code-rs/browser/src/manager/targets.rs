@@ -226,7 +226,7 @@ impl BrowserManager {
     pub async fn close_page(&self) -> Result<()> {
         let mut page_guard = self.page.lock().await;
         if let Some(page) = page_guard.take() {
-            page.close().await?;
+            page.close()?;
         }
         Ok(())
     }

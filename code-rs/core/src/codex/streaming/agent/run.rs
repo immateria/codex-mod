@@ -234,7 +234,7 @@ pub(super) async fn run_agent(sess: Arc<Session>, turn_context: Arc<TurnContext>
         }
 
         if auto_compact_pending && !is_review_mode {
-            let compacted_history = if compact::should_use_remote_compact_task(&sess).await {
+            let compacted_history = if compact::should_use_remote_compact_task(&sess) {
                 run_inline_remote_auto_compact_task(
                     Arc::clone(&sess),
                     Arc::clone(&turn_context),
@@ -474,7 +474,7 @@ pub(super) async fn run_agent(sess: Arc<Session>, turn_context: Arc<TurnContext>
                         did_proactive_compact_this_iteration = true;
                         // Choose between local and remote compact based on auth mode,
                         // matching upstream codex-rs behavior
-                        if compact::should_use_remote_compact_task(&sess).await {
+                        if compact::should_use_remote_compact_task(&sess) {
                             let _ = run_inline_remote_auto_compact_task(
                                 Arc::clone(&sess),
                                 Arc::clone(&turn_context),
@@ -625,7 +625,7 @@ pub(super) async fn run_agent(sess: Arc<Session>, turn_context: Arc<TurnContext>
     if let Some(queued) = sess.pop_next_queued_user_input() {
         let sess_clone = Arc::clone(&sess);
         tokio::spawn(async move {
-            sess_clone.cleanup_old_status_items().await;
+            sess_clone.cleanup_old_status_items();
             let turn_context = sess_clone.make_turn_context();
             let submission_id = queued.submission_id;
             let items = queued.core_items;

@@ -57,7 +57,7 @@ impl BrowserManager {
             // Avoid viewport manipulation for external CDP connections to prevent focus/flicker
             let is_external = config.connect_port.is_some() || config.connect_ws.is_some();
             if !is_external {
-                page.update_viewport(config.viewport.clone()).await?;
+                page.update_viewport(config.viewport.clone())?;
             }
         }
 

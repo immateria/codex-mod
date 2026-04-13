@@ -1506,7 +1506,6 @@ pub(crate) async fn handle_container_exec_with_params(
     // Check if this was a patch, and apply it in-process if so.
     match sess
         .maybe_parse_apply_patch_verified(&params.command, &params.cwd)
-        .await
     {
         MaybeApplyPatchVerified::Body(action) => {
             return handle_apply_patch_action(

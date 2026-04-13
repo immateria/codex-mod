@@ -271,7 +271,7 @@ impl Features {
         self.enabled.contains(&f)
     }
 
-    pub async fn apps_enabled(&self, auth_manager: Option<&AuthManager>) -> bool {
+    pub fn apps_enabled(&self, auth_manager: Option<&AuthManager>) -> bool {
         if !self.enabled(Feature::Apps) {
             return false;
         }

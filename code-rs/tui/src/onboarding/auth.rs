@@ -364,7 +364,7 @@ impl AuthModeWidget {
 
                 let event_tx = self.event_tx.clone();
                 let join_handle = tokio::spawn(async move {
-                    spawn_completion_poller(child, event_tx).await;
+                    spawn_completion_poller(child, event_tx);
                 });
                 self.sign_in_state =
                     SignInState::ChatGptContinueInBrowser(ContinueInBrowserState {
@@ -416,7 +416,7 @@ impl AuthModeWidget {
     }
 }
 
-async fn spawn_completion_poller(
+fn spawn_completion_poller(
     child: code_login::LoginServer,
     event_tx: AppEventSender,
 ) -> tokio::task::JoinHandle<()> {

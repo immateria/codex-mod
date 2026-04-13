@@ -81,7 +81,7 @@ pub(in crate::codex) async fn submission_loop(
                     if !seen_agents.insert(trimmed.to_owned()) {
                         continue;
                     }
-                    if manager.cancel_agent(trimmed).await {
+                    if manager.cancel_agent(trimmed) {
                         cancelled += 1;
                     }
                 }
@@ -108,7 +108,7 @@ pub(in crate::codex) async fn submission_loop(
                 let dev_msg = ResponseInputItem::Message { role: "developer".to_owned(), content: vec![ContentItem::InputText { text }] };
                 let should_start_turn = sess.enqueue_out_of_turn_item(dev_msg);
                 if should_start_turn {
-                    sess.cleanup_old_status_items().await;
+                    sess.cleanup_old_status_items();
                     let turn_context = sess.make_turn_context();
                     let sub_id = sess.next_internal_sub_id();
                     let sentinel_input = vec![InputItem::Text {
@@ -156,7 +156,7 @@ pub(in crate::codex) async fn submission_loop(
 
                 // Clean up old status items when new user input arrives
                 // This prevents token buildup from old screenshots/status messages
-                sess.cleanup_old_status_items().await;
+                sess.cleanup_old_status_items();
 
                 // Abort synchronously here to avoid a race that can kill the
                 // newly spawned agent if the async abort runs after set_task.
@@ -186,7 +186,7 @@ pub(in crate::codex) async fn submission_loop(
                     sess.queue_user_input(queued);
                 } else {
                     // No task running: treat this as immediate user input without aborting.
-                    sess.cleanup_old_status_items().await;
+                    sess.cleanup_old_status_items();
                     let turn_context = sess.make_turn_context();
                     let agent = AgentTask::spawn(Arc::clone(sess), turn_context, sub.id.clone(), items);
                     sess.set_task(agent);

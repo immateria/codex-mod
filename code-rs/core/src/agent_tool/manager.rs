@@ -149,7 +149,7 @@ impl AgentManager {
                 }
 
                 // Notify listeners once per sweep.
-                mgr.send_agent_status_update().await;
+                mgr.send_agent_status_update();
             }
         }));
     }
@@ -190,7 +190,7 @@ impl AgentManager {
         }
     }
 
-    async fn send_agent_status_update(&self) {
+    fn send_agent_status_update(&self) {
         if let Some(ref sender) = self.event_sender {
             let now = Utc::now();
             let agents: Vec<AgentInfo> = self
@@ -339,10 +339,10 @@ impl AgentManager {
             last_activity: Utc::now(),
         };
 
-        self.agents.insert(agent_id.clone(), agent.clone());
+        self.agents.insert(agent_id.clone(), agent);
 
         // Send initial status update
-        self.send_agent_status_update().await;
+        self.send_agent_status_update();
 
         // Spawn async agent
         let agent_id_clone = agent_id.clone();
@@ -398,7 +398,7 @@ impl AgentManager {
             .any(|agent| matches!(agent.status, AgentStatus::Pending | AgentStatus::Running))
     }
 
-    pub async fn cancel_agent(&mut self, agent_id: &str) -> bool {
+    pub fn cancel_agent(&mut self, agent_id: &str) -> bool {
         if let Some(handle) = self.handles.remove(agent_id) {
             handle.abort();
             if let Some(agent) = self.agents.get_mut(agent_id) {
@@ -421,7 +421,7 @@ impl AgentManager {
 
         let mut count = 0;
         for agent_id in agent_ids {
-            if self.cancel_agent(&agent_id).await {
+            if self.cancel_agent(&agent_id) {
                 count += 1;
             }
         }
@@ -442,7 +442,7 @@ impl AgentManager {
             }
             Self::record_activity(agent);
             // Send status update event
-            self.send_agent_status_update().await;
+            self.send_agent_status_update();
         }
     }
 
@@ -490,7 +490,7 @@ impl AgentManager {
                 }
             }
             // Send status update event
-            self.send_agent_status_update().await;
+            self.send_agent_status_update();
         }
     }
 
@@ -508,11 +508,11 @@ impl AgentManager {
                 self.append_agent_log(&tag, &entry);
             }
             // Send updated agent status with the latest progress
-            self.send_agent_status_update().await;
+            self.send_agent_status_update();
         }
     }
 
-    pub async fn update_worktree_info(
+    pub fn update_worktree_info(
         &mut self,
         agent_id: &str,
         worktree_path: String,
