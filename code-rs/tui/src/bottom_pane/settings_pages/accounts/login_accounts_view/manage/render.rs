@@ -110,6 +110,7 @@ impl LoginAccountsState {
         lines.push(shortcut_line(&[
             hint_nav(" navigate"),
             hint_enter(" select"),
+            KeyHint::new("a", " re-auth"),
             KeyHint::new("d", " disconnect"),
             KeyHint::new("p", " paths"),
             hint_esc(" close"),
@@ -185,6 +186,15 @@ impl LoginAccountsState {
                         " (current)",
                         Style::default()
                             .fg(c_success)
+                            .add_modifier(Modifier::BOLD),
+                    ));
+                }
+
+                if account.needs_reauth {
+                    spans.push(Span::styled(
+                        " ⚠ re-auth",
+                        Style::default()
+                            .fg(crate::colors::warning())
                             .add_modifier(Modifier::BOLD),
                     ));
                 }

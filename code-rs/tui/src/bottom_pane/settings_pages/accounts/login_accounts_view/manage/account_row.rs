@@ -15,15 +15,20 @@ impl AccountRow {
         let mode = account.mode;
         let mut detail_parts: Vec<String> = Vec::new();
         let now = Utc::now();
+        let mut needs_reauth = false;
 
-        if mode.is_chatgpt()
-            && let Some(plan) = account
+        if mode.is_chatgpt() {
+            if account.tokens.is_none() {
+                needs_reauth = true;
+                detail_parts.push("⚠ No tokens — re-authentication required".to_owned());
+            } else if let Some(plan) = account
                 .tokens
                 .as_ref()
                 .and_then(|t| t.id_token.get_chatgpt_plan_type())
             {
                 detail_parts.push(format!("Plan: {plan}"));
             }
+        }
 
         if let Some(email) = account
             .tokens
@@ -41,6 +46,13 @@ impl AccountRow {
                 format_timestamp(refresh_due),
                 format_relative_time(refresh_due, now)
             ));
+            // Flag as needing re-auth if the refresh window has expired
+            if mode.is_chatgpt() && refresh_due <= now {
+                needs_reauth = true;
+            }
+        } else if mode.is_chatgpt() && account.tokens.is_some() {
+            // ChatGPT account with tokens but no last_refresh timestamp
+            needs_reauth = true;
         }
 
         if let Some(access_expires_at) = account
@@ -53,6 +65,13 @@ impl AccountRow {
                 format_timestamp(access_expires_at),
                 format_relative_time(access_expires_at, now)
             ));
+            if access_expires_at <= now {
+                needs_reauth = true;
+            }
+        }
+
+        if needs_reauth && mode.is_chatgpt() {
+            detail_parts.push("⚠ Re-authentication recommended (press 'a')".to_owned());
         }
 
         if mode == AuthMode::ApiKey {
@@ -71,6 +90,7 @@ impl AccountRow {
             detail_items: detail_parts,
             mode,
             is_active,
+            needs_reauth,
         }
     }
 }

@@ -154,6 +154,19 @@ impl LoginAccountsState {
                 }
                 false
             }
+            KeyCode::Char('a') => {
+                if self.selected < account_count
+                    && let Some(account) = self.accounts.get(self.selected)
+                    && account.mode.is_chatgpt()
+                {
+                    let label = account.label.clone();
+                    self.set_complete();
+                    self.app_event_tx.send(AppEvent::ShowLoginAddAccount);
+                    self.send_tail(format!("Re-authenticating {label}…"));
+                    return true;
+                }
+                false
+            }
             KeyCode::Char('r') => {
                 self.reload_accounts();
                 true
