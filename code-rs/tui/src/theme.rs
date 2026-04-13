@@ -198,108 +198,40 @@ fn parse_color(color_str: &str) -> Option<Color> {
     }
 }
 
-/// Apply custom color overrides to a theme
+/// Apply custom color overrides to a theme.
 fn apply_custom_colors(theme: &mut Theme, colors: &ThemeColors) {
-    if let Some(ref c) = colors.primary
-        && let Some(color) = parse_color(c) {
-            theme.primary = color;
-        }
-    if let Some(ref c) = colors.secondary
-        && let Some(color) = parse_color(c) {
-            theme.secondary = color;
-        }
-    if let Some(ref c) = colors.background
-        && let Some(color) = parse_color(c) {
-            theme.background = color;
-        }
-    if let Some(ref c) = colors.foreground
-        && let Some(color) = parse_color(c) {
-            theme.foreground = color;
-        }
-    if let Some(ref c) = colors.border
-        && let Some(color) = parse_color(c) {
-            theme.border = color;
-        }
-    if let Some(ref c) = colors.border_focused
-        && let Some(color) = parse_color(c) {
-            theme.border_focused = color;
-        }
-    if let Some(ref c) = colors.selection
-        && let Some(color) = parse_color(c) {
-            theme.selection = color;
-        }
-    if let Some(ref c) = colors.cursor
-        && let Some(color) = parse_color(c) {
-            theme.cursor = color;
-        }
-    if let Some(ref c) = colors.success
-        && let Some(color) = parse_color(c) {
-            theme.success = color;
-        }
-    if let Some(ref c) = colors.warning
-        && let Some(color) = parse_color(c) {
-            theme.warning = color;
-        }
-    if let Some(ref c) = colors.error
-        && let Some(color) = parse_color(c) {
-            theme.error = color;
-        }
-    if let Some(ref c) = colors.info
-        && let Some(color) = parse_color(c) {
-            theme.info = color;
-        }
-    if let Some(ref c) = colors.text
-        && let Some(color) = parse_color(c) {
-            theme.text = color;
-        }
-    if let Some(ref c) = colors.text_dim
-        && let Some(color) = parse_color(c) {
-            theme.text_dim = color;
-        }
-    if let Some(ref c) = colors.text_bright
-        && let Some(color) = parse_color(c) {
-            theme.text_bright = color;
-        }
-    if let Some(ref c) = colors.keyword
-        && let Some(color) = parse_color(c) {
-            theme.keyword = color;
-        }
-    if let Some(ref c) = colors.string
-        && let Some(color) = parse_color(c) {
-            theme.string = color;
-        }
-    if let Some(ref c) = colors.comment
-        && let Some(color) = parse_color(c) {
-            theme.comment = color;
-        }
-    if let Some(ref c) = colors.function
-        && let Some(color) = parse_color(c) {
-            theme.function = color;
-        }
-    if let Some(ref c) = colors.spinner
-        && let Some(color) = parse_color(c) {
-            theme.spinner = color;
-        }
-    if let Some(ref c) = colors.progress
-        && let Some(color) = parse_color(c) {
-            theme.progress = color;
-        }
-    if let Some(ref c) = colors.hint_key
-        && let Some(color) = parse_color(c) {
-            theme.hint_key = color;
-        }
-    if let Some(ref c) = colors.hint_dismiss
-        && let Some(color) = parse_color(c) {
-            theme.hint_dismiss = color;
-        }
-    if let Some(ref c) = colors.hint_confirm
-        && let Some(color) = parse_color(c) {
-            theme.hint_confirm = color;
-        }
-    if let Some(ref c) = colors.hint_nav
-        && let Some(color) = parse_color(c) {
-            theme.hint_nav = color;
-        }
+    macro_rules! apply {
+        ($field:ident) => {
+            if let Some(color) = colors.$field.as_deref().and_then(parse_color) {
+                theme.$field = color;
+            }
+        };
+    }
+    apply!(primary);
+    apply!(secondary);
+    apply!(background);
+    apply!(foreground);
+    apply!(border);
+    apply!(border_focused);
+    apply!(selection);
+    apply!(cursor);
+    apply!(success);
+    apply!(warning);
+    apply!(error);
+    apply!(info);
+    apply!(text);
+    apply!(text_dim);
+    apply!(text_bright);
+    apply!(keyword);
+    apply!(string);
+    apply!(comment);
+    apply!(function);
+    apply!(spinner);
+    apply!(progress);
+    apply!(hint_key);
+    apply!(hint_dismiss);
+    apply!(hint_confirm);
+    apply!(hint_nav);
 }
 
 /// Return true when we should prefer ANSI-256 over truecolor for safety.
@@ -358,6 +290,16 @@ pub(crate) fn has_truecolor_terminal() -> bool {
 pub(crate) enum PaletteMode {
     Ansi16,
     Ansi256,
+}
+
+impl PaletteMode {
+    /// Upper index bound for iterating over the palette.
+    const fn max_index(self) -> u16 {
+        match self {
+            Self::Ansi16 => 15,
+            Self::Ansi256 => 255,
+        }
+    }
 }
 
 /// Tolerance for comparing relative luminance values when preserving
@@ -769,22 +711,13 @@ fn find_palette_match_with_contrast(
                 }
             }
         }
-        if best.is_some() {
-            return best.map(|(_, color)| color);
+        if let Some((_, color)) = best {
+            return Some(color);
         }
     }
 
-    match palette {
-        PaletteMode::Ansi16 => {
-            for idx in 0u8..=15 {
-                consider_candidate(Color::Indexed(idx), &mut best);
-            }
-        }
-        PaletteMode::Ansi256 => {
-            for idx in 0u16..=255 {
-                consider_candidate(Color::Indexed(idx as u8), &mut best);
-            }
-        }
+    for idx in 0..=palette.max_index() {
+        consider_candidate(Color::Indexed(idx as u8), &mut best);
     }
     best.map(|(_, color)| color)
 }
@@ -804,36 +737,16 @@ fn find_background_candidate(target: Color, require_light: bool, palette: Palett
     let mut best: Option<(i32, Color)> = None;
     let target_rgb = color_to_rgb(target);
 
-    match palette {
-        PaletteMode::Ansi16 => {
-            for idx in 0u8..=15 {
-                let candidate = Color::Indexed(idx);
-                if is_light_color(candidate) != require_light {
-                    continue;
-                }
-                let candidate_rgb = color_to_rgb(candidate);
-                let dist = color_distance(candidate_rgb, target_rgb);
-                match best {
-                    None => best = Some((dist, candidate)),
-                    Some((best_dist, _)) if dist < best_dist => best = Some((dist, candidate)),
-                    _ => {}
-                }
-            }
+    for idx in 0..=palette.max_index() {
+        let candidate = Color::Indexed(idx as u8);
+        if is_light_color(candidate) != require_light {
+            continue;
         }
-        PaletteMode::Ansi256 => {
-            for idx in 0u16..=255 {
-                let candidate = Color::Indexed(idx as u8);
-                if is_light_color(candidate) != require_light {
-                    continue;
-                }
-                let candidate_rgb = color_to_rgb(candidate);
-                let dist = color_distance(candidate_rgb, target_rgb);
-                match best {
-                    None => best = Some((dist, candidate)),
-                    Some((best_dist, _)) if dist < best_dist => best = Some((dist, candidate)),
-                    _ => {}
-                }
-            }
+        let dist = color_distance(color_to_rgb(candidate), target_rgb);
+        match best {
+            None => best = Some((dist, candidate)),
+            Some((best_dist, _)) if dist < best_dist => best = Some((dist, candidate)),
+            _ => {}
         }
     }
 

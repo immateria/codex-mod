@@ -7,7 +7,9 @@ use std::path::PathBuf;
 pub(crate) fn build_fix_prompt(review: &ReviewOutputEvent) -> String {
     let summary = format_review_findings(review);
     let raw_json = serde_json::to_string_pretty(review).unwrap_or_else(|_| "{}".to_owned());
-    let mut preface = String::from(
+    let base_len = 350 + summary.len() + raw_json.len();
+    let mut preface = String::with_capacity(base_len);
+    preface.push_str(
         "You are continuing an automated /review resolution loop. Review the listed findings and determine whether they represent real issues introduced by our changes. If they are, apply the necessary fixes and resolve any similar issues you can identify before responding."
     );
     if !summary.is_empty() {
@@ -25,7 +27,7 @@ pub(crate) fn format_review_findings(output: &ReviewOutputEvent) -> String {
     if output.findings.is_empty() {
         return String::new();
     }
-    let mut parts = Vec::new();
+    let mut parts = Vec::with_capacity(output.findings.len());
     for (idx, f) in output.findings.iter().enumerate() {
         let title = f.title.trim();
         let body = f.body.trim();
@@ -54,12 +56,12 @@ pub(crate) fn review_summary_line(output: &ReviewOutputEvent) -> Option<String> 
     }
 
     if !output.findings.is_empty() {
-        let titles: Vec<String> = output
+        let titles: Vec<&str> = output
             .findings
             .iter()
             .filter_map(|f| {
                 let title = f.title.trim();
-                (!title.is_empty()).then_some(title.to_owned())
+                (!title.is_empty()).then_some(title)
             })
             .collect();
         if !titles.is_empty() {
