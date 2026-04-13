@@ -98,7 +98,7 @@ impl BrowserManager {
                 let cfg_now = config_arc.read().await.clone();
                 if cfg_now.connect_port.is_some() || cfg_now.connect_ws.is_some() {
                     // Install listener once and poll sequence counter.
-                    let listener_script = r#"
+                    let listener_script = "
                         (function(){
                           try {
                             if (!window.__code_nav_listening) {
@@ -113,7 +113,7 @@ impl BrowserManager {
                             return { seq: Number(window.__code_nav_seq||0), url: String(window.__code_nav_url||location.href) };
                           } catch (e) { return { seq: 0, url: String(location.href||'') }; }
                         })()
-                    "#;
+                    ";
 
                     if let Ok(result) = page.execute_javascript(listener_script).await {
                         let seq = result
@@ -227,11 +227,11 @@ impl BrowserManager {
                 let expected_dpr = cfg.viewport.device_scale_factor;
 
                 // Probe current viewport via JS (cheap and non-invasive).
-                let probe_js = r#"(() => ({
+                let probe_js = "(() => ({
                     w: (document.documentElement.clientWidth|0),
                     h: (document.documentElement.clientHeight|0),
                     dpr: (window.devicePixelRatio||1)
-                }))()"#;
+                }))()";
 
                 if let Ok(val) = page.inject_js(probe_js).await {
                     let cw = val

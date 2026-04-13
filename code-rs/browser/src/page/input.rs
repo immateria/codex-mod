@@ -52,7 +52,7 @@ impl Page {
         let cursor_y = cursor.y;
 
         let script = format!(
-            r#"
+            "
             (function(cursorX, cursorY) {{
                 const isEditableInputType = (t) => !/^(checkbox|radio|button|submit|reset|file|image|color|hidden|range)$/i.test(t || '');
                 const isEditable = (el) => !!el && (
@@ -139,7 +139,7 @@ impl Page {
                 }}
                 return false; // Do not steal focus by picking arbitrary candidates.
             }})({cursor_x}, {cursor_y})
-            "#
+            "
         );
 
         let result = self.cdp_page.evaluate(script).await?;
@@ -460,7 +460,7 @@ impl Page {
         // Install a temporary focus guard that keeps focus anchored on the
         // currently focused editable unless the user intentionally sends Tab/Enter.
         let _ = self.execute_javascript(
-            r#"(() => {
+            "(() => {
                 try {
                   const isEditableInputType = (t) => !/^(checkbox|radio|button|submit|reset|file|image|color|hidden|range)$/i.test(t || '');
                   const isEditable = (el) => !!el && (
@@ -543,7 +543,7 @@ impl Page {
                   }
                   return window.__codeFG.install();
                 } catch(_) { return false; }
-            })()"#
+            })()"
         ).await;
 
         let text_len = processed_text.len();
@@ -552,7 +552,7 @@ impl Page {
             // Large text: paste-style insertion with no per-char delay
             // Try to insert at caret for input/textarea and contenteditable; fall back to raw key events without delay.
             let js = format!(
-                r#"(() => {{
+                "(() => {{
   try {{
     const T = {text_json};
     const isEditableInputType = (t) => !/^(checkbox|radio|button|submit|reset|file|image|color|hidden|range)$/i.test(t || '');
@@ -598,7 +598,7 @@ impl Page {
     }}
     return {{ success: false, reason: 'unsupported' }};
   }} catch (e) {{ return {{ success: false, error: String(e) }}; }}
-}})()"#,
+}})()",
                 text_json = serde_json::to_string(&processed_text).unwrap_or_default()
             );
 
@@ -627,7 +627,7 @@ impl Page {
 
         // Remove the focus guard shortly after typing to cover post-typing side effects
         let _ = self.execute_javascript(
-            r#"(() => { try { if (window.__codeFG && window.__codeFG.uninstall) { setTimeout(() => { try { window.__codeFG.uninstall(); } catch(_){} }, 500); return true; } return false; } catch(_) { return false; } })()"#
+            "(() => { try { if (window.__codeFG && window.__codeFG.uninstall) { setTimeout(() => { try { window.__codeFG.uninstall(); } catch(_){} }, 500); return true; } return false; } catch(_) { return false; } })()"
         ).await;
 
         Ok(())

@@ -165,7 +165,7 @@ pub(super) async fn handle_browser_storage_get(
                 serde_json::to_string(&keys_json).unwrap_or_else(|_| "null".to_owned());
 
             let script = format!(
-                r#"(function() {{
+                "(function() {{
                     try {{
                         var st = {storage_expr};
                         var keys = {keys_literal};
@@ -185,7 +185,7 @@ pub(super) async fn handle_browser_storage_get(
                     }} catch (e) {{
                         return {{ __error: String(e) }};
                     }}
-                }})()"#
+                }})()"
             );
 
             match browser_manager.execute_javascript(&script).await {

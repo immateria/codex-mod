@@ -176,10 +176,10 @@ impl ChatWidget<'_> {
                     .unwrap_or("(goal unavailable)");
 
                 let prompt_text = format!(
-                    r#"Here was the original goal:
+                    "Here was the original goal:
 {diagnostics_goal}
 
-Have we met every part of this goal and is there no further work to do?"#
+Have we met every part of this goal and is there no further work to do?"
                 );
 
                 let tf = TextFormat {

@@ -18,13 +18,13 @@ impl BrowserManager {
 
         // Remove virtual cursor and related overlays if present.
         let page = self.get_or_create_page().await?;
-        let cleanup_js = r#"
+        let cleanup_js = "
             (function(){
                 try { if (window.__vc && typeof window.__vc.destroy === 'function') window.__vc.destroy(); } catch(_) {}
                 try { if (window.__code_console_logs) delete window.__code_console_logs; } catch(_) {}
                 return true;
             })()
-        "#;
+        ";
         let _ = page.inject_js(cleanup_js).await;
         Ok(())
     }

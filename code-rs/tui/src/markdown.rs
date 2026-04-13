@@ -177,7 +177,7 @@ fn rewrite_web_citations<'a>(src: &'a str) -> Cow<'a, str> {
     use regex_lite::Regex;
     static WEB_CITE_RE: OnceCell<Option<Regex>> = OnceCell::new();
     let Some(re) = WEB_CITE_RE
-        .get_or_init(|| Regex::new(r"cite([^]+)").ok())
+        .get_or_init(|| Regex::new("cite([^]+)").ok())
         .as_ref()
     else {
         return Cow::Borrowed(src);

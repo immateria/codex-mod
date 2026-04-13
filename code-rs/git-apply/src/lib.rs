@@ -178,7 +178,7 @@ fn render_command_for_log(cwd: &Path, git_cfg: &[String], args: &[String]) -> St
 
 pub fn extract_paths_from_patch(diff_text: &str) -> Vec<String> {
     static RE: Lazy<Regex> = Lazy::new(|| {
-        Regex::new(r"(?m)^diff --git a/(.*?) b/(.*)$")
+        Regex::new("(?m)^diff --git a/(.*?) b/(.*)$")
             .unwrap_or_else(|e| panic!("invalid regex: {e}"))
     });
     let mut set = std::collections::BTreeSet::new();

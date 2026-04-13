@@ -461,7 +461,7 @@ async fn apply_migrations(pool: &SqlitePool) -> Result<()> {
 
 async fn create_schema_v6(tx: &mut sqlx::Transaction<'_, Sqlite>) -> Result<()> {
     tx.execute(sqlx::query(
-        r#"
+        "
 CREATE TABLE IF NOT EXISTS memory_threads (
     thread_id TEXT PRIMARY KEY,
     rollout_path TEXT NOT NULL,
@@ -478,11 +478,11 @@ CREATE TABLE IF NOT EXISTS memory_threads (
     git_branch TEXT,
     last_user_snippet TEXT
 )
-        "#,
+        ",
     ))
     .await?;
     tx.execute(sqlx::query(
-        r#"
+        "
 CREATE TABLE IF NOT EXISTS stage1_epochs (
     thread_id TEXT NOT NULL,
     epoch_index INTEGER NOT NULL,
@@ -507,11 +507,11 @@ CREATE TABLE IF NOT EXISTS stage1_epochs (
     PRIMARY KEY(thread_id, epoch_index),
     FOREIGN KEY(thread_id) REFERENCES memory_threads(thread_id) ON DELETE CASCADE
 )
-        "#,
+        ",
     ))
     .await?;
     tx.execute(sqlx::query(
-        r#"
+        "
 CREATE TABLE IF NOT EXISTS memory_jobs (
     kind TEXT NOT NULL,
     job_key TEXT NOT NULL,
@@ -524,17 +524,17 @@ CREATE TABLE IF NOT EXISTS memory_jobs (
     terminal_failed_at INTEGER,
     PRIMARY KEY(kind, job_key)
 )
-        "#,
+        ",
     ))
     .await?;
     tx.execute(sqlx::query(
-        r#"
+        "
 CREATE TABLE IF NOT EXISTS artifact_state (
     state_key TEXT PRIMARY KEY,
     dirty INTEGER NOT NULL DEFAULT 1,
     last_build_at INTEGER
 )
-        "#,
+        ",
     ))
     .await?;
     sqlx::query("INSERT OR IGNORE INTO artifact_state (state_key, dirty, last_build_at) VALUES (?, 1, NULL)")
@@ -592,7 +592,7 @@ async fn migrate_v1_to_v2(tx: &mut sqlx::Transaction<'_, Sqlite>) -> Result<()> 
         .await?;
 
     tx.execute(sqlx::query(
-        r#"
+        "
 CREATE TABLE memory_jobs (
     kind TEXT NOT NULL,
     job_key TEXT NOT NULL,
@@ -601,35 +601,35 @@ CREATE TABLE memory_jobs (
     last_error TEXT,
     PRIMARY KEY(kind, job_key)
 )
-        "#,
+        ",
     ))
     .await?;
     tx.execute(sqlx::query(
-        r#"
+        "
 INSERT INTO memory_jobs (kind, job_key, ownership_token, lease_until, last_error)
 SELECT kind, job_key, ownership_token, lease_until, last_error
 FROM memory_jobs_v1
-        "#,
+        ",
     ))
     .await?;
     tx.execute(sqlx::query("DROP TABLE memory_jobs_v1")).await?;
 
     tx.execute(sqlx::query(
-        r#"
+        "
 CREATE TABLE artifact_state (
     state_key TEXT PRIMARY KEY,
     dirty INTEGER NOT NULL DEFAULT 1,
     last_build_at INTEGER
 )
-        "#,
+        ",
     ))
     .await?;
     tx.execute(sqlx::query(
-        r#"
+        "
 INSERT INTO artifact_state (state_key, dirty, last_build_at)
 SELECT state_key, dirty, last_build_at
 FROM artifact_state_v1
-        "#,
+        ",
     ))
     .await?;
     tx.execute(sqlx::query("DROP TABLE artifact_state_v1")).await?;
@@ -661,7 +661,7 @@ async fn migrate_v2_to_v3(tx: &mut sqlx::Transaction<'_, Sqlite>) -> Result<()> 
     tx.execute(sqlx::query("ALTER TABLE memory_jobs RENAME TO memory_jobs_v2"))
         .await?;
     tx.execute(sqlx::query(
-        r#"
+        "
 CREATE TABLE memory_jobs (
     kind TEXT NOT NULL,
     job_key TEXT NOT NULL,
@@ -672,17 +672,17 @@ CREATE TABLE memory_jobs (
     failure_count INTEGER NOT NULL DEFAULT 0,
     PRIMARY KEY(kind, job_key)
 )
-        "#,
+        ",
     ))
     .await?;
     tx.execute(sqlx::query(
-        r#"
+        "
 INSERT INTO memory_jobs (
     kind, job_key, ownership_token, lease_until, last_error, retry_after, failure_count
 )
 SELECT kind, job_key, ownership_token, lease_until, last_error, NULL, 0
 FROM memory_jobs_v2
-        "#,
+        ",
     ))
     .await?;
     tx.execute(sqlx::query("DROP TABLE memory_jobs_v2")).await?;
@@ -696,7 +696,7 @@ async fn migrate_v3_to_v4(tx: &mut sqlx::Transaction<'_, Sqlite>) -> Result<()> 
         .await?;
 
     tx.execute(sqlx::query(
-        r#"
+        "
 CREATE TABLE memory_threads (
     thread_id TEXT PRIMARY KEY,
     rollout_path TEXT NOT NULL,
@@ -713,11 +713,11 @@ CREATE TABLE memory_threads (
     git_branch TEXT,
     last_user_snippet TEXT
 )
-        "#,
+        ",
     ))
     .await?;
     tx.execute(sqlx::query(
-        r#"
+        "
 CREATE TABLE stage1_epochs (
     thread_id TEXT NOT NULL,
     epoch_index INTEGER NOT NULL,
@@ -741,13 +741,13 @@ CREATE TABLE stage1_epochs (
     PRIMARY KEY(thread_id, epoch_index),
     FOREIGN KEY(thread_id) REFERENCES memory_threads(thread_id) ON DELETE CASCADE
 )
-        "#,
+        ",
     ))
     .await?;
     create_indexes_v4(tx).await?;
 
     tx.execute(sqlx::query(
-        r#"
+        "
 INSERT INTO memory_threads (
     thread_id, rollout_path, source, cwd, cwd_display, updated_at, updated_at_label,
     archived, deleted, memory_mode, catalog_seen_at, git_project_root, git_branch, last_user_snippet
@@ -756,12 +756,12 @@ SELECT
     thread_id, rollout_path, source, cwd, cwd_display, updated_at, updated_at_label,
     archived, deleted, memory_mode, catalog_seen_at, NULL, git_branch, last_user_snippet
 FROM memory_threads_v3
-        "#,
+        ",
     ))
     .await?;
 
     tx.execute(sqlx::query(
-        r#"
+        "
 INSERT INTO stage1_epochs (
     thread_id, epoch_index, source_updated_at, generated_at, epoch_start_at, epoch_end_at,
     epoch_start_line, epoch_end_line, platform_family, shell_style, shell_program,
@@ -790,7 +790,7 @@ SELECT
     so.last_usage
 FROM stage1_outputs_v3 so
 JOIN memory_threads_v3 mt ON mt.thread_id = so.thread_id
-        "#,
+        ",
     ))
     .await?;
 
@@ -906,7 +906,7 @@ async fn load_existing_epochs(
     thread_id: Uuid,
 ) -> Result<Vec<PersistedEpochRow>> {
     let rows = sqlx::query(
-        r#"
+        "
 SELECT
     thread_id,
     epoch_index,
@@ -931,7 +931,7 @@ SELECT
 FROM stage1_epochs
 WHERE thread_id = ?
 ORDER BY epoch_index ASC
-        "#,
+        ",
     )
     .bind(thread_id.to_string())
     .fetch_all(&mut **tx)
@@ -974,7 +974,7 @@ impl MemoriesStore for SqliteMemoriesStore {
         let mut upserted = 0usize;
         for thread in threads {
             let updated = sqlx::query(
-                r#"
+                "
 INSERT INTO memory_threads (
     thread_id, rollout_path, source, cwd, cwd_display, updated_at, updated_at_label,
     archived, deleted, memory_mode, catalog_seen_at, git_project_root, git_branch, last_user_snippet
@@ -1005,7 +1005,7 @@ WHERE memory_threads.rollout_path != excluded.rollout_path
    OR memory_threads.git_project_root IS NOT excluded.git_project_root
    OR memory_threads.git_branch IS NOT excluded.git_branch
    OR memory_threads.last_user_snippet IS NOT excluded.last_user_snippet
-                "#,
+                ",
             )
             .bind(thread.thread_id.to_string())
             .bind(thread.rollout_path.to_string_lossy().into_owned())
@@ -1104,7 +1104,7 @@ WHERE memory_threads.rollout_path != excluded.rollout_path
         let allowed: Vec<String> = allowed_sources.iter().map(session_source_label).collect();
 
         let mut query = String::from(
-            r#"
+            "
 SELECT
     mt.thread_id,
     mt.rollout_path,
@@ -1128,7 +1128,7 @@ WHERE mt.archived = 0
   AND mt.updated_at >= ?
   AND mt.updated_at <= ?
   AND COALESCE(se.source_updated_at, -1) < mt.updated_at
-"#,
+",
         );
         if !bypass_retry_backoff {
         query.push_str("  AND (mj.retry_after IS NULL OR mj.retry_after < ?)\n");
@@ -1168,7 +1168,7 @@ WHERE mt.archived = 0
             let thread_id_text: String = row.try_get("thread_id")?;
             let thread_id = Uuid::parse_str(&thread_id_text)?;
             let updated = sqlx::query(
-                r#"
+                "
 INSERT INTO memory_jobs (
     kind, job_key, ownership_token, lease_until, last_error, retry_after, failure_count,
     terminal_failure, terminal_failed_at
@@ -1178,7 +1178,7 @@ ON CONFLICT(kind, job_key) DO UPDATE SET
     ownership_token = excluded.ownership_token,
     lease_until = excluded.lease_until
 WHERE memory_jobs.lease_until IS NULL OR memory_jobs.lease_until < ? OR memory_jobs.ownership_token IS NULL
-                "#,
+                ",
             )
             .bind(JOB_KIND_STAGE1)
             .bind(&thread_id_text)
@@ -1235,14 +1235,14 @@ WHERE memory_jobs.lease_until IS NULL OR memory_jobs.lease_until < ? OR memory_j
                     .copied()
                     .unwrap_or((0, None));
                 sqlx::query(
-                    r#"
+                    "
 INSERT INTO stage1_epochs (
     thread_id, epoch_index, provenance, source_updated_at, generated_at, epoch_start_at, epoch_end_at,
     epoch_start_line, epoch_end_line, platform_family, shell_style, shell_program,
     workspace_root, cwd_display, git_branch, raw_memory, rollout_summary, rollout_slug,
     usage_count, last_usage
 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                    "#,
+                    ",
                 )
                 .bind(epoch.id.thread_id.to_string())
                 .bind(epoch.id.epoch_index)
@@ -1330,7 +1330,7 @@ INSERT INTO stage1_epochs (
         };
         let allowed: Vec<String> = allowed_sources.iter().map(session_source_label).collect();
         let mut query = QueryBuilder::<Sqlite>::new(
-            r#"
+            "
 SELECT
     se.thread_id,
     se.epoch_index,
@@ -1361,7 +1361,7 @@ WHERE mt.archived = 0
   AND mt.deleted = 0
   AND mt.memory_mode = 'enabled'
   AND (length(trim(se.raw_memory)) > 0 OR length(trim(se.rollout_summary)) > 0)
-  AND (se.source_updated_at >= "#,
+  AND (se.source_updated_at >= ",
         );
         query.push_bind(cutoff);
         query.push(" OR (se.last_usage IS NOT NULL AND se.last_usage >= ");
@@ -1376,7 +1376,7 @@ WHERE mt.archived = 0
             sources.push_unseparated(")");
         }
         query.push(
-            r#"
+            "
 ORDER BY CASE se.provenance
              WHEN 'derived' THEN 0
              WHEN 'catalog_fallback' THEN 1
@@ -1391,7 +1391,7 @@ ORDER BY CASE se.provenance
          se.source_updated_at DESC,
          se.thread_id DESC,
          se.epoch_index ASC
-LIMIT "#,
+LIMIT ",
         );
         query.push_bind(limit as i64);
         let rows = query.build().fetch_all(&self.pool).await?;
@@ -1411,7 +1411,7 @@ LIMIT "#,
         let now = now_epoch();
         let token = Uuid::new_v4().to_string();
         let updated = sqlx::query(
-            r#"
+            "
 INSERT INTO memory_jobs (kind, job_key, ownership_token, lease_until, last_error, retry_after, failure_count)
 VALUES (?, ?, ?, ?, NULL, NULL, 0)
 ON CONFLICT(kind, job_key) DO UPDATE SET
@@ -1419,7 +1419,7 @@ ON CONFLICT(kind, job_key) DO UPDATE SET
     lease_until = excluded.lease_until,
     last_error = NULL
 WHERE memory_jobs.lease_until IS NULL OR memory_jobs.lease_until < ? OR memory_jobs.ownership_token IS NULL
-            "#,
+            ",
         )
         .bind(JOB_KIND_ARTIFACTS)
         .bind(ARTIFACT_STATE_KEY)
@@ -1545,25 +1545,25 @@ WHERE memory_jobs.lease_until IS NULL OR memory_jobs.lease_until < ? OR memory_j
             .await?;
 
         let mut running_query = QueryBuilder::<Sqlite>::new(
-            r#"
+            "
 SELECT COUNT(*)
 FROM memory_jobs mj
 JOIN memory_threads mt ON mt.thread_id = mj.job_key
-WHERE mj.kind = "#,
+WHERE mj.kind = ",
         );
         running_query.push_bind(JOB_KIND_STAGE1);
         running_query.push(
-            r#"
+            "
   AND mj.lease_until IS NOT NULL
-  AND mj.lease_until >= "#,
+  AND mj.lease_until >= ",
         );
         running_query.push_bind(now);
         running_query.push(
-            r#"
+            "
   AND mt.archived = 0
   AND mt.deleted = 0
   AND mt.memory_mode = 'enabled'
-"#,
+",
         );
         if !allowed.is_empty() {
             running_query.push("  AND mt.source IN (");
@@ -1579,7 +1579,7 @@ WHERE mj.kind = "#,
             .await?;
 
         let mut pending_query = QueryBuilder::<Sqlite>::new(
-            r#"
+            "
 SELECT COUNT(*)
 FROM memory_threads mt
 LEFT JOIN (
@@ -1587,28 +1587,28 @@ LEFT JOIN (
     FROM stage1_epochs
     GROUP BY thread_id
 ) se ON se.thread_id = mt.thread_id
-LEFT JOIN memory_jobs mj ON mj.kind = "#,
+LEFT JOIN memory_jobs mj ON mj.kind = ",
         );
         pending_query.push_bind(JOB_KIND_STAGE1);
         pending_query.push(
-            r#"
+            "
  AND mj.job_key = mt.thread_id
 WHERE mt.archived = 0
   AND mt.deleted = 0
   AND mt.memory_mode = 'enabled'
   AND COALESCE(se.source_updated_at, -1) < mt.updated_at
-  AND (mj.lease_until IS NULL OR mj.lease_until < "#,
+  AND (mj.lease_until IS NULL OR mj.lease_until < ",
         );
         pending_query.push_bind(now);
         pending_query.push(
-            r#" OR mj.ownership_token IS NULL)
-  AND (mj.retry_after IS NULL OR mj.retry_after < "#,
+            " OR mj.ownership_token IS NULL)
+  AND (mj.retry_after IS NULL OR mj.retry_after < ",
         );
         pending_query.push_bind(now);
         pending_query.push(
-            r#")
+            ")
   AND COALESCE(mj.terminal_failure, 0) = 0
-"#,
+",
         );
         if !allowed.is_empty() {
             pending_query.push("  AND mt.source IN (");
@@ -1624,7 +1624,7 @@ WHERE mt.archived = 0
             .await?;
 
         let mut dead_lettered_query = QueryBuilder::<Sqlite>::new(
-            r#"
+            "
 SELECT COUNT(*)
 FROM memory_jobs mj
 JOIN memory_threads mt ON mt.thread_id = mj.job_key
@@ -1633,22 +1633,22 @@ LEFT JOIN (
     FROM stage1_epochs
     GROUP BY thread_id
 ) se ON se.thread_id = mt.thread_id
-WHERE mj.kind = "#,
+WHERE mj.kind = ",
         );
         dead_lettered_query.push_bind(JOB_KIND_STAGE1);
         dead_lettered_query.push(
-            r#"
+            "
   AND COALESCE(mj.terminal_failure, 0) != 0
-  AND (mj.lease_until IS NULL OR mj.lease_until < "#,
+  AND (mj.lease_until IS NULL OR mj.lease_until < ",
         );
         dead_lettered_query.push_bind(now);
         dead_lettered_query.push(
-            r#" OR mj.ownership_token IS NULL)
+            " OR mj.ownership_token IS NULL)
   AND mt.archived = 0
   AND mt.deleted = 0
   AND mt.memory_mode = 'enabled'
   AND COALESCE(se.source_updated_at, -1) < mt.updated_at
-"#,
+",
         );
         if !allowed.is_empty() {
             dead_lettered_query.push("  AND mt.source IN (");

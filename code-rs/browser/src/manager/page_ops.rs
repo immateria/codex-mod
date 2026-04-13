@@ -4,7 +4,7 @@ use tracing::warn;
 
 use super::BrowserManager;
 
-const CONSOLE_CAPTURE_INSTALL_JS: &str = r#"(function(){
+const CONSOLE_CAPTURE_INSTALL_JS: &str = r"(function(){
             try {
                 if (!window.__code_console_logs) {
                     window.__code_console_logs = [];
@@ -51,7 +51,7 @@ const CONSOLE_CAPTURE_INSTALL_JS: &str = r#"(function(){
                 }
                 return true;
             } catch (_) { return false; }
-        })()"#;
+        })()";
 
 pub(super) async fn install_console_capture(page: &Page, context: &str) {
     if let Err(e) = page.inject_js(CONSOLE_CAPTURE_INSTALL_JS).await {
@@ -79,7 +79,7 @@ impl BrowserManager {
         // 2) Fallback to JS-installed hook (ensures capture on pages where events are unavailable).
         let requested = lines.unwrap_or(0);
         let script = format!(
-            r#"(function() {{
+            r"(function() {{
                 try {{
                     if (!window.__code_console_logs) {{
                         window.__code_console_logs = [];
@@ -129,7 +129,7 @@ impl BrowserManager {
                 }} catch (err) {{
                     return [{{ timestamp: new Date().toISOString(), level: 'error', message: 'capture failed: ' + (err && err.message ? err.message : String(err)) }}];
                 }}
-            }})()"#
+            }})()"
         );
 
         page.inject_js(&script).await

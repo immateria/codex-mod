@@ -68,7 +68,7 @@ pub fn find_uuids(s: &str) -> Vec<String> {
     static RE: std::sync::OnceLock<regex_lite::Regex> = std::sync::OnceLock::new();
     let re = RE.get_or_init(|| {
         regex_lite::Regex::new(
-            r"[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}",
+            "[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}",
         )
         .unwrap() // Unwrap is safe thanks to the tests.
     });

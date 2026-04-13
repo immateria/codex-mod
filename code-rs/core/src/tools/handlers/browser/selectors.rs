@@ -290,7 +290,7 @@ pub(super) async fn handle_browser_wait_for(
 
             loop {
                 let script = format!(
-                    r#"(function() {{
+                    "(function() {{
                         try {{
                             var sel = {selector_json};
                             var readyTarget = {ready_json};
@@ -332,7 +332,7 @@ pub(super) async fn handle_browser_wait_for(
                         }} catch (e) {{
                             return {{ ok: false, error: String(e) }};
                         }}
-                    }})()"#
+                    }})()"
                 );
 
                 let raw = match browser_manager.execute_javascript(&script).await {

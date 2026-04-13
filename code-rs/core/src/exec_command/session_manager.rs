@@ -214,10 +214,10 @@ impl ExecCommandOutput {
             None => String::new(),
         };
         format!(
-            r#"Wall time: {wall_time_secs:.3} seconds
+            "Wall time: {wall_time_secs:.3} seconds
 {termination_status}{truncation_status}
 Output:
-{output}"#,
+{output}",
             output = self.output
         )
     }

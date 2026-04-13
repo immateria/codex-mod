@@ -55,10 +55,10 @@ pub(crate) static PLAN_TOOL: LazyLock<OpenAiTool> = LazyLock::new(|| {
 
     OpenAiTool::Function(ResponsesApiTool {
         name: "update_plan".to_owned(),
-        description: r#"Updates the task plan.
+        description: "Updates the task plan.
 Provide an optional name and a list of plan items, each with a step and status.
 At most one step can be in_progress at a time.
-"#.to_owned(),
+".to_owned(),
         strict: false,
         parameters: JsonSchema::Object {
             properties,

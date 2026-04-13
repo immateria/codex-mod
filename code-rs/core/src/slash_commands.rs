@@ -97,13 +97,13 @@ fn resolve_models(explicit: &[String], agents: Option<&[AgentConfig]>) -> Vec<St
 /// Returns None for custom subagent names.
 pub fn default_instructions_for(name: &str) -> Option<String> {
     match name.to_ascii_lowercase().as_str() {
-        "plan" => Some(r#"1. If you do not fully understand the context for the plan, very briefly research the code base. Do not come up with the plan yourself.
+        "plan" => Some("1. If you do not fully understand the context for the plan, very briefly research the code base. Do not come up with the plan yourself.
 2. Start multiple agents working in parallel.
 3. Wait for all agents to complete.
 4. Analyze every agent's plans and recommendations. Identify common themes and best practices from each agent.
 5. Think deeply and synthesize the best elements from each to create a final, comprehensive plan that incorporates the strongest recommendations from all agents.
-6. Present the final plan with clear steps and rationale."#.to_owned()),
-        "solve" => Some(r#"Solve a complicated problem leveraging multiple state-of-the-art agents working in parallel.
+6. Present the final plan with clear steps and rationale.".to_owned()),
+        "solve" => Some("Solve a complicated problem leveraging multiple state-of-the-art agents working in parallel.
 
 1. If you do not fully understand the problem, research it briefly. Do not attempt to solve it yet, just understand what the problem is and what the desired result should be.
 2. Provide full context to the agents so they can work on the problem themselves. You do not need to guide them on how to solve the problem - focus on describing the current issue and desired outcome. Allow each agent to come up with it's own path to the solution. If there have been previous attempts at the problem which have not worked, please explain these.
@@ -111,8 +111,8 @@ pub fn default_instructions_for(name: &str) -> Option<String> {
 4. Go through each possible solution to the problem from each agent. If you're able to test each solution to compare them, you should do so. Utilize short helper scripts to do this.
 5. If no solutions work, then start additional agents. You should always try to gather additional debugging information to feed to the agents.
 6. Do no stop any agents prematurely - wait until problem is completely solved. Longer running agents may sometimes come up with unique solutions.
-7. Once you have a working solution, check all running agents once again - see if there's any new solutions which might be optimal before completing the task."#.to_owned()),
-        "code" => Some(r#"Complete a coding task using multiple state-of-the-art agents working in parallel.
+7. Once you have a working solution, check all running agents once again - see if there's any new solutions which might be optimal before completing the task.".to_owned()),
+        "code" => Some("Complete a coding task using multiple state-of-the-art agents working in parallel.
 
 1. If you do not fully understand the task, research it briefly. Do not attempt to code or solve it, just understand the task in the context of the current code base.
 2. Provide full context to the agents so they can work on the task themselves. You do not need to guide them on how to write the code - focus on describing the current task and desired outcome.
@@ -126,7 +126,7 @@ pub fn default_instructions_for(name: &str) -> Option<String> {
 4. Wait for all agents to complete.
 5. View each agent's implementation in the worktree for each agent. You may use git to compare changes. Consider the different approaches and solutions
 6. Bring the best parts of each solution into your own final implementation
-7. If you are not satisfied the solution has been found, start a new round of agents with additional context"#.to_owned()),
+7. If you are not satisfied the solution has been found, start a new round of agents with additional context".to_owned()),
         _ => None,
     }
 }

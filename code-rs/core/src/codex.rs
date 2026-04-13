@@ -519,12 +519,12 @@ async fn build_turn_status_items_legacy(sess: &Session) -> Vec<ResponseItem> {
     // Build current system status (UI-only; not persisted)
     #[cfg(feature = "browser-automation")]
     let mut current_status = format!(
-        r#"== System Status ==
+        "== System Status ==
  [automatic message added by system]
 
  cwd: {cwd}
  branch: {branch}
- reasoning: {reasoning_effort:?}"#
+ reasoning: {reasoning_effort:?}"
     );
     #[cfg(not(feature = "browser-automation"))]
     let current_status = format!(

@@ -589,7 +589,7 @@ pub(super) fn create_list_dir_tool() -> OpenAiTool {
 }
 
 pub(super) fn create_js_repl_tool() -> OpenAiTool {
-    const JS_REPL_FREEFORM_GRAMMAR: &str = r#"start: /[\s\S]*/"#;
+    const JS_REPL_FREEFORM_GRAMMAR: &str = r"start: /[\s\S]*/";
 
     OpenAiTool::Freeform(FreeformTool {
         name: JS_REPL_TOOL_NAME.to_owned(),

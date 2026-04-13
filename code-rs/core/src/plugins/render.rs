@@ -22,12 +22,12 @@ pub(crate) fn render_plugins_section(plugins: &[PluginCapabilitySummary]) -> Opt
 
     lines.push("### How to use plugins".to_owned());
     lines.push(
-        r###"- Discovery: The list above is the plugins available in this session.
+        "- Discovery: The list above is the plugins available in this session.
 - Skill naming: If a plugin contributes skills, those skill entries are prefixed with `plugin_name:` in the Skills list.
 - Trigger rules: If the user explicitly names a plugin, prefer capabilities associated with that plugin for that turn.
 - Relationship to capabilities: Plugins are not invoked directly. Use their underlying skills, MCP tools, and app tools to help solve the task.
 - Preference: When a relevant plugin is available, prefer using capabilities associated with that plugin over standalone capabilities that provide similar functionality.
-- Missing/blocked: If the user requests a plugin that is not listed above, or the plugin does not have relevant callable capabilities for the task, say so briefly and continue with the best fallback."###.to_owned(),
+- Missing/blocked: If the user requests a plugin that is not listed above, or the plugin does not have relevant callable capabilities for the task, say so briefly and continue with the best fallback.".to_owned(),
     );
 
     Some(lines.join("\n"))

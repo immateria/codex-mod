@@ -37,7 +37,7 @@ pub(crate) fn create_apply_patch_json_tool() -> OpenAiTool {
     properties.insert(
         "input".to_owned(),
         JsonSchema::String {
-            description: Some(r#"The entire contents of the apply_patch command"#.to_owned()),
+            description: Some("The entire contents of the apply_patch command".to_owned()),
             allowed_values: None,
         },
     );

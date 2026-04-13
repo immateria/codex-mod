@@ -271,11 +271,11 @@ impl ApplyPatchAction {
             None => panic!("path should not be empty"),
         };
         let patch = format!(
-            r#"*** Begin Patch
+            "*** Begin Patch
 *** Update File: {filename}
 @@
 + {content}
-*** End Patch"#,
+*** End Patch",
         );
         let changes = HashMap::from([(path.to_path_buf(), ApplyPatchFileChange::Add { content })]);
         Self {

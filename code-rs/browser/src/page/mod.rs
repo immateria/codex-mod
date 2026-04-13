@@ -206,7 +206,7 @@ impl Page {
         let status = self
             .cdp_page
             .evaluate(format!(
-                r#"(function(v) {{
+                "(function(v) {{
                       if (typeof window.__vc === 'undefined') return 'missing';
                       try {{
                         var cur = window.__vc.__version|0;
@@ -216,7 +216,7 @@ impl Page {
                         }}
                         return 'ok';
                       }} catch (e) {{ return 'reinstall'; }}
-                }})({desired_version})"#
+                }})({desired_version})"
             ))
             .await
             .ok()
