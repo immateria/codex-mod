@@ -1604,7 +1604,8 @@ fn remove_toml_edit_segments(doc: &mut DocumentMut, segments: &[&str]) -> bool {
     let mut current = doc.as_table_mut();
     for seg in parents {
         let Some(item) = current.get_mut(seg) else { return false }; 
-        match item { Item::Table(table) => { current = table; } _ => { return false; } }
+        let Item::Table(table) = item else { return false; };
+        current = table;
     }
     current.remove(last).is_some()
 }

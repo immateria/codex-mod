@@ -479,11 +479,7 @@ fn parse_skill_file(path: &Path, scope: SkillScope) -> Result<SkillMetadata, Ski
 }
 
 fn sanitize_single_line(raw: &str) -> String {
-    raw.split_whitespace().fold(String::new(), |mut acc, w| {
-        if !acc.is_empty() { acc.push(' '); }
-        acc.push_str(w);
-        acc
-    })
+    raw.split_whitespace().collect::<Vec<_>>().join(" ")
 }
 
 fn validate_field(

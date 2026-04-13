@@ -690,11 +690,12 @@ pub(super) fn create_shell_tool_for_sandbox(sandbox_policy: &SandboxPolicy) -> O
             let roots_str = if writable_roots.is_empty() {
                 "    - (none)\n".to_owned()
             } else {
-                use std::fmt::Write;
-                writable_roots.iter().fold(String::new(), |mut acc, p| {
-                    let _ = writeln!(acc, "    - {}", p.display());
-                    acc
-                })
+                writable_roots
+                    .iter()
+                    .map(|p| format!("    - {}", p.display()))
+                    .collect::<Vec<_>>()
+                    .join("\n")
+                    + "\n"
             };
             format!(
                 r#"
