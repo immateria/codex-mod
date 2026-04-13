@@ -1,3 +1,6 @@
+// Serde double-option helpers distinguish "field absent" from "field = null".
+#![allow(clippy::option_option)]
+
 use serde::Deserialize;
 use serde::Deserializer;
 use serde::Serialize;

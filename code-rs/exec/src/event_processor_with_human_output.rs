@@ -417,7 +417,7 @@ impl EventProcessor for EventProcessorWithHumanOutput {
             }
             EventMsg::ExecCommandEnd(ExecCommandEndEvent { call_id, stdout, stderr, duration, exit_code }) => {
                 let exec_command = self.call_id_to_command.remove(&call_id);
-                let (duration, call) = if let Some(ExecCommandBegin { command, .. }) = exec_command
+                let (duration, call) = if let Some(ExecCommandBegin { command }) = exec_command
                 {
                     (
                         format!(" in {}", format_duration(duration)),

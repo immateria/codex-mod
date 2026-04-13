@@ -337,7 +337,7 @@ pub(crate) fn set_last_sequence_number(&mut self, kind: StreamKind, seq: Option<
                             StreamKind::Answer => Some(c_text_bright),
                         };
                         let mut styled: Vec<Line<'static>> = Vec::with_capacity(newly_completed.len());
-                        for mut line in newly_completed.into_iter() {
+                        for mut line in newly_completed {
                             if let Some(c) = color { line.style = line.style.patch(ratatui::style::Style::default().fg(c)); }
                             styled.push(line);
                         }
@@ -399,7 +399,7 @@ pub(crate) fn set_last_sequence_number(&mut self, kind: StreamKind, seq: Option<
                     if !newly_completed.is_empty() {
                         let color = Some(c_text_dim);
                         let mut styled: Vec<Line<'static>> = Vec::with_capacity(newly_completed.len());
-                        for mut line in newly_completed.into_iter() {
+                        for mut line in newly_completed {
                             if let Some(c) = color {
                                 line.style = line.style.patch(ratatui::style::Style::default().fg(c));
                             }
@@ -626,7 +626,7 @@ pub(crate) fn set_last_sequence_number(&mut self, kind: StreamKind, seq: Option<
                         StreamKind::Answer => Some(c_text_bright),
                     };
                     let mut styled: Vec<Line<'static>> = Vec::with_capacity(newly_completed.len());
-                    for mut line in newly_completed.into_iter() {
+                    for mut line in newly_completed {
                         if let Some(c) = color { line.style = line.style.patch(ratatui::style::Style::default().fg(c)); }
                         styled.push(line);
                     }

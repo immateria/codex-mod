@@ -348,6 +348,8 @@ where
     } else {
         let mut contents = String::new();
         file.seek(SeekFrom::Start(0))?;
+        // We need read_to_string on the locked file handle, not fs::read_to_string.
+        #[allow(clippy::verbose_file_reads)]
         file.read_to_string(&mut contents)?;
         if contents.trim().is_empty() {
             AccountUsageData::new(account_id.to_owned())

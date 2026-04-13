@@ -328,6 +328,7 @@ pub(crate) struct SettingsState {
     pub(crate) overlay: Option<SettingsOverlayView>,
     /// `Some(Some(section))` means bottom-pane settings is open in a section,
     /// `Some(None)` means bottom-pane settings overview menu is open.
+    #[allow(clippy::option_option)] // intentional tri-state: closed / overview / section
     pub(crate) bottom_route: Option<Option<SettingsSection>>,
 }
 
