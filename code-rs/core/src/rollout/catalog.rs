@@ -440,7 +440,7 @@ async fn scan_rollout_files(
                 queue.push(path);
             } else if metadata.is_file()
                 && let Some(name) = path.file_name().and_then(|n| n.to_str())
-                && name.ends_with(".jsonl")
+                && path.extension().is_some_and(|ext| ext.eq_ignore_ascii_case("jsonl"))
                 && name.starts_with("rollout-")
                 && let Some(index_entry) = parse_rollout_file(&path, sessions_root, archived).await
             {

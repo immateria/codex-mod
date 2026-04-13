@@ -98,7 +98,7 @@ impl SettingsOverlayView {
         // Use horizontal-only margin so the shortcut bar sits flush against
         // the bottom border.  A 1-row top inset is applied manually below
         // to keep content from touching the title bar.
-        let h_margin = if area.width < 50 { 0 } else { 1 };
+        let h_margin = u16::from(area.width >= 50);
         let mut style = SettingsPanelStyle::overlay().with_margin(Margin::new(h_margin, 0));
         style.border_style = Style::default()
             .fg(if self.is_content_focused() {

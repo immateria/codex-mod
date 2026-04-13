@@ -175,7 +175,7 @@ async fn traverse_directories_for_paths(
                     break 'outer;
                 }
                 let day_files = collect_files(day_path, |name_str, path| {
-                    if !name_str.starts_with("rollout-") || !name_str.ends_with(".jsonl") {
+                    if !name_str.starts_with("rollout-") || !std::path::Path::new(name_str).extension().is_some_and(|ext| ext.eq_ignore_ascii_case("jsonl")) {
                         return None;
                     }
 

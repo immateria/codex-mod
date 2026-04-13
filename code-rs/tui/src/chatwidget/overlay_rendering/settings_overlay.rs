@@ -16,7 +16,7 @@ impl ChatWidget<'_> {
         fill_rect(buf, frame_area, None, scrim_style);
 
         // Reduce horizontal padding on very narrow screens to maximize content room.
-        let padding = if history_area.width < 40 { 0u16 } else { 1u16 };
+        let padding = u16::from(history_area.width >= 40);
         let overlay_area = Rect {
             x: history_area.x + padding,
             y: history_area.y,
