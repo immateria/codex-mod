@@ -74,6 +74,18 @@ impl ChatWidget<'_> {
             }
             if changed {
                 self.sync_limits_layout_mode_preference();
+                // If a sidebar click navigated to the Limits section, rebuild
+                // tabs from disk so that accounts removed in the Accounts
+                // section are not shown as stale entries.
+                let navigated_to_limits = self
+                    .settings
+                    .overlay
+                    .as_ref()
+                    .is_some_and(|o| !o.is_menu_active() && o.active_section() == crate::bottom_pane::SettingsSection::Limits);
+                if navigated_to_limits {
+                    self.show_limits_settings_ui();
+                    return;
+                }
                 self.request_redraw();
             }
             return;
