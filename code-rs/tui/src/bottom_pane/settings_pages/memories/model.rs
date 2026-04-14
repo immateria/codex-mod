@@ -539,17 +539,27 @@ impl MemoriesSettingsView {
             format!("  {name}: {present} (modified: {modified})")
         }
 
-        let mut lines = Vec::with_capacity(32);
+        let mut lines = Vec::with_capacity(40);
         lines.push("── How Memories Work ──".to_owned());
         lines.push("  Sessions → Epochs: Each session's conversation is split into".to_owned());
         lines.push("  memory epochs. An epoch captures your workspace, branch, and".to_owned());
         lines.push("  what you asked. Empty sessions produce empty epochs (filtered".to_owned());
         lines.push("  from prompts). Derived epochs contain real user interactions.".to_owned());
         lines.push(String::new());
+        lines.push("  Auto-tags: Epochs are automatically tagged with categories".to_owned());
+        lines.push("  (e.g. \"rust\", \"testing\", \"refactor\") based on content heuristics.".to_owned());
+        lines.push("  Tagged epochs rank higher when they share tags with your pinned".to_owned());
+        lines.push("  memories.".to_owned());
+        lines.push(String::new());
+        lines.push("  Pinned memories: User-created entries that are always injected".to_owned());
+        lines.push("  into the LLM prompt before auto-extracted epochs. Use them for".to_owned());
+        lines.push("  style preferences, struct definitions, project conventions, or".to_owned());
+        lines.push("  any knowledge the model should always have.".to_owned());
+        lines.push(String::new());
         lines.push("  Epochs → Prompt: The best epochs are ranked by workspace match,".to_owned());
-        lines.push("  branch affinity, platform/shell compatibility, and recency,".to_owned());
-        lines.push("  then packed into a 12KB prompt budget. This becomes the".to_owned());
-        lines.push("  MEMORY_SUMMARY block in the LLM's developer instructions.".to_owned());
+        lines.push("  tag affinity, branch proximity, platform/shell compatibility,".to_owned());
+        lines.push("  and recency, then packed into a 12KB prompt budget. This becomes".to_owned());
+        lines.push("  the MEMORY_SUMMARY block in the LLM's developer instructions.".to_owned());
         lines.push(String::new());
         lines.push("  LLM behavior: The model skims the summary, searches MEMORY.md".to_owned());
         lines.push("  for deeper context when relevant, and updates stale entries".to_owned());
@@ -632,6 +642,7 @@ impl MemoriesSettingsView {
         if let Some(ref last_build) = status.db.last_artifact_build_at {
             lines.push(format!("  last build:     {last_build}"));
         }
+        lines.push(format!("  user memories:  {}", status.db.user_memory_count));
 
         lines.join("\n")
     }

@@ -85,14 +85,20 @@ impl MemoriesSettingsView {
                         let derived = status.db.derived_epoch_count;
                         let empty = status.db.empty_epoch_count;
                         let fallback = total.saturating_sub(derived).saturating_sub(empty);
+                        let pinned = status.db.user_memory_count;
+                        let pinned_str = if pinned > 0 {
+                            format!(" · {pinned} pinned")
+                        } else {
+                            String::new()
+                        };
                         let quality = if total == 0 {
                             format!(
-                                "Database: {} sessions · no memories yet",
+                                "Database: {} sessions · no memories yet{pinned_str}",
                                 status.db.thread_count,
                             )
                         } else {
                             format!(
-                                "Database: {} sessions · {} epochs ({} useful · {} empty{})",
+                                "Database: {} sessions · {} epochs ({} useful · {} empty{}){pinned_str}",
                                 status.db.thread_count,
                                 total,
                                 derived,
