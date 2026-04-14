@@ -52,6 +52,7 @@ impl ChatComposer {
         match (&self.active_popup, self.embedded_mode) {
             (ActivePopup::Command(popup), _) => popup.calculate_required_height(),
             (ActivePopup::File(popup), _) => popup.calculate_required_height(),
+            (ActivePopup::Skill(popup), _) => popup.calculate_required_height(),
             (ActivePopup::None, true) => 0,
             (ActivePopup::None, false) => 1,
         }
@@ -71,6 +72,10 @@ impl ChatComposer {
                     return;
                 }
                 ActivePopup::File(popup) => {
+                    popup.render_ref(area, buf);
+                    return;
+                }
+                ActivePopup::Skill(popup) => {
                     popup.render_ref(area, buf);
                     return;
                 }

@@ -63,7 +63,12 @@ impl<'a> BottomPane<'a> {
     }
 
     pub(crate) fn set_skills(&mut self, skills: Vec<Skill>) {
+        let skill_pairs: Vec<(String, String)> = skills
+            .iter()
+            .map(|s| (s.name.clone(), s.description.clone()))
+            .collect();
         self.skills = skills;
+        self.composer.set_available_skills(skill_pairs);
     }
 
     pub(crate) fn skills(&self) -> &[Skill] {

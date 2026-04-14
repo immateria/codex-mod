@@ -80,6 +80,7 @@ pub(super) fn handle_key_event_inner(
     let result = match &mut view.active_popup {
         ActivePopup::Command(_) => view.handle_key_event_with_slash_popup(key_event),
         ActivePopup::File(_) => view.handle_key_event_with_file_popup(key_event),
+        ActivePopup::Skill(_) => view.handle_key_event_with_skill_popup(key_event),
         ActivePopup::None => view.handle_key_event_without_popup(key_event),
     };
 

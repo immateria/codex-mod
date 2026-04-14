@@ -6,6 +6,7 @@ mod history_nav;
 mod key_router;
 mod mouse;
 mod paste;
+mod skill_popup;
 mod slash_popup;
 
 impl ChatComposer {
@@ -46,7 +47,12 @@ impl ChatComposer {
         self.sync_command_popup();
         if matches!(self.active_popup, ActivePopup::Command(_)) {
             self.dismissed_file_popup_token = None;
-        } else {
+            return;
+        }
+        // Sync skill popup (yields to file popup when needed)
+        self.sync_skill_popup();
+        // Only sync file popup when skill popup is not showing
+        if !matches!(self.active_popup, ActivePopup::Skill(_)) {
             self.sync_file_search_popup();
         }
     }

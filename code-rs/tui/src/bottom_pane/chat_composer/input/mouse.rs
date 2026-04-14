@@ -34,6 +34,20 @@ impl PopupMouseTarget for FileSearchPopup {
     }
 }
 
+impl PopupMouseTarget for SkillPopup {
+    fn select_visible_index(&mut self, rel_y: usize) -> bool {
+        self.select_visible_index(rel_y)
+    }
+
+    fn move_up(&mut self) {
+        self.move_up();
+    }
+
+    fn move_down(&mut self) {
+        self.move_down();
+    }
+}
+
 pub(super) fn handle_mouse_event_inner(
     view: &mut ChatComposer,
     mouse_event: MouseEvent,
@@ -77,6 +91,10 @@ pub(super) fn handle_mouse_event_inner(
                 if handle_popup_mouse(popup, mouse_event.kind, rel_y) {
                     return view.confirm_file_popup_selection();
                 }
+                return (InputResult::None, false);
+            }
+            ActivePopup::Skill(popup) => {
+                let _ = handle_popup_mouse(popup, mouse_event.kind, rel_y);
                 return (InputResult::None, false);
             }
             ActivePopup::None => {}

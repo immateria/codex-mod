@@ -200,7 +200,7 @@ impl CommandPopup {
         out
     }
 
-    fn filtered_items(&self) -> Vec<CommandItem> {
+    pub(crate) fn filtered_items(&self) -> Vec<CommandItem> {
         self.filtered().into_iter().map(|(c, _, _)| c).collect()
     }
 

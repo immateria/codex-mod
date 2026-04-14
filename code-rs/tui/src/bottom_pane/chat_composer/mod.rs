@@ -16,7 +16,7 @@ use crossterm::event::MouseEventKind;
 
 use self::history::ChatComposerHistory;
 use self::paste_burst::PasteBurst;
-use self::popups::{CommandItem, CommandPopup, FileSearchPopup};
+use self::popups::{CommandItem, CommandPopup, FileSearchPopup, SkillPopup};
 use crate::slash_command::{parse_slash_name, SlashCommand};
 use code_protocol::custom_prompts::CustomPrompt;
 use code_protocol::custom_prompts::PROMPTS_CMD_PREFIX;
@@ -190,6 +190,7 @@ pub(crate) struct ChatComposer {
     auto_drive_style: Option<ComposerStyle>,
     /// Last rendered textarea rect, used for mouse click-to-cursor positioning
     last_textarea_rect: RefCell<Option<Rect>>,
+    available_skills: Vec<(String, String)>,
 }
 
 /// Popup state – at most one can be visible at any time.
@@ -197,6 +198,7 @@ enum ActivePopup {
     None,
     Command(CommandPopup),
     File(FileSearchPopup),
+    Skill(SkillPopup),
 }
 
 enum FilePopupOrigin {
@@ -264,6 +266,7 @@ impl ChatComposer {
             auto_drive_active: false,
             auto_drive_style: None,
             last_textarea_rect: RefCell::new(None),
+            available_skills: Vec::new(),
         }
     }
 
@@ -392,5 +395,12 @@ impl ChatComposer {
     /// Returns true if the composer currently contains no user input.
     pub(crate) fn is_empty(&self) -> bool {
         self.textarea.is_empty()
+    }
+
+    pub(crate) fn set_available_skills(&mut self, skills: Vec<(String, String)>) {
+        self.available_skills = skills;
+        if let ActivePopup::Skill(popup) = &mut self.active_popup {
+            popup.set_skills(self.available_skills.clone());
+        }
     }
 }

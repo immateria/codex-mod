@@ -6,7 +6,11 @@ pub(super) fn confirm_slash_popup_selection_inner(view: &mut ChatComposer) -> (I
             return (InputResult::None, false);
         };
 
-        let Some(sel) = popup.selected_item() else {
+        // Auto-select first match when nothing is explicitly selected
+        // (e.g., user typed partial command like /set and pressed Enter without navigating)
+        let sel = popup.selected_item()
+            .or_else(|| popup.filtered_items().into_iter().next());
+        let Some(sel) = sel else {
             return (InputResult::None, false);
         };
 
