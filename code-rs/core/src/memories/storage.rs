@@ -152,6 +152,11 @@ pub(crate) async fn refresh_memory_artifacts_from_catalog(
         }
     }
 
+    // Backfill tags on epochs that were created before the tags column was added.
+    if let Err(err) = backfill_empty_epoch_tags(&state).await {
+        warn!("failed to backfill epoch tags: {err}");
+    }
+
     maybe_build_artifacts_from_state(code_home, settings, &state, force_refresh).await
 }
 
@@ -444,6 +449,31 @@ fn infer_tags_from_epoch(
     tags.dedup();
     tags.truncate(8);
     tags
+}
+
+/// Backfill tags for any epochs that were created before the tags column existed.
+/// Uses `infer_tags_from_epoch` on the stored raw_memory/cwd_display/git_branch data.
+pub(crate) async fn backfill_empty_epoch_tags(state: &MemoriesState) -> anyhow::Result<usize> {
+    let untagged = state.list_untagged_epochs().await?;
+    if untagged.is_empty() {
+        return Ok(0);
+    }
+    let mut count = 0;
+    for epoch in &untagged {
+        // Use the same snippet the auto-tagger would: first 500 chars of raw_memory
+        let snippet: String = epoch.raw_memory.chars().take(500).collect();
+        let tags = infer_tags_from_epoch(
+            &snippet,
+            &epoch.cwd_display,
+            epoch.git_branch.as_deref(),
+            epoch.workspace_root.as_deref(),
+        );
+        if !tags.is_empty() {
+            state.update_epoch_tags(&epoch.id, &tags).await?;
+            count += 1;
+        }
+    }
+    Ok(count)
 }
 
 fn finalize_epoch(

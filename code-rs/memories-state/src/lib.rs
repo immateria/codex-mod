@@ -343,6 +343,11 @@ trait MemoriesStore: Send + Sync {
     async fn get_all_tag_counts(&self) -> Result<Vec<TagCount>>;
     async fn list_epoch_summaries(&self) -> Result<Vec<EpochSummary>>;
     async fn list_epochs_by_tag(&self, tag: &str) -> Result<Vec<EpochSummary>>;
+
+    /// List epochs that have empty tags (for backfill).
+    async fn list_untagged_epochs(&self) -> Result<Vec<Stage1EpochRecord>>;
+    /// Update tags for a specific epoch.
+    async fn update_epoch_tags(&self, id: &MemoryEpochId, tags: &[String]) -> Result<()>;
 }
 
 struct SqliteMemoriesStore {
@@ -492,6 +497,14 @@ impl MemoriesState {
 
     pub async fn list_epochs_by_tag(&self, tag: &str) -> Result<Vec<EpochSummary>> {
         self.backend.list_epochs_by_tag(tag).await
+    }
+
+    pub async fn list_untagged_epochs(&self) -> Result<Vec<Stage1EpochRecord>> {
+        self.backend.list_untagged_epochs().await
+    }
+
+    pub async fn update_epoch_tags(&self, id: &MemoryEpochId, tags: &[String]) -> Result<()> {
+        self.backend.update_epoch_tags(id, tags).await
     }
 }
 
@@ -2046,6 +2059,42 @@ WHERE mj.kind = ",
         .fetch_all(&self.pool)
         .await?;
         rows.into_iter().map(epoch_summary_from_row).collect()
+    }
+
+    async fn list_untagged_epochs(&self) -> Result<Vec<Stage1EpochRecord>> {
+        let rows = sqlx::query(
+            "SELECT
+                se.thread_id, se.epoch_index, se.provenance,
+                mt.rollout_path, mt.cwd, mt.updated_at_label,
+                se.source_updated_at, se.generated_at,
+                se.epoch_start_at, se.epoch_end_at,
+                se.epoch_start_line, se.epoch_end_line,
+                se.platform_family, se.shell_style, se.shell_program,
+                se.workspace_root, se.cwd_display, se.git_branch,
+                se.raw_memory, se.rollout_summary, se.rollout_slug,
+                se.usage_count, se.last_usage, se.tags
+             FROM stage1_epochs se
+             JOIN memory_threads mt ON mt.thread_id = se.thread_id
+             WHERE mt.archived = 0 AND mt.deleted = 0
+               AND (se.tags IS NULL OR se.tags = '[]' OR se.tags = '')
+             ORDER BY se.source_updated_at DESC",
+        )
+        .fetch_all(&self.pool)
+        .await?;
+        rows.into_iter().map(stage1_epoch_record_from_row).collect()
+    }
+
+    async fn update_epoch_tags(&self, id: &MemoryEpochId, tags: &[String]) -> Result<()> {
+        let tags_json = serde_json::to_string(tags).unwrap_or_else(|_| "[]".to_string());
+        sqlx::query(
+            "UPDATE stage1_epochs SET tags = ? WHERE thread_id = ? AND epoch_index = ?",
+        )
+        .bind(&tags_json)
+        .bind(id.thread_id.to_string())
+        .bind(id.epoch_index)
+        .execute(&self.pool)
+        .await?;
+        Ok(())
     }
 }
 
