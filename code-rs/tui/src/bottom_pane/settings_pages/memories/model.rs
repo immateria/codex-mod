@@ -444,12 +444,12 @@ impl MemoriesSettingsView {
             RowKind::Scope => "Switch scope: global (all sessions), profile (named config), or project (workspace-specific).",
             RowKind::GenerateMemories => "When on, each session's conversation is extracted into memory epochs after it ends. These become the building blocks of what the LLM remembers about your work.",
             RowKind::UseMemories => "When on, the memory summary is injected into the LLM's system prompt at the start of each turn. The LLM uses this to recall workspace context, past decisions, and conventions.",
-            RowKind::SkipMcpOrWebSearch => "Sessions that use MCP tools or web search are skipped during extraction — they typically contain external data rather than your project-specific patterns.",
+            RowKind::SkipMcpOrWebSearch => "Sessions are marked polluted when they invoke MCP tools or web search, and polluted sessions are excluded from memory extraction. This avoids learning from externally-sourced tool output.",
             RowKind::MaxRawMemories => "Maximum number of session epochs retained in memory artifacts. Higher values give the LLM more context but use more prompt budget (12KB max).",
             RowKind::MaxRolloutAgeDays => "Sessions older than this are ignored during extraction. Keeps memories focused on recent work.",
             RowKind::MaxRolloutsPerStartup => "Maximum sessions scanned per refresh cycle. Limits startup time for projects with many sessions.",
             RowKind::MinRolloutIdleHours => "Sessions must be idle for at least this long before extraction. Prevents extracting from sessions still in progress.",
-            RowKind::ManageUserMemories => "Create, edit, and delete pinned memories. These are always injected into the LLM prompt and can store style preferences, project conventions, struct definitions, or any knowledge you want the model to always have.",
+            RowKind::ManageUserMemories => "Create, edit, and delete pinned memories. These are prioritized for inclusion in the LLM prompt when memory usage is enabled, and are packed before auto-extracted epochs subject to the prompt budget.",
             RowKind::BrowseTags => "View all semantic tags across auto-extracted epochs and pinned memories. Shows how many epochs and user memories use each tag. Enter a tag to see matching epochs.",
             RowKind::BrowseEpochs => "Browse individual auto-extracted memory epochs with metadata: workspace, branch, tags, provenance, and content preview. These are the building blocks selected for LLM prompt injection.",
             RowKind::ViewSummary => "View the memory summary: a ranked list of your session interactions. Each entry shows workspace, branch, timestamp, and what you asked. Empty/trivial entries are filtered out.",
@@ -586,10 +586,10 @@ impl MemoriesSettingsView {
         lines.push("  Tagged epochs rank higher when they share tags with your pinned".to_owned());
         lines.push("  memories.".to_owned());
         lines.push(String::new());
-        lines.push("  Pinned memories: User-created entries that are always injected".to_owned());
-        lines.push("  into the LLM prompt before auto-extracted epochs. Use them for".to_owned());
-        lines.push("  style preferences, struct definitions, project conventions, or".to_owned());
-        lines.push("  any knowledge the model should always have.".to_owned());
+        lines.push("  Pinned memories: User-created entries that are prioritized".to_owned());
+        lines.push("  for inclusion in the LLM prompt when memory usage is enabled.".to_owned());
+        lines.push("  They are packed before auto-extracted epochs, subject to".to_owned());
+        lines.push("  the same prompt-budget limits.".to_owned());
         lines.push(String::new());
         lines.push("  Epochs → Prompt: The best epochs are ranked by workspace match,".to_owned());
         lines.push("  tag affinity, branch proximity, platform/shell compatibility,".to_owned());

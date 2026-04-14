@@ -494,7 +494,7 @@ impl MemoriesSettingsView {
             "No pinned memories yet. Press Enter or 'n' to create one.".to_owned()
         } else {
             format!(
-                "{total} pinned memor{} — always injected into LLM prompt",
+                "{total} pinned memor{} — prioritized for prompt inclusion",
                 if total == 1 { "y" } else { "ies" }
             )
         };
@@ -578,7 +578,7 @@ impl MemoriesSettingsView {
 
         let mut pre_field_lines = vec![
             Line::from(Span::styled(
-                "Pinned memories are always included in the LLM prompt.",
+                "Pinned memories are prioritized for inclusion in the LLM prompt.",
                 dim,
             )),
             Line::from(Span::styled(
