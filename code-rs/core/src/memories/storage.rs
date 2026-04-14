@@ -152,9 +152,9 @@ pub(crate) async fn refresh_memory_artifacts_from_catalog(
         }
     }
 
-    // Backfill tags on epochs that were created before the tags column was added.
-    if let Err(err) = backfill_empty_epoch_tags(&state).await {
-        warn!("failed to backfill epoch tags: {err}");
+    // Re-tag all epochs with current heuristics (fixes mis-tagged + empty).
+    if let Err(err) = retag_all_epochs(&state).await {
+        warn!("failed to retag epochs: {err}");
     }
 
     maybe_build_artifacts_from_state(code_home, settings, &state, force_refresh).await
@@ -372,24 +372,25 @@ fn snippet_from_rollout_item(item: &RolloutItem) -> Option<String> {
     }
 }
 
-/// Backfill tags for any epochs that were created before the tags column existed.
-/// Uses `tagger::infer_tags` on the stored raw_memory/cwd_display/git_branch data.
-pub(crate) async fn backfill_empty_epoch_tags(state: &MemoriesState) -> anyhow::Result<usize> {
-    let untagged = state.list_untagged_epochs().await?;
-    if untagged.is_empty() {
+/// Re-tag ALL epochs with current heuristics, replacing any existing tags.
+/// Useful after tagger improvements to correct mis-tagged epochs.
+pub(crate) async fn retag_all_epochs(state: &MemoriesState) -> anyhow::Result<usize> {
+    let all = state.list_all_epochs_for_retag().await?;
+    if all.is_empty() {
         return Ok(0);
     }
     let mut count = 0;
-    for epoch in &untagged {
+    for epoch in &all {
         let snippet: String = epoch.raw_memory.chars().take(500).collect();
-        let tags = super::tagger::infer_tags(
+        let new_tags = super::tagger::infer_tags(
             &snippet,
             &epoch.cwd_display,
             epoch.git_branch.as_deref(),
             epoch.workspace_root.as_deref(),
         );
-        if !tags.is_empty() {
-            state.update_epoch_tags(&epoch.id, &tags).await?;
+        // Only update if tags actually changed.
+        if new_tags != epoch.tags {
+            state.update_epoch_tags(&epoch.id, &new_tags).await?;
             count += 1;
         }
     }

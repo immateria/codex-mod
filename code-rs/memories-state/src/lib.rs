@@ -412,6 +412,8 @@ trait MemoriesStore: Send + Sync {
 
     /// List epochs that have empty tags (for backfill).
     async fn list_untagged_epochs(&self) -> Result<Vec<Stage1EpochRecord>>;
+    /// List ALL epochs (for retagging after tagger improvements).
+    async fn list_all_epochs_for_retag(&self) -> Result<Vec<Stage1EpochRecord>>;
     /// Update tags for a specific epoch.
     async fn update_epoch_tags(&self, id: &MemoryEpochId, tags: &[String]) -> Result<()>;
 }
@@ -567,6 +569,10 @@ impl MemoriesState {
 
     pub async fn list_untagged_epochs(&self) -> Result<Vec<Stage1EpochRecord>> {
         self.backend.list_untagged_epochs().await
+    }
+
+    pub async fn list_all_epochs_for_retag(&self) -> Result<Vec<Stage1EpochRecord>> {
+        self.backend.list_all_epochs_for_retag().await
     }
 
     pub async fn update_epoch_tags(&self, id: &MemoryEpochId, tags: &[String]) -> Result<()> {
@@ -2143,6 +2149,28 @@ WHERE mj.kind = ",
              JOIN memory_threads mt ON mt.thread_id = se.thread_id
              WHERE mt.archived = 0 AND mt.deleted = 0
                AND (se.tags IS NULL OR se.tags = '[]' OR se.tags = '')
+             ORDER BY se.source_updated_at DESC",
+        )
+        .fetch_all(&self.pool)
+        .await?;
+        rows.into_iter().map(stage1_epoch_record_from_row).collect()
+    }
+
+    async fn list_all_epochs_for_retag(&self) -> Result<Vec<Stage1EpochRecord>> {
+        let rows = sqlx::query(
+            "SELECT
+                se.thread_id, se.epoch_index, se.provenance,
+                mt.rollout_path, mt.cwd, mt.updated_at_label,
+                se.source_updated_at, se.generated_at,
+                se.epoch_start_at, se.epoch_end_at,
+                se.epoch_start_line, se.epoch_end_line,
+                se.platform_family, se.shell_style, se.shell_program,
+                se.workspace_root, se.cwd_display, se.git_branch,
+                se.raw_memory, se.rollout_summary, se.rollout_slug,
+                se.usage_count, se.last_usage, se.tags
+             FROM stage1_epochs se
+             JOIN memory_threads mt ON mt.thread_id = se.thread_id
+             WHERE mt.archived = 0 AND mt.deleted = 0
              ORDER BY se.source_updated_at DESC",
         )
         .fetch_all(&self.pool)

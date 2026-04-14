@@ -715,59 +715,40 @@ impl MemoriesSettingsView {
     // ── Epoch browser ───────────────────────────────────────────────────
 
     pub(super) fn epoch_browser_rows(browser: &EpochBrowserState) -> Vec<SettingsMenuRow<'static, usize>> {
-        let now = Utc::now();
-
         browser
             .epochs
             .iter()
             .enumerate()
             .map(|(idx, ep)| {
-                // Label: human-readable session name (workspace · branch · date)
+                // Label: compact session name with epoch index
                 let label = format!("#{} {}", ep.id.epoch_index, ep.display_name());
 
-                // Detail line: age + preview snippet + tags + usage
-                let mut parts = Vec::new();
-
-                let age = {
-                    let dt = chrono::DateTime::from_timestamp(ep.source_updated_at, 0)
-                        .unwrap_or_else(Utc::now);
-                    format_age(dt, now)
-                };
-                parts.push(age);
-
-                // Short preview snippet for context
-                let snippet: String = ep
-                    .preview
-                    .lines()
-                    .next()
-                    .unwrap_or("")
-                    .chars()
-                    .take(50)
-                    .collect();
-                if !snippet.is_empty() {
-                    parts.push(snippet);
-                }
+                // Detail: tags (most informative at a glance)
+                let mut detail_parts = Vec::new();
 
                 if !ep.tags.is_empty() {
                     let tags: String = ep.tags.iter().take(3).map(|t| format!("#{t}")).collect::<Vec<_>>().join(" ");
                     if ep.tags.len() > 3 {
-                        parts.push(format!("{tags} +{}", ep.tags.len() - 3));
+                        detail_parts.push(format!("{tags} +{}", ep.tags.len() - 3));
                     } else {
-                        parts.push(tags);
+                        detail_parts.push(tags);
                     }
                 }
 
                 if ep.usage_count > 0 {
-                    parts.push(format!("used {}×", ep.usage_count));
+                    detail_parts.push(format!("{}×", ep.usage_count));
                 }
 
-                let detail = parts.join(" · ");
-                SettingsMenuRow::new(idx, label)
-                    .with_detail(crate::bottom_pane::settings_ui::rows::StyledText::new(
+                let detail = detail_parts.join(" · ");
+                let mut row = SettingsMenuRow::new(idx, label)
+                    .with_selected_hint("Enter to view");
+                if !detail.is_empty() {
+                    row = row.with_detail(crate::bottom_pane::settings_ui::rows::StyledText::new(
                         detail,
                         Style::default().fg(colors::text_dim()),
-                    ))
-                    .with_selected_hint("Enter to view")
+                    ));
+                }
+                row
             })
             .collect()
     }

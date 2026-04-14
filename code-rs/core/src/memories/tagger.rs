@@ -123,49 +123,55 @@ fn branch_tags(git_branch: Option<&str>, tags: &mut Vec<String>) {
 // Language / ecosystem detection
 // ─────────────────────────────────────────────────────────────────────
 
-/// Build a combined string from all path/content signals for language detection.
-fn build_lang_context(cwd_display: &str, workspace_root: Option<&str>, snippet_lower: &str) -> String {
-    format!("{cwd_display}/{}/{snippet_lower}", workspace_root.unwrap_or(""))
+/// Build a combined string from snippet and immediate working directory for
+/// language detection.  We intentionally exclude `workspace_root` because it
+/// often points at a monorepo root containing configs for many languages
+/// (e.g. `package.json` + `Cargo.toml`).  The *cwd* is more specific.
+///
+/// A trailing space is appended so that end-of-string extensions like ".rs"
+/// will match patterns like ".rs " without special-casing.
+fn build_lang_context(cwd_display: &str, _workspace_root: Option<&str>, snippet_lower: &str) -> String {
+    format!("{cwd_display}/{snippet_lower} ")
 }
 
 /// Each entry: (indicators, tag).  Multiple languages can match.
 ///
-/// Indicators are tested as substrings.  For plain language names we include
-/// space-padded variants (e.g. " rust ") to avoid false positives like
-/// "frustrated" matching "rust".
+/// Indicators are tested as substrings of the combined context string
+/// (cwd + workspace_root + snippet).  Avoid overly generic markers like
+/// `package.json` or `makefile` that appear in polyglot repos — prefer
+/// extension patterns and tool-specific names.
 static LANG_INDICATORS: &[(&[&str], &str)] = &[
     // Systems languages
-    (&["cargo.toml", "-rs/", "-rs\"", ".rs", "rustc", "rustup", " rust "], "rust"),
-    (&[".c ", ".c\"", ".h ", ".h\"", "makefile", "cmake", "gcc", "clang"], "c"),
-    (&[".cpp", ".cxx", ".hpp", ".cc", "g++", " c++ "], "cpp"),
+    (&["cargo.toml", "/code-rs/", "-rs/", ".rs ", ".rs\"", ".rs\n", "rustc", "rustup", " rust "], "rust"),
+    (&[".c\"", ".h\"", "cmake", "gcc ", "clang "], "c"),
+    (&[".cpp", ".cxx", ".hpp", ".cc\"", "g++ "], "cpp"),
     (&[".zig", "build.zig"], "zig"),
     // JVM
-    (&[".java", "pom.xml", "build.gradle", "maven", "spring"], "java"),
-    (&[".kt", ".kts", " kotlin "], "kotlin"),
-    (&[".scala", "sbt"], "scala"),
-    // Web / scripting
-    (&["package.json", "node_modules", ".js\"", ".js ", ".mjs", ".cjs", " javascript "], "javascript"),
+    (&[".java", "pom.xml", "build.gradle", " maven ", " spring "], "java"),
+    (&[".kt\"", ".kt ", ".kts", " kotlin "], "kotlin"),
+    (&[".scala", " sbt "], "scala"),
+    // Web / scripting — use file extensions, not config filenames
+    (&[".js\"", ".js ", ".mjs", ".cjs", "node_modules", " javascript "], "javascript"),
     (&[".ts\"", ".ts ", ".tsx", "tsconfig", "deno.json", " typescript "], "typescript"),
-    (&["requirements.txt", "pyproject.toml", ".py\"", ".py ", "pip", "venv", "conda", " python "], "python"),
-    (&[".rb", "gemfile", "rails", "bundler", " ruby "], "ruby"),
-    (&[".php", "composer.json", "laravel", "artisan"], "php"),
-    (&[".lua", "luarocks"], "lua"),
-    (&[".pl", ".pm", "cpan"], "perl"),
+    (&[".py\"", ".py ", "pyproject.toml", "requirements.txt", " python ", " pip ", "venv"], "python"),
+    (&[".rb\"", ".rb ", "gemfile", " rails ", " ruby "], "ruby"),
+    (&[".php", "composer.json", " laravel "], "php"),
+    (&[".lua\"", ".lua ", "luarocks"], "lua"),
+    (&[".pl\"", ".pl ", ".pm\"", " cpan "], "perl"),
     // Go
-    (&[".go", "go.mod", "go.sum", " golang "], "go"),
+    (&[".go\"", ".go ", "go.mod", "go.sum", " golang "], "go"),
     // Apple / mobile
-    (&[".swift", "package.swift", "xcode", ".xcodeproj"], "swift"),
-    (&[".dart", "pubspec.yaml", "flutter"], "dart"),
+    (&[".swift", "package.swift", ".xcodeproj"], "swift"),
+    (&[".dart", "pubspec.yaml", " flutter "], "dart"),
     // Shell
-    (&[".sh", ".bash", ".zsh", "shebang", "#!/bin"], "shell"),
+    (&[".sh\"", ".sh ", ".sh\n", ".bash", ".zsh", "#!/bin"], "shell"),
     // Other
-    (&[".ex", ".exs", "mix.exs", "elixir"], "elixir"),
-    (&[".clj", "leiningen", "deps.edn"], "clojure"),
-    (&[".hs", "cabal", "stack.yaml", " haskell "], "haskell"),
-    (&[".ml", ".mli", "ocaml", "dune"], "ocaml"),
-    (&[".nim", "nimble"], "nim"),
-    (&[".v", ".sv", "verilog"], "verilog"),
-    (&["wasm", "webassembly", ".wat", ".wasm"], "wasm"),
+    (&[".ex\"", ".exs", "mix.exs", " elixir "], "elixir"),
+    (&[".clj", "deps.edn"], "clojure"),
+    (&[".hs\"", ".hs ", " cabal ", "stack.yaml", " haskell "], "haskell"),
+    (&[".ml\"", ".mli", " ocaml ", " dune "], "ocaml"),
+    (&[".nim\"", ".nim ", "nimble"], "nim"),
+    (&["wasm", "webassembly", ".wat"], "wasm"),
 ];
 
 /// Allow up to 2 language tags (e.g. a Rust project with TypeScript bindings).
@@ -448,5 +454,30 @@ mod tests {
             None,
         );
         assert!(tags.contains(&"ml".to_string()), "{tags:?}");
+    }
+
+    #[test]
+    fn no_false_js_from_polyglot_repo() {
+        // A Rust project that happens to have package.json at root should
+        // detect Rust, not JavaScript.
+        let tags = infer_tags(
+            "update the Cargo.toml dependencies",
+            "~/code-rs/core",
+            Some("main"),
+            Some("/Users/me/code-termux"),
+        );
+        assert!(tags.contains(&"rust".to_string()), "{tags:?}");
+        assert!(!tags.contains(&"javascript".to_string()), "false JS tag: {tags:?}");
+    }
+
+    #[test]
+    fn detects_rust_from_code_rs_cwd() {
+        let tags = infer_tags(
+            "refactor the memory system",
+            "~/Codex-CLI-Mod/code-termux/code-rs/core",
+            Some("main"),
+            Some("/Users/me/code-termux"),
+        );
+        assert!(tags.contains(&"rust".to_string()), "{tags:?}");
     }
 }
