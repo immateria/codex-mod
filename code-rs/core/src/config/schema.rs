@@ -73,3 +73,28 @@ pub fn write_config_schema(out_path: &Path) -> anyhow::Result<()> {
     Ok(())
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The checked-in `config.schema.codex.json` must match the schema derived
+    /// from Rust types.  Run with `UPDATE_SCHEMA=1` to overwrite the fixture.
+    #[test]
+    fn checked_in_codex_schema_matches_generated() {
+        let generated = config_schema_json().expect("schema generation");
+        let checked_in = codex_config_schema_json();
+
+        if std::env::var("UPDATE_SCHEMA").is_ok() {
+            let fixture = Path::new(env!("CARGO_MANIFEST_DIR")).join("config.schema.codex.json");
+            std::fs::write(&fixture, &generated).expect("overwrite schema fixture");
+            return;
+        }
+
+        assert_eq!(
+            std::str::from_utf8(&generated).unwrap(),
+            std::str::from_utf8(checked_in).unwrap(),
+            "config.schema.codex.json is stale — regenerate with UPDATE_SCHEMA=1 cargo test -p code-core --lib -- config::schema::tests::checked_in_codex_schema_matches_generated"
+        );
+    }
+}
+

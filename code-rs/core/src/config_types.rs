@@ -119,14 +119,21 @@ pub struct LifecycleHooksToml {
 
 #[derive(Deserialize, Debug, Clone, PartialEq, Eq, Default, JsonSchema)]
 pub struct MemoriesToml {
+    /// Skip memory extraction for sessions that invoke MCP tools or web search.
     pub no_memories_if_mcp_or_web_search: Option<bool>,
+    /// Enable automatic memory extraction from session history.
     pub generate_memories: Option<bool>,
+    /// Inject extracted memories into LLM prompts.
     pub use_memories: Option<bool>,
+    /// Maximum number of recent raw memories retained for consolidation.
     pub max_raw_memories_for_consolidation: Option<usize>,
-    /// Deprecated alias kept for compatibility with earlier fork builds.
+    /// Deprecated alias for `max_raw_memories_for_consolidation`.
     pub max_raw_memories_for_global: Option<usize>,
+    /// Maximum age (days) of threads eligible for memory extraction.
     pub max_rollout_age_days: Option<i64>,
+    /// Maximum number of rollout candidates processed per startup pass.
     pub max_rollouts_per_startup: Option<usize>,
+    /// Minimum idle hours between last thread activity and memory extraction.
     pub min_rollout_idle_hours: Option<i64>,
 }
 

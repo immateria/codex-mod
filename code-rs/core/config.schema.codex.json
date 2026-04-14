@@ -2,91 +2,132 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": false,
   "definitions": {
-    "AbsolutePathBuf": {
-      "description": "A path that is guaranteed to be absolute and normalized (though it is not guaranteed to be canonicalized or exist on the filesystem).\n\nIMPORTANT: When deserializing an `AbsolutePathBuf`, a base path must be set using [AbsolutePathBufGuard::new]. If no base path is set, the deserialization will fail unless the path being deserialized is already absolute.",
-      "type": "string"
-    },
-    "AgentsToml": {
-      "additionalProperties": false,
+    "AgentConfig": {
+      "description": "Configuration for external agent models",
       "properties": {
-        "max_threads": {
-          "description": "Maximum number of agent threads that can be open concurrently. When unset, no limit is enforced.",
-          "format": "uint",
-          "minimum": 1.0,
-          "type": "integer"
-        }
-      },
-      "type": "object"
-    },
-    "AltScreenMode": {
-      "description": "Controls whether the TUI uses the terminal's alternate screen buffer.\n\n**Background:** The alternate screen buffer provides a cleaner fullscreen experience without polluting the terminal's scrollback history. However, it conflicts with terminal multiplexers like Zellij that strictly follow the xterm specification, which defines that alternate screen buffers should not have scrollback.\n\n**Zellij's behavior:** Zellij intentionally disables scrollback in alternate screen mode (see https://github.com/zellij-org/zellij/pull/1032) to comply with the xterm spec. This is by design and not configurable in Zellij—there is no option to enable scrollback in alternate screen mode.\n\n**Solution:** This setting provides a pragmatic workaround: - `auto` (default): Automatically detect the terminal multiplexer. If running in Zellij, disable alternate screen to preserve scrollback. Enable it everywhere else. - `always`: Always use alternate screen mode (original behavior before this fix). - `never`: Never use alternate screen mode. Runs in inline mode, preserving scrollback in all multiplexers.\n\nThe CLI flag `--no-alt-screen` can override this setting at runtime.",
-      "oneOf": [
-        {
-          "description": "Auto-detect: disable alternate screen in Zellij, enable elsewhere.",
-          "enum": [
-            "auto"
-          ],
+        "args": {
+          "default": [],
+          "description": "Optional arguments to pass to the agent command",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "args-read-only": {
+          "default": null,
+          "description": "Optional arguments to pass only when the agent is executed in read-only mode. When present, these are preferred over `args` for read-only runs.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "args-write": {
+          "default": null,
+          "description": "Optional arguments to pass only when the agent is executed with write permissions. When present, these are preferred over `args` for write runs.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "command": {
+          "default": "",
+          "description": "Command to execute the agent (e.g., \"claude\", \"gemini\"). If omitted, defaults to the agent `name` during config load.",
           "type": "string"
         },
-        {
-          "description": "Always use alternate screen (original behavior).",
-          "enum": [
-            "always"
-          ],
+        "description": {
+          "default": null,
+          "description": "Optional description of the agent",
           "type": "string"
-        },
-        {
-          "description": "Never use alternate screen (inline mode only).",
-          "enum": [
-            "never"
-          ],
-          "type": "string"
-        }
-      ]
-    },
-    "AnalyticsConfigToml": {
-      "additionalProperties": false,
-      "description": "Analytics settings loaded from config.toml. Fields are optional so we can apply defaults.",
-      "properties": {
-        "enabled": {
-          "description": "When `false`, disables analytics across Codex product surfaces in this profile.",
-          "type": "boolean"
-        }
-      },
-      "type": "object"
-    },
-    "AppConfig": {
-      "additionalProperties": false,
-      "description": "Config values for a single app/connector.",
-      "properties": {
-        "disabled_reason": {
-          "allOf": [
-            {
-              "$ref": "#/definitions/AppDisabledReason"
-            }
-          ],
-          "description": "Reason this app was disabled."
         },
         "enabled": {
           "default": true,
-          "description": "When `false`, Codex does not surface this app.",
+          "description": "Whether this agent is enabled",
           "type": "boolean"
+        },
+        "env": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "default": null,
+          "description": "Optional environment variables for the agent",
+          "type": "object"
+        },
+        "instructions": {
+          "default": null,
+          "description": "Optional per-agent instructions. When set, these are prepended to the prompt provided to the agent whenever it runs.",
+          "type": "string"
+        },
+        "name": {
+          "description": "Name of the agent (e.g., \"claude\", \"gemini\", \"gpt-4\")",
+          "type": "string"
+        },
+        "read-only": {
+          "default": false,
+          "description": "Whether this agent can only run in read-only mode",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "type": "object"
+    },
+    "AllowedCommand": {
+      "properties": {
+        "argv": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "match_kind": {
+          "$ref": "#/definitions/AllowedCommandMatchKind"
         }
       },
       "type": "object"
     },
-    "AppDisabledReason": {
+    "AllowedCommandMatchKind": {
       "enum": [
-        "unknown",
-        "user"
+        "exact",
+        "prefix"
       ],
       "type": "string"
     },
-    "AppsConfigToml": {
-      "additionalProperties": {
-        "$ref": "#/definitions/AppConfig"
+    "AppsSourcesModeToml": {
+      "enum": [
+        "active_only",
+        "active_plus_pinned",
+        "pinned_only"
+      ],
+      "type": "string"
+    },
+    "AppsSourcesToml": {
+      "properties": {
+        "mode": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/AppsSourcesModeToml"
+            }
+          ],
+          "default": "active_plus_pinned"
+        },
+        "pinned_account_ids": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
       },
-      "description": "App/connector settings loaded from `config.toml`.",
+      "type": "object"
+    },
+    "AppsToml": {
+      "properties": {
+        "_sources": {
+          "$ref": "#/definitions/AppsSourcesToml"
+        }
+      },
       "type": "object"
     },
     "AskForApproval": {
@@ -114,6 +155,19 @@
           "type": "string"
         },
         {
+          "additionalProperties": false,
+          "description": "Fine-grained rejection controls for approval prompts.\n\nWhen a field is `true`, prompts of that category are automatically rejected instead of shown to the user.",
+          "properties": {
+            "reject": {
+              "$ref": "#/definitions/RejectConfig"
+            }
+          },
+          "required": [
+            "reject"
+          ],
+          "type": "object"
+        },
+        {
           "description": "Never ask the user to approve commands. Failures are immediately returned to the model, and never escalated to the user for approval.",
           "enum": [
             "never"
@@ -123,24 +177,24 @@
       ]
     },
     "AuthCredentialsStoreMode": {
-      "description": "Determine where Codex should store CLI auth credentials.",
+      "description": "Determine where Code should store CLI auth credentials (the `auth.json` payload).",
       "oneOf": [
         {
-          "description": "Persist credentials in CODEX_HOME/auth.json.",
+          "description": "Persist credentials in `CODE_HOME/auth.json`.",
           "enum": [
             "file"
           ],
           "type": "string"
         },
         {
-          "description": "Persist credentials in the keyring. Fail if unavailable.",
+          "description": "Persist credentials in an OS-specific keyring service. Fail if unavailable.",
           "enum": [
             "keyring"
           ],
           "type": "string"
         },
         {
-          "description": "Use keyring when available; otherwise, fall back to a file in CODEX_HOME.",
+          "description": "Use keyring when available; otherwise, fall back to a file in `CODE_HOME`.",
           "enum": [
             "auto"
           ],
@@ -155,166 +209,543 @@
         }
       ]
     },
-    "ConfigProfile": {
-      "additionalProperties": false,
-      "description": "Collection of common configuration options that a user can define as a unit in `config.toml`.",
-      "properties": {
-        "analytics": {
-          "$ref": "#/definitions/AnalyticsConfigToml"
-        },
-        "approval_policy": {
-          "$ref": "#/definitions/AskForApproval"
-        },
-        "chatgpt_base_url": {
+    "AuthMode": {
+      "description": "Authentication mode for OpenAI-backed providers.",
+      "oneOf": [
+        {
+          "description": "`OpenAI` API key provided by the caller and stored by Codex.",
+          "enum": [
+            "apikey"
+          ],
           "type": "string"
         },
-        "experimental_compact_prompt_file": {
-          "$ref": "#/definitions/AbsolutePathBuf"
+        {
+          "description": "`ChatGPT` OAuth managed by Codex (tokens persisted and refreshed by Codex).",
+          "enum": [
+            "chatgpt"
+          ],
+          "type": "string"
         },
-        "experimental_use_freeform_apply_patch": {
+        {
+          "description": "[UNSTABLE] FOR OPENAI INTERNAL USE ONLY - DO NOT USE.\n\n`ChatGPT` auth tokens are supplied by an external host app and are only stored in memory. Token refresh must be handled by the external host app.",
+          "enum": [
+            "chatgptAuthTokens"
+          ],
+          "type": "string"
+        }
+      ]
+    },
+    "AutoDriveContinueMode": {
+      "enum": [
+        "immediate",
+        "ten-seconds",
+        "sixty-seconds",
+        "manual"
+      ],
+      "type": "string"
+    },
+    "AutoDriveModelRoutingEntry": {
+      "properties": {
+        "description": {
+          "default": "",
+          "type": "string"
+        },
+        "enabled": {
+          "default": true,
           "type": "boolean"
-        },
-        "experimental_use_unified_exec_tool": {
-          "type": "boolean"
-        },
-        "features": {
-          "additionalProperties": false,
-          "default": null,
-          "description": "Optional feature toggles scoped to this profile.",
-          "properties": {
-            "apply_patch_freeform": {
-              "type": "boolean"
-            },
-            "apps": {
-              "type": "boolean"
-            },
-            "apps_mcp_gateway": {
-              "type": "boolean"
-            },
-            "child_agents_md": {
-              "type": "boolean"
-            },
-            "collab": {
-              "type": "boolean"
-            },
-            "collaboration_modes": {
-              "type": "boolean"
-            },
-            "connectors": {
-              "type": "boolean"
-            },
-            "elevated_windows_sandbox": {
-              "type": "boolean"
-            },
-            "enable_experimental_windows_sandbox": {
-              "type": "boolean"
-            },
-            "enable_request_compression": {
-              "type": "boolean"
-            },
-            "experimental_use_freeform_apply_patch": {
-              "type": "boolean"
-            },
-            "experimental_use_unified_exec_tool": {
-              "type": "boolean"
-            },
-            "experimental_windows_sandbox": {
-              "type": "boolean"
-            },
-            "include_apply_patch_tool": {
-              "type": "boolean"
-            },
-            "js_repl": {
-              "type": "boolean"
-            },
-            "js_repl_tools_only": {
-              "type": "boolean"
-            },
-            "memory_tool": {
-              "type": "boolean"
-            },
-            "personality": {
-              "type": "boolean"
-            },
-            "powershell_utf8": {
-              "type": "boolean"
-            },
-            "prevent_idle_sleep": {
-              "type": "boolean"
-            },
-            "remote_models": {
-              "type": "boolean"
-            },
-            "request_rule": {
-              "type": "boolean"
-            },
-            "responses_websockets": {
-              "type": "boolean"
-            },
-            "responses_websockets_v2": {
-              "type": "boolean"
-            },
-            "runtime_metrics": {
-              "type": "boolean"
-            },
-            "search_tool": {
-              "type": "boolean"
-            },
-            "shell_snapshot": {
-              "type": "boolean"
-            },
-            "shell_tool": {
-              "type": "boolean"
-            },
-            "skill_env_var_dependency_prompt": {
-              "type": "boolean"
-            },
-            "skill_mcp_dependency_install": {
-              "type": "boolean"
-            },
-            "sqlite": {
-              "type": "boolean"
-            },
-            "steer": {
-              "type": "boolean"
-            },
-            "undo": {
-              "type": "boolean"
-            },
-            "unified_exec": {
-              "type": "boolean"
-            },
-            "use_linux_sandbox_bwrap": {
-              "type": "boolean"
-            },
-            "web_search": {
-              "type": "boolean"
-            },
-            "web_search_cached": {
-              "type": "boolean"
-            },
-            "web_search_request": {
-              "type": "boolean"
-            }
-          },
-          "type": "object"
-        },
-        "include_apply_patch_tool": {
-          "type": "boolean"
-        },
-        "js_repl_node_path": {
-          "$ref": "#/definitions/AbsolutePathBuf"
         },
         "model": {
           "type": "string"
         },
-        "model_instructions_file": {
+        "reasoning_levels": {
+          "default": [
+            "high"
+          ],
+          "items": {
+            "$ref": "#/definitions/ReasoningEffort"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "model"
+      ],
+      "type": "object"
+    },
+    "AutoDriveSettings": {
+      "description": "Auto Drive behavioral defaults persisted via `config.toml`.",
+      "properties": {
+        "agents_enabled": {
+          "default": true,
+          "type": "boolean"
+        },
+        "auto_resolve_review_attempts": {
+          "default": 10,
+          "format": "uint32",
+          "minimum": 0.0,
+          "type": "integer"
+        },
+        "auto_review_followup_attempts": {
+          "default": 10,
+          "format": "uint32",
+          "minimum": 0.0,
+          "type": "integer"
+        },
+        "continue_mode": {
+          "$ref": "#/definitions/AutoDriveContinueMode"
+        },
+        "coordinator_routing": {
+          "default": true,
+          "description": "Enable coordinator routing of user prompts during Auto Drive turns.",
+          "type": "boolean"
+        },
+        "coordinator_turn_cap": {
+          "default": 0,
+          "description": "Maximum number of coordinator turns before stopping the session (0 = unlimited).",
+          "format": "uint32",
+          "minimum": 0.0,
+          "type": "integer"
+        },
+        "cross_check_enabled": {
+          "default": true,
+          "type": "boolean"
+        },
+        "model": {
+          "default": "gpt-5.1",
+          "description": "Model used for the Auto Drive coordinator and follow-on turns.",
+          "type": "string"
+        },
+        "model_reasoning_effort": {
           "allOf": [
             {
-              "$ref": "#/definitions/AbsolutePathBuf"
+              "$ref": "#/definitions/ReasoningEffort"
             }
           ],
-          "description": "Optional path to a file containing model instructions."
+          "default": "high",
+          "description": "Reasoning effort applied to the Auto Drive model."
+        },
+        "model_routing_enabled": {
+          "default": true,
+          "description": "Allow the coordinator to select the CLI model and reasoning effort per turn.",
+          "type": "boolean"
+        },
+        "model_routing_entries": {
+          "default": [
+            {
+              "description": "Hard planning and complex problem solving",
+              "enabled": true,
+              "model": "gpt-5.3-codex",
+              "reasoning_levels": [
+                "high",
+                "xhigh"
+              ]
+            },
+            {
+              "description": "Fast implementation loops and failing-test iteration",
+              "enabled": true,
+              "model": "gpt-5.3-codex-spark",
+              "reasoning_levels": [
+                "high"
+              ]
+            }
+          ],
+          "description": "Per-model routing entries used by coordinator-driven CLI model routing.",
+          "items": {
+            "$ref": "#/definitions/AutoDriveModelRoutingEntry"
+          },
+          "type": "array"
+        },
+        "observer_enabled": {
+          "default": true,
+          "type": "boolean"
+        },
+        "qa_automation_enabled": {
+          "default": true,
+          "type": "boolean"
+        },
+        "review_enabled": {
+          "default": true,
+          "type": "boolean"
+        }
+      },
+      "type": "object"
+    },
+    "BrandingConfig": {
+      "description": "Branding options under `[tui.branding]`.",
+      "properties": {
+        "title": {
+          "default": null,
+          "description": "Optional title shown in the TUI header and intro animation. When unset or empty, Codex falls back to its built-in title.",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "BrowserConfig": {
+      "description": "Browser configuration for integrated screenshot capabilities.",
+      "properties": {
+        "enabled": {
+          "default": false,
+          "type": "boolean"
+        },
+        "format": {
+          "$ref": "#/definitions/BrowserImageFormat"
+        },
+        "fullpage": {
+          "default": false,
+          "type": "boolean"
+        },
+        "idle_timeout_ms": {
+          "default": null,
+          "format": "uint64",
+          "minimum": 0.0,
+          "type": "integer"
+        },
+        "segments_max": {
+          "default": null,
+          "format": "uint",
+          "minimum": 0.0,
+          "type": "integer"
+        },
+        "viewport": {
+          "$ref": "#/definitions/BrowserViewportConfig"
+        },
+        "wait": {
+          "$ref": "#/definitions/BrowserWaitStrategy"
+        }
+      },
+      "type": "object"
+    },
+    "BrowserImageFormat": {
+      "enum": [
+        "png",
+        "webp"
+      ],
+      "type": "string"
+    },
+    "BrowserViewportConfig": {
+      "properties": {
+        "device_scale_factor": {
+          "default": null,
+          "format": "double",
+          "type": "number"
+        },
+        "height": {
+          "format": "uint32",
+          "minimum": 0.0,
+          "type": "integer"
+        },
+        "mobile": {
+          "default": false,
+          "type": "boolean"
+        },
+        "width": {
+          "format": "uint32",
+          "minimum": 0.0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "height",
+        "width"
+      ],
+      "type": "object"
+    },
+    "BrowserWaitStrategy": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "properties": {
+            "delay_ms": {
+              "format": "uint64",
+              "minimum": 0.0,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "delay_ms"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "CachedTerminalBackground": {
+      "description": "Collection of settings that are specific to the TUI.",
+      "properties": {
+        "colorfgbg": {
+          "default": null,
+          "type": "string"
+        },
+        "is_dark": {
+          "type": "boolean"
+        },
+        "rgb": {
+          "default": null,
+          "type": "string"
+        },
+        "source": {
+          "default": null,
+          "type": "string"
+        },
+        "term": {
+          "default": null,
+          "type": "string"
+        },
+        "term_program": {
+          "default": null,
+          "type": "string"
+        },
+        "term_program_version": {
+          "default": null,
+          "type": "string"
+        }
+      },
+      "required": [
+        "is_dark"
+      ],
+      "type": "object"
+    },
+    "ClientTools": {
+      "description": "MCP tool identifiers that the client exposes to the agent.",
+      "properties": {
+        "readTextFile": {
+          "$ref": "#/definitions/McpToolId"
+        },
+        "requestPermission": {
+          "$ref": "#/definitions/McpToolId"
+        },
+        "writeTextFile": {
+          "$ref": "#/definitions/McpToolId"
+        }
+      },
+      "type": "object"
+    },
+    "CommandSafetyOsProfileConfig": {
+      "properties": {
+        "linux": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/CommandSafetyRuleConfig"
+            }
+          ],
+          "default": {
+            "dangerous_command_detection": null,
+            "dangerous_rules": null,
+            "safe_rules": null
+          }
+        },
+        "macos": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/CommandSafetyRuleConfig"
+            }
+          ],
+          "default": {
+            "dangerous_command_detection": null,
+            "dangerous_rules": null,
+            "safe_rules": null
+          }
+        },
+        "other": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/CommandSafetyRuleConfig"
+            }
+          ],
+          "default": {
+            "dangerous_command_detection": null,
+            "dangerous_rules": null,
+            "safe_rules": null
+          }
+        },
+        "windows": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/CommandSafetyRuleConfig"
+            }
+          ],
+          "default": {
+            "dangerous_command_detection": null,
+            "dangerous_rules": null,
+            "safe_rules": null
+          }
+        }
+      },
+      "type": "object"
+    },
+    "CommandSafetyProfileConfig": {
+      "properties": {
+        "dangerous_command_detection": {
+          "default": null,
+          "description": "Optional override for dangerous-command detection.",
+          "type": "boolean"
+        },
+        "dangerous_rules": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/CommandSafetyRuleset"
+            }
+          ],
+          "default": null,
+          "description": "Ruleset used to decide whether a command is dangerous."
+        },
+        "os": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/CommandSafetyOsProfileConfig"
+            }
+          ],
+          "default": {
+            "linux": {
+              "dangerous_command_detection": null,
+              "dangerous_rules": null,
+              "safe_rules": null
+            },
+            "macos": {
+              "dangerous_command_detection": null,
+              "dangerous_rules": null,
+              "safe_rules": null
+            },
+            "other": {
+              "dangerous_command_detection": null,
+              "dangerous_rules": null,
+              "safe_rules": null
+            },
+            "windows": {
+              "dangerous_command_detection": null,
+              "dangerous_rules": null,
+              "safe_rules": null
+            }
+          }
+        },
+        "safe_rules": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/CommandSafetyRuleset"
+            }
+          ],
+          "default": null,
+          "description": "Ruleset used to decide whether a command is \"known safe\"."
+        }
+      },
+      "type": "object"
+    },
+    "CommandSafetyRuleConfig": {
+      "properties": {
+        "dangerous_command_detection": {
+          "default": null,
+          "description": "Optional override for dangerous-command detection.",
+          "type": "boolean"
+        },
+        "dangerous_rules": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/CommandSafetyRuleset"
+            }
+          ],
+          "default": null,
+          "description": "Ruleset used to decide whether a command is dangerous."
+        },
+        "safe_rules": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/CommandSafetyRuleset"
+            }
+          ],
+          "default": null,
+          "description": "Ruleset used to decide whether a command is \"known safe\"."
+        }
+      },
+      "type": "object"
+    },
+    "CommandSafetyRuleset": {
+      "enum": [
+        "auto",
+        "posix",
+        "windows"
+      ],
+      "type": "string"
+    },
+    "ConfigProfile": {
+      "description": "Collection of common configuration options that a user can define as a unit in `config.toml`.",
+      "properties": {
+        "api_key_fallback_on_all_accounts_limited": {
+          "description": "When true, fall back to an API key account only if every connected `ChatGPT` account is rate/usage limited.",
+          "type": "boolean"
+        },
+        "approval_policy": {
+          "$ref": "#/definitions/AskForApproval"
+        },
+        "apps": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/AppsToml"
+            }
+          ],
+          "default": null
+        },
+        "auto_review_model": {
+          "type": "string"
+        },
+        "auto_review_model_reasoning_effort": {
+          "$ref": "#/definitions/ReasoningEffort"
+        },
+        "auto_review_resolve_model": {
+          "type": "string"
+        },
+        "auto_review_resolve_model_reasoning_effort": {
+          "$ref": "#/definitions/ReasoningEffort"
+        },
+        "auto_review_resolve_use_chat_model": {
+          "type": "boolean"
+        },
+        "auto_review_use_chat_model": {
+          "type": "boolean"
+        },
+        "auto_switch_accounts_on_rate_limit": {
+          "description": "When true, automatically switch to another connected account when the current account hits a rate/usage limit.",
+          "type": "boolean"
+        },
+        "chatgpt_base_url": {
+          "type": "string"
+        },
+        "compact_prompt_override": {
+          "type": "string"
+        },
+        "compact_prompt_override_file": {
+          "type": "string"
+        },
+        "context_mode": {
+          "$ref": "#/definitions/ContextMode"
+        },
+        "disable_response_storage": {
+          "type": "boolean"
+        },
+        "experimental_instructions_file": {
+          "type": "string"
+        },
+        "features": {
+          "$ref": "#/definitions/FeaturesToml"
+        },
+        "memories": {
+          "$ref": "#/definitions/MemoriesToml"
+        },
+        "model": {
+          "type": "string"
+        },
+        "model_auto_compact_token_limit": {
+          "format": "int64",
+          "type": "integer"
+        },
+        "model_context_window": {
+          "format": "uint64",
+          "minimum": 0.0,
+          "type": "integer"
+        },
+        "model_personality": {
+          "$ref": "#/definitions/Personality"
         },
         "model_provider": {
           "description": "The key in the `model_providers` map identifying the [`ModelProviderInfo`] to use.",
@@ -326,85 +757,277 @@
         "model_reasoning_summary": {
           "$ref": "#/definitions/ReasoningSummary"
         },
-        "model_verbosity": {
-          "$ref": "#/definitions/Verbosity"
+        "model_text_verbosity": {
+          "$ref": "#/definitions/TextVerbosity"
         },
-        "oss_provider": {
+        "planning_model": {
           "type": "string"
         },
-        "personality": {
-          "$ref": "#/definitions/Personality"
+        "planning_model_reasoning_effort": {
+          "$ref": "#/definitions/ReasoningEffort"
         },
-        "sandbox_mode": {
-          "$ref": "#/definitions/SandboxMode"
-        },
-        "tools_view_image": {
+        "planning_use_chat_model": {
           "type": "boolean"
         },
-        "tools_web_search": {
+        "preferred_model_reasoning_effort": {
+          "$ref": "#/definitions/ReasoningEffort"
+        },
+        "review_model": {
+          "type": "string"
+        },
+        "review_model_reasoning_effort": {
+          "$ref": "#/definitions/ReasoningEffort"
+        },
+        "review_resolve_model": {
+          "type": "string"
+        },
+        "review_resolve_model_reasoning_effort": {
+          "$ref": "#/definitions/ReasoningEffort"
+        },
+        "review_resolve_use_chat_model": {
           "type": "boolean"
         },
-        "web_search": {
-          "$ref": "#/definitions/WebSearchMode"
+        "review_use_chat_model": {
+          "type": "boolean"
+        },
+        "service_tier": {
+          "$ref": "#/definitions/ServiceTier"
         },
         "windows": {
-          "allOf": [
-            {
-              "$ref": "#/definitions/WindowsToml"
-            }
-          ],
-          "default": null
+          "$ref": "#/definitions/WindowsToml"
         }
       },
       "type": "object"
     },
-    "FeedbackConfigToml": {
-      "additionalProperties": false,
+    "ConfirmGuardConfig": {
+      "description": "Configuration for commands that require an explicit `confirm:` prefix.",
       "properties": {
-        "enabled": {
-          "description": "When `false`, disables the feedback flow across Codex product surfaces.",
-          "type": "boolean"
+        "patterns": {
+          "description": "List of regex patterns applied to the raw command (joined argv or shell script).",
+          "items": {
+            "$ref": "#/definitions/ConfirmGuardPattern"
+          },
+          "type": "array"
         }
       },
       "type": "object"
     },
-    "ForcedLoginMethod": {
+    "ConfirmGuardPattern": {
+      "properties": {
+        "message": {
+          "default": null,
+          "description": "Optional custom guidance text surfaced when the guard triggers.",
+          "type": "string"
+        },
+        "regex": {
+          "description": "ECMA-style regular expression matched against the command string.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "regex"
+      ],
+      "type": "object"
+    },
+    "ContextMode": {
       "enum": [
-        "chatgpt",
-        "api"
+        "1m",
+        "auto",
+        "disabled"
       ],
       "type": "string"
     },
-    "GhostSnapshotToml": {
-      "additionalProperties": false,
+    "CustomSpinner": {
+      "description": "User-defined custom spinner",
       "properties": {
-        "disable_warnings": {
-          "description": "Disable all ghost snapshot warning events.",
+        "frames": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "interval": {
+          "format": "uint64",
+          "minimum": 0.0,
+          "type": "integer"
+        },
+        "label": {
+          "default": null,
+          "description": "Optional human-readable label to display in the UI",
+          "type": "string"
+        }
+      },
+      "required": [
+        "frames",
+        "interval"
+      ],
+      "type": "object"
+    },
+    "DynamicToolSpec": {
+      "properties": {
+        "description": {
+          "type": "string"
+        },
+        "inputSchema": true,
+        "name": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "description",
+        "inputSchema",
+        "name"
+      ],
+      "type": "object"
+    },
+    "ExecLimitModeToml": {
+      "enum": [
+        "auto",
+        "disabled"
+      ],
+      "type": "string"
+    },
+    "ExecLimitToml": {
+      "anyOf": [
+        {
+          "$ref": "#/definitions/ExecLimitModeToml"
+        },
+        {
+          "format": "uint64",
+          "minimum": 0.0,
+          "type": "integer"
+        }
+      ]
+    },
+    "ExecLimitsToml": {
+      "additionalProperties": false,
+      "description": "Execution limits for tool-spawned processes.\n\nThese are enforced via Linux cgroup v2 when available. On other platforms, the settings are currently best-effort and primarily affect what we attach to the environment/sandbox runner.",
+      "properties": {
+        "memory_max_mb": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/ExecLimitToml"
+            }
+          ],
+          "default": "auto",
+          "description": "Memory limit applied via cgroup `memory.max` (mebibytes).\n\n- `\"auto\"`: dynamic default - `\"disabled\"`: no memory cap - `<int>`: explicit cap"
+        },
+        "pids_max": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/ExecLimitToml"
+            }
+          ],
+          "default": "auto",
+          "description": "Process limit applied via cgroup `pids.max`.\n\n- `\"auto\"`: dynamic default - `\"disabled\"`: no process cap - `<int>`: explicit cap"
+        }
+      },
+      "type": "object"
+    },
+    "FeaturesToml": {
+      "type": "object"
+    },
+    "GithubConfig": {
+      "description": "GitHub integration settings.",
+      "properties": {
+        "actionlint_on_patch": {
+          "default": false,
+          "description": "When true, run `actionlint` on modified workflows during `apply_patch`.",
           "type": "boolean"
         },
-        "ignore_large_untracked_dirs": {
-          "description": "Ignore untracked directories that contain this many files or more. (Still emits a warning unless warnings are disabled.)",
-          "format": "int64",
-          "type": "integer"
+        "actionlint_path": {
+          "default": null,
+          "description": "Optional explicit executable path for actionlint.",
+          "type": "string"
         },
-        "ignore_large_untracked_files": {
-          "description": "Exclude untracked files larger than this many bytes from ghost snapshots.",
-          "format": "int64",
-          "type": "integer"
+        "actionlint_strict": {
+          "default": false,
+          "description": "Treat actionlint findings as blocking when composing approval text.",
+          "type": "boolean"
+        },
+        "check_workflows_on_push": {
+          "default": true,
+          "description": "When true, Codex watches for GitHub Actions workflow runs after a successful `git push` and reports failures as background messages. Enabled by default; can be disabled via `~/.code/config.toml` under `[github]` with `check_workflows_on_push = false`.",
+          "type": "boolean"
+        }
+      },
+      "type": "object"
+    },
+    "HeaderConfig": {
+      "description": "Header options under `[tui.header]`.",
+      "properties": {
+        "bottom_line_text": {
+          "default": null,
+          "description": "Optional custom text for the secondary header line. When unset and `show_bottom_line = true`, the line is rendered empty.",
+          "type": "string"
+        },
+        "hover_style": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/HeaderHoverStyle"
+            }
+          ],
+          "default": "background",
+          "description": "Hover styling for interactive header segments (model/shell/reasoning)."
+        },
+        "show_bottom_line": {
+          "default": false,
+          "description": "Show the optional secondary line under the primary header line.",
+          "type": "boolean"
+        },
+        "show_top_line": {
+          "default": true,
+          "description": "Show the primary header line.",
+          "type": "boolean"
+        },
+        "top_line_text": {
+          "default": null,
+          "description": "Optional custom text for the primary header line. When unset, Codex renders its default dynamic status content.",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "HeaderHoverStyle": {
+      "description": "Hover styling options for interactive segments in the TUI header.",
+      "oneOf": [
+        {
+          "description": "Highlight interactive segments with a background fill (and emphasis).",
+          "enum": [
+            "background"
+          ],
+          "type": "string"
+        },
+        {
+          "description": "Only underline interactive segments on hover.",
+          "enum": [
+            "underline"
+          ],
+          "type": "string"
+        },
+        {
+          "description": "Disable hover styling for interactive segments.",
+          "enum": [
+            "none"
+          ],
+          "type": "string"
+        }
+      ]
+    },
+    "HighlightConfig": {
+      "description": "Configuration for syntax highlighting in Markdown code blocks.\n\n`theme` accepts the following values: - \"auto\" (default): choose a sensible built-in syntect theme based on whether the current UI theme is light or dark. - \"<name>\": use a specific syntect theme by name from the default `ThemeSet`.",
+      "properties": {
+        "theme": {
+          "default": null,
+          "description": "Theme selection preference (see docstring for accepted values)",
+          "type": "string"
         }
       },
       "type": "object"
     },
     "History": {
-      "additionalProperties": false,
-      "description": "Settings that govern if and what will be written to `~/.codex/history.jsonl`.",
+      "description": "Settings that govern if and what will be written to `~/.code/history.jsonl` (Code still reads legacy `~/.codex/history.jsonl`).",
       "properties": {
-        "max_bytes": {
-          "description": "If set, the maximum size of the history file in bytes. The oldest entries are dropped once the file exceeds this limit.",
-          "format": "uint",
-          "minimum": 0.0,
-          "type": "integer"
-        },
         "persistence": {
           "allOf": [
             {
@@ -437,180 +1060,351 @@
         }
       ]
     },
-    "MemoriesToml": {
-      "additionalProperties": false,
-      "description": "Memories settings loaded from config.toml.",
+    "IconMode": {
+      "description": "Icon display mode controlling which glyph tier is rendered.",
+      "oneOf": [
+        {
+          "description": "`NerdFont` PUA glyphs (requires a NerdFont-patched terminal font).",
+          "enum": [
+            "nerd_fonts"
+          ],
+          "type": "string"
+        },
+        {
+          "description": "Standard Unicode symbols (the default — works in any modern terminal).",
+          "enum": [
+            "unicode"
+          ],
+          "type": "string"
+        },
+        {
+          "description": "Pure ASCII fallbacks (for minimal/legacy terminals).",
+          "enum": [
+            "ascii"
+          ],
+          "type": "string"
+        }
+      ]
+    },
+    "IconOverrideTiers": {
+      "description": "Per-tier icon override strings.",
       "properties": {
+        "ascii": {
+          "default": null,
+          "type": "string"
+        },
+        "nerd": {
+          "default": null,
+          "type": "string"
+        },
+        "unicode": {
+          "default": null,
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "IconOverrideValue": {
+      "anyOf": [
+        {
+          "description": "Override all tiers with the same string.",
+          "type": "string"
+        },
+        {
+          "allOf": [
+            {
+              "$ref": "#/definitions/IconOverrideTiers"
+            }
+          ],
+          "description": "Override individual tiers."
+        }
+      ],
+      "description": "Per-icon override — either a single string for all tiers, or per-tier strings.\n\n```toml [tui.icons] checkbox_on = \"✅\"             # override all tiers\n\n[tui.icons.gutter_user]        # override individual tiers ascii = \">\" unicode = \"›\" ```"
+    },
+    "JsReplRuntimeKindToml": {
+      "enum": [
+        "node",
+        "deno"
+      ],
+      "type": "string"
+    },
+    "LifecycleHooksToml": {
+      "description": "Settings for the upstream-compatible `hooks.json` lifecycle hooks engine.\n\nThese values are persisted under `[lifecycle_hooks]` in `config.toml`.",
+      "properties": {
+        "enabled": {
+          "default": null,
+          "description": "When `Some(false)`, disables the `hooks.json` lifecycle hook engine. When omitted, hooks are enabled.",
+          "type": "boolean"
+        },
+        "shell_args": {
+          "default": [],
+          "description": "Additional args passed to the hook shell program.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "shell_program": {
+          "default": null,
+          "description": "Optional explicit shell program to use when running hook commands. When omitted, Code derives a shell from the session's detected shell.",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "LimitsLayoutMode": {
+      "description": "Available layout modes for the limits settings panel.",
+      "enum": [
+        "auto",
+        "single-column"
+      ],
+      "type": "string"
+    },
+    "LimitsUiConfig": {
+      "description": "Limits panel settings under `[tui.limits]`.",
+      "properties": {
+        "layout_mode": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/LimitsLayoutMode"
+            }
+          ],
+          "default": "auto",
+          "description": "Preferred layout mode for the limits settings panel."
+        }
+      },
+      "type": "object"
+    },
+    "McpDispatchMode": {
+      "enum": [
+        "exclusive",
+        "parallel"
+      ],
+      "type": "string"
+    },
+    "McpServerSchedulingToml": {
+      "properties": {
+        "dispatch": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/McpDispatchMode"
+            }
+          ],
+          "default": "exclusive"
+        },
+        "max_concurrent": {
+          "default": 1,
+          "format": "uint32",
+          "minimum": 0.0,
+          "type": "integer"
+        },
+        "max_queue_depth": {
+          "format": "uint32",
+          "minimum": 0.0,
+          "type": "integer"
+        },
+        "min_interval_sec": {
+          "format": "double",
+          "type": "number"
+        },
+        "queue_timeout_sec": {
+          "format": "double",
+          "type": "number"
+        }
+      },
+      "type": "object"
+    },
+    "McpToolId": {
+      "description": "Identifier for a client-hosted MCP tool.",
+      "properties": {
+        "mcpServer": {
+          "type": "string"
+        },
+        "toolName": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "mcpServer",
+        "toolName"
+      ],
+      "type": "object"
+    },
+    "McpToolSchedulingOverrideToml": {
+      "properties": {
+        "max_concurrent": {
+          "format": "uint32",
+          "minimum": 0.0,
+          "type": "integer"
+        },
+        "min_interval_sec": {
+          "format": "double",
+          "type": "number"
+        }
+      },
+      "type": "object"
+    },
+    "MemoriesToml": {
+      "properties": {
+        "generate_memories": {
+          "description": "Enable automatic memory extraction from session history.",
+          "type": "boolean"
+        },
+        "max_raw_memories_for_consolidation": {
+          "description": "Maximum number of recent raw memories retained for consolidation.",
+          "format": "uint",
+          "minimum": 0.0,
+          "type": "integer"
+        },
         "max_raw_memories_for_global": {
-          "description": "Maximum number of recent raw memories retained for global consolidation.",
+          "description": "Deprecated alias for `max_raw_memories_for_consolidation`.",
           "format": "uint",
           "minimum": 0.0,
           "type": "integer"
         },
         "max_rollout_age_days": {
-          "description": "Maximum age of the threads used for memories.",
+          "description": "Maximum age (days) of threads eligible for memory extraction.",
           "format": "int64",
           "type": "integer"
         },
         "max_rollouts_per_startup": {
-          "description": "Maximum number of rollout candidates processed per pass.",
+          "description": "Maximum number of rollout candidates processed per startup pass.",
           "format": "uint",
           "minimum": 0.0,
           "type": "integer"
         },
         "min_rollout_idle_hours": {
-          "description": "Minimum idle time between last thread activity and memory creation (hours). > 12h recommended.",
+          "description": "Minimum idle hours between last thread activity and memory extraction.",
           "format": "int64",
           "type": "integer"
         },
-        "phase_1_model": {
-          "description": "Model used for thread summarisation.",
-          "type": "string"
+        "no_memories_if_mcp_or_web_search": {
+          "description": "Skip memory extraction for sessions that invoke MCP tools or web search.",
+          "type": "boolean"
         },
-        "phase_2_model": {
-          "description": "Model used for memory consolidation.",
-          "type": "string"
+        "use_memories": {
+          "description": "Inject extracted memories into LLM prompts.",
+          "type": "boolean"
         }
       },
       "type": "object"
     },
-    "ModeKind": {
-      "description": "Initial collaboration mode to use when the TUI starts.",
+    "NetworkModeToml": {
       "enum": [
-        "plan",
-        "default"
+        "limited",
+        "full"
       ],
       "type": "string"
     },
-    "ModelProviderInfo": {
+    "NetworkProxySettingsToml": {
       "additionalProperties": false,
-      "description": "Serializable representation of a provider definition.",
       "properties": {
-        "base_url": {
-          "description": "Base URL for the provider's OpenAI-compatible API.",
+        "admin_url": {
+          "default": "http://127.0.0.1:8080",
+          "description": "Admin API listener address (must be loopback unless explicitly overridden).",
           "type": "string"
         },
-        "env_http_headers": {
-          "additionalProperties": {
-            "type": "string"
-          },
-          "description": "Optional HTTP headers to include in requests to this provider where the (key, value) pairs are the header name and _environment variable_ whose value should be used. If the environment variable is not set, or the value is empty, the header will not be included in the request.",
-          "type": "object"
-        },
-        "env_key": {
-          "description": "Environment variable that stores the user's API key for this provider.",
-          "type": "string"
-        },
-        "env_key_instructions": {
-          "description": "Optional instructions to help the user get a valid value for the variable and set it.",
-          "type": "string"
-        },
-        "experimental_bearer_token": {
-          "description": "Value to use with `Authorization: Bearer <token>` header. Use of this config is discouraged in favor of `env_key` for security reasons, but this may be necessary when using this programmatically.",
-          "type": "string"
-        },
-        "http_headers": {
-          "additionalProperties": {
-            "type": "string"
-          },
-          "description": "Additional HTTP headers to include in requests to this provider where the (key, value) pairs are the header name and value.",
-          "type": "object"
-        },
-        "name": {
-          "description": "Friendly display name.",
-          "type": "string"
-        },
-        "query_params": {
-          "additionalProperties": {
-            "type": "string"
-          },
-          "description": "Optional query parameters to append to the base URL.",
-          "type": "object"
-        },
-        "request_max_retries": {
-          "description": "Maximum number of times to retry a failed HTTP request to this provider.",
-          "format": "uint64",
-          "minimum": 0.0,
-          "type": "integer"
-        },
-        "requires_openai_auth": {
-          "default": false,
-          "description": "Does this provider require an OpenAI API Key or ChatGPT login token? If true, user is presented with login screen on first run, and login preference and token/key are stored in auth.json. If false (which is the default), login screen is skipped, and API key (if needed) comes from the \"env_key\" environment variable.",
+        "allow_local_binding": {
+          "default": true,
+          "description": "Allow binding loopback listeners from within mediated sessions.",
           "type": "boolean"
         },
-        "stream_idle_timeout_ms": {
-          "description": "Idle timeout (in milliseconds) to wait for activity on a streaming response before treating the connection as lost.",
-          "format": "uint64",
-          "minimum": 0.0,
-          "type": "integer"
+        "allow_unix_sockets": {
+          "default": [],
+          "description": "Allow proxying requests to these unix sockets (macOS only).",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
         },
-        "stream_max_retries": {
-          "description": "Number of times to retry reconnecting a dropped streaming response before failing.",
-          "format": "uint64",
-          "minimum": 0.0,
-          "type": "integer"
-        },
-        "supports_websockets": {
-          "default": false,
-          "description": "Whether this provider supports the Responses API WebSocket transport.",
+        "allow_upstream_proxy": {
+          "default": true,
+          "description": "Allow honoring upstream proxy environment variables (defense-in-depth is still enforced by the managed proxy policy).",
           "type": "boolean"
         },
-        "wire_api": {
+        "allowed_domains": {
+          "default": [],
+          "description": "Allow-list of domain globs. When empty, all hosts are treated as not allowed and may trigger the interactive approval flow (when enabled).",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "dangerously_allow_non_loopback_admin": {
+          "default": false,
+          "description": "DANGEROUS: allow binding the admin listener on a non-loopback address.",
+          "type": "boolean"
+        },
+        "dangerously_allow_non_loopback_proxy": {
+          "default": false,
+          "description": "DANGEROUS: allow binding the proxy listener on a non-loopback address.",
+          "type": "boolean"
+        },
+        "denied_domains": {
+          "default": [],
+          "description": "Deny-list of domain globs. Denies always win over allows.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "enable_socks5": {
+          "default": true,
+          "description": "Enable the SOCKS5 proxy listener.",
+          "type": "boolean"
+        },
+        "enable_socks5_udp": {
+          "default": true,
+          "description": "Enable SOCKS5 UDP (only used when SOCKS5 is enabled).",
+          "type": "boolean"
+        },
+        "enabled": {
+          "default": false,
+          "description": "Enable managed network proxy mediation for sandboxed command execution.",
+          "type": "boolean"
+        },
+        "mode": {
           "allOf": [
             {
-              "$ref": "#/definitions/WireApi"
+              "$ref": "#/definitions/NetworkModeToml"
             }
           ],
-          "default": "responses",
-          "description": "Which wire protocol this provider expects."
+          "default": "full",
+          "description": "Network policy mode (method restrictions and tunneling behavior)."
+        },
+        "proxy_url": {
+          "default": "http://127.0.0.1:3128",
+          "description": "HTTP proxy listener address (must be loopback unless explicitly overridden).",
+          "type": "string"
+        },
+        "socks_url": {
+          "default": "http://127.0.0.1:8081",
+          "description": "SOCKS5 listener address (must be loopback unless explicitly overridden).",
+          "type": "string"
         }
       },
-      "required": [
-        "name"
-      ],
       "type": "object"
     },
     "Notice": {
-      "description": "Settings for notices we display to users via the tui and app-server clients (primarily the Codex IDE extension). NOTE: these are different from notifications - notices are warnings, NUX screens, acknowledgements, etc.",
+      "description": "User acknowledgements for in-product notices (distinct from notifications).",
       "properties": {
         "hide_full_access_warning": {
-          "description": "Tracks whether the user has acknowledged the full access warning prompt.",
           "type": "boolean"
         },
         "hide_gpt-5.1-codex-max_migration_prompt": {
-          "description": "Tracks whether the user has seen the gpt-5.1-codex-max migration prompt",
           "type": "boolean"
         },
         "hide_gpt5_1_migration_prompt": {
-          "description": "Tracks whether the user has seen the model migration prompt",
           "type": "boolean"
         },
-        "hide_rate_limit_model_nudge": {
-          "description": "Tracks whether the user opted out of the rate limit model switch reminder.",
+        "hide_gpt5_2_codex_migration_prompt": {
           "type": "boolean"
         },
-        "hide_world_writable_warning": {
-          "description": "Tracks whether the user has acknowledged the Windows world-writable directories warning.",
+        "hide_gpt5_2_migration_prompt": {
           "type": "boolean"
-        },
-        "model_migrations": {
-          "additionalProperties": {
-            "type": "string"
-          },
-          "default": {},
-          "description": "Tracks acknowledged model migrations as old->new model slug mappings.",
-          "type": "object"
         }
       },
       "type": "object"
-    },
-    "NotificationMethod": {
-      "enum": [
-        "auto",
-        "osc9",
-        "bel"
-      ],
-      "type": "string"
     },
     "Notifications": {
       "anyOf": [
@@ -626,17 +1420,17 @@
       ]
     },
     "OAuthCredentialsStoreMode": {
-      "description": "Determine where Codex should store and read MCP credentials.",
+      "description": "Determine where Code should store and read MCP OAuth credentials.",
       "oneOf": [
         {
-          "description": "`Keyring` when available; otherwise, `File`. Credentials stored in the keyring will only be readable by Codex unless the user explicitly grants access via OS-level keyring access.",
+          "description": "`Keyring` when available; otherwise, `File`.",
           "enum": [
             "auto"
           ],
           "type": "string"
         },
         {
-          "description": "CODEX_HOME/.credentials.json This file will be readable to Codex and other applications running as the same user.",
+          "description": "`CODE_HOME/.credentials.json`",
           "enum": [
             "file"
           ],
@@ -652,51 +1446,24 @@
       ]
     },
     "OtelConfigToml": {
-      "additionalProperties": false,
-      "description": "OTEL settings loaded from config.toml. Fields are optional so we can apply defaults.",
       "properties": {
         "environment": {
-          "description": "Mark traces with environment (dev, staging, prod, test). Defaults to dev.",
           "type": "string"
         },
         "exporter": {
-          "allOf": [
-            {
-              "$ref": "#/definitions/OtelExporterKind"
-            }
-          ],
-          "description": "Optional log exporter"
+          "$ref": "#/definitions/OtelExporterKind"
         },
         "log_user_prompt": {
-          "description": "Log user prompt in traces",
           "type": "boolean"
-        },
-        "metrics_exporter": {
-          "allOf": [
-            {
-              "$ref": "#/definitions/OtelExporterKind"
-            }
-          ],
-          "description": "Optional metrics exporter"
-        },
-        "trace_exporter": {
-          "allOf": [
-            {
-              "$ref": "#/definitions/OtelExporterKind"
-            }
-          ],
-          "description": "Optional trace exporter"
         }
       },
       "type": "object"
     },
     "OtelExporterKind": {
-      "description": "Which OTEL exporter to use.",
       "oneOf": [
         {
           "enum": [
-            "none",
-            "statsig"
+            "none"
           ],
           "type": "string"
         },
@@ -704,7 +1471,6 @@
           "additionalProperties": false,
           "properties": {
             "otlp-http": {
-              "additionalProperties": false,
               "properties": {
                 "endpoint": {
                   "type": "string"
@@ -713,23 +1479,15 @@
                   "additionalProperties": {
                     "type": "string"
                   },
-                  "default": {},
                   "type": "object"
                 },
                 "protocol": {
                   "$ref": "#/definitions/OtelHttpProtocol"
-                },
-                "tls": {
-                  "allOf": [
-                    {
-                      "$ref": "#/definitions/OtelTlsConfig"
-                    }
-                  ],
-                  "default": null
                 }
               },
               "required": [
                 "endpoint",
+                "headers",
                 "protocol"
               ],
               "type": "object"
@@ -744,7 +1502,6 @@
           "additionalProperties": false,
           "properties": {
             "otlp-grpc": {
-              "additionalProperties": false,
               "properties": {
                 "endpoint": {
                   "type": "string"
@@ -753,20 +1510,12 @@
                   "additionalProperties": {
                     "type": "string"
                   },
-                  "default": {},
                   "type": "object"
-                },
-                "tls": {
-                  "allOf": [
-                    {
-                      "$ref": "#/definitions/OtelTlsConfig"
-                    }
-                  ],
-                  "default": null
                 }
               },
               "required": [
-                "endpoint"
+                "endpoint",
+                "headers"
               ],
               "type": "object"
             }
@@ -779,37 +1528,11 @@
       ]
     },
     "OtelHttpProtocol": {
-      "oneOf": [
-        {
-          "description": "Binary payload",
-          "enum": [
-            "binary"
-          ],
-          "type": "string"
-        },
-        {
-          "description": "JSON payload",
-          "enum": [
-            "json"
-          ],
-          "type": "string"
-        }
-      ]
-    },
-    "OtelTlsConfig": {
-      "additionalProperties": false,
-      "properties": {
-        "ca-certificate": {
-          "$ref": "#/definitions/AbsolutePathBuf"
-        },
-        "client-certificate": {
-          "$ref": "#/definitions/AbsolutePathBuf"
-        },
-        "client-private-key": {
-          "$ref": "#/definitions/AbsolutePathBuf"
-        }
-      },
-      "type": "object"
+      "enum": [
+        "binary",
+        "json"
+      ],
+      "type": "string"
     },
     "Personality": {
       "enum": [
@@ -819,14 +1542,169 @@
       ],
       "type": "string"
     },
-    "ProjectConfig": {
-      "additionalProperties": false,
+    "PluginMarketplaceRepoToml": {
       "properties": {
-        "trust_level": {
-          "$ref": "#/definitions/TrustLevel"
+        "ref": {
+          "default": null,
+          "type": "string"
+        },
+        "url": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "url"
+      ],
+      "type": "object"
+    },
+    "PluginsToml": {
+      "properties": {
+        "curated_repo_ref": {
+          "default": null,
+          "type": "string"
+        },
+        "curated_repo_url": {
+          "default": null,
+          "type": "string"
+        },
+        "marketplace_repos": {
+          "default": [],
+          "items": {
+            "$ref": "#/definitions/PluginMarketplaceRepoToml"
+          },
+          "type": "array"
         }
       },
       "type": "object"
+    },
+    "ProjectCommandConfig": {
+      "properties": {
+        "command": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "cwd": {
+          "default": null,
+          "type": "string"
+        },
+        "description": {
+          "default": null,
+          "type": "string"
+        },
+        "env": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "default": null,
+          "type": "object"
+        },
+        "name": {
+          "type": "string"
+        },
+        "timeout_ms": {
+          "default": null,
+          "format": "uint64",
+          "minimum": 0.0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "command",
+        "name"
+      ],
+      "type": "object"
+    },
+    "ProjectConfig": {
+      "additionalProperties": false,
+      "properties": {
+        "always_allow_commands": {
+          "items": {
+            "$ref": "#/definitions/AllowedCommand"
+          },
+          "type": "array"
+        },
+        "approval_policy": {
+          "$ref": "#/definitions/AskForApproval"
+        },
+        "commands": {
+          "items": {
+            "$ref": "#/definitions/ProjectCommandConfig"
+          },
+          "type": "array"
+        },
+        "hooks": {
+          "items": {
+            "$ref": "#/definitions/ProjectHookConfig"
+          },
+          "type": "array"
+        },
+        "memories": {
+          "$ref": "#/definitions/MemoriesToml"
+        },
+        "sandbox_mode": {
+          "$ref": "#/definitions/SandboxMode"
+        },
+        "trust_level": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "ProjectHookConfig": {
+      "properties": {
+        "command": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "cwd": {
+          "default": null,
+          "type": "string"
+        },
+        "env": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "default": null,
+          "type": "object"
+        },
+        "event": {
+          "$ref": "#/definitions/ProjectHookEvent"
+        },
+        "name": {
+          "default": null,
+          "type": "string"
+        },
+        "run_in_background": {
+          "default": null,
+          "type": "boolean"
+        },
+        "timeout_ms": {
+          "default": null,
+          "format": "uint64",
+          "minimum": 0.0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "command",
+        "event"
+      ],
+      "type": "object"
+    },
+    "ProjectHookEvent": {
+      "enum": [
+        "session.start",
+        "session.end",
+        "tool.before",
+        "tool.after",
+        "file.before_write",
+        "file.after_write"
+      ],
+      "type": "string"
     },
     "RawMcpServerConfig": {
       "additionalProperties": false,
@@ -847,23 +1725,8 @@
         "command": {
           "type": "string"
         },
-        "cwd": {
-          "default": null,
-          "type": "string"
-        },
         "disabled_tools": {
-          "default": null,
-          "items": {
-            "type": "string"
-          },
-          "type": "array"
-        },
-        "enabled": {
-          "default": null,
-          "type": "boolean"
-        },
-        "enabled_tools": {
-          "default": null,
+          "default": [],
           "items": {
             "type": "string"
           },
@@ -883,29 +1746,25 @@
           "default": null,
           "type": "object"
         },
-        "env_vars": {
-          "default": null,
-          "items": {
-            "type": "string"
-          },
-          "type": "array"
-        },
         "http_headers": {
           "additionalProperties": {
             "type": "string"
           },
           "type": "object"
         },
-        "required": {
-          "default": null,
-          "type": "boolean"
+        "oauth_resource": {
+          "type": "string"
         },
-        "scopes": {
-          "default": null,
-          "items": {
-            "type": "string"
-          },
-          "type": "array"
+        "scheduling": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/McpServerSchedulingToml"
+            }
+          ],
+          "default": {
+            "dispatch": "exclusive",
+            "max_concurrent": 1
+          }
         },
         "startup_timeout_ms": {
           "default": null,
@@ -917,6 +1776,13 @@
           "default": null,
           "format": "double",
           "type": "number"
+        },
+        "tool_scheduling": {
+          "additionalProperties": {
+            "$ref": "#/definitions/McpToolSchedulingOverrideToml"
+          },
+          "default": {},
+          "type": "object"
         },
         "tool_timeout_sec": {
           "default": null,
@@ -930,19 +1796,28 @@
       "type": "object"
     },
     "ReasoningEffort": {
-      "description": "See https://platform.openai.com/docs/guides/reasoning?api-mode=responses#get-started-with-reasoning",
-      "enum": [
-        "none",
-        "minimal",
-        "low",
-        "medium",
-        "high",
-        "xhigh"
-      ],
-      "type": "string"
+      "description": "See <https://platform.openai.com/docs/guides/reasoning?api-mode=responses#get-started-with-reasoning>",
+      "oneOf": [
+        {
+          "enum": [
+            "low",
+            "medium",
+            "high",
+            "xhigh"
+          ],
+          "type": "string"
+        },
+        {
+          "description": "Minimal reasoning. Accepts legacy value \"none\" for backwards compatibility.",
+          "enum": [
+            "minimal"
+          ],
+          "type": "string"
+        }
+      ]
     },
     "ReasoningSummary": {
-      "description": "A summary of the reasoning performed by the model. This can be useful for debugging and understanding the model's reasoning process. See https://platform.openai.com/docs/guides/reasoning?api-mode=responses#reasoning-summaries",
+      "description": "A summary of the reasoning performed by the model. This can be useful for debugging and understanding the model's reasoning process. See <https://platform.openai.com/docs/guides/reasoning?api-mode=responses#reasoning-summaries>",
       "oneOf": [
         {
           "enum": [
@@ -961,6 +1836,38 @@
         }
       ]
     },
+    "RejectConfig": {
+      "properties": {
+        "mcp_elicitations": {
+          "description": "Reject MCP elicitation prompts.",
+          "type": "boolean"
+        },
+        "request_permissions": {
+          "default": false,
+          "description": "Reject approval prompts related to built-in permission requests.",
+          "type": "boolean"
+        },
+        "rules": {
+          "description": "Reject prompts triggered by execpolicy `prompt` rules.",
+          "type": "boolean"
+        },
+        "sandbox_approval": {
+          "description": "Reject approval prompts related to sandbox escalation.",
+          "type": "boolean"
+        },
+        "skill_approval": {
+          "default": false,
+          "description": "Reject approval prompts triggered by skill script execution.",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "mcp_elicitations",
+        "rules",
+        "sandbox_approval"
+      ],
+      "type": "object"
+    },
     "SandboxMode": {
       "enum": [
         "read-only",
@@ -970,8 +1877,12 @@
       "type": "string"
     },
     "SandboxWorkspaceWrite": {
-      "additionalProperties": false,
       "properties": {
+        "allow_git_writes": {
+          "default": true,
+          "description": "When true, do not protect the top-level `.git` folder under a writable root. Defaults to true (historical behavior allows Git writes).",
+          "type": "boolean"
+        },
         "exclude_slash_tmp": {
           "default": false,
           "type": "boolean"
@@ -987,11 +1898,141 @@
         "writable_roots": {
           "default": [],
           "items": {
-            "$ref": "#/definitions/AbsolutePathBuf"
+            "type": "string"
           },
           "type": "array"
         }
       },
+      "type": "object"
+    },
+    "ServiceTier": {
+      "oneOf": [
+        {
+          "enum": [
+            "fast"
+          ],
+          "type": "string"
+        },
+        {
+          "description": "Legacy compatibility value for older local config files.",
+          "enum": [
+            "standard"
+          ],
+          "type": "string"
+        }
+      ]
+    },
+    "SettingsMenuConfig": {
+      "description": "Settings UI routing preferences under `[tui.settings_menu]`.",
+      "properties": {
+        "open_mode": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/SettingsMenuOpenMode"
+            }
+          ],
+          "default": "overlay",
+          "description": "Which settings UI to open by default."
+        },
+        "overlay_min_width": {
+          "default": 100,
+          "description": "Minimum terminal width (columns) to prefer the overlay UI when `open_mode = \"auto\"`.",
+          "format": "uint16",
+          "minimum": 0.0,
+          "type": "integer"
+        }
+      },
+      "type": "object"
+    },
+    "SettingsMenuOpenMode": {
+      "oneOf": [
+        {
+          "description": "Choose between the overlay and bottom-pane settings UIs based on the current terminal width.",
+          "enum": [
+            "auto"
+          ],
+          "type": "string"
+        },
+        {
+          "description": "Always open the full-screen settings overlay (\"big menu\").",
+          "enum": [
+            "overlay"
+          ],
+          "type": "string"
+        },
+        {
+          "description": "Always open the bottom-pane settings UI (\"bottom menu\") when possible.",
+          "enum": [
+            "bottom"
+          ],
+          "type": "string"
+        }
+      ]
+    },
+    "ShellConfig": {
+      "properties": {
+        "args": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "command_safety": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/CommandSafetyProfileConfig"
+            }
+          ],
+          "default": {
+            "dangerous_command_detection": null,
+            "dangerous_rules": null,
+            "os": {
+              "linux": {
+                "dangerous_command_detection": null,
+                "dangerous_rules": null,
+                "safe_rules": null
+              },
+              "macos": {
+                "dangerous_command_detection": null,
+                "dangerous_rules": null,
+                "safe_rules": null
+              },
+              "other": {
+                "dangerous_command_detection": null,
+                "dangerous_rules": null,
+                "safe_rules": null
+              },
+              "windows": {
+                "dangerous_command_detection": null,
+                "dangerous_rules": null,
+                "safe_rules": null
+              }
+            },
+            "safe_rules": null
+          },
+          "description": "Command-safety overrides for this shell."
+        },
+        "dangerous_command_detection": {
+          "default": null,
+          "description": "Optional override for dangerous-command detection in command safety. When omitted, shell-specific defaults are used.",
+          "type": "boolean"
+        },
+        "path": {
+          "type": "string"
+        },
+        "script_style": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/ShellScriptStyle"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "path"
+      ],
       "type": "object"
     },
     "ShellEnvironmentPolicyInherit": {
@@ -1020,7 +2061,6 @@
       ]
     },
     "ShellEnvironmentPolicyToml": {
-      "additionalProperties": false,
       "description": "Policy for building the `env` when spawning a process via either the `shell` or `local_shell` tool.",
       "properties": {
         "exclude": {
@@ -1055,92 +2095,644 @@
       },
       "type": "object"
     },
-    "SkillConfig": {
-      "additionalProperties": false,
+    "ShellPresetConfig": {
       "properties": {
-        "enabled": {
-          "type": "boolean"
+        "command": {
+          "type": "string"
         },
-        "path": {
-          "$ref": "#/definitions/AbsolutePathBuf"
+        "default_args": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "description": {
+          "type": "string"
+        },
+        "display_name": {
+          "type": "string"
+        },
+        "id": {
+          "type": "string"
+        },
+        "script_style": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/ShellScriptStyle"
+            }
+          ],
+          "default": null
+        },
+        "show_in_picker": {
+          "default": true,
+          "type": "boolean"
         }
       },
       "required": [
-        "enabled",
-        "path"
+        "command",
+        "description",
+        "display_name",
+        "id"
       ],
       "type": "object"
     },
-    "SkillsConfig": {
-      "additionalProperties": false,
+    "ShellScriptStyle": {
+      "enum": [
+        "posix-sh",
+        "bash-zsh-compatible",
+        "zsh",
+        "power-shell",
+        "cmd",
+        "nushell",
+        "elvish"
+      ],
+      "type": "string"
+    },
+    "ShellStyleMcpConfig": {
       "properties": {
-        "config": {
+        "exclude": {
+          "default": [],
           "items": {
-            "$ref": "#/definitions/SkillConfig"
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "include": {
+          "default": [],
+          "items": {
+            "type": "string"
           },
           "type": "array"
         }
       },
       "type": "object"
     },
+    "ShellStyleProfileConfig": {
+      "properties": {
+        "command_safety": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/CommandSafetyProfileConfig"
+            }
+          ],
+          "default": {
+            "dangerous_command_detection": null,
+            "dangerous_rules": null,
+            "os": {
+              "linux": {
+                "dangerous_command_detection": null,
+                "dangerous_rules": null,
+                "safe_rules": null
+              },
+              "macos": {
+                "dangerous_command_detection": null,
+                "dangerous_rules": null,
+                "safe_rules": null
+              },
+              "other": {
+                "dangerous_command_detection": null,
+                "dangerous_rules": null,
+                "safe_rules": null
+              },
+              "windows": {
+                "dangerous_command_detection": null,
+                "dangerous_rules": null,
+                "safe_rules": null
+              }
+            },
+            "safe_rules": null
+          },
+          "description": "Command-safety overrides applied when this style profile is active."
+        },
+        "dangerous_command_detection": {
+          "default": null,
+          "description": "Optional override for dangerous-command detection when this style is active. This setting takes precedence over shell-level configuration.",
+          "type": "boolean"
+        },
+        "disabled_skills": {
+          "default": [],
+          "description": "Optional list of skill names to disable when this style is active. These entries override `skills` and any skills loaded from roots.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "mcp_servers": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/ShellStyleMcpConfig"
+            }
+          ],
+          "default": {
+            "exclude": [],
+            "include": []
+          },
+          "description": "MCP server include/exclude filters applied when this style is active."
+        },
+        "prepend_developer_messages": {
+          "default": [],
+          "description": "Additional style-specific developer messages prepended each turn.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "references": {
+          "default": [],
+          "description": "Additional style-specific reference files to load into model context. Relative paths are resolved against the session cwd.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "skill_roots": {
+          "default": [],
+          "description": "Additional skill root directories to scan when this style is active. Relative paths are resolved against the session cwd.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "skills": {
+          "default": [],
+          "description": "Optional list of skill names to inject when this style is active. When non-empty, only these skill names are included.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "summary": {
+          "description": "Optional user-defined summary describing what this style profile does. Used for UI affordances like shell profile pickers and settings.",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "SpinnerSelection": {
+      "description": "Selected loading spinner style.",
+      "properties": {
+        "custom": {
+          "additionalProperties": {
+            "$ref": "#/definitions/CustomSpinner"
+          },
+          "description": "Custom spinner definitions saved by the user",
+          "type": "object"
+        },
+        "name": {
+          "default": "diamond",
+          "description": "Name of the spinner to use. Accepts one of the names from sindresorhus/cli-spinners (kebab-case), or custom names supported by Codex. Defaults to \"diamond\".",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "StatusLineLane": {
+      "enum": [
+        "top",
+        "bottom"
+      ],
+      "type": "string"
+    },
+    "StreamConfig": {
+      "description": "Streaming behavior configuration for the TUI.",
+      "properties": {
+        "answer_header_immediate": {
+          "default": false,
+          "description": "Emit the Answer header immediately when a stream begins (before first newline).",
+          "type": "boolean"
+        },
+        "commit_tick_ms": {
+          "default": null,
+          "description": "Commit animation pacing in milliseconds (lines per `CommitTick`). If unset, defaults to 50ms; in responsive profile, defaults to 30ms.",
+          "format": "uint64",
+          "minimum": 0.0,
+          "type": "integer"
+        },
+        "relax_code_holdback": {
+          "default": false,
+          "description": "Relax code hold-back: allow committing inside an open fenced code block except the very last partial line.",
+          "type": "boolean"
+        },
+        "relax_list_holdback": {
+          "default": false,
+          "description": "Relax list hold-back: allow list lines with content; only withhold bare markers.",
+          "type": "boolean"
+        },
+        "responsive": {
+          "default": false,
+          "description": "Convenience switch enabling a snappier preset for the above values. Explicit values above still take precedence if set.",
+          "type": "boolean"
+        },
+        "show_answer_ellipsis": {
+          "default": true,
+          "description": "Show an ellipsis placeholder in the Answer body while waiting for first text.",
+          "type": "boolean"
+        },
+        "soft_commit_chars": {
+          "default": null,
+          "description": "Soft-commit when this many chars have streamed without a newline. If unset, disabled; in responsive profile, defaults to 160 chars.",
+          "format": "uint",
+          "minimum": 0.0,
+          "type": "integer"
+        },
+        "soft_commit_timeout_ms": {
+          "default": null,
+          "description": "Soft-commit timeout (ms) when no newline arrives; commits partial content. If unset, disabled; in responsive profile, defaults to 400ms.",
+          "format": "uint64",
+          "minimum": 0.0,
+          "type": "integer"
+        }
+      },
+      "type": "object"
+    },
+    "SubagentCommandConfig": {
+      "description": "Configuration for a subagent slash command (e.g., plan/solve/code or custom)",
+      "properties": {
+        "agent-instructions": {
+          "default": null,
+          "description": "Extra instructions that the orchestrator should append to the prompt given to each launched agent.",
+          "type": "string"
+        },
+        "agents": {
+          "default": [],
+          "description": "Agent names to enable for this command. If empty, falls back to enabled agents from `[[agents]]`, or built-in defaults.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "name": {
+          "description": "Name of the command (e.g., \"plan\", \"solve\", \"code\", or custom)",
+          "type": "string"
+        },
+        "orchestrator-instructions": {
+          "default": null,
+          "description": "Extra instructions to append to the orchestrator (Code) prompt.",
+          "type": "string"
+        },
+        "read-only": {
+          "default": false,
+          "description": "Whether agents launched for this command should run in read-only mode Defaults: plan/solve=true, code=false (applied if not specified here)",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "type": "object"
+    },
+    "SubagentsToml": {
+      "description": "Top-level subagents section containing a list of commands.",
+      "properties": {
+        "commands": {
+          "items": {
+            "$ref": "#/definitions/SubagentCommandConfig"
+          },
+          "type": "array"
+        },
+        "max-depth": {
+          "default": null,
+          "description": "Maximum nesting depth for agent-spawned agent runs. `1` allows root sessions to spawn agents, but blocks further nesting.",
+          "format": "int32",
+          "type": "integer"
+        }
+      },
+      "type": "object"
+    },
+    "TextVerbosity": {
+      "description": "Text verbosity level for `OpenAI` API responses. Controls the level of detail in the model's text responses.",
+      "enum": [
+        "low",
+        "medium",
+        "high"
+      ],
+      "type": "string"
+    },
+    "ThemeColors": {
+      "description": "Theme colors that can be customized",
+      "properties": {
+        "background": {
+          "type": "string"
+        },
+        "border": {
+          "type": "string"
+        },
+        "border_focused": {
+          "type": "string"
+        },
+        "comment": {
+          "type": "string"
+        },
+        "cursor": {
+          "type": "string"
+        },
+        "error": {
+          "type": "string"
+        },
+        "foreground": {
+          "type": "string"
+        },
+        "function": {
+          "type": "string"
+        },
+        "hint_confirm": {
+          "type": "string"
+        },
+        "hint_dismiss": {
+          "type": "string"
+        },
+        "hint_key": {
+          "type": "string"
+        },
+        "hint_nav": {
+          "type": "string"
+        },
+        "info": {
+          "type": "string"
+        },
+        "keyword": {
+          "type": "string"
+        },
+        "primary": {
+          "type": "string"
+        },
+        "progress": {
+          "type": "string"
+        },
+        "secondary": {
+          "type": "string"
+        },
+        "selection": {
+          "type": "string"
+        },
+        "spinner": {
+          "type": "string"
+        },
+        "string": {
+          "type": "string"
+        },
+        "success": {
+          "type": "string"
+        },
+        "text": {
+          "type": "string"
+        },
+        "text_bright": {
+          "type": "string"
+        },
+        "text_dim": {
+          "type": "string"
+        },
+        "warning": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "ThemeConfig": {
+      "description": "Theme configuration for the TUI",
+      "properties": {
+        "colors": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/ThemeColors"
+            }
+          ],
+          "description": "Custom color overrides (optional)"
+        },
+        "is_dark": {
+          "default": null,
+          "description": "Optional hint whether the custom theme targets a dark background. When present and `name == Custom`, the UI can show \"Dark - <label>\" or \"Light - <label>\" in lists.",
+          "type": "boolean"
+        },
+        "label": {
+          "default": null,
+          "description": "Optional display name when using a custom theme generated by the user. Not used for built-in themes. If `name == Custom` and this is set, the UI may display it in place of the generic \"Custom\" label.",
+          "type": "string"
+        },
+        "name": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/ThemeName"
+            }
+          ],
+          "description": "Name of the predefined theme to use"
+        }
+      },
+      "type": "object"
+    },
+    "ThemeName": {
+      "description": "Available predefined themes",
+      "enum": [
+        "light-photon",
+        "light-photon-ansi16",
+        "light-prism-rainbow",
+        "light-vivid-triad",
+        "light-porcelain",
+        "light-sandbar",
+        "light-glacier",
+        "dark-carbon-night",
+        "dark-carbon-ansi16",
+        "dark-shinobi-dusk",
+        "dark-oled-black-pro",
+        "dark-amber-terminal",
+        "dark-aurora-flux",
+        "dark-charcoal-rainbow",
+        "dark-zen-garden",
+        "dark-paper-light-pro",
+        "custom"
+      ],
+      "type": "string"
+    },
     "ToolsToml": {
       "additionalProperties": false,
       "properties": {
+        "js_repl": {
+          "default": null,
+          "description": "Enable the optional `js_repl` tool (off by default).",
+          "type": "boolean"
+        },
+        "js_repl_node_module_dirs": {
+          "default": null,
+          "description": "Extra directories to search for packages when using the Node runtime.\n\nEach entry may be either: - a `node_modules` directory, or - a project root containing a `node_modules` directory.\n\nThese paths are passed to the `js_repl` kernel via `CODEX_JS_REPL_NODE_MODULE_DIRS` and are used only for packages-only (bare) imports.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "js_repl_runtime": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/JsReplRuntimeKindToml"
+            }
+          ],
+          "default": null,
+          "description": "Select the runtime used by `js_repl` (default: `node`)."
+        },
+        "js_repl_runtime_args": {
+          "default": null,
+          "description": "Additional arguments passed to the `js_repl` runtime process.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "js_repl_runtime_path": {
+          "default": null,
+          "description": "Optional explicit path to the runtime executable used by `js_repl`. When omitted, the runtime is resolved from PATH (for example `node`).",
+          "type": "string"
+        },
+        "search_tool": {
+          "default": null,
+          "description": "Enable MCP tool discovery helper (`search_tool_bm25`).",
+          "type": "boolean"
+        },
         "view_image": {
           "default": null,
-          "description": "Enable the `view_image` tool that lets the agent attach local images.",
+          "description": "Enable the `image_view` tool that lets the agent attach local images.",
           "type": "boolean"
         },
         "web_search": {
           "default": null,
           "type": "boolean"
+        },
+        "web_search_allowed_domains": {
+          "default": null,
+          "description": "Optional allow-list of domains used by the Responses API `web_search` tool. Example:\n\n[tools] `web_search` = true `web_search_allowed_domains` = [\"openai.com\", \"arxiv.org\"]",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "web_search_external": {
+          "default": null,
+          "description": "Controls `external_web_access` for the `web_search` tool payload. Defaults to true when omitted.",
+          "type": "boolean"
         }
       },
       "type": "object"
     },
-    "TrustLevel": {
-      "description": "Represents the trust level for a project directory. This determines the approval policy and sandbox mode applied.",
-      "enum": [
-        "trusted",
-        "untrusted"
-      ],
-      "type": "string"
-    },
     "Tui": {
-      "additionalProperties": false,
-      "description": "Collection of settings that are specific to the TUI.",
       "properties": {
         "alternate_screen": {
-          "allOf": [
-            {
-              "$ref": "#/definitions/AltScreenMode"
-            }
-          ],
-          "default": "auto",
-          "description": "Controls whether the TUI uses the terminal's alternate screen buffer.\n\n- `auto` (default): Disable alternate screen in Zellij, enable elsewhere. - `always`: Always use alternate screen (original behavior). - `never`: Never use alternate screen (inline mode only, preserves scrollback).\n\nUsing alternate screen provides a cleaner fullscreen experience but prevents scrollback in terminal multiplexers like Zellij that follow the xterm spec."
-        },
-        "animations": {
           "default": true,
-          "description": "Enable animations (welcome screen, shimmer effects, spinners). Defaults to `true`.",
+          "description": "Whether to use the terminal's Alternate Screen (full-screen) mode. When false, Codex renders nothing and leaves the standard terminal buffer visible; users can toggle back to Alternate Screen at runtime with Ctrl+T. Defaults to true.",
           "type": "boolean"
         },
-        "experimental_mode": {
+        "auto_drive": {
           "allOf": [
             {
-              "$ref": "#/definitions/ModeKind"
+              "$ref": "#/definitions/AutoDriveSettings"
+            }
+          ],
+          "description": "Auto Drive behavioral defaults (legacy location; prefer top-level `[auto_drive]`)."
+        },
+        "auto_review_enabled": {
+          "default": true,
+          "description": "Run a background `/review` after turns that modify code.",
+          "type": "boolean"
+        },
+        "branding": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/BrandingConfig"
+            }
+          ],
+          "default": {
+            "title": null
+          },
+          "description": "Branding text shown in the top header and intro animation."
+        },
+        "cached_terminal_background": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/CachedTerminalBackground"
             }
           ],
           "default": null,
-          "description": "Start the TUI in the specified collaboration mode (plan/default). Defaults to unset."
+          "description": "Cached autodetect result so we can skip probing the terminal repeatedly."
         },
-        "notification_method": {
+        "header": {
           "allOf": [
             {
-              "$ref": "#/definitions/NotificationMethod"
+              "$ref": "#/definitions/HeaderConfig"
             }
           ],
-          "default": "auto",
-          "description": "Notification method to use for unfocused terminal notifications. Defaults to `auto`."
+          "default": {
+            "bottom_line_text": null,
+            "hover_style": "background",
+            "show_bottom_line": false,
+            "show_top_line": true,
+            "top_line_text": null
+          },
+          "description": "Header display options for the top status area."
+        },
+        "highlight": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/HighlightConfig"
+            }
+          ],
+          "description": "Syntax highlighting configuration (Markdown fenced code blocks)"
+        },
+        "hotkeys": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/TuiHotkeysConfig"
+            }
+          ],
+          "default": {
+            "android": null,
+            "dragonfly": null,
+            "exec_output_fold": "legacy",
+            "freebsd": null,
+            "js_repl_code_fold": "legacy",
+            "jump_to_latest_child_call": "legacy",
+            "jump_to_parent_call": "legacy",
+            "linux": null,
+            "macos": null,
+            "model_selector": "f2",
+            "netbsd": null,
+            "network_settings": "f5",
+            "openbsd": null,
+            "reasoning_effort": "f3",
+            "shell_selector": "f4",
+            "termux": null,
+            "windows": null
+          },
+          "description": "Keyboard shortcut preferences (for status line quick actions)."
+        },
+        "icon_mode": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/IconMode"
+            }
+          ],
+          "description": "Icon display mode: `nerd_fonts`, `unicode`, or `ascii`. Replaces the legacy `nerd_fonts` boolean."
+        },
+        "icons": {
+          "additionalProperties": {
+            "$ref": "#/definitions/IconOverrideValue"
+          },
+          "description": "Per-icon overrides.  Keys match the accessor function names in `tui/src/icons.rs` (e.g. `gutter_user`, `bullet`, `arrow_left`). A string value overrides all tiers; a table with `nerd`, `unicode`, and/or `ascii` keys overrides individual tiers.",
+          "type": "object"
+        },
+        "limits": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/LimitsUiConfig"
+            }
+          ],
+          "default": {
+            "layout_mode": "auto"
+          },
+          "description": "Rate-limit panel layout preferences for the settings overlay."
+        },
+        "nerd_fonts": {
+          "default": null,
+          "description": "**Deprecated** — use `icon_mode` instead. Legacy boolean: `true` maps to `icon_mode = \"nerd_fonts\"`.",
+          "type": "boolean"
         },
         "notifications": {
           "allOf": [
@@ -1148,21 +2740,342 @@
               "$ref": "#/definitions/Notifications"
             }
           ],
-          "default": true,
-          "description": "Enable desktop notifications from the TUI when the terminal is unfocused. Defaults to `true`."
+          "description": "Enable desktop notifications from the TUI when the terminal is unfocused. Defaults to `false`."
         },
-        "show_tooltips": {
+        "review_auto_resolve": {
           "default": true,
-          "description": "Show startup tooltips in the TUI welcome screen. Defaults to `true`.",
+          "description": "Remember whether Auto Resolve is enabled for `/review` flows.",
           "type": "boolean"
         },
-        "status_line": {
+        "settings_menu": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/SettingsMenuConfig"
+            }
+          ],
+          "default": {
+            "open_mode": "overlay",
+            "overlay_min_width": 100
+          },
+          "description": "Routing preferences for the Settings UI (overlay vs bottom pane)."
+        },
+        "shell_presets": {
+          "description": "Optional user-defined shell presets for the shell selector UI.",
+          "items": {
+            "$ref": "#/definitions/ShellPresetConfig"
+          },
+          "type": "array"
+        },
+        "shell_presets_file": {
           "default": null,
-          "description": "Ordered list of status line item identifiers.\n\nWhen set, the TUI renders the selected items as the status line.",
+          "description": "Optional path to a TOML file containing additional shell presets. Relative paths are resolved against the session cwd.",
+          "type": "string"
+        },
+        "show_reasoning": {
+          "default": false,
+          "description": "Whether to show reasoning content expanded by default (can be toggled with Ctrl+R/T)",
+          "type": "boolean"
+        },
+        "spinner": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/SpinnerSelection"
+            }
+          ],
+          "description": "Loading spinner style selection"
+        },
+        "status_line_bottom": {
+          "default": null,
+          "description": "Ordered list of status line item identifiers for the bottom header line.\n\nUsed when `tui.header.show_bottom_line = true` and `tui.header.bottom_line_text` is unset.",
           "items": {
             "type": "string"
           },
           "type": "array"
+        },
+        "status_line_primary": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/StatusLineLane"
+            }
+          ],
+          "default": "top",
+          "description": "Which status line lane `/statusline` opens by default."
+        },
+        "status_line_top": {
+          "default": null,
+          "description": "Ordered list of status line item identifiers for the top header line.\n\nWhen set, the built-in top-line renderer uses these items (in order) instead of the legacy fixed layout. Custom templates in `tui.header.top_line_text` still take precedence when present.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "stream": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/StreamConfig"
+            }
+          ],
+          "description": "Streaming/animation behavior for assistant/reasoning output"
+        },
+        "theme": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/ThemeConfig"
+            }
+          ],
+          "description": "Theme configuration for the TUI"
+        },
+        "upgrade_command": {
+          "default": [],
+          "description": "Optional custom upgrade command for `/update` and the Upgrade settings UI.\n\nWhen set, Code uses this command in place of installer inference (npm/bun/Homebrew). This is the intended way to support other installation methods (for example, `cargo` or `nix`) without adding brittle heuristics.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "type": "object"
+    },
+    "TuiHotkey": {
+      "description": "Hotkey binding. Examples: \"f2\", \"ctrl+h\", \"alt+h\", \"ctrl+alt+h\", \"disabled\". Some actions also accept \"legacy\". Note: F1 is reserved for the Help overlay.",
+      "examples": [
+        "f2",
+        "ctrl+h",
+        "ctrl+alt+h",
+        "disabled",
+        "legacy"
+      ],
+      "type": "string"
+    },
+    "TuiHotkeysConfig": {
+      "description": "Key binding preferences under `[tui.hotkeys]`.",
+      "properties": {
+        "android": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/TuiHotkeysOverrides"
+            }
+          ],
+          "default": null,
+          "description": "Optional overrides under `[tui.hotkeys.android]`."
+        },
+        "dragonfly": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/TuiHotkeysOverrides"
+            }
+          ],
+          "default": null,
+          "description": "Optional overrides under `[tui.hotkeys.dragonfly]`."
+        },
+        "exec_output_fold": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/TuiHotkey"
+            }
+          ],
+          "default": "legacy",
+          "description": "Keyboard shortcut for toggling output folding on the latest exec cell.\n\nDefaults to the legacy mapping (`[` while the composer is empty)."
+        },
+        "freebsd": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/TuiHotkeysOverrides"
+            }
+          ],
+          "default": null,
+          "description": "Optional overrides under `[tui.hotkeys.freebsd]`."
+        },
+        "js_repl_code_fold": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/TuiHotkey"
+            }
+          ],
+          "default": "legacy",
+          "description": "Keyboard shortcut for toggling code folding on the latest JS REPL cell.\n\nDefaults to the legacy mapping (`\\\\` while the composer is empty)."
+        },
+        "jump_to_latest_child_call": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/TuiHotkey"
+            }
+          ],
+          "default": "legacy",
+          "description": "Keyboard shortcut for jumping to the latest tool call spawned by the latest JS REPL cell.\n\nDefaults to the legacy mapping (`}` while the composer is empty)."
+        },
+        "jump_to_parent_call": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/TuiHotkey"
+            }
+          ],
+          "default": "legacy",
+          "description": "Keyboard shortcut for jumping to the parent of the latest nested tool call.\n\nDefaults to the legacy mapping (`]` while the composer is empty)."
+        },
+        "linux": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/TuiHotkeysOverrides"
+            }
+          ],
+          "default": null,
+          "description": "Optional overrides under `[tui.hotkeys.linux]`."
+        },
+        "macos": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/TuiHotkeysOverrides"
+            }
+          ],
+          "default": null,
+          "description": "Optional overrides under `[tui.hotkeys.macos]`."
+        },
+        "model_selector": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/TuiHotkey"
+            }
+          ],
+          "default": "f2",
+          "description": "Keyboard shortcut for opening the model selector (mirrors clicking the status line)."
+        },
+        "netbsd": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/TuiHotkeysOverrides"
+            }
+          ],
+          "default": null,
+          "description": "Optional overrides under `[tui.hotkeys.netbsd]`."
+        },
+        "network_settings": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/TuiHotkey"
+            }
+          ],
+          "default": "f5",
+          "description": "Keyboard shortcut for opening Settings -> Network (mirrors clicking the status line)."
+        },
+        "openbsd": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/TuiHotkeysOverrides"
+            }
+          ],
+          "default": null,
+          "description": "Optional overrides under `[tui.hotkeys.openbsd]`."
+        },
+        "reasoning_effort": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/TuiHotkey"
+            }
+          ],
+          "default": "f3",
+          "description": "Keyboard shortcut for cycling reasoning effort (mirrors clicking the status line)."
+        },
+        "shell_selector": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/TuiHotkey"
+            }
+          ],
+          "default": "f4",
+          "description": "Keyboard shortcut for opening the shell selector (mirrors clicking the status line)."
+        },
+        "termux": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/TuiHotkeysOverrides"
+            }
+          ],
+          "default": null,
+          "description": "Optional overrides under `[tui.hotkeys.termux]` (applied on top of android)."
+        },
+        "windows": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/TuiHotkeysOverrides"
+            }
+          ],
+          "default": null,
+          "description": "Optional overrides under `[tui.hotkeys.windows]`."
+        }
+      },
+      "type": "object"
+    },
+    "TuiHotkeysOverrides": {
+      "description": "Optional per-platform overrides for hotkey preferences.\n\nNested under `[tui.hotkeys.<platform>]`.",
+      "properties": {
+        "exec_output_fold": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/TuiHotkey"
+            }
+          ],
+          "default": null,
+          "description": "Keyboard shortcut for toggling exec output folding (history shortcut)."
+        },
+        "js_repl_code_fold": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/TuiHotkey"
+            }
+          ],
+          "default": null,
+          "description": "Keyboard shortcut for toggling JS REPL code folding (history shortcut)."
+        },
+        "jump_to_latest_child_call": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/TuiHotkey"
+            }
+          ],
+          "default": null,
+          "description": "Keyboard shortcut for jumping to the latest child tool call (history shortcut)."
+        },
+        "jump_to_parent_call": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/TuiHotkey"
+            }
+          ],
+          "default": null,
+          "description": "Keyboard shortcut for jumping to the parent tool call (history shortcut)."
+        },
+        "model_selector": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/TuiHotkey"
+            }
+          ],
+          "default": null
+        },
+        "network_settings": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/TuiHotkey"
+            }
+          ],
+          "default": null
+        },
+        "reasoning_effort": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/TuiHotkey"
+            }
+          ],
+          "default": null
+        },
+        "shell_selector": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/TuiHotkey"
+            }
+          ],
+          "default": null
         }
       },
       "type": "object"
@@ -1187,27 +3100,113 @@
         }
       ]
     },
-    "Verbosity": {
-      "description": "Controls output length/detail on GPT-5 models via the Responses API. Serialized with lowercase values to match the OpenAI API.",
-      "enum": [
-        "low",
-        "medium",
-        "high"
-      ],
-      "type": "string"
+    "ValidationConfig": {
+      "properties": {
+        "groups": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/ValidationGroups"
+            }
+          ],
+          "description": "Group toggles that control which classes of validation run."
+        },
+        "patch_harness": {
+          "default": false,
+          "description": "Legacy master toggle for the validation harness (kept for config compatibility). `run_patch_harness` now relies solely on the functional/stylistic group toggles.",
+          "type": "boolean"
+        },
+        "timeout_seconds": {
+          "default": null,
+          "description": "Timeout (seconds) for each external tool invocation.",
+          "format": "uint64",
+          "minimum": 0.0,
+          "type": "integer"
+        },
+        "tools": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/ValidationTools"
+            }
+          ],
+          "description": "Per-tool enable flags (unset implies enabled)."
+        },
+        "tools_allowlist": {
+          "default": null,
+          "description": "Optional allowlist restricting which external tools may run.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "type": "object"
     },
-    "WebSearchMode": {
-      "enum": [
-        "disabled",
-        "cached",
-        "live"
-      ],
-      "type": "string"
+    "ValidationGroups": {
+      "properties": {
+        "functional": {
+          "default": true,
+          "description": "Functional checks catch correctness regressions.",
+          "type": "boolean"
+        },
+        "stylistic": {
+          "default": false,
+          "description": "Stylistic checks enforce formatting and best practices.",
+          "type": "boolean"
+        }
+      },
+      "type": "object"
+    },
+    "ValidationTools": {
+      "properties": {
+        "cargo-check": {
+          "type": "boolean"
+        },
+        "eslint": {
+          "type": "boolean"
+        },
+        "golangci-lint": {
+          "type": "boolean"
+        },
+        "hadolint": {
+          "type": "boolean"
+        },
+        "markdownlint": {
+          "type": "boolean"
+        },
+        "mypy": {
+          "type": "boolean"
+        },
+        "phpstan": {
+          "type": "boolean"
+        },
+        "prettier": {
+          "type": "boolean"
+        },
+        "psalm": {
+          "type": "boolean"
+        },
+        "pyright": {
+          "type": "boolean"
+        },
+        "shellcheck": {
+          "type": "boolean"
+        },
+        "shfmt": {
+          "type": "boolean"
+        },
+        "tsc": {
+          "type": "boolean"
+        },
+        "yamllint": {
+          "type": "boolean"
+        }
+      },
+      "type": "object"
     },
     "WindowsSandboxModeToml": {
       "enum": [
-        "elevated",
-        "unelevated"
+        "unelevated",
+        "elevated"
       ],
       "type": "string"
     },
@@ -1219,37 +3218,21 @@
         }
       },
       "type": "object"
-    },
-    "WireApi": {
-      "description": "Wire protocol that the provider speaks.",
-      "oneOf": [
-        {
-          "description": "The Responses API exposed by OpenAI at `/v1/responses`.",
-          "enum": [
-            "responses"
-          ],
-          "type": "string"
-        }
-      ]
     }
   },
-  "description": "Base config deserialized from ~/.codex/config.toml.",
+  "description": "Base config deserialized from ~/.code/config.toml (legacy ~/.codex/config.toml is still read).",
   "properties": {
     "agents": {
-      "allOf": [
-        {
-          "$ref": "#/definitions/AgentsToml"
-        }
-      ],
-      "description": "Agent-related settings (thread limits, etc.)."
+      "description": "Configuration for available agent models",
+      "items": {
+        "$ref": "#/definitions/AgentConfig"
+      },
+      "type": "array"
     },
-    "analytics": {
-      "allOf": [
-        {
-          "$ref": "#/definitions/AnalyticsConfigToml"
-        }
-      ],
-      "description": "When `false`, disables analytics across Codex product surfaces in this machine. Defaults to `true`."
+    "api_key_fallback_on_all_accounts_limited": {
+      "default": null,
+      "description": "When true, fall back to an API key account only if every connected `ChatGPT` account is rate/usage limited.",
+      "type": "boolean"
     },
     "approval_policy": {
       "allOf": [
@@ -1262,19 +3245,85 @@
     "apps": {
       "allOf": [
         {
-          "$ref": "#/definitions/AppsConfigToml"
+          "$ref": "#/definitions/AppsToml"
         }
       ],
       "default": null,
-      "description": "Settings for app-specific controls."
+      "description": "App/connector configuration (including connector-source pinning)."
     },
-    "chatgpt_base_url": {
-      "description": "Base URL for requests to ChatGPT (as opposed to the OpenAI API).",
+    "auto_drive": {
+      "allOf": [
+        {
+          "$ref": "#/definitions/AutoDriveSettings"
+        }
+      ],
+      "description": "Auto Drive behavioral defaults."
+    },
+    "auto_drive_observer_cadence": {
+      "default": null,
+      "format": "uint32",
+      "minimum": 0.0,
+      "type": "integer"
+    },
+    "auto_drive_use_chat_model": {
+      "description": "If true, Auto Drive inherits the chat model instead of a dedicated override.",
+      "type": "boolean"
+    },
+    "auto_review_model": {
+      "description": "Auto Review model override used for background reviews.",
       "type": "string"
     },
-    "check_for_update_on_startup": {
-      "description": "When `true`, checks for Codex updates on startup and surfaces update prompts. Set to `false` only if your Codex updates are centrally managed. Defaults to `true`.",
+    "auto_review_model_reasoning_effort": {
+      "allOf": [
+        {
+          "$ref": "#/definitions/ReasoningEffort"
+        }
+      ],
+      "description": "Reasoning effort override used for the Auto Review model."
+    },
+    "auto_review_resolve_model": {
+      "description": "Resolve model override used during Auto Review follow-ups.",
+      "type": "string"
+    },
+    "auto_review_resolve_model_reasoning_effort": {
+      "allOf": [
+        {
+          "$ref": "#/definitions/ReasoningEffort"
+        }
+      ],
+      "description": "Reasoning effort override used for the Auto Review resolve model."
+    },
+    "auto_review_resolve_use_chat_model": {
+      "default": true,
+      "description": "Inherit chat model for Auto Review resolve flows when true.",
       "type": "boolean"
+    },
+    "auto_review_use_chat_model": {
+      "default": false,
+      "description": "Inherit chat model for Auto Review when true.",
+      "type": "boolean"
+    },
+    "auto_switch_accounts_on_rate_limit": {
+      "default": null,
+      "description": "When true, automatically switch to another connected account when the current account hits a rate/usage limit.",
+      "type": "boolean"
+    },
+    "auto_upgrade_enabled": {
+      "default": null,
+      "description": "Enable silent upgrades during startup when a newer release is available.",
+      "type": "boolean"
+    },
+    "browser": {
+      "allOf": [
+        {
+          "$ref": "#/definitions/BrowserConfig"
+        }
+      ],
+      "description": "Browser configuration for integrated screenshot capabilities."
+    },
+    "chatgpt_base_url": {
+      "description": "Base URL for requests to `ChatGPT` (as opposed to the `OpenAI` API).",
+      "type": "string"
     },
     "cli_auth_credentials_store": {
       "allOf": [
@@ -1283,159 +3332,86 @@
         }
       ],
       "default": null,
-      "description": "Preferred backend for storing CLI auth credentials. file (default): Use a file in the Codex home directory. keyring: Use an OS-specific keyring service. auto: Use the keyring if available, otherwise use a file."
+      "description": "Preferred backend for storing CLI auth credentials.\n\n- `file` (default): Use `CODE_HOME/auth.json`. - `keyring`: Use an OS-specific keyring service. - `auto`: Use the keyring when available; otherwise fall back to `file`. - `ephemeral`: Store credentials in memory only for the current process."
     },
-    "compact_prompt": {
-      "description": "Compact prompt used for history compaction.",
+    "compact_prompt_file": {
+      "description": "Path to a file whose contents should replace the compaction prompt template.",
       "type": "string"
     },
-    "developer_instructions": {
-      "default": null,
-      "description": "Developer instructions inserted as a `developer` role message.",
+    "compact_prompt_override": {
+      "description": "Optional override string for the compaction prompt.",
       "type": "string"
+    },
+    "confirm_guard": {
+      "$ref": "#/definitions/ConfirmGuardConfig"
+    },
+    "context_mode": {
+      "$ref": "#/definitions/ContextMode"
     },
     "disable_paste_burst": {
       "description": "When true, disables burst-paste detection for typed input entirely. All characters are inserted as they are received, and no buffering or placeholder replacement will occur for fast keypress bursts.",
       "type": "boolean"
     },
-    "experimental_compact_prompt_file": {
-      "$ref": "#/definitions/AbsolutePathBuf"
-    },
-    "experimental_use_freeform_apply_patch": {
+    "disable_response_storage": {
+      "description": "Disable server-side response storage (sends the full conversation context with every request). Currently necessary for `OpenAI` customers who have opted into Zero Data Retention (ZDR).",
       "type": "boolean"
     },
-    "experimental_use_unified_exec_tool": {
+    "dynamic_tools": {
+      "default": null,
+      "description": "Dynamic tool specifications injected by the client.",
+      "items": {
+        "$ref": "#/definitions/DynamicToolSpec"
+      },
+      "type": "array"
+    },
+    "exec_limits": {
+      "allOf": [
+        {
+          "$ref": "#/definitions/ExecLimitsToml"
+        }
+      ],
+      "default": {
+        "memory_max_mb": "auto",
+        "pids_max": "auto"
+      },
+      "description": "Limits applied to tool-spawned processes (Linux cgroup v2 when available).\n\nPersisted under `[exec_limits]` in `config.toml`."
+    },
+    "experimental_client_tools": {
+      "allOf": [
+        {
+          "$ref": "#/definitions/ClientTools"
+        }
+      ],
+      "default": null,
+      "description": "Optional ACP client tool identifiers supplied by the host IDE."
+    },
+    "experimental_exec_server_url": {
+      "description": "Experimental / do not use. Overrides the URL used when connecting to a remote exec server.",
+      "type": "string"
+    },
+    "experimental_instructions_file": {
+      "description": "Experimental path to a file whose contents replace the built-in `BASE_INSTRUCTIONS`.",
+      "type": "string"
+    },
+    "experimental_resume": {
+      "description": "Experimental path to a rollout file to resume from.",
+      "type": "string"
+    },
+    "experimental_spawn_exec_server": {
+      "default": false,
+      "description": "Experimental / do not use. When set, spawns a local exec-server subprocess and routes supported operations through it.",
+      "type": "boolean"
+    },
+    "experimental_use_exec_command_tool": {
       "type": "boolean"
     },
     "features": {
-      "additionalProperties": false,
-      "default": null,
-      "description": "Centralized feature flags (new). Prefer this over individual toggles.",
-      "properties": {
-        "apply_patch_freeform": {
-          "type": "boolean"
-        },
-        "apps": {
-          "type": "boolean"
-        },
-        "apps_mcp_gateway": {
-          "type": "boolean"
-        },
-        "child_agents_md": {
-          "type": "boolean"
-        },
-        "collab": {
-          "type": "boolean"
-        },
-        "collaboration_modes": {
-          "type": "boolean"
-        },
-        "connectors": {
-          "type": "boolean"
-        },
-        "elevated_windows_sandbox": {
-          "type": "boolean"
-        },
-        "enable_experimental_windows_sandbox": {
-          "type": "boolean"
-        },
-        "enable_request_compression": {
-          "type": "boolean"
-        },
-        "experimental_use_freeform_apply_patch": {
-          "type": "boolean"
-        },
-        "experimental_use_unified_exec_tool": {
-          "type": "boolean"
-        },
-        "experimental_windows_sandbox": {
-          "type": "boolean"
-        },
-        "include_apply_patch_tool": {
-          "type": "boolean"
-        },
-        "js_repl": {
-          "type": "boolean"
-        },
-        "js_repl_tools_only": {
-          "type": "boolean"
-        },
-        "memory_tool": {
-          "type": "boolean"
-        },
-        "personality": {
-          "type": "boolean"
-        },
-        "powershell_utf8": {
-          "type": "boolean"
-        },
-        "prevent_idle_sleep": {
-          "type": "boolean"
-        },
-        "remote_models": {
-          "type": "boolean"
-        },
-        "request_rule": {
-          "type": "boolean"
-        },
-        "responses_websockets": {
-          "type": "boolean"
-        },
-        "responses_websockets_v2": {
-          "type": "boolean"
-        },
-        "runtime_metrics": {
-          "type": "boolean"
-        },
-        "search_tool": {
-          "type": "boolean"
-        },
-        "shell_snapshot": {
-          "type": "boolean"
-        },
-        "shell_tool": {
-          "type": "boolean"
-        },
-        "skill_env_var_dependency_prompt": {
-          "type": "boolean"
-        },
-        "skill_mcp_dependency_install": {
-          "type": "boolean"
-        },
-        "sqlite": {
-          "type": "boolean"
-        },
-        "steer": {
-          "type": "boolean"
-        },
-        "undo": {
-          "type": "boolean"
-        },
-        "unified_exec": {
-          "type": "boolean"
-        },
-        "use_linux_sandbox_bwrap": {
-          "type": "boolean"
-        },
-        "web_search": {
-          "type": "boolean"
-        },
-        "web_search_cached": {
-          "type": "boolean"
-        },
-        "web_search_request": {
-          "type": "boolean"
-        }
-      },
-      "type": "object"
-    },
-    "feedback": {
       "allOf": [
         {
-          "$ref": "#/definitions/FeedbackConfigToml"
+          "$ref": "#/definitions/FeaturesToml"
         }
       ],
-      "description": "When `false`, disables feedback collection across Codex product surfaces. Defaults to `true`."
+      "description": "Experimental feature toggles."
     },
     "file_opener": {
       "allOf": [
@@ -1445,28 +3421,13 @@
       ],
       "description": "Optional URI-based file opener. If set, citations to files in the model output will be hyperlinked using the specified URI scheme."
     },
-    "forced_chatgpt_workspace_id": {
-      "default": null,
-      "description": "When set, restricts ChatGPT login to a specific workspace identifier.",
-      "type": "string"
-    },
-    "forced_login_method": {
+    "github": {
       "allOf": [
         {
-          "$ref": "#/definitions/ForcedLoginMethod"
+          "$ref": "#/definitions/GithubConfig"
         }
       ],
-      "default": null,
-      "description": "When set, restricts the login mechanism users may use."
-    },
-    "ghost_snapshot": {
-      "allOf": [
-        {
-          "$ref": "#/definitions/GhostSnapshotToml"
-        }
-      ],
-      "default": null,
-      "description": "Settings for ghost snapshots (used for undo)."
+      "description": "GitHub integration configuration."
     },
     "hide_agent_reasoning": {
       "description": "When set to `true`, `AgentReasoning` events will be hidden from the UI/output. Defaults to `false`.",
@@ -1478,31 +3439,29 @@
           "$ref": "#/definitions/History"
         }
       ],
-      "default": null,
-      "description": "Settings that govern if and what will be written to `~/.codex/history.jsonl`."
+      "description": "Settings that govern if and what will be written to `~/.code/history.jsonl` (Code still reads legacy `~/.codex/history.jsonl`)."
     },
     "instructions": {
       "description": "System instructions.",
       "type": "string"
     },
-    "js_repl_node_path": {
+    "lifecycle_hooks": {
       "allOf": [
         {
-          "$ref": "#/definitions/AbsolutePathBuf"
+          "$ref": "#/definitions/LifecycleHooksToml"
         }
       ],
-      "description": "Optional absolute path to the Node runtime used by `js_repl`."
+      "default": null,
+      "description": "Upstream-compatible `hooks.json` lifecycle hooks configuration."
     },
-    "log_dir": {
-      "allOf": [
-        {
-          "$ref": "#/definitions/AbsolutePathBuf"
-        }
-      ],
-      "description": "Directory where Codex writes log files, for example `codex-tui.log`. Defaults to `$CODEX_HOME/log`."
+    "main_execve_wrapper_exe": {
+      "default": null,
+      "description": "Optional override path to the `codex-execve-wrapper` helper binary.\n\nWhen unset, Code will try to auto-discover the wrapper at runtime (as a sibling of the main executable, then via `PATH`).",
+      "type": "string"
     },
     "mcp_oauth_callback_port": {
-      "description": "Optional fixed port for the local HTTP callback server used during MCP OAuth login. When unset, Codex will bind to an ephemeral port chosen by the OS.",
+      "default": null,
+      "description": "Optional fixed port to use for the local HTTP callback server used during MCP OAuth login.",
       "format": "uint16",
       "minimum": 0.0,
       "type": "integer"
@@ -1514,7 +3473,7 @@
         }
       ],
       "default": null,
-      "description": "Preferred backend for storing MCP OAuth credentials. keyring: Use an OS-specific keyring service. https://github.com/openai/codex/blob/main/codex-rs/rmcp-client/src/oauth.rs#L2 file: Use a file in the Codex home directory. auto (default): Use the OS-specific keyring service if available, otherwise use a file."
+      "description": "Preferred store for MCP OAuth credentials (used by streamable HTTP MCP servers).\n\n- `auto` (default): keyring if available, otherwise file. - `file`: `CODE_HOME/.credentials.json` - `keyring`: OS keyring service (fails if unavailable)."
     },
     "mcp_servers": {
       "additionalProperties": {
@@ -1530,7 +3489,7 @@
           "$ref": "#/definitions/MemoriesToml"
         }
       ],
-      "description": "Memories subsystem settings."
+      "description": "Memory subsystem configuration."
     },
     "model": {
       "description": "Optional override of model selection.",
@@ -1543,28 +3502,22 @@
     },
     "model_context_window": {
       "description": "Size of the context window for the model, in tokens.",
-      "format": "int64",
+      "format": "uint64",
+      "minimum": 0.0,
       "type": "integer"
     },
-    "model_instructions_file": {
-      "allOf": [
-        {
-          "$ref": "#/definitions/AbsolutePathBuf"
-        }
-      ],
-      "description": "Optional path to a file containing model instructions that will override the built-in instructions for the selected model. Users are STRONGLY DISCOURAGED from using this field, as deviating from the instructions sanctioned by Codex will likely degrade model performance."
+    "model_max_output_tokens": {
+      "description": "Maximum number of output tokens.",
+      "format": "uint64",
+      "minimum": 0.0,
+      "type": "integer"
+    },
+    "model_personality": {
+      "$ref": "#/definitions/Personality"
     },
     "model_provider": {
-      "description": "Provider to use from the model_providers map.",
+      "description": "Provider to use from the `model_providers` map.",
       "type": "string"
-    },
-    "model_providers": {
-      "additionalProperties": {
-        "$ref": "#/definitions/ModelProviderInfo"
-      },
-      "default": {},
-      "description": "User-defined provider entries that extend/override the built-in list.",
-      "type": "object"
     },
     "model_reasoning_effort": {
       "$ref": "#/definitions/ReasoningEffort"
@@ -1576,13 +3529,17 @@
       "description": "Override to force-enable reasoning summaries for the configured model.",
       "type": "boolean"
     },
-    "model_verbosity": {
+    "model_text_verbosity": {
+      "$ref": "#/definitions/TextVerbosity"
+    },
+    "network": {
       "allOf": [
         {
-          "$ref": "#/definitions/Verbosity"
+          "$ref": "#/definitions/NetworkProxySettingsToml"
         }
       ],
-      "description": "Optional verbosity control for GPT-5 models (Responses API `text.verbosity`)."
+      "default": null,
+      "description": "Optional managed network proxy configuration used to mediate outbound network access from sandboxed command execution."
     },
     "notice": {
       "allOf": [
@@ -1590,7 +3547,7 @@
           "$ref": "#/definitions/Notice"
         }
       ],
-      "description": "Collection of in-product notices (different from notifications) See [`crate::config::types::Notices`] for more details"
+      "description": "Stored acknowledgement flags for in-product notices."
     },
     "notify": {
       "default": null,
@@ -1600,25 +3557,44 @@
       },
       "type": "array"
     },
-    "oss_provider": {
-      "description": "Preferred OSS provider for local models, e.g. \"lmstudio\" or \"ollama\".",
+    "otel": {
+      "$ref": "#/definitions/OtelConfigToml"
+    },
+    "planning_model": {
+      "description": "Planning model override used when in Read Only (Plan Mode).",
       "type": "string"
     },
-    "otel": {
+    "planning_model_reasoning_effort": {
       "allOf": [
         {
-          "$ref": "#/definitions/OtelConfigToml"
+          "$ref": "#/definitions/ReasoningEffort"
         }
       ],
-      "description": "OTEL configuration."
+      "description": "Reasoning effort override used for the planning model."
     },
-    "personality": {
+    "planning_use_chat_model": {
+      "description": "Inherit chat model for planning mode when true.",
+      "type": "boolean"
+    },
+    "plugins": {
       "allOf": [
         {
-          "$ref": "#/definitions/Personality"
+          "$ref": "#/definitions/PluginsToml"
         }
       ],
-      "description": "Optionally specify a personality for the model"
+      "default": null,
+      "description": "Plugin marketplace source configuration."
+    },
+    "preferred_auth_method": {
+      "allOf": [
+        {
+          "$ref": "#/definitions/AuthMode"
+        }
+      ],
+      "description": "If set to `true`, the API key will be signed with the `originator` header."
+    },
+    "preferred_model_reasoning_effort": {
+      "$ref": "#/definitions/ReasoningEffort"
     },
     "profile": {
       "description": "Profile to use from the `profiles` map.",
@@ -1628,7 +3604,6 @@
       "additionalProperties": {
         "$ref": "#/definitions/ConfigProfile"
       },
-      "default": {},
       "description": "Named profiles to facilitate switching between different configurations.",
       "type": "object"
     },
@@ -1645,23 +3620,49 @@
       "minimum": 0.0,
       "type": "integer"
     },
-    "project_root_markers": {
-      "default": null,
-      "description": "Markers used to detect the project root when searching parent directories for `.codex` folders. Defaults to [\".git\"] when unset.",
-      "items": {
-        "type": "string"
-      },
-      "type": "array"
-    },
     "projects": {
       "additionalProperties": {
         "$ref": "#/definitions/ProjectConfig"
       },
       "type": "object"
     },
+    "responses_originator_header_internal_override": {
+      "description": "The value for the `originator` header included with Responses API requests.",
+      "type": "string"
+    },
     "review_model": {
       "description": "Review model override used by the `/review` feature.",
       "type": "string"
+    },
+    "review_model_reasoning_effort": {
+      "allOf": [
+        {
+          "$ref": "#/definitions/ReasoningEffort"
+        }
+      ],
+      "description": "Reasoning effort override used for the review model."
+    },
+    "review_resolve_model": {
+      "description": "Resolve model override used during auto-resolve for `/review`.",
+      "type": "string"
+    },
+    "review_resolve_model_reasoning_effort": {
+      "allOf": [
+        {
+          "$ref": "#/definitions/ReasoningEffort"
+        }
+      ],
+      "description": "Reasoning effort override used for the resolve model."
+    },
+    "review_resolve_use_chat_model": {
+      "default": true,
+      "description": "Inherit chat model for resolve flows when true.",
+      "type": "boolean"
+    },
+    "review_use_chat_model": {
+      "default": false,
+      "description": "Inherit chat model for review flows when true.",
+      "type": "boolean"
     },
     "sandbox_mode": {
       "allOf": [
@@ -1679,39 +3680,42 @@
       ],
       "description": "Sandbox configuration to apply if `sandbox` is `WorkspaceWrite`."
     },
-    "shell_environment_policy": {
+    "service_tier": {
+      "$ref": "#/definitions/ServiceTier"
+    },
+    "shell": {
       "allOf": [
         {
-          "$ref": "#/definitions/ShellEnvironmentPolicyToml"
+          "$ref": "#/definitions/ShellConfig"
         }
       ],
-      "default": {
-        "exclude": null,
-        "experimental_use_profile": null,
-        "ignore_default_excludes": null,
-        "include_only": null,
-        "inherit": null,
-        "set": null
-      }
+      "description": "Shell configuration for command execution. If not set, the user's default shell is detected automatically."
+    },
+    "shell_environment_policy": {
+      "$ref": "#/definitions/ShellEnvironmentPolicyToml"
+    },
+    "shell_style_profiles": {
+      "additionalProperties": {
+        "$ref": "#/definitions/ShellStyleProfileConfig"
+      },
+      "default": {},
+      "description": "Optional shell-style resource profiles keyed by style slug.",
+      "type": "object"
     },
     "show_raw_agent_reasoning": {
       "description": "When set to `true`, `AgentReasoningRawContentEvent` events will be shown in the UI/output. Defaults to `false`.",
       "type": "boolean"
     },
-    "skills": {
+    "subagents": {
       "allOf": [
         {
-          "$ref": "#/definitions/SkillsConfig"
+          "$ref": "#/definitions/SubagentsToml"
         }
       ],
-      "description": "User-level skill config entries keyed by SKILL.md path."
+      "description": "Configuration for subagent commands (built-ins and custom)."
     },
-    "suppress_unstable_features_warning": {
-      "description": "Suppress warnings about unstable (under development) features.",
-      "type": "boolean"
-    },
-    "tool_output_token_limit": {
-      "description": "Token budget applied when storing tool/function outputs in the context manager.",
+    "tool_output_max_bytes": {
+      "description": "Maximum number of bytes of tool output to include in a model request.",
       "format": "uint",
       "minimum": 0.0,
       "type": "integer"
@@ -1732,26 +3736,24 @@
       ],
       "description": "Collection of settings that are specific to the TUI."
     },
-    "web_search": {
+    "use_experimental_reasoning_summary": {
+      "type": "boolean"
+    },
+    "validation": {
       "allOf": [
         {
-          "$ref": "#/definitions/WebSearchMode"
+          "$ref": "#/definitions/ValidationConfig"
         }
       ],
-      "description": "Controls the web search tool mode: disabled, cached, or live."
+      "description": "Validation harness configuration."
     },
     "windows": {
-      "allOf": [
-        {
-          "$ref": "#/definitions/WindowsToml"
-        }
-      ],
-      "default": null,
-      "description": "Windows-specific configuration."
+      "$ref": "#/definitions/WindowsToml"
     },
-    "windows_wsl_setup_acknowledged": {
-      "description": "Tracks whether the Windows onboarding screen has been acknowledged.",
-      "type": "boolean"
+    "zsh_path": {
+      "default": null,
+      "description": "Absolute path to a patched `zsh` binary that supports `EXEC_WRAPPER`.\n\nRequired for the Unix-only zsh-fork shell escalation backend (`features.shell_zsh_fork=true`).",
+      "type": "string"
     }
   },
   "title": "ConfigToml",
