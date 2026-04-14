@@ -921,37 +921,31 @@ pub async fn list_all_user_memory_tags(code_home: &Path) -> io::Result<Vec<Strin
 }
 
 // ── Sync wrappers for TUI (called from non-async key handlers) ──────
+//
+// The TUI runs inside a tokio multi-thread runtime. We can't create a
+// nested runtime, so we use `block_in_place` to yield the worker thread
+// and `Handle::current().block_on()` to drive the future.
+
+fn block_on_current<F: std::future::Future>(f: F) -> F::Output {
+    tokio::task::block_in_place(|| {
+        tokio::runtime::Handle::current().block_on(f)
+    })
+}
 
 pub fn list_user_memories_sync(code_home: &Path) -> io::Result<Vec<UserMemory>> {
-    let rt = tokio::runtime::Builder::new_current_thread()
-        .enable_all()
-        .build()
-        .map_err(io::Error::other)?;
-    rt.block_on(list_user_memories(code_home))
+    block_on_current(list_user_memories(code_home))
 }
 
 pub fn insert_user_memory_sync(code_home: &Path, memory: &UserMemory) -> io::Result<()> {
-    let rt = tokio::runtime::Builder::new_current_thread()
-        .enable_all()
-        .build()
-        .map_err(io::Error::other)?;
-    rt.block_on(insert_user_memory(code_home, memory))
+    block_on_current(insert_user_memory(code_home, memory))
 }
 
 pub fn update_user_memory_sync(code_home: &Path, memory: &UserMemory) -> io::Result<bool> {
-    let rt = tokio::runtime::Builder::new_current_thread()
-        .enable_all()
-        .build()
-        .map_err(io::Error::other)?;
-    rt.block_on(update_user_memory(code_home, memory))
+    block_on_current(update_user_memory(code_home, memory))
 }
 
 pub fn delete_user_memory_sync(code_home: &Path, id: &str) -> io::Result<bool> {
-    let rt = tokio::runtime::Builder::new_current_thread()
-        .enable_all()
-        .build()
-        .map_err(io::Error::other)?;
-    rt.block_on(delete_user_memory(code_home, id))
+    block_on_current(delete_user_memory(code_home, id))
 }
 
 #[cfg(test)]
