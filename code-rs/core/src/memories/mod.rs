@@ -894,6 +894,8 @@ fn read_optional_text_file(path: &Path) -> io::Result<Option<String>> {
 // ── User Memory CRUD wrappers ───────────────────────────────────────────
 
 pub use code_memories_state::UserMemory;
+pub use code_memories_state::TagCount;
+pub use code_memories_state::EpochSummary;
 
 pub async fn insert_user_memory(code_home: &Path, memory: &UserMemory) -> io::Result<()> {
     let state = open_memories_state(code_home).await?;
@@ -918,6 +920,23 @@ pub async fn delete_user_memory(code_home: &Path, id: &str) -> io::Result<bool> 
 pub async fn list_all_user_memory_tags(code_home: &Path) -> io::Result<Vec<String>> {
     let state = open_memories_state(code_home).await?;
     state.list_all_user_memory_tags().await.map_err(io::Error::other)
+}
+
+// ── Tag & epoch browsing ────────────────────────────────────────────
+
+pub async fn get_all_tag_counts(code_home: &Path) -> io::Result<Vec<TagCount>> {
+    let state = open_memories_state(code_home).await?;
+    state.get_all_tag_counts().await.map_err(io::Error::other)
+}
+
+pub async fn list_epoch_summaries(code_home: &Path) -> io::Result<Vec<EpochSummary>> {
+    let state = open_memories_state(code_home).await?;
+    state.list_epoch_summaries().await.map_err(io::Error::other)
+}
+
+pub async fn list_epochs_by_tag(code_home: &Path, tag: &str) -> io::Result<Vec<EpochSummary>> {
+    let state = open_memories_state(code_home).await?;
+    state.list_epochs_by_tag(tag).await.map_err(io::Error::other)
 }
 
 // ── Sync wrappers for TUI (called from non-async key handlers) ──────
@@ -946,6 +965,18 @@ pub fn update_user_memory_sync(code_home: &Path, memory: &UserMemory) -> io::Res
 
 pub fn delete_user_memory_sync(code_home: &Path, id: &str) -> io::Result<bool> {
     block_on_current(delete_user_memory(code_home, id))
+}
+
+pub fn get_all_tag_counts_sync(code_home: &Path) -> io::Result<Vec<TagCount>> {
+    block_on_current(get_all_tag_counts(code_home))
+}
+
+pub fn list_epoch_summaries_sync(code_home: &Path) -> io::Result<Vec<EpochSummary>> {
+    block_on_current(list_epoch_summaries(code_home))
+}
+
+pub fn list_epochs_by_tag_sync(code_home: &Path, tag: &str) -> io::Result<Vec<EpochSummary>> {
+    block_on_current(list_epochs_by_tag(code_home, tag))
 }
 
 #[cfg(test)]

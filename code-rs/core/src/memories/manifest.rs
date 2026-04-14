@@ -249,14 +249,18 @@ fn branch_affinity_rank(
 }
 
 /// Tag affinity: 0 = has matching tags (best), 1 = has tags but no overlap, 2 = no tags.
+/// When user has no pinned memory tags, treat all entries equally (no boost).
 fn tag_affinity_rank(
     entry_tags: &[String],
     user_tags: &std::collections::HashSet<&str>,
 ) -> u8 {
+    if user_tags.is_empty() {
+        return 1;
+    }
     if entry_tags.is_empty() {
         return 2;
     }
-    if !user_tags.is_empty() && entry_tags.iter().any(|t| user_tags.contains(t.as_str())) {
+    if entry_tags.iter().any(|t| user_tags.contains(t.as_str())) {
         return 0;
     }
     1

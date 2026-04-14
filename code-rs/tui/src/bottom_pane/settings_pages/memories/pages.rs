@@ -623,6 +623,187 @@ impl MemoriesSettingsView {
         )
         .with_field_margin(crate::ui_consts::NESTED_HPAD)
     }
+
+    // ── Tag browser ─────────────────────────────────────────────────────
+
+    pub(super) fn tag_browser_rows(browser: &TagBrowserState) -> Vec<SettingsMenuRow<'static, usize>> {
+        let now = Utc::now();
+        let _ = now; // suppress unused if needed
+
+        browser
+            .tags
+            .iter()
+            .enumerate()
+            .map(|(idx, tc)| {
+                let label = tc.tag.clone();
+                let mut parts = Vec::new();
+                if tc.epoch_count > 0 {
+                    parts.push(format!(
+                        "{} epoch{}",
+                        tc.epoch_count,
+                        if tc.epoch_count == 1 { "" } else { "s" }
+                    ));
+                }
+                if tc.user_count > 0 {
+                    parts.push(format!(
+                        "{} pinned",
+                        tc.user_count,
+                    ));
+                }
+                let detail = parts.join(" · ");
+                SettingsMenuRow::new(idx, label)
+                    .with_detail(crate::bottom_pane::settings_ui::rows::StyledText::new(
+                        detail,
+                        Style::default().fg(colors::text_dim()),
+                    ))
+            })
+            .collect()
+    }
+
+    pub(super) fn tag_browser_page(browser: &TagBrowserState) -> SettingsMenuPage<'static> {
+        let total = browser.tags.len();
+        let dim = Style::default().fg(colors::text_dim());
+
+        let header_text = if total == 0 {
+            "No tags found. Tags are auto-generated when epochs are extracted.".to_owned()
+        } else {
+            format!(
+                "{total} unique tag{} across epochs and pinned memories",
+                if total == 1 { "" } else { "s" }
+            )
+        };
+        let header = vec![Line::from(Span::styled(header_text, dim))];
+
+        let mut hints: Vec<KeyHint<'static>> = vec![
+            hint_nav(" navigate"),
+            hint_enter(" filter epochs"),
+        ];
+        hints.push(hint_esc(" back"));
+        let footer = vec![shortcut_line(&hints)];
+
+        let state = browser.list_state.get();
+        let idx = state.selected_idx.unwrap_or(0).min(total.saturating_sub(1));
+
+        SettingsMenuPage::new(
+            " Tag Browser ",
+            SettingsPanelStyle::bottom_pane(),
+            header,
+            footer,
+        )
+        .with_scroll_position(idx + 1, total)
+    }
+
+    // ── Epoch browser ───────────────────────────────────────────────────
+
+    pub(super) fn epoch_browser_rows(browser: &EpochBrowserState) -> Vec<SettingsMenuRow<'static, usize>> {
+        let now = Utc::now();
+
+        browser
+            .epochs
+            .iter()
+            .enumerate()
+            .map(|(idx, ep)| {
+                // Label: first line of preview, truncated
+                let first_line: String = ep
+                    .preview
+                    .lines()
+                    .next()
+                    .unwrap_or("(empty)")
+                    .chars()
+                    .take(60)
+                    .collect();
+                let label = if ep.preview.lines().count() > 1 || ep.preview.len() > 60 {
+                    format!("{first_line}…")
+                } else {
+                    first_line
+                };
+
+                // Detail: workspace + branch + tags + age
+                let mut parts = Vec::new();
+                if let Some(ref ws) = ep.workspace_root {
+                    // Show just the last path component
+                    let short = std::path::Path::new(ws)
+                        .file_name()
+                        .map(|s| s.to_string_lossy().into_owned())
+                        .unwrap_or_else(|| ws.clone());
+                    parts.push(short);
+                }
+                if let Some(ref branch) = ep.git_branch {
+                    parts.push(format!("⎇ {branch}"));
+                }
+                if !ep.tags.is_empty() {
+                    parts.push(format!("[{}]", ep.tags.join(", ")));
+                }
+                let age = {
+                    let dt = chrono::DateTime::from_timestamp(ep.source_updated_at, 0)
+                        .unwrap_or_else(Utc::now);
+                    format_age(dt, now)
+                };
+                parts.push(age);
+
+                if ep.usage_count > 0 {
+                    parts.push(format!("used {}×", ep.usage_count));
+                }
+
+                let detail = parts.join(" · ");
+                SettingsMenuRow::new(idx, label)
+                    .with_detail(crate::bottom_pane::settings_ui::rows::StyledText::new(
+                        detail,
+                        Style::default().fg(colors::text_dim()),
+                    ))
+            })
+            .collect()
+    }
+
+    pub(super) fn epoch_browser_page(browser: &EpochBrowserState) -> SettingsMenuPage<'static> {
+        let total = browser.epochs.len();
+        let dim = Style::default().fg(colors::text_dim());
+
+        let header_text = if let Some(ref tag) = browser.filter_tag {
+            if total == 0 {
+                format!("No epochs tagged \"{tag}\"")
+            } else {
+                format!(
+                    "{total} epoch{} tagged \"{tag}\"",
+                    if total == 1 { "" } else { "s" }
+                )
+            }
+        } else if total == 0 {
+            "No epochs extracted yet. Run a session and wait for extraction.".to_owned()
+        } else {
+            format!(
+                "{total} auto-extracted epoch{} — the LLM's memory building blocks",
+                if total == 1 { "" } else { "s" }
+            )
+        };
+        let header = vec![Line::from(Span::styled(header_text, dim))];
+
+        let hints: Vec<KeyHint<'static>> = vec![
+            hint_nav(" navigate"),
+            hint_enter(" view detail"),
+            hint_esc(if browser.filter_tag.is_some() {
+                " tags"
+            } else {
+                " back"
+            }),
+        ];
+        let footer = vec![shortcut_line(&hints)];
+
+        let state = browser.list_state.get();
+        let idx = state.selected_idx.unwrap_or(0).min(total.saturating_sub(1));
+
+        SettingsMenuPage::new(
+            if browser.filter_tag.is_some() {
+                " Epochs by Tag "
+            } else {
+                " Epoch Browser "
+            },
+            SettingsPanelStyle::bottom_pane(),
+            header,
+            footer,
+        )
+        .with_scroll_position(idx + 1, total)
+    }
 }
 
 /// Number of decimal digits needed to display `n`.

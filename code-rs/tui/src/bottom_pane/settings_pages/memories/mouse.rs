@@ -175,7 +175,7 @@ impl MemoriesSettingsView {
                 MouseEventKind::ScrollUp => field.handle_mouse_scroll(false),
                 _ => false,
             },
-            ViewMode::Main | ViewMode::Transition | ViewMode::TextViewer(_) | ViewMode::RolloutList(_) | ViewMode::UserMemoryList(_) | ViewMode::UserMemoryEditor(_) | ViewMode::SearchInput { .. } => false,
+            ViewMode::Main | ViewMode::Transition | ViewMode::TextViewer(_) | ViewMode::RolloutList(_) | ViewMode::UserMemoryList(_) | ViewMode::UserMemoryEditor(_) | ViewMode::TagBrowser(_) | ViewMode::EpochBrowser(_) | ViewMode::SearchInput { .. } => false,
         }
     }
 

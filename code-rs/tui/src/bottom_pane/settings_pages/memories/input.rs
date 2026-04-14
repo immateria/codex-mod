@@ -300,6 +300,8 @@ impl MemoriesSettingsView {
                 }
             }
             RowKind::ManageUserMemories => self.open_user_memory_list(),
+            RowKind::BrowseTags => self.open_tag_browser(),
+            RowKind::BrowseEpochs => self.open_epoch_browser(None),
             RowKind::ViewSummary => self.open_summary_viewer(),
             RowKind::ViewRawMemories => self.open_raw_viewer(),
             RowKind::ViewModelPrompt => self.open_model_prompt_viewer(),
@@ -619,6 +621,8 @@ impl MemoriesSettingsView {
             ViewMode::RolloutList(_) => self.process_rollout_list_key_event(key_event),
             ViewMode::UserMemoryList(_) => self.process_user_memory_list_key_event(key_event),
             ViewMode::UserMemoryEditor(_) => self.process_user_memory_editor_key_event(key_event),
+            ViewMode::TagBrowser(_) => self.process_tag_browser_key_event(key_event),
+            ViewMode::EpochBrowser(_) => self.process_epoch_browser_key_event(key_event),
             ViewMode::SearchInput { .. } => self.process_search_input_key_event(key_event),
             ViewMode::Transition => {
                 self.mode = ViewMode::Main;
@@ -766,5 +770,144 @@ impl MemoriesSettingsView {
             UserMemoryEditorFocus::Content => editor.content_field.handle_key(key_event),
             UserMemoryEditorFocus::Tags => editor.tags_field.handle_key(key_event),
         }
+    }
+
+    // ── Tag browser key handling ────────────────────────────────────────
+
+    fn process_tag_browser_key_event(&mut self, key_event: KeyEvent) -> bool {
+        let ViewMode::TagBrowser(ref browser) = self.mode else {
+            return false;
+        };
+        let total = browser.tags.len();
+        if total == 0 {
+            if key_event.code == KeyCode::Esc {
+                self.mode = ViewMode::Main;
+            }
+            return true;
+        }
+
+        let visible = browser.viewport_rows.get().max(1);
+        let mut state = browser.list_state.get();
+
+        match key_event.code {
+            KeyCode::Esc => {
+                self.mode = ViewMode::Main;
+                return true;
+            }
+            KeyCode::Up | KeyCode::Char('k') => {
+                state.move_up_wrap_visible(total, visible);
+            }
+            KeyCode::Down | KeyCode::Char('j') => {
+                state.move_down_wrap_visible(total, visible);
+            }
+            KeyCode::Home | KeyCode::Char('g') => {
+                state.home(total);
+            }
+            KeyCode::End | KeyCode::Char('G') => {
+                state.end(total, visible);
+            }
+            KeyCode::PageUp => {
+                state.page_up(total, visible);
+            }
+            KeyCode::PageDown => {
+                state.page_down(total, visible);
+            }
+            KeyCode::Enter | KeyCode::Char(' ') => {
+                let idx = state.selected_idx.unwrap_or(0).min(total.saturating_sub(1));
+                let tag = browser.tags[idx].tag.clone();
+                let ViewMode::TagBrowser(browser) = std::mem::replace(&mut self.mode, ViewMode::Transition) else {
+                    return true;
+                };
+                drop(browser);
+                self.open_epoch_browser(Some(tag));
+                return true;
+            }
+            _ => {
+                let ViewMode::TagBrowser(ref browser) = self.mode else {
+                    return false;
+                };
+                browser.list_state.set(state);
+                return false;
+            }
+        }
+        state.ensure_visible(total, visible);
+        let ViewMode::TagBrowser(ref browser) = self.mode else {
+            return true;
+        };
+        browser.list_state.set(state);
+        true
+    }
+
+    // ── Epoch browser key handling ──────────────────────────────────────
+
+    fn process_epoch_browser_key_event(&mut self, key_event: KeyEvent) -> bool {
+        let ViewMode::EpochBrowser(ref browser) = self.mode else {
+            return false;
+        };
+        let total = browser.epochs.len();
+        if total == 0 {
+            if key_event.code == KeyCode::Esc {
+                self.mode = ViewMode::Main;
+            }
+            return true;
+        }
+
+        let visible = browser.viewport_rows.get().max(1);
+        let mut state = browser.list_state.get();
+
+        match key_event.code {
+            KeyCode::Esc => {
+                // If filtered, go back to tag browser; otherwise Main
+                let ViewMode::EpochBrowser(browser) = std::mem::replace(&mut self.mode, ViewMode::Transition) else {
+                    return true;
+                };
+                if browser.filter_tag.is_some() {
+                    self.open_tag_browser();
+                } else {
+                    self.mode = ViewMode::Main;
+                }
+                return true;
+            }
+            KeyCode::Up | KeyCode::Char('k') => {
+                state.move_up_wrap_visible(total, visible);
+            }
+            KeyCode::Down | KeyCode::Char('j') => {
+                state.move_down_wrap_visible(total, visible);
+            }
+            KeyCode::Home | KeyCode::Char('g') => {
+                state.home(total);
+            }
+            KeyCode::End | KeyCode::Char('G') => {
+                state.end(total, visible);
+            }
+            KeyCode::PageUp => {
+                state.page_up(total, visible);
+            }
+            KeyCode::PageDown => {
+                state.page_down(total, visible);
+            }
+            KeyCode::Enter | KeyCode::Char(' ') => {
+                let idx = state.selected_idx.unwrap_or(0).min(total.saturating_sub(1));
+                let summary = browser.epochs[idx].clone();
+                let ViewMode::EpochBrowser(_) = std::mem::replace(&mut self.mode, ViewMode::Transition) else {
+                    return true;
+                };
+                self.open_epoch_detail(&summary);
+                return true;
+            }
+            _ => {
+                let ViewMode::EpochBrowser(ref browser) = self.mode else {
+                    return false;
+                };
+                browser.list_state.set(state);
+                return false;
+            }
+        }
+        state.ensure_visible(total, visible);
+        let ViewMode::EpochBrowser(ref browser) = self.mode else {
+            return true;
+        };
+        browser.list_state.set(state);
+        true
     }
 }

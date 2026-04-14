@@ -40,7 +40,7 @@ impl MemoriesSettingsView {
         }
     }
 
-    const ROWS_WITH_FILE_MANAGER: [RowKind; 19] = [
+    const ROWS_WITH_FILE_MANAGER: [RowKind; 21] = [
             RowKind::Scope,
             RowKind::GenerateMemories,
             RowKind::UseMemories,
@@ -50,6 +50,8 @@ impl MemoriesSettingsView {
             RowKind::MaxRolloutsPerStartup,
             RowKind::MinRolloutIdleHours,
             RowKind::ManageUserMemories,
+            RowKind::BrowseTags,
+            RowKind::BrowseEpochs,
             RowKind::ViewSummary,
             RowKind::ViewRawMemories,
             RowKind::ViewModelPrompt,
@@ -62,7 +64,7 @@ impl MemoriesSettingsView {
             RowKind::Close,
     ];
 
-    const ROWS_NO_FILE_MANAGER: [RowKind; 18] = [
+    const ROWS_NO_FILE_MANAGER: [RowKind; 20] = [
         RowKind::Scope,
         RowKind::GenerateMemories,
         RowKind::UseMemories,
@@ -72,6 +74,8 @@ impl MemoriesSettingsView {
         RowKind::MaxRolloutsPerStartup,
         RowKind::MinRolloutIdleHours,
         RowKind::ManageUserMemories,
+        RowKind::BrowseTags,
+        RowKind::BrowseEpochs,
         RowKind::ViewSummary,
         RowKind::ViewRawMemories,
         RowKind::ViewModelPrompt,
@@ -325,6 +329,33 @@ impl MemoriesSettingsView {
                     _ => "loading…".to_owned(),
                 }
             }
+            RowKind::BrowseTags => {
+                match self.current_status() {
+                    Ok(Some(status)) => {
+                        let epochs = status.db.stage1_epoch_count;
+                        if epochs == 0 {
+                            "no epochs yet".to_owned()
+                        } else {
+                            format!("{epochs} epochs tagged")
+                        }
+                    }
+                    _ => "loading…".to_owned(),
+                }
+            }
+            RowKind::BrowseEpochs => {
+                match self.current_status() {
+                    Ok(Some(status)) => {
+                        let derived = status.db.derived_epoch_count;
+                        let total = status.db.stage1_epoch_count;
+                        if total == 0 {
+                            "none extracted".to_owned()
+                        } else {
+                            format!("{derived} derived / {total} total")
+                        }
+                    }
+                    _ => "loading…".to_owned(),
+                }
+            }
             RowKind::ViewSummary => {
                 match self.current_status() {
                     Ok(Some(status)) if status.artifacts.summary.exists => "available".to_owned(),
@@ -393,6 +424,8 @@ impl MemoriesSettingsView {
             RowKind::MaxRolloutsPerStartup => "Max rollouts per refresh",
             RowKind::MinRolloutIdleHours => "Min rollout idle (hours)",
             RowKind::ManageUserMemories => "Pinned memories",
+            RowKind::BrowseTags => "Browse tags",
+            RowKind::BrowseEpochs => "Browse epochs",
             RowKind::ViewSummary => "View memory summary",
             RowKind::ViewRawMemories => "View raw memories",
             RowKind::ViewModelPrompt => "View LLM prompt",
@@ -417,6 +450,8 @@ impl MemoriesSettingsView {
             RowKind::MaxRolloutsPerStartup => "Maximum sessions scanned per refresh cycle. Limits startup time for projects with many sessions.",
             RowKind::MinRolloutIdleHours => "Sessions must be idle for at least this long before extraction. Prevents extracting from sessions still in progress.",
             RowKind::ManageUserMemories => "Create, edit, and delete pinned memories. These are always injected into the LLM prompt and can store style preferences, project conventions, struct definitions, or any knowledge you want the model to always have.",
+            RowKind::BrowseTags => "View all semantic tags across auto-extracted epochs and pinned memories. Shows how many epochs and user memories use each tag. Enter a tag to see matching epochs.",
+            RowKind::BrowseEpochs => "Browse individual auto-extracted memory epochs with metadata: workspace, branch, tags, provenance, and content preview. These are the building blocks selected for LLM prompt injection.",
             RowKind::ViewSummary => "View the memory summary: a ranked list of your session interactions. Each entry shows workspace, branch, timestamp, and what you asked. Empty/trivial entries are filtered out.",
             RowKind::ViewRawMemories => "View all extracted memory data including internal metadata (thread IDs, provenance, timestamps). Used for debugging the memory pipeline.",
             RowKind::ViewModelPrompt => "Preview the exact developer instructions injected into the LLM prompt, including the decision boundary, memory layout, and selected memory entries.",
@@ -870,6 +905,78 @@ impl MemoriesSettingsView {
                 }
             }
         }
+    }
+
+    // ── Tag & epoch browsing ────────────────────────────────────────────
+
+    /// Open the tag browser, showing all tags with counts.
+    pub(super) fn open_tag_browser(&mut self) {
+        match code_core::get_all_tag_counts_sync(&self.code_home) {
+            Ok(tags) => {
+                self.mode = ViewMode::TagBrowser(Box::new(TagBrowserState {
+                    tags,
+                    list_state: Cell::new(ScrollState::with_first_selected()),
+                    viewport_rows: Cell::new(DEFAULT_VISIBLE_ROWS),
+                }));
+            }
+            Err(err) => {
+                self.status = Some((format!("Error loading tags: {err}"), true));
+            }
+        }
+    }
+
+    /// Open the epoch browser, optionally filtered by tag.
+    pub(super) fn open_epoch_browser(&mut self, filter_tag: Option<String>) {
+        let result = match &filter_tag {
+            Some(tag) => code_core::list_epochs_by_tag_sync(&self.code_home, tag),
+            None => code_core::list_epoch_summaries_sync(&self.code_home),
+        };
+        match result {
+            Ok(epochs) => {
+                self.mode = ViewMode::EpochBrowser(Box::new(EpochBrowserState {
+                    epochs,
+                    list_state: Cell::new(ScrollState::with_first_selected()),
+                    viewport_rows: Cell::new(DEFAULT_VISIBLE_ROWS),
+                    filter_tag,
+                }));
+            }
+            Err(err) => {
+                self.status = Some((format!("Error loading epochs: {err}"), true));
+            }
+        }
+    }
+
+    /// Open a text viewer showing the full epoch detail.
+    pub(super) fn open_epoch_detail(&mut self, summary: &code_core::EpochSummary) {
+        let mut lines = Vec::new();
+        lines.push(format!("Epoch: {}#{}", summary.id.thread_id, summary.id.epoch_index));
+        lines.push(format!("Provenance: {:?}", summary.provenance));
+        lines.push(format!("Workspace: {}", summary.workspace_root.as_deref().unwrap_or("(none)")));
+        lines.push(format!("Branch: {}", summary.git_branch.as_deref().unwrap_or("(none)")));
+        lines.push(format!("Directory: {}", summary.cwd_display));
+        lines.push(format!("Rollout: {}", summary.rollout_slug));
+        if !summary.tags.is_empty() {
+            lines.push(format!("Tags: {}", summary.tags.join(", ")));
+        }
+        lines.push(format!("Usage count: {}", summary.usage_count));
+        let dt = chrono::DateTime::from_timestamp(summary.source_updated_at, 0);
+        if let Some(dt) = dt {
+            lines.push(format!("Last updated: {}", dt.format("%Y-%m-%d %H:%M UTC")));
+        }
+        lines.push(String::new());
+        lines.push("── Preview ──".to_owned());
+        for line in summary.preview.lines() {
+            lines.push(line.to_owned());
+        }
+
+        self.mode = ViewMode::TextViewer(Box::new(TextViewerState {
+            title: "Epoch Detail",
+            lines,
+            scroll_top: Cell::new(0),
+            viewport_rows: Cell::new(DEFAULT_VISIBLE_ROWS),
+            parent: TextViewerParent::Main,
+            search: None,
+        }));
     }
 }
 

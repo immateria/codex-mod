@@ -163,6 +163,64 @@ impl MemoriesSettingsView {
         let _ = page.render_in_chrome(chrome, area, buf, field);
     }
 
+    fn render_tag_browser_with(
+        browser: &TagBrowserState,
+        area: Rect,
+        buf: &mut Buffer,
+        chrome: ChromeMode,
+    ) {
+        let total = browser.tags.len();
+        let mut state = browser.list_state.get();
+        state.clamp_selection(total);
+        let selected = state.selected_idx.unwrap_or(0);
+        let scroll_top = state.scroll_top;
+        let menu_rows = Self::tag_browser_rows(browser);
+        let page = Self::tag_browser_page(browser);
+        let layout = page.render_menu_rows_in_chrome(
+            chrome,
+            area,
+            buf,
+            scroll_top,
+            Some(selected),
+            &menu_rows,
+        );
+        if let Some(layout) = layout {
+            let visible = layout.body.height.max(1) as usize;
+            state.ensure_visible(total, visible);
+            browser.viewport_rows.set(visible);
+            browser.list_state.set(state);
+        }
+    }
+
+    fn render_epoch_browser_with(
+        browser: &EpochBrowserState,
+        area: Rect,
+        buf: &mut Buffer,
+        chrome: ChromeMode,
+    ) {
+        let total = browser.epochs.len();
+        let mut state = browser.list_state.get();
+        state.clamp_selection(total);
+        let selected = state.selected_idx.unwrap_or(0);
+        let scroll_top = state.scroll_top;
+        let menu_rows = Self::epoch_browser_rows(browser);
+        let page = Self::epoch_browser_page(browser);
+        let layout = page.render_menu_rows_in_chrome(
+            chrome,
+            area,
+            buf,
+            scroll_top,
+            Some(selected),
+            &menu_rows,
+        );
+        if let Some(layout) = layout {
+            let visible = layout.body.height.max(1) as usize;
+            state.ensure_visible(total, visible);
+            browser.viewport_rows.set(visible);
+            browser.list_state.set(state);
+        }
+    }
+
     fn render_with_chrome(&self, area: Rect, buf: &mut Buffer, chrome: ChromeMode) {
         match &self.mode {
             ViewMode::Main | ViewMode::Transition => {
@@ -182,6 +240,12 @@ impl MemoriesSettingsView {
             }
             ViewMode::UserMemoryEditor(editor) => {
                 Self::render_user_memory_editor_with(editor, area, buf, chrome);
+            }
+            ViewMode::TagBrowser(browser) => {
+                Self::render_tag_browser_with(browser, area, buf, chrome);
+            }
+            ViewMode::EpochBrowser(browser) => {
+                Self::render_epoch_browser_with(browser, area, buf, chrome);
             }
             ViewMode::SearchInput { viewer, field } => {
                 Self::render_search_input_with(viewer.title, field, area, buf, chrome);

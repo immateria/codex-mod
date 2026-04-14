@@ -2,7 +2,7 @@ use std::cell::Cell;
 use std::path::PathBuf;
 
 use code_core::config_types::MemoriesToml;
-use code_core::{RolloutSummaryEntry, UserMemory};
+use code_core::{EpochSummary, RolloutSummaryEntry, TagCount, UserMemory};
 
 use crate::app_event_sender::AppEventSender;
 use crate::components::form_text_field::FormTextField;
@@ -36,6 +36,8 @@ enum RowKind {
     MaxRolloutsPerStartup,
     MinRolloutIdleHours,
     ManageUserMemories,
+    BrowseTags,
+    BrowseEpochs,
     ViewSummary,
     ViewRawMemories,
     ViewModelPrompt,
@@ -121,6 +123,24 @@ enum UserMemoryEditorFocus {
     Tags,
 }
 
+/// State for the tag browser view.
+#[derive(Debug)]
+struct TagBrowserState {
+    tags: Vec<TagCount>,
+    list_state: Cell<ScrollState>,
+    viewport_rows: Cell<usize>,
+}
+
+/// State for the epoch browser view.
+#[derive(Debug)]
+struct EpochBrowserState {
+    epochs: Vec<EpochSummary>,
+    list_state: Cell<ScrollState>,
+    viewport_rows: Cell<usize>,
+    /// When Some, we're showing epochs filtered by this tag.
+    filter_tag: Option<String>,
+}
+
 #[derive(Debug)]
 enum ViewMode {
     Main,
@@ -133,6 +153,8 @@ enum ViewMode {
     RolloutList(Box<RolloutListState>),
     UserMemoryList(Box<UserMemoryListState>),
     UserMemoryEditor(Box<UserMemoryEditorState>),
+    TagBrowser(Box<TagBrowserState>),
+    EpochBrowser(Box<EpochBrowserState>),
     /// Transient search input inside a text viewer.
     SearchInput {
         viewer: Box<TextViewerState>,

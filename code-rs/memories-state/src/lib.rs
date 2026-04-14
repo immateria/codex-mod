@@ -243,6 +243,32 @@ pub struct UserMemory {
     pub pinned: bool,
 }
 
+/// Tag with occurrence count, used for the tag browser.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TagCount {
+    pub tag: String,
+    /// Occurrences in auto-extracted epochs.
+    pub epoch_count: usize,
+    /// Occurrences in user-created pinned memories.
+    pub user_count: usize,
+}
+
+/// Lightweight summary of an epoch for browsing (no full raw_memory blob).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct EpochSummary {
+    pub id: MemoryEpochId,
+    pub provenance: Stage1EpochProvenance,
+    pub tags: Vec<String>,
+    pub workspace_root: Option<String>,
+    pub git_branch: Option<String>,
+    pub cwd_display: String,
+    pub rollout_slug: String,
+    pub source_updated_at: i64,
+    pub usage_count: i64,
+    /// First 200 chars of rollout_summary (or raw_memory if summary empty).
+    pub preview: String,
+}
+
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct ReconcileResult {
     pub upserted_threads: usize,
@@ -312,6 +338,11 @@ trait MemoriesStore: Send + Sync {
     async fn update_user_memory(&self, memory: &UserMemory) -> Result<bool>;
     async fn delete_user_memory(&self, id: &str) -> Result<bool>;
     async fn list_all_user_memory_tags(&self) -> Result<Vec<String>>;
+
+    // Tag & epoch browsing
+    async fn get_all_tag_counts(&self) -> Result<Vec<TagCount>>;
+    async fn list_epoch_summaries(&self) -> Result<Vec<EpochSummary>>;
+    async fn list_epochs_by_tag(&self, tag: &str) -> Result<Vec<EpochSummary>>;
 }
 
 struct SqliteMemoriesStore {
@@ -449,6 +480,18 @@ impl MemoriesState {
 
     pub async fn list_all_user_memory_tags(&self) -> Result<Vec<String>> {
         self.backend.list_all_user_memory_tags().await
+    }
+
+    pub async fn get_all_tag_counts(&self) -> Result<Vec<TagCount>> {
+        self.backend.get_all_tag_counts().await
+    }
+
+    pub async fn list_epoch_summaries(&self) -> Result<Vec<EpochSummary>> {
+        self.backend.list_epoch_summaries().await
+    }
+
+    pub async fn list_epochs_by_tag(&self, tag: &str) -> Result<Vec<EpochSummary>> {
+        self.backend.list_epochs_by_tag(tag).await
     }
 }
 
@@ -1459,7 +1502,8 @@ SELECT
     se.rollout_summary,
     se.rollout_slug,
     se.usage_count,
-    se.last_usage
+    se.last_usage,
+    se.tags
 FROM stage1_epochs se
 JOIN memory_threads mt ON mt.thread_id = se.thread_id
 WHERE mt.archived = 0
@@ -1887,6 +1931,122 @@ WHERE mj.kind = ",
         }
         Ok(all_tags.into_iter().collect())
     }
+
+    async fn get_all_tag_counts(&self) -> Result<Vec<TagCount>> {
+        use std::collections::BTreeMap;
+
+        // Collect epoch tags
+        let epoch_rows: Vec<(String,)> =
+            sqlx::query_as("SELECT tags FROM stage1_epochs WHERE tags != '[]'")
+                .fetch_all(&self.pool)
+                .await?;
+        let mut epoch_map: BTreeMap<String, usize> = BTreeMap::new();
+        for (json,) in &epoch_rows {
+            if let Ok(tags) = serde_json::from_str::<Vec<String>>(json) {
+                for tag in tags {
+                    let t = tag.trim().to_lowercase();
+                    if !t.is_empty() {
+                        *epoch_map.entry(t).or_default() += 1;
+                    }
+                }
+            }
+        }
+
+        // Collect user memory tags
+        let user_rows: Vec<(String,)> =
+            sqlx::query_as("SELECT tags FROM user_memories WHERE tags != '[]'")
+                .fetch_all(&self.pool)
+                .await?;
+        let mut user_map: BTreeMap<String, usize> = BTreeMap::new();
+        for (json,) in &user_rows {
+            if let Ok(tags) = serde_json::from_str::<Vec<String>>(json) {
+                for tag in tags {
+                    let t = tag.trim().to_lowercase();
+                    if !t.is_empty() {
+                        *user_map.entry(t).or_default() += 1;
+                    }
+                }
+            }
+        }
+
+        // Merge into unified list
+        let mut all_tags: BTreeMap<String, TagCount> = BTreeMap::new();
+        for (tag, count) in &epoch_map {
+            all_tags
+                .entry(tag.clone())
+                .or_insert_with(|| TagCount {
+                    tag: tag.clone(),
+                    epoch_count: 0,
+                    user_count: 0,
+                })
+                .epoch_count = *count;
+        }
+        for (tag, count) in &user_map {
+            all_tags
+                .entry(tag.clone())
+                .or_insert_with(|| TagCount {
+                    tag: tag.clone(),
+                    epoch_count: 0,
+                    user_count: 0,
+                })
+                .user_count = *count;
+        }
+
+        let mut result: Vec<TagCount> = all_tags.into_values().collect();
+        // Sort by total count descending, then alphabetically
+        result.sort_by(|a, b| {
+            let total_a = a.epoch_count + a.user_count;
+            let total_b = b.epoch_count + b.user_count;
+            total_b.cmp(&total_a).then_with(|| a.tag.cmp(&b.tag))
+        });
+        Ok(result)
+    }
+
+    async fn list_epoch_summaries(&self) -> Result<Vec<EpochSummary>> {
+        let rows = sqlx::query(
+            "SELECT se.thread_id, se.epoch_index, se.provenance, se.tags,
+                    se.workspace_root, se.git_branch, se.cwd_display,
+                    se.rollout_slug, se.source_updated_at, se.usage_count,
+                    substr(CASE WHEN length(trim(se.rollout_summary)) > 0
+                                THEN se.rollout_summary
+                                ELSE se.raw_memory END, 1, 200) AS preview
+             FROM stage1_epochs se
+             JOIN memory_threads mt ON mt.thread_id = se.thread_id
+             WHERE mt.archived = 0 AND mt.deleted = 0
+               AND mt.memory_mode = 'enabled'
+               AND (length(trim(se.raw_memory)) > 0 OR length(trim(se.rollout_summary)) > 0)
+             ORDER BY se.source_updated_at DESC
+             LIMIT 500",
+        )
+        .fetch_all(&self.pool)
+        .await?;
+        rows.into_iter().map(epoch_summary_from_row).collect()
+    }
+
+    async fn list_epochs_by_tag(&self, tag: &str) -> Result<Vec<EpochSummary>> {
+        // SQLite JSON: search for the tag in the JSON array
+        let pattern = format!("%\"{tag}\"%");
+        let rows = sqlx::query(
+            "SELECT se.thread_id, se.epoch_index, se.provenance, se.tags,
+                    se.workspace_root, se.git_branch, se.cwd_display,
+                    se.rollout_slug, se.source_updated_at, se.usage_count,
+                    substr(CASE WHEN length(trim(se.rollout_summary)) > 0
+                                THEN se.rollout_summary
+                                ELSE se.raw_memory END, 1, 200) AS preview
+             FROM stage1_epochs se
+             JOIN memory_threads mt ON mt.thread_id = se.thread_id
+             WHERE mt.archived = 0 AND mt.deleted = 0
+               AND mt.memory_mode = 'enabled'
+               AND se.tags LIKE ?
+               AND (length(trim(se.raw_memory)) > 0 OR length(trim(se.rollout_summary)) > 0)
+             ORDER BY se.source_updated_at DESC
+             LIMIT 500",
+        )
+        .bind(&pattern)
+        .fetch_all(&self.pool)
+        .await?;
+        rows.into_iter().map(epoch_summary_from_row).collect()
+    }
 }
 
 fn stage1_epoch_record_from_row(row: sqlx::sqlite::SqliteRow) -> Result<Stage1EpochRecord> {
@@ -1933,6 +2093,27 @@ fn user_memory_from_row(row: sqlx::sqlite::SqliteRow) -> Result<UserMemory> {
         created_at: row.try_get("created_at")?,
         updated_at: row.try_get("updated_at")?,
         pinned: row.try_get::<i64, _>("pinned").unwrap_or(1) != 0,
+    })
+}
+
+fn epoch_summary_from_row(row: sqlx::sqlite::SqliteRow) -> Result<EpochSummary> {
+    let tags_json: String = row.try_get("tags").unwrap_or_else(|_| "[]".to_string());
+    let tags: Vec<String> = serde_json::from_str(&tags_json).unwrap_or_default();
+    let preview: String = row.try_get("preview").unwrap_or_default();
+    Ok(EpochSummary {
+        id: MemoryEpochId {
+            thread_id: Uuid::parse_str(&row.try_get::<String, _>("thread_id")?)?,
+            epoch_index: row.try_get("epoch_index")?,
+        },
+        provenance: Stage1EpochProvenance::from_str(&row.try_get::<String, _>("provenance")?),
+        tags,
+        workspace_root: row.try_get("workspace_root")?,
+        git_branch: row.try_get("git_branch")?,
+        cwd_display: row.try_get("cwd_display")?,
+        rollout_slug: row.try_get("rollout_slug")?,
+        source_updated_at: row.try_get("source_updated_at")?,
+        usage_count: row.try_get("usage_count")?,
+        preview,
     })
 }
 
