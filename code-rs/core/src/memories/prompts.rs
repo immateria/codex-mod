@@ -10,7 +10,11 @@ use super::manifest::{select_prompt_entries, MemoriesCurrentContext, SnapshotMan
 use super::published_artifact_paths_async;
 
 // This budget is applied asymmetrically:
-// - manifest selection packs prompt entries until the budget is full
+// - pinned memories are packed first and must fit within the budget
+//   (the first oversized pinned memory is truncated to fit)
+// - auto epochs are then packed in rank order until the budget is full
+// - for compatibility, a single oversized auto epoch may still be
+//   selected only when the prompt is otherwise empty
 // - summary fallback truncates one canonical summary blob to the budget
 const MAX_MEMORY_PROMPT_BYTES: usize = 12_000;
 

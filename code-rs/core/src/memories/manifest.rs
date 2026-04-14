@@ -134,12 +134,10 @@ pub(crate) fn select_prompt_entries(
     context: &MemoriesCurrentContext,
     max_bytes: usize,
 ) -> Option<MemoryPromptSelection> {
-    let target_shell = context.shell_style?;
-
     let mut selected_epoch_ids = Vec::new();
     let mut summary_text = String::new();
 
-    // ── Phase 1: Inject pinned user memories first (always included) ──
+    // ── Phase 1: Pack pinned user memories first (budget-aware) ──
     // Collect all user-memory tags for affinity boosting below.
     let mut user_tags: std::collections::HashSet<&str> = std::collections::HashSet::new();
     for mem in &manifest.user_memories {
@@ -149,69 +147,86 @@ pub(crate) fn select_prompt_entries(
         for tag in &mem.tags {
             user_tags.insert(tag.as_str());
         }
+
         let chunk = if summary_text.is_empty() {
             format!("[pinned] {}", mem.content)
         } else {
             format!("\n\n[pinned] {}", mem.content)
         };
-        summary_text.push_str(&chunk);
-    }
 
-    // ── Phase 2: Rank auto-extracted epochs with tag affinity boost ──
-    let mut compatible: Vec<(bool, u8, u8, u8, u8, u8, &SnapshotEpochManifestEntry)> = manifest
-        .epochs
-        .iter()
-        .filter_map(|entry| {
-            let platform_rank = platform_compatibility_rank(context.platform_family, entry.platform_family)?;
-            let shell_rank = shell_compatibility_rank(target_shell, entry.shell_style)?;
-            let same_workspace = workspace_match(context.workspace_root.as_ref(), entry.workspace_root.as_ref());
-            let tag_affinity = tag_affinity_rank(&entry.tags, &user_tags);
-            Some((
-                same_workspace,
-                tag_affinity,
-                branch_affinity_rank(context.git_branch.as_ref(), entry.git_branch.as_ref(), same_workspace),
-                platform_rank,
-                shell_rank,
-                provenance_rank(entry.provenance),
-                entry,
-            ))
-        })
-        .collect();
-
-    if compatible.is_empty() && summary_text.is_empty() {
-        return None;
-    }
-
-    compatible.sort_by_key(
-        |(same_workspace, tag_affinity, branch_rank, platform_rank, shell_rank, provenance_rank, entry)| {
-        (
-            !same_workspace,
-            *tag_affinity,
-            *branch_rank,
-            *platform_rank,
-            *shell_rank,
-            *provenance_rank,
-            Reverse(entry.usage_count),
-            Reverse(entry.last_usage.unwrap_or(i64::MIN).max(entry.source_updated_at)),
-            Reverse(entry.source_updated_at),
-            entry.id.thread_id,
-            entry.id.epoch_index,
-        )
-        },
-    );
-
-    for (_, _, _, _, _, _, entry) in compatible {
-        let chunk = if summary_text.is_empty() {
-            entry.prompt_entry.clone()
-        } else {
-            format!("\n\n{}", entry.prompt_entry)
-        };
         let would_fit = summary_text.len().saturating_add(chunk.len()) <= max_bytes;
-        if would_fit || selected_epoch_ids.is_empty() {
+        if would_fit {
             summary_text.push_str(&chunk);
-            selected_epoch_ids.push(entry.id);
-        } else {
-            break;
+            continue;
+        }
+
+        // If the prompt is still empty, include a truncated version of
+        // the first pinned memory; otherwise stop packing.
+        if summary_text.is_empty() && max_bytes > 0 {
+            let (truncated, _) = crate::truncate::truncate_middle(&chunk, max_bytes);
+            if !truncated.is_empty() {
+                summary_text.push_str(&truncated);
+            }
+        }
+        break;
+    }
+
+    // ── Phase 2: Auto-extracted epochs are only eligible when shell
+    //    compatibility can be evaluated. ──
+    if let Some(target_shell) = context.shell_style {
+        let mut compatible: Vec<(bool, u8, u8, u8, u8, u8, &SnapshotEpochManifestEntry)> = manifest
+            .epochs
+            .iter()
+            .filter_map(|entry| {
+                let platform_rank = platform_compatibility_rank(context.platform_family, entry.platform_family)?;
+                let shell_rank = shell_compatibility_rank(target_shell, entry.shell_style)?;
+                let same_workspace = workspace_match(context.workspace_root.as_ref(), entry.workspace_root.as_ref());
+                let tag_affinity = tag_affinity_rank(&entry.tags, &user_tags);
+                Some((
+                    same_workspace,
+                    tag_affinity,
+                    branch_affinity_rank(context.git_branch.as_ref(), entry.git_branch.as_ref(), same_workspace),
+                    platform_rank,
+                    shell_rank,
+                    provenance_rank(entry.provenance),
+                    entry,
+                ))
+            })
+            .collect();
+
+        compatible.sort_by_key(
+            |(same_workspace, tag_affinity, branch_rank, platform_rank, shell_rank, provenance_rank, entry)| {
+            (
+                !same_workspace,
+                *tag_affinity,
+                *branch_rank,
+                *platform_rank,
+                *shell_rank,
+                *provenance_rank,
+                Reverse(entry.usage_count),
+                Reverse(entry.last_usage.unwrap_or(i64::MIN).max(entry.source_updated_at)),
+                Reverse(entry.source_updated_at),
+                entry.id.thread_id,
+                entry.id.epoch_index,
+            )
+            },
+        );
+
+        for (_, _, _, _, _, _, entry) in compatible {
+            let chunk = if summary_text.is_empty() {
+                entry.prompt_entry.clone()
+            } else {
+                format!("\n\n{}", entry.prompt_entry)
+            };
+            let would_fit = summary_text.len().saturating_add(chunk.len()) <= max_bytes;
+            // Allow one oversized auto epoch only when the prompt is
+            // completely empty (preserves existing test-backed behavior).
+            if would_fit || summary_text.is_empty() {
+                summary_text.push_str(&chunk);
+                selected_epoch_ids.push(entry.id);
+            } else {
+                break;
+            }
         }
     }
 
@@ -629,5 +644,100 @@ mod tests {
             }]
         );
         assert_eq!(selection.summary_text, "first");
+    }
+
+    fn user_memory(
+        id: &str,
+        content: &str,
+        tags: &[&str],
+        pinned: bool,
+    ) -> UserMemoryManifestEntry {
+        UserMemoryManifestEntry {
+            id: id.to_string(),
+            content: content.to_string(),
+            tags: tags.iter().map(|s| s.to_string()).collect(),
+            pinned,
+        }
+    }
+
+    #[test]
+    fn pinned_memories_are_selected_without_shell_style() {
+        let manifest = SnapshotManifest::with_user_memories(
+            Vec::new(),
+            vec![user_memory("u1", "remember this", &["rust"], true)],
+        );
+
+        let context = MemoriesCurrentContext {
+            platform_family: MemoryPlatformFamily::Unix,
+            shell_style: None,
+            shell_program: None,
+            workspace_root: None,
+            git_branch: None,
+        };
+
+        let selection = select_prompt_entries(&manifest, &context, 1024).expect("selection");
+        assert!(selection.summary_text.contains("[pinned] remember this"));
+        assert!(selection.selected_epoch_ids.is_empty());
+    }
+
+    #[test]
+    fn pinned_memories_count_against_budget() {
+        let long_content = "x".repeat(2048);
+        let manifest = SnapshotManifest::with_user_memories(
+            Vec::new(),
+            vec![user_memory("u1", &long_content, &[], true)],
+        );
+
+        let context = MemoriesCurrentContext {
+            platform_family: MemoryPlatformFamily::Unix,
+            shell_style: None,
+            shell_program: None,
+            workspace_root: None,
+            git_branch: None,
+        };
+
+        // With a budget of 256, the 2KB pinned memory must be truncated —
+        // the output should be significantly shorter than the original.
+        let selection = select_prompt_entries(&manifest, &context, 256).expect("selection");
+        assert!(
+            selection.summary_text.len() < long_content.len(),
+            "expected truncation: got {} bytes from {} byte input",
+            selection.summary_text.len(),
+            long_content.len(),
+        );
+        assert!(selection.summary_text.contains("truncated"));
+    }
+
+    #[test]
+    fn oversized_first_auto_entry_is_not_admitted_after_pinned_content() {
+        let mut oversized = entry(
+            MemoryShellStyle::Zsh,
+            None,
+            Some("main"),
+            Stage1EpochProvenance::Derived,
+            1,
+            Some(1),
+            1,
+        );
+        oversized.prompt_entry = "x".repeat(64);
+
+        let manifest = SnapshotManifest::with_user_memories(
+            vec![oversized],
+            vec![user_memory("u1", "pin", &[], true)],
+        );
+
+        let context = MemoriesCurrentContext {
+            platform_family: MemoryPlatformFamily::Unix,
+            shell_style: Some(MemoryShellStyle::Zsh),
+            shell_program: Some("zsh".to_string()),
+            workspace_root: None,
+            git_branch: Some("main".to_string()),
+        };
+
+        let selection = select_prompt_entries(&manifest, &context, 16).expect("selection");
+        assert!(selection.summary_text.contains("[pinned] pin"));
+        // The oversized auto epoch should NOT be selected because pinned
+        // content already occupies the prompt.
+        assert!(selection.selected_epoch_ids.is_empty());
     }
 }

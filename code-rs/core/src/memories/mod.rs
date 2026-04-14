@@ -810,7 +810,8 @@ pub fn delete_rollout_summary(code_home: &Path, slug: &str) -> io::Result<bool> 
 /// prompt for a session with the given context. Returns `None` if no memory
 /// artifacts are available.
 pub async fn preview_model_prompt(code_home: &Path) -> io::Result<Option<String>> {
-    // Use a representative context to show what a typical session would receive.
+    // shell_style is intentionally None: pinned memories must still be
+    // previewable, and auto epochs are shell-gated separately.
     let context = manifest::MemoriesCurrentContext {
         platform_family: code_memories_state::MemoryPlatformFamily::Unknown,
         shell_style: None,
@@ -830,6 +831,8 @@ pub fn preview_model_prompt_sync(code_home: &Path) -> io::Result<Option<String>>
     use askama::Template;
 
     let paths = published_artifact_paths(code_home)?;
+    // shell_style is intentionally None: pinned memories must still be
+    // previewable, and auto epochs are shell-gated separately.
     let context = manifest::MemoriesCurrentContext {
         platform_family: code_memories_state::MemoryPlatformFamily::Unknown,
         shell_style: None,
