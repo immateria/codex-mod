@@ -8,7 +8,6 @@ use tracing::warn;
 
 use crate::config::resolve_code_path_for_read;
 use crate::config_types::AuthCredentialsStoreMode;
-use code_keyring_store::DefaultKeyringStore;
 use code_keyring_store::KeyringStore;
 use code_keyring_store::store_key_for_code_home;
 use once_cell::sync::Lazy;
@@ -244,7 +243,7 @@ pub(super) fn create_auth_storage(
     code_home: PathBuf,
     mode: AuthCredentialsStoreMode,
 ) -> Arc<dyn AuthStorageBackend> {
-    let keyring_store: Arc<dyn KeyringStore> = Arc::new(DefaultKeyringStore);
+    let keyring_store = code_keyring_store::best_keyring_store();
     create_auth_storage_with_keyring_store(code_home, mode, keyring_store)
 }
 

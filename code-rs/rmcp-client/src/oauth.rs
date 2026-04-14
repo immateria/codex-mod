@@ -28,7 +28,6 @@ use serde_json::map::Map as JsonMap;
 use sha2::{Digest, Sha256};
 use tracing::warn;
 
-use code_keyring_store::DefaultKeyringStore;
 use code_keyring_store::KeyringStore;
 
 const KEYRING_SERVICE: &str = "Code MCP Credentials";
@@ -78,17 +77,17 @@ pub(crate) fn load_oauth_tokens(
     url: &str,
     store_mode: OAuthCredentialsStoreMode,
 ) -> Result<Option<StoredOAuthTokens>> {
-    let keyring_store = DefaultKeyringStore;
+    let keyring_store = code_keyring_store::best_keyring_store();
     match store_mode {
         OAuthCredentialsStoreMode::Auto => load_oauth_tokens_from_keyring_with_fallback_to_file(
-            &keyring_store,
+            keyring_store.as_ref(),
             code_home,
             server_name,
             url,
         ),
         OAuthCredentialsStoreMode::File => load_oauth_tokens_from_file(code_home, server_name, url),
         OAuthCredentialsStoreMode::Keyring => load_oauth_tokens_from_keyring(
-            &keyring_store,
+            keyring_store.as_ref(),
             code_home,
             server_name,
             url,
@@ -122,7 +121,7 @@ fn refresh_expires_in_from_timestamp(tokens: &mut StoredOAuthTokens) {
     }
 }
 
-fn load_oauth_tokens_from_keyring_with_fallback_to_file<K: KeyringStore>(
+fn load_oauth_tokens_from_keyring_with_fallback_to_file<K: KeyringStore + ?Sized>(
     keyring_store: &K,
     code_home: &Path,
     server_name: &str,
@@ -139,7 +138,7 @@ fn load_oauth_tokens_from_keyring_with_fallback_to_file<K: KeyringStore>(
     }
 }
 
-fn load_oauth_tokens_from_keyring<K: KeyringStore>(
+fn load_oauth_tokens_from_keyring<K: KeyringStore + ?Sized>(
     keyring_store: &K,
     code_home: &Path,
     server_name: &str,
@@ -164,22 +163,22 @@ pub fn save_oauth_tokens(
     tokens: &StoredOAuthTokens,
     store_mode: OAuthCredentialsStoreMode,
 ) -> Result<()> {
-    let keyring_store = DefaultKeyringStore;
+    let keyring_store = code_keyring_store::best_keyring_store();
     match store_mode {
         OAuthCredentialsStoreMode::Auto => save_oauth_tokens_with_keyring_with_fallback_to_file(
-            &keyring_store,
+            keyring_store.as_ref(),
             code_home,
             server_name,
             tokens,
         ),
         OAuthCredentialsStoreMode::File => save_oauth_tokens_to_file(code_home, tokens),
         OAuthCredentialsStoreMode::Keyring => {
-            save_oauth_tokens_with_keyring(&keyring_store, code_home, server_name, tokens)
+            save_oauth_tokens_with_keyring(keyring_store.as_ref(), code_home, server_name, tokens)
         }
     }
 }
 
-fn save_oauth_tokens_with_keyring<K: KeyringStore>(
+fn save_oauth_tokens_with_keyring<K: KeyringStore + ?Sized>(
     keyring_store: &K,
     code_home: &Path,
     server_name: &str,
@@ -203,7 +202,7 @@ fn save_oauth_tokens_with_keyring<K: KeyringStore>(
     }
 }
 
-fn save_oauth_tokens_with_keyring_with_fallback_to_file<K: KeyringStore>(
+fn save_oauth_tokens_with_keyring_with_fallback_to_file<K: KeyringStore + ?Sized>(
     keyring_store: &K,
     code_home: &Path,
     server_name: &str,
@@ -226,11 +225,11 @@ pub fn delete_oauth_tokens(
     url: &str,
     store_mode: OAuthCredentialsStoreMode,
 ) -> Result<bool> {
-    let keyring_store = DefaultKeyringStore;
-    delete_oauth_tokens_from_keyring_and_file(&keyring_store, code_home, store_mode, server_name, url)
+    let keyring_store = code_keyring_store::best_keyring_store();
+    delete_oauth_tokens_from_keyring_and_file(keyring_store.as_ref(), code_home, store_mode, server_name, url)
 }
 
-fn delete_oauth_tokens_from_keyring_and_file<K: KeyringStore>(
+fn delete_oauth_tokens_from_keyring_and_file<K: KeyringStore + ?Sized>(
     keyring_store: &K,
     code_home: &Path,
     store_mode: OAuthCredentialsStoreMode,

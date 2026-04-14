@@ -1907,6 +1907,7 @@ name = "code-keyring-store"
 version = "0.0.0"
 dependencies = [
  "keyring",
+ "security-framework 3.5.1",
  "sha2",
  "tracing",
 ]

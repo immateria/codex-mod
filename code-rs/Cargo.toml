@@ -225,6 +225,7 @@ runfiles = { git = "https://github.com/dzbarsky/rules_rust", rev = "b56cbaa8465e
 rustls = { version = "0.23", default-features = false, features = ["ring", "std"] }
 schemars = "0.8.22"
 seccompiler = "0.5.0"
+security-framework = { version = "3.5", features = ["OSX_10_15"] }
 serde = "1"
 serde_json = "1"
 serde_path_to_error = "0.1.20"

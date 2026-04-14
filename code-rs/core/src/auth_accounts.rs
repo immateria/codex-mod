@@ -1,6 +1,5 @@
 use chrono::{DateTime, Utc};
 use code_app_server_protocol::AuthMode;
-use code_keyring_store::DefaultKeyringStore;
 use code_keyring_store::KeyringStore;
 use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
@@ -397,12 +396,12 @@ fn accounts_storage_with_mode(
         AuthCredentialsStoreMode::Keyring => Arc::new(KeyringAccountsStorage::new(
             code_home.to_path_buf(),
             paths,
-            Arc::new(DefaultKeyringStore),
+            code_keyring_store::best_keyring_store(),
         )),
         AuthCredentialsStoreMode::Auto => Arc::new(AutoAccountsStorage::new(
             code_home.to_path_buf(),
             paths,
-            Arc::new(DefaultKeyringStore),
+            code_keyring_store::best_keyring_store(),
         )),
         AuthCredentialsStoreMode::Ephemeral => Arc::new(EphemeralAccountsStorage::new(
             code_home.to_path_buf(),

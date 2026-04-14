@@ -179,20 +179,21 @@ impl LocalSecretsBackend {
             .canonicalize()
             .unwrap_or_else(|_| self.code_home.clone());
 
-        // Fast path: return from process-level cache without touching the keyring.
-        if let Ok(cache) = PASSPHRASE_CACHE.lock()
-            && let Some(cached) = cache.get(&canonical_home)
-        {
+        // Hold the lock across the entire operation so that concurrent
+        // `spawn_blocking` tasks cannot both miss the cache and trigger
+        // separate OS keyring dialogs (TOCTOU race).
+        let mut cache = PASSPHRASE_CACHE
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+
+        if let Some(cached) = cache.get(&canonical_home) {
             return Ok(cached.clone());
         }
 
         let result = self
             .load_or_create_passphrase_impl(cfg!(target_os = "android") || cfg!(test))?;
 
-        // Store so all future instances (and all scopes) skip the keyring.
-        if let Ok(mut cache) = PASSPHRASE_CACHE.lock() {
-            cache.entry(canonical_home).or_insert_with(|| result.clone());
-        }
+        cache.insert(canonical_home, result.clone());
 
         Ok(result)
     }

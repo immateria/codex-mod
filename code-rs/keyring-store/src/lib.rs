@@ -6,7 +6,11 @@ use std::error::Error;
 use std::fmt;
 use std::fmt::Debug;
 use std::path::Path;
+use std::sync::Arc;
 use tracing::trace;
+
+#[cfg(target_os = "macos")]
+mod macos;
 
 #[derive(Debug)]
 pub enum CredentialStoreError {
@@ -64,6 +68,23 @@ pub trait KeyringStore: Debug + Send + Sync {
     fn load(&self, service: &str, account: &str) -> Result<Option<String>, CredentialStoreError>;
     fn save(&self, service: &str, account: &str, value: &str) -> Result<(), CredentialStoreError>;
     fn delete(&self, service: &str, account: &str) -> Result<bool, CredentialStoreError>;
+}
+
+/// Return the best available [`KeyringStore`] for the current platform.
+///
+/// On macOS, this returns a store backed by the Data Protection Keychain,
+/// which integrates with Touch ID and avoids the legacy "Allow/Deny/Always
+/// Allow" Keychain Access dialogs.  On all other platforms, it returns the
+/// default `keyring`-crate-backed store.
+pub fn best_keyring_store() -> Arc<dyn KeyringStore> {
+    #[cfg(target_os = "macos")]
+    {
+        Arc::new(macos::DataProtectionKeyringStore)
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        Arc::new(DefaultKeyringStore)
+    }
 }
 
 #[derive(Debug)]
