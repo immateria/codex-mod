@@ -2,7 +2,7 @@ use std::cell::Cell;
 use std::path::PathBuf;
 
 use code_core::config_types::MemoriesToml;
-use code_core::RolloutSummaryEntry;
+use code_core::{RolloutSummaryEntry, UserMemory};
 
 use crate::app_event_sender::AppEventSender;
 use crate::components::form_text_field::FormTextField;
@@ -35,6 +35,7 @@ enum RowKind {
     MaxRolloutAgeDays,
     MaxRolloutsPerStartup,
     MinRolloutIdleHours,
+    ManageUserMemories,
     ViewSummary,
     ViewRawMemories,
     ViewModelPrompt,
@@ -92,6 +93,35 @@ struct RolloutListState {
 }
 
 #[derive(Debug)]
+struct UserMemoryListState {
+    entries: Vec<UserMemory>,
+    list_state: Cell<ScrollState>,
+    viewport_rows: Cell<usize>,
+    /// ID of memory pending deletion (confirmation required).
+    pending_delete: Option<String>,
+}
+
+/// Editing state for a user memory (create or update).
+#[derive(Debug)]
+struct UserMemoryEditorState {
+    /// `None` = creating new, `Some(id)` = editing existing.
+    editing_id: Option<String>,
+    content_field: FormTextField,
+    tags_field: FormTextField,
+    /// Which field is focused.
+    focus: UserMemoryEditorFocus,
+    error: Option<String>,
+    /// Preserved list state to return to on save/cancel.
+    parent_list: Box<UserMemoryListState>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum UserMemoryEditorFocus {
+    Content,
+    Tags,
+}
+
+#[derive(Debug)]
 enum ViewMode {
     Main,
     Edit {
@@ -101,6 +131,8 @@ enum ViewMode {
     },
     TextViewer(Box<TextViewerState>),
     RolloutList(Box<RolloutListState>),
+    UserMemoryList(Box<UserMemoryListState>),
+    UserMemoryEditor(Box<UserMemoryEditorState>),
     /// Transient search input inside a text viewer.
     SearchInput {
         viewer: Box<TextViewerState>,
@@ -135,6 +167,13 @@ impl MemoriesSettingsView {
         match &mut self.mode {
             ViewMode::Edit { field, .. } | ViewMode::SearchInput { field, .. } => {
                 field.handle_paste(text);
+                true
+            }
+            ViewMode::UserMemoryEditor(editor) => {
+                match editor.focus {
+                    UserMemoryEditorFocus::Content => editor.content_field.handle_paste(text),
+                    UserMemoryEditorFocus::Tags => editor.tags_field.handle_paste(text),
+                };
                 true
             }
             _ => false,

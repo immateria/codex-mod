@@ -120,6 +120,49 @@ impl MemoriesSettingsView {
         let _ = page.render_in_chrome(chrome, area, buf, field);
     }
 
+    fn render_user_memory_list_with(
+        list: &UserMemoryListState,
+        area: Rect,
+        buf: &mut Buffer,
+        chrome: ChromeMode,
+    ) {
+        let total = list.entries.len() + 1; // +1 for "Add new" row
+        let mut state = list.list_state.get();
+        state.clamp_selection(total);
+        let selected = state.selected_idx.unwrap_or(0);
+        let scroll_top = state.scroll_top;
+        let menu_rows = Self::user_memory_list_menu_rows(list);
+        let page = Self::user_memory_list_page(list);
+        let layout = page.render_menu_rows_in_chrome(
+            chrome,
+            area,
+            buf,
+            scroll_top,
+            Some(selected),
+            &menu_rows,
+        );
+        if let Some(layout) = layout {
+            let visible = layout.body.height.max(1) as usize;
+            state.ensure_visible(total, visible);
+            list.viewport_rows.set(visible);
+            list.list_state.set(state);
+        }
+    }
+
+    fn render_user_memory_editor_with(
+        editor: &UserMemoryEditorState,
+        area: Rect,
+        buf: &mut Buffer,
+        chrome: ChromeMode,
+    ) {
+        let field = match editor.focus {
+            UserMemoryEditorFocus::Content => &editor.content_field,
+            UserMemoryEditorFocus::Tags => &editor.tags_field,
+        };
+        let page = Self::user_memory_editor_page(editor);
+        let _ = page.render_in_chrome(chrome, area, buf, field);
+    }
+
     fn render_with_chrome(&self, area: Rect, buf: &mut Buffer, chrome: ChromeMode) {
         match &self.mode {
             ViewMode::Main | ViewMode::Transition => {
@@ -133,6 +176,12 @@ impl MemoriesSettingsView {
             }
             ViewMode::RolloutList(list) => {
                 Self::render_rollout_list_with(list, area, buf, chrome);
+            }
+            ViewMode::UserMemoryList(list) => {
+                Self::render_user_memory_list_with(list, area, buf, chrome);
+            }
+            ViewMode::UserMemoryEditor(editor) => {
+                Self::render_user_memory_editor_with(editor, area, buf, chrome);
             }
             ViewMode::SearchInput { viewer, field } => {
                 Self::render_search_input_with(viewer.title, field, area, buf, chrome);

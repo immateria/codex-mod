@@ -419,6 +419,206 @@ fn format_age(when: DateTime<Utc>, now: DateTime<Utc>) -> String {
     }
 }
 
+// ── User memory list page ────────────────────────────────────────────
+
+impl MemoriesSettingsView {
+    pub(super) fn user_memory_list_menu_rows(
+        list: &UserMemoryListState,
+    ) -> Vec<SettingsMenuRow<'static, usize>> {
+        let now = Utc::now();
+        let mut rows: Vec<SettingsMenuRow<'static, usize>> = list
+            .entries
+            .iter()
+            .enumerate()
+            .map(|(idx, memory)| {
+                // Truncate content for preview (first line, max 60 chars).
+                let preview: String = memory
+                    .content
+                    .lines()
+                    .next()
+                    .unwrap_or("")
+                    .chars()
+                    .take(60)
+                    .collect();
+                let preview = if memory.content.len() > 60 || memory.content.contains('\n') {
+                    format!("{preview}…")
+                } else {
+                    preview
+                };
+
+                let tags_str = if memory.tags.is_empty() {
+                    String::new()
+                } else {
+                    format!(" [{}]", memory.tags.join(", "))
+                };
+
+                let age = {
+                    let dt = chrono::DateTime::from_timestamp(memory.updated_at, 0)
+                        .unwrap_or_else(Utc::now);
+                    format_age(dt, now)
+                };
+
+                let detail = format!("{age}{tags_str}");
+                SettingsMenuRow::new(idx, preview)
+                    .with_detail(crate::bottom_pane::settings_ui::rows::StyledText::new(
+                        detail,
+                        Style::default().fg(colors::text_dim()),
+                    ))
+            })
+            .collect();
+
+        // "Add new memory" entry at the end.
+        rows.push(
+            SettingsMenuRow::new(list.entries.len(), "+ Add new pinned memory".to_owned())
+                .with_detail(crate::bottom_pane::settings_ui::rows::StyledText::new(
+                    String::new(),
+                    Style::default().fg(colors::text_dim()),
+                )),
+        );
+        rows
+    }
+
+    pub(super) fn user_memory_list_page(list: &UserMemoryListState) -> SettingsMenuPage<'static> {
+        let total = list.entries.len();
+
+        let dim = Style::default().fg(colors::text_dim());
+
+        let header_text = if let Some(ref id) = list.pending_delete {
+            let short_id = if id.len() > 16 { &id[..16] } else { id.as_str() };
+            format!("Delete memory {short_id}…? [y]es / [n]o")
+        } else if total == 0 {
+            "No pinned memories yet. Press Enter or 'n' to create one.".to_owned()
+        } else {
+            format!(
+                "{total} pinned memor{} — always injected into LLM prompt",
+                if total == 1 { "y" } else { "ies" }
+            )
+        };
+        let header_style = if list.pending_delete.is_some() {
+            Style::default().fg(colors::warning())
+        } else {
+            dim
+        };
+        let header = vec![Line::from(Span::styled(header_text, header_style))];
+
+        let mut hints: Vec<KeyHint<'static>> = vec![
+            hint_nav(" navigate"),
+            hint_enter(" edit"),
+            KeyHint::new("n", " new"),
+        ];
+        if list.pending_delete.is_none() && total > 0 {
+            hints.push(KeyHint::new("d", " delete"));
+        }
+        hints.push(hint_esc(" back"));
+        let footer = vec![shortcut_line(&hints)];
+
+        let display_total = total + 1;
+        let state = list.list_state.get();
+        let idx = state.selected_idx.unwrap_or(0).min(display_total.saturating_sub(1));
+
+        SettingsMenuPage::new(
+            " Pinned Memories ",
+            SettingsPanelStyle::bottom_pane(),
+            header,
+            footer,
+        )
+        .with_scroll_position(idx + 1, display_total)
+    }
+
+    pub(super) fn user_memory_editor_page(
+        editor: &UserMemoryEditorState,
+    ) -> SettingsEditorPage<'static> {
+        let is_new = editor.editing_id.is_none();
+        let title = if is_new {
+            " New Pinned Memory "
+        } else {
+            " Edit Pinned Memory "
+        };
+
+        let dim = Style::default().fg(colors::text_dim());
+        let focus_style = Style::default().fg(colors::text_bright()).add_modifier(Modifier::BOLD);
+
+        let content_label = if editor.focus == UserMemoryEditorFocus::Content {
+            Span::styled("▸ Content", focus_style)
+        } else {
+            Span::styled("  Content", dim)
+        };
+        let tags_label = if editor.focus == UserMemoryEditorFocus::Tags {
+            Span::styled("▸ Tags (comma-separated)", focus_style)
+        } else {
+            Span::styled("  Tags (comma-separated)", dim)
+        };
+
+        // Show the non-focused field as plain text so the user can see both.
+        let non_focused_value = match editor.focus {
+            UserMemoryEditorFocus::Content => {
+                let tags_text = editor.tags_field.text();
+                if tags_text.is_empty() {
+                    String::new()
+                } else {
+                    format!("Tags: {tags_text}")
+                }
+            }
+            UserMemoryEditorFocus::Tags => {
+                let content_text = editor.content_field.text();
+                let preview: String = content_text.chars().take(80).collect();
+                if content_text.is_empty() {
+                    String::new()
+                } else if content_text.len() > 80 {
+                    format!("Content: {preview}…")
+                } else {
+                    format!("Content: {preview}")
+                }
+            }
+        };
+
+        let mut pre_field_lines = vec![
+            Line::from(Span::styled(
+                "Pinned memories are always included in the LLM prompt.",
+                dim,
+            )),
+            Line::from(Span::styled(
+                "Use Tab to switch fields. Ctrl+S to save.",
+                dim,
+            )),
+            Line::from(""),
+        ];
+
+        // Show the non-focused field's state.
+        if !non_focused_value.is_empty() {
+            pre_field_lines.push(Line::from(Span::styled(non_focused_value, dim)));
+            pre_field_lines.push(Line::from(""));
+        }
+
+        // Show the label for the currently focused field.
+        let focused_label = match editor.focus {
+            UserMemoryEditorFocus::Content => content_label,
+            UserMemoryEditorFocus::Tags => tags_label,
+        };
+        pre_field_lines.push(Line::from(focused_label));
+
+        let post_field_lines = match &editor.error {
+            Some(message) => vec![Line::from(Span::styled(
+                message.clone(),
+                Style::default().fg(colors::warning()),
+            ))],
+            None => vec![Line::from(Span::styled(
+                "Ctrl+S to save · Esc to cancel",
+                dim,
+            ))],
+        };
+
+        SettingsEditorPage::new(
+            title,
+            SettingsPanelStyle::bottom_pane(),
+            "",
+            pre_field_lines,
+            post_field_lines,
+        )
+        .with_field_margin(crate::ui_consts::NESTED_HPAD)
+    }
+}
+
 /// Number of decimal digits needed to display `n`.
 fn digit_count(mut n: usize) -> usize {
     if n == 0 { return 1; }

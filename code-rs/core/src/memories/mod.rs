@@ -920,6 +920,40 @@ pub async fn list_all_user_memory_tags(code_home: &Path) -> io::Result<Vec<Strin
     state.list_all_user_memory_tags().await.map_err(io::Error::other)
 }
 
+// ── Sync wrappers for TUI (called from non-async key handlers) ──────
+
+pub fn list_user_memories_sync(code_home: &Path) -> io::Result<Vec<UserMemory>> {
+    let rt = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .map_err(io::Error::other)?;
+    rt.block_on(list_user_memories(code_home))
+}
+
+pub fn insert_user_memory_sync(code_home: &Path, memory: &UserMemory) -> io::Result<()> {
+    let rt = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .map_err(io::Error::other)?;
+    rt.block_on(insert_user_memory(code_home, memory))
+}
+
+pub fn update_user_memory_sync(code_home: &Path, memory: &UserMemory) -> io::Result<bool> {
+    let rt = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .map_err(io::Error::other)?;
+    rt.block_on(update_user_memory(code_home, memory))
+}
+
+pub fn delete_user_memory_sync(code_home: &Path, id: &str) -> io::Result<bool> {
+    let rt = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .map_err(io::Error::other)?;
+    rt.block_on(delete_user_memory(code_home, id))
+}
+
 #[cfg(test)]
 mod tests {
     use std::io;

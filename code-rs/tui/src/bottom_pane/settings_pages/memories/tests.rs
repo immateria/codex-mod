@@ -29,7 +29,7 @@ fn apply_emits_global_memories_settings_event() {
 
     view.handle_key_event_direct(KeyEvent::new(KeyCode::Down, KeyModifiers::NONE));
     view.handle_key_event_direct(KeyEvent::new(KeyCode::Char(' '), KeyModifiers::NONE));
-    for _ in 0..15 {
+    for _ in 0..16 {
         view.handle_key_event_direct(KeyEvent::new(KeyCode::Down, KeyModifiers::NONE));
     }
     view.handle_key_event_direct(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
@@ -53,7 +53,7 @@ fn apply_can_target_project_scope() {
     view.handle_key_event_direct(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
     view.handle_key_event_direct(KeyEvent::new(KeyCode::Down, KeyModifiers::NONE));
     view.handle_key_event_direct(KeyEvent::new(KeyCode::Char(' '), KeyModifiers::NONE));
-    for _ in 0..15 {
+    for _ in 0..16 {
         view.handle_key_event_direct(KeyEvent::new(KeyCode::Down, KeyModifiers::NONE));
     }
     view.handle_key_event_direct(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
@@ -150,8 +150,8 @@ fn view_summary_shows_content_when_artifact_exists() {
         sender,
     );
 
-    // Navigate to ViewSummary row (index 8)
-    for _ in 0..8 {
+    // Navigate to ViewSummary row (index 9)
+    for _ in 0..9 {
         view.handle_key_event_direct(KeyEvent::new(KeyCode::Down, KeyModifiers::NONE));
     }
     assert_eq!(view.selected_row(), RowKind::ViewSummary);
@@ -185,7 +185,7 @@ fn view_summary_shows_error_when_missing() {
         sender,
     );
 
-    for _ in 0..8 {
+    for _ in 0..9 {
         view.handle_key_event_direct(KeyEvent::new(KeyCode::Down, KeyModifiers::NONE));
     }
     view.handle_key_event_direct(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
@@ -215,8 +215,8 @@ fn browse_rollouts_lists_files() {
         sender,
     );
 
-    // Navigate to BrowseRollouts (index 11)
-    for _ in 0..11 {
+    // Navigate to BrowseRollouts (index 12)
+    for _ in 0..12 {
         view.handle_key_event_direct(KeyEvent::new(KeyCode::Down, KeyModifiers::NONE));
     }
     assert_eq!(view.selected_row(), RowKind::BrowseRollouts);

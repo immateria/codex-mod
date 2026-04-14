@@ -40,7 +40,7 @@ impl MemoriesSettingsView {
         }
     }
 
-    const ROWS_WITH_FILE_MANAGER: [RowKind; 18] = [
+    const ROWS_WITH_FILE_MANAGER: [RowKind; 19] = [
             RowKind::Scope,
             RowKind::GenerateMemories,
             RowKind::UseMemories,
@@ -49,6 +49,7 @@ impl MemoriesSettingsView {
             RowKind::MaxRolloutAgeDays,
             RowKind::MaxRolloutsPerStartup,
             RowKind::MinRolloutIdleHours,
+            RowKind::ManageUserMemories,
             RowKind::ViewSummary,
             RowKind::ViewRawMemories,
             RowKind::ViewModelPrompt,
@@ -61,7 +62,7 @@ impl MemoriesSettingsView {
             RowKind::Close,
     ];
 
-    const ROWS_NO_FILE_MANAGER: [RowKind; 17] = [
+    const ROWS_NO_FILE_MANAGER: [RowKind; 18] = [
         RowKind::Scope,
         RowKind::GenerateMemories,
         RowKind::UseMemories,
@@ -70,6 +71,7 @@ impl MemoriesSettingsView {
         RowKind::MaxRolloutAgeDays,
         RowKind::MaxRolloutsPerStartup,
         RowKind::MinRolloutIdleHours,
+        RowKind::ManageUserMemories,
         RowKind::ViewSummary,
         RowKind::ViewRawMemories,
         RowKind::ViewModelPrompt,
@@ -310,6 +312,19 @@ impl MemoriesSettingsView {
                 scoped.and_then(|settings| settings.min_rollout_idle_hours),
                 effective.min_rollout_idle_hours,
             ),
+            RowKind::ManageUserMemories => {
+                match self.current_status() {
+                    Ok(Some(status)) => {
+                        let count = status.db.user_memory_count;
+                        if count == 0 {
+                            "none — add pinned memories".to_owned()
+                        } else {
+                            format!("{count} pinned")
+                        }
+                    }
+                    _ => "loading…".to_owned(),
+                }
+            }
             RowKind::ViewSummary => {
                 match self.current_status() {
                     Ok(Some(status)) if status.artifacts.summary.exists => "available".to_owned(),
@@ -377,6 +392,7 @@ impl MemoriesSettingsView {
             RowKind::MaxRolloutAgeDays => "Max rollout age (days)",
             RowKind::MaxRolloutsPerStartup => "Max rollouts per refresh",
             RowKind::MinRolloutIdleHours => "Min rollout idle (hours)",
+            RowKind::ManageUserMemories => "Pinned memories",
             RowKind::ViewSummary => "View memory summary",
             RowKind::ViewRawMemories => "View raw memories",
             RowKind::ViewModelPrompt => "View LLM prompt",
@@ -400,6 +416,7 @@ impl MemoriesSettingsView {
             RowKind::MaxRolloutAgeDays => "Sessions older than this are ignored during extraction. Keeps memories focused on recent work.",
             RowKind::MaxRolloutsPerStartup => "Maximum sessions scanned per refresh cycle. Limits startup time for projects with many sessions.",
             RowKind::MinRolloutIdleHours => "Sessions must be idle for at least this long before extraction. Prevents extracting from sessions still in progress.",
+            RowKind::ManageUserMemories => "Create, edit, and delete pinned memories. These are always injected into the LLM prompt and can store style preferences, project conventions, struct definitions, or any knowledge you want the model to always have.",
             RowKind::ViewSummary => "View the memory summary: a ranked list of your session interactions. Each entry shows workspace, branch, timestamp, and what you asked. Empty/trivial entries are filtered out.",
             RowKind::ViewRawMemories => "View all extracted memory data including internal metadata (thread IDs, provenance, timestamps). Used for debugging the memory pipeline.",
             RowKind::ViewModelPrompt => "Preview the exact developer instructions injected into the LLM prompt, including the decision boundary, memory layout, and selected memory entries.",
@@ -696,4 +713,162 @@ impl MemoriesSettingsView {
     pub(crate) fn has_back_navigation(&self) -> bool {
         !matches!(self.mode, ViewMode::Main)
     }
+
+    // ── User memory management ──────────────────────────────────────────
+
+    /// Open the user memory list view, loading entries from the DB.
+    pub(super) fn open_user_memory_list(&mut self) {
+        match code_core::list_user_memories_sync(&self.code_home) {
+            Ok(entries) => {
+                self.mode = ViewMode::UserMemoryList(Box::new(UserMemoryListState {
+                    entries,
+                    list_state: Cell::new(ScrollState::with_first_selected()),
+                    viewport_rows: Cell::new(DEFAULT_VISIBLE_ROWS),
+                    pending_delete: None,
+                }));
+            }
+            Err(err) => {
+                self.status = Some((format!("Error loading user memories: {err}"), true));
+            }
+        }
+    }
+
+    /// Open the editor to create a new user memory.
+    pub(super) fn open_user_memory_create(&mut self, parent_list: Box<UserMemoryListState>) {
+        self.mode = ViewMode::UserMemoryEditor(Box::new(UserMemoryEditorState {
+            editing_id: None,
+            content_field: FormTextField::new_multi_line(),
+            tags_field: FormTextField::new_single_line(),
+            focus: UserMemoryEditorFocus::Content,
+            error: None,
+            parent_list,
+        }));
+    }
+
+    /// Open the editor to edit an existing user memory.
+    pub(super) fn open_user_memory_edit(
+        &mut self,
+        parent_list: Box<UserMemoryListState>,
+        memory: &UserMemory,
+    ) {
+        let tags_text = memory.tags.join(", ");
+        let mut content_field = FormTextField::new_multi_line();
+        content_field.set_text(&memory.content);
+        let mut tags_field = FormTextField::new_single_line();
+        tags_field.set_text(&tags_text);
+        self.mode = ViewMode::UserMemoryEditor(Box::new(UserMemoryEditorState {
+            editing_id: Some(memory.id.clone()),
+            content_field,
+            tags_field,
+            focus: UserMemoryEditorFocus::Content,
+            error: None,
+            parent_list,
+        }));
+    }
+
+    /// Save the user memory editor state (create or update).
+    pub(super) fn save_user_memory_editor(&mut self) {
+        let ViewMode::UserMemoryEditor(ref editor) = self.mode else {
+            return;
+        };
+
+        let content = editor.content_field.text().trim().to_owned();
+        if content.is_empty() {
+            if let ViewMode::UserMemoryEditor(ref mut editor) = self.mode {
+                editor.error = Some("Content cannot be empty.".to_owned());
+            }
+            return;
+        }
+
+        let tags: Vec<String> = editor
+            .tags_field
+            .text()
+            .split(',')
+            .map(|t| t.trim().to_lowercase())
+            .filter(|t| !t.is_empty())
+            .collect();
+
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs() as i64;
+
+        let memory = UserMemory {
+            id: editor
+                .editing_id
+                .clone()
+                .unwrap_or_else(|| format!("user-{}", uuid_v4_hex())),
+            content,
+            tags,
+            scope: None,
+            created_at: now,
+            updated_at: now,
+            pinned: true,
+        };
+
+        let is_update = editor.editing_id.is_some();
+        let code_home = self.code_home.clone();
+
+        let result = if is_update {
+            code_core::update_user_memory_sync(&code_home, &memory).map(|_| ())
+        } else {
+            code_core::insert_user_memory_sync(&code_home, &memory)
+        };
+
+        match result {
+            Ok(()) => {
+                let verb = if is_update { "Updated" } else { "Created" };
+                self.status = Some((format!("{verb} pinned memory."), false));
+                // Return to list and refresh it.
+                self.open_user_memory_list();
+            }
+            Err(err) => {
+                if let ViewMode::UserMemoryEditor(ref mut editor) = self.mode {
+                    editor.error = Some(format!("Save failed: {err}"));
+                }
+            }
+        }
+    }
+
+    /// Delete a user memory by ID.
+    pub(super) fn delete_user_memory_by_id(&mut self, id: &str) {
+        match code_core::delete_user_memory_sync(&self.code_home, id) {
+            Ok(true) => {
+                self.status = Some(("Deleted pinned memory.".to_owned(), false));
+                if let ViewMode::UserMemoryList(ref mut list) = self.mode {
+                    list.entries.retain(|m| m.id != id);
+                    list.pending_delete = None;
+                    let mut state = list.list_state.get();
+                    state.clamp_selection(list.entries.len());
+                    list.list_state.set(state);
+                    if list.entries.is_empty() {
+                        self.mode = ViewMode::Main;
+                    }
+                }
+            }
+            Ok(false) => {
+                self.status = Some(("Memory already deleted.".to_owned(), true));
+                if let ViewMode::UserMemoryList(ref mut list) = self.mode {
+                    list.pending_delete = None;
+                }
+            }
+            Err(err) => {
+                self.status = Some((format!("Delete failed: {err}"), true));
+                if let ViewMode::UserMemoryList(ref mut list) = self.mode {
+                    list.pending_delete = None;
+                }
+            }
+        }
+    }
+}
+
+/// Generate a short hex ID (first 16 chars of a random uuid-like string).
+fn uuid_v4_hex() -> String {
+    use std::time::{SystemTime, UNIX_EPOCH};
+    let nanos = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_nanos();
+    let pid = std::process::id();
+    format!("{nanos:x}{pid:x}")
 }

@@ -299,6 +299,7 @@ impl MemoriesSettingsView {
                     self.open_edit_for(target);
                 }
             }
+            RowKind::ManageUserMemories => self.open_user_memory_list(),
             RowKind::ViewSummary => self.open_summary_viewer(),
             RowKind::ViewRawMemories => self.open_raw_viewer(),
             RowKind::ViewModelPrompt => self.open_model_prompt_viewer(),
@@ -616,11 +617,154 @@ impl MemoriesSettingsView {
             ViewMode::Edit { .. } => self.process_edit_key_event(key_event),
             ViewMode::TextViewer(_) => self.process_text_viewer_key_event(key_event),
             ViewMode::RolloutList(_) => self.process_rollout_list_key_event(key_event),
+            ViewMode::UserMemoryList(_) => self.process_user_memory_list_key_event(key_event),
+            ViewMode::UserMemoryEditor(_) => self.process_user_memory_editor_key_event(key_event),
             ViewMode::SearchInput { .. } => self.process_search_input_key_event(key_event),
             ViewMode::Transition => {
                 self.mode = ViewMode::Main;
                 false
             }
+        }
+    }
+
+    // ── User memory list key handling ───────────────────────────────────
+
+    fn process_user_memory_list_key_event(&mut self, key_event: KeyEvent) -> bool {
+        // Handle delete confirmation first.
+        if let ViewMode::UserMemoryList(ref mut list) = self.mode
+            && list.pending_delete.is_some()
+        {
+            if let KeyCode::Char('y' | 'Y') = key_event.code {
+                if let Some(id) = list.pending_delete.take() {
+                    self.delete_user_memory_by_id(&id);
+                }
+            } else {
+                list.pending_delete = None;
+            }
+            return true;
+        }
+
+        let ViewMode::UserMemoryList(ref list) = self.mode else {
+            return false;
+        };
+        let visible = list.viewport_rows.get().max(1);
+        let mut state = list.list_state.get();
+        let display_total = list.entries.len() + 1; // +1 for "Add new memory" row
+
+        match key_event.code {
+            KeyCode::Esc => {
+                self.mode = ViewMode::Main;
+                return true;
+            }
+            KeyCode::Up | KeyCode::Char('k') => {
+                state.move_up_wrap_visible(display_total, visible);
+            }
+            KeyCode::Down | KeyCode::Char('j') => {
+                state.move_down_wrap_visible(display_total, visible);
+            }
+            KeyCode::Home => {
+                state.home(display_total);
+            }
+            KeyCode::End => {
+                state.end(display_total, visible);
+            }
+            KeyCode::PageUp => {
+                state.page_up(display_total, visible);
+            }
+            KeyCode::PageDown => {
+                state.page_down(display_total, visible);
+            }
+            KeyCode::Enter | KeyCode::Char(' ') => {
+                let idx = state.selected_idx.unwrap_or(0).min(display_total.saturating_sub(1));
+                let ViewMode::UserMemoryList(list_state) =
+                    std::mem::replace(&mut self.mode, ViewMode::Transition)
+                else {
+                    return false;
+                };
+                if idx >= list_state.entries.len() {
+                    // "Add new memory" row
+                    self.open_user_memory_create(list_state);
+                } else {
+                    let memory = list_state.entries[idx].clone();
+                    self.open_user_memory_edit(list_state, &memory);
+                }
+                return true;
+            }
+            KeyCode::Char('n') => {
+                // Quick shortcut: 'n' = new memory
+                let ViewMode::UserMemoryList(list_state) =
+                    std::mem::replace(&mut self.mode, ViewMode::Transition)
+                else {
+                    return false;
+                };
+                self.open_user_memory_create(list_state);
+                return true;
+            }
+            KeyCode::Char('d') | KeyCode::Delete => {
+                let idx = state.selected_idx.unwrap_or(0).min(display_total.saturating_sub(1));
+                if let ViewMode::UserMemoryList(ref mut list) = self.mode
+                    && idx < list.entries.len()
+                {
+                    let id = list.entries[idx].id.clone();
+                    list.pending_delete = Some(id);
+                }
+                return true;
+            }
+            _ => return false,
+        }
+        state.ensure_visible(display_total, visible);
+        if let ViewMode::UserMemoryList(ref list) = self.mode {
+            list.list_state.set(state);
+        }
+        true
+    }
+
+    // ── User memory editor key handling ─────────────────────────────────
+
+    fn process_user_memory_editor_key_event(&mut self, key_event: KeyEvent) -> bool {
+        let ViewMode::UserMemoryEditor(ref mut editor) = self.mode else {
+            return false;
+        };
+
+        match key_event.code {
+            KeyCode::Esc => {
+                // Return to list, restoring parent state.
+                let ViewMode::UserMemoryEditor(editor) =
+                    std::mem::replace(&mut self.mode, ViewMode::Transition)
+                else {
+                    return false;
+                };
+                self.mode = ViewMode::UserMemoryList(editor.parent_list);
+                return true;
+            }
+            KeyCode::Tab | KeyCode::BackTab => {
+                editor.focus = match editor.focus {
+                    UserMemoryEditorFocus::Content => UserMemoryEditorFocus::Tags,
+                    UserMemoryEditorFocus::Tags => UserMemoryEditorFocus::Content,
+                };
+                editor.error = None;
+                return true;
+            }
+            KeyCode::Char('s') if key_event.modifiers.contains(KeyModifiers::CONTROL) => {
+                // Save
+                self.save_user_memory_editor();
+                return true;
+            }
+            KeyCode::Enter if key_event.modifiers.contains(KeyModifiers::CONTROL) => {
+                // Ctrl+Enter = save
+                self.save_user_memory_editor();
+                return true;
+            }
+            _ => {}
+        }
+
+        // Route to the focused field.
+        let ViewMode::UserMemoryEditor(ref mut editor) = self.mode else {
+            return false;
+        };
+        match editor.focus {
+            UserMemoryEditorFocus::Content => editor.content_field.handle_key(key_event),
+            UserMemoryEditorFocus::Tags => editor.tags_field.handle_key(key_event),
         }
     }
 }
