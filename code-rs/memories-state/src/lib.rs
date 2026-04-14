@@ -169,6 +169,15 @@ impl Stage1EpochProvenance {
         }
     }
 
+    /// Human-friendly label for display in the TUI.
+    pub fn display_label(self) -> &'static str {
+        match self {
+            Self::Derived => "auto-extracted",
+            Self::CatalogFallback => "catalog fallback",
+            Self::EmptyDerivationFallback => "empty-session fallback",
+        }
+    }
+
     fn from_str(value: &str) -> Self {
         match value {
             "catalog_fallback" => Self::CatalogFallback,

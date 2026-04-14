@@ -950,41 +950,55 @@ impl MemoriesSettingsView {
     pub(super) fn open_epoch_detail(&mut self, summary: &code_core::EpochSummary) {
         let mut lines = Vec::new();
 
-        // Header
-        lines.push(format!("Epoch #{} — {}", summary.id.epoch_index, summary.rollout_slug));
-        lines.push(format!("Thread: {}", summary.id.thread_id));
-        lines.push(format!("Provenance: {:?}", summary.provenance));
+        // Human-friendly header — rollout_slug is the readable session name.
+        let age = {
+            let dt = chrono::DateTime::from_timestamp(summary.source_updated_at, 0);
+            dt.map_or("unknown date".to_owned(), |d| d.format("%Y-%m-%d %H:%M UTC").to_string())
+        };
+        let provenance_label = summary.provenance.display_label();
+        lines.push(summary.rollout_slug.to_string());
+        lines.push(format!("Epoch #{} · {} · {}", summary.id.epoch_index, provenance_label, age));
         lines.push(String::new());
 
         // Context
         lines.push("── Context ──────────────────────────".to_owned());
-        lines.push(format!("  Workspace:  {}", summary.workspace_root.as_deref().unwrap_or("(none)")));
-        lines.push(format!("  Branch:     {}", summary.git_branch.as_deref().unwrap_or("(none)")));
-        lines.push(format!("  Directory:  {}", summary.cwd_display));
+        if let Some(ref ws) = summary.workspace_root {
+            lines.push(format!("  Workspace:  {ws}"));
+        }
+        if let Some(ref branch) = summary.git_branch {
+            lines.push(format!("  Branch:     {branch}"));
+        }
+        if !summary.cwd_display.is_empty() {
+            lines.push(format!("  Directory:  {}", summary.cwd_display));
+        }
+        if summary.workspace_root.is_none() && summary.git_branch.is_none() && summary.cwd_display.is_empty() {
+            lines.push("  (no context recorded)".to_owned());
+        }
         lines.push(String::new());
 
         // Tags & usage
         lines.push("── Tags & Usage ─────────────────────".to_owned());
         if summary.tags.is_empty() {
-            lines.push("  Tags:       (none)".to_owned());
+            lines.push("  Tags:       (none — refresh to auto-tag)".to_owned());
         } else {
             lines.push(format!("  Tags:       {}", summary.tags.iter().map(|t| format!("#{t}")).collect::<Vec<_>>().join("  ")));
         }
-        lines.push(format!("  Used:       {}×", summary.usage_count));
-        let dt = chrono::DateTime::from_timestamp(summary.source_updated_at, 0);
-        if let Some(dt) = dt {
-            lines.push(format!("  Updated:    {}", dt.format("%Y-%m-%d %H:%M UTC")));
-        }
+        lines.push(format!("  Prompt use: {}×", summary.usage_count));
         lines.push(String::new());
 
         // Preview
         lines.push("── Content Preview ──────────────────".to_owned());
-        for line in summary.preview.lines() {
-            lines.push(format!("  {line}"));
-        }
         if summary.preview.is_empty() {
-            lines.push("  (empty preview)".to_owned());
+            lines.push("  (empty — this epoch has no extracted content)".to_owned());
+        } else {
+            for line in summary.preview.lines() {
+                lines.push(format!("  {line}"));
+            }
         }
+
+        // Internal ID (collapsed at bottom for debugging)
+        lines.push(String::new());
+        lines.push(format!("Session: {}  Epoch: {}", summary.id.thread_id, summary.id.epoch_index));
 
         self.mode = ViewMode::TextViewer(Box::new(TextViewerState {
             title: " Epoch Detail ",
