@@ -367,6 +367,85 @@ fn snippet_from_rollout_item(item: &RolloutItem) -> Option<String> {
     }
 }
 
+/// Infer freeform tags from epoch context using simple keyword heuristics.
+///
+/// Signals used: user snippet text, cwd, git branch, workspace root.
+/// Tags are lowercase, deduplicated, and capped at 8 per epoch.
+fn infer_tags_from_epoch(
+    snippet: &str,
+    cwd_display: &str,
+    git_branch: Option<&str>,
+    workspace_root: Option<&str>,
+) -> Vec<String> {
+    let mut tags = Vec::new();
+    let snippet_lower = snippet.to_lowercase();
+
+    // ── Content-based tags from user snippet ────────────────────────
+    static KEYWORD_TAGS: &[(&[&str], &str)] = &[
+        (&["test", "tests", "testing", "#[test]", "#[cfg(test)]"], "testing"),
+        (&["bug", "fix", "debug", "error", "panic", "crash"], "debugging"),
+        (&["refactor", "cleanup", "clean up", "deduplicate", "dedup"], "refactoring"),
+        (&["style", "format", "lint", "clippy", "rustfmt"], "style"),
+        (&["deploy", "release", "publish", "ci", "cd", "pipeline"], "deployment"),
+        (&["doc", "docs", "documentation", "readme", "comment"], "documentation"),
+        (&["perf", "performance", "optimize", "benchmark", "fast"], "performance"),
+        (&["security", "auth", "login", "token", "secret", "credential"], "security"),
+        (&["config", "configuration", "settings", "env", "environment"], "configuration"),
+        (&["migration", "migrate", "schema", "database", "sql", "sqlite"], "database"),
+        (&["api", "endpoint", "route", "handler", "request", "response"], "api"),
+        (&["ui", "tui", "render", "widget", "layout", "display"], "ui"),
+        (&["build", "compile", "cargo", "makefile", "bazel"], "build"),
+    ];
+
+    for &(keywords, tag) in KEYWORD_TAGS {
+        if keywords.iter().any(|kw| snippet_lower.contains(kw)) {
+            tags.push(tag.to_string());
+        }
+    }
+
+    // ── Context tags from workspace/branch ──────────────────────────
+    if let Some(branch) = git_branch {
+        let branch_lower = branch.to_lowercase();
+        if branch_lower != "main" && branch_lower != "master" {
+            // Extract meaningful prefix from branch name (e.g. "feat/foo" → "feat")
+            if let Some(prefix) = branch_lower.split('/').next() {
+                match prefix {
+                    "feat" | "feature" => { if !tags.contains(&"feature".to_string()) { tags.push("feature".to_string()); } }
+                    "fix" | "bugfix" | "hotfix" => { if !tags.contains(&"debugging".to_string()) { tags.push("debugging".to_string()); } }
+                    "docs" | "doc" => { if !tags.contains(&"documentation".to_string()) { tags.push("documentation".to_string()); } }
+                    "test" | "tests" => { if !tags.contains(&"testing".to_string()) { tags.push("testing".to_string()); } }
+                    "refactor" => { if !tags.contains(&"refactoring".to_string()) { tags.push("refactoring".to_string()); } }
+                    "ci" | "cd" => { if !tags.contains(&"deployment".to_string()) { tags.push("deployment".to_string()); } }
+                    _ => {}
+                }
+            }
+        }
+    }
+
+    // ── Language/ecosystem inference from all available context ─────
+    let lang_context = format!("{cwd_display}/{}/{snippet_lower}", workspace_root.unwrap_or(""));
+    static LANG_INDICATORS: &[(&[&str], &str)] = &[
+        (&["cargo.toml", "-rs/", "-rs\"", ".rs"], "rust"),
+        (&["package.json", "node_modules", ".js", ".ts"], "javascript"),
+        (&["requirements.txt", "pyproject.toml", ".py"], "python"),
+        (&[".go", "go.mod"], "go"),
+        (&[".java", "pom.xml", "build.gradle"], "java"),
+        (&[".swift", "package.swift"], "swift"),
+    ];
+    for &(indicators, tag) in LANG_INDICATORS {
+        if indicators.iter().any(|ind| lang_context.contains(ind)) {
+            tags.push(tag.to_string());
+            break; // only one language tag from path
+        }
+    }
+
+    // Deduplicate and cap
+    tags.sort();
+    tags.dedup();
+    tags.truncate(8);
+    tags
+}
+
 fn finalize_epoch(
     claim: &Stage1Claim,
     epoch_index: i64,
@@ -426,7 +505,12 @@ fn finalize_epoch(
         raw_memory,
         rollout_summary,
         rollout_slug,
-        tags: Vec::new(),
+        tags: infer_tags_from_epoch(
+            &snippet,
+            &epoch.cwd_display,
+            epoch.git_branch.as_deref(),
+            epoch.context.workspace_root.as_deref(),
+        ),
     }
 }
 
@@ -2167,5 +2251,62 @@ mod tests {
                 .expect("read active summary after failure"),
             "stable summary"
         );
+    }
+
+    #[test]
+    fn infer_tags_detects_keywords_from_snippet() {
+        let tags = super::infer_tags_from_epoch(
+            "fix the test error in the build",
+            "~/project",
+            Some("main"),
+            Some("/tmp/project"),
+        );
+        assert!(tags.contains(&"debugging".to_string()), "expected 'debugging': {tags:?}");
+        assert!(tags.contains(&"testing".to_string()), "expected 'testing': {tags:?}");
+        assert!(tags.contains(&"build".to_string()), "expected 'build': {tags:?}");
+    }
+
+    #[test]
+    fn infer_tags_detects_branch_prefix() {
+        let tags = super::infer_tags_from_epoch(
+            "update something",
+            "~/project",
+            Some("feat/new-widget"),
+            None,
+        );
+        assert!(tags.contains(&"feature".to_string()), "expected 'feature': {tags:?}");
+    }
+
+    #[test]
+    fn infer_tags_detects_rust_from_path() {
+        let tags = super::infer_tags_from_epoch(
+            "update Cargo.toml",
+            "~/code-rs/core",
+            Some("main"),
+            Some("/Users/me/code-rs"),
+        );
+        assert!(tags.contains(&"rust".to_string()), "expected 'rust': {tags:?}");
+    }
+
+    #[test]
+    fn infer_tags_caps_at_eight() {
+        let tags = super::infer_tags_from_epoch(
+            "test fix refactor style deploy doc perf security config migrate api ui build",
+            "~/proj",
+            Some("feat/x"),
+            None,
+        );
+        assert!(tags.len() <= 8, "expected at most 8 tags, got {}", tags.len());
+    }
+
+    #[test]
+    fn infer_tags_empty_for_no_signal() {
+        let tags = super::infer_tags_from_epoch(
+            "(no user snippet)",
+            "~/unknown",
+            None,
+            None,
+        );
+        assert!(tags.is_empty(), "expected empty tags: {tags:?}");
     }
 }
