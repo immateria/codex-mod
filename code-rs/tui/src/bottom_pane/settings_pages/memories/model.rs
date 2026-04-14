@@ -949,28 +949,45 @@ impl MemoriesSettingsView {
     /// Open a text viewer showing the full epoch detail.
     pub(super) fn open_epoch_detail(&mut self, summary: &code_core::EpochSummary) {
         let mut lines = Vec::new();
-        lines.push(format!("Epoch: {}#{}", summary.id.thread_id, summary.id.epoch_index));
+
+        // Header
+        lines.push(format!("Epoch #{} — {}", summary.id.epoch_index, summary.rollout_slug));
+        lines.push(format!("Thread: {}", summary.id.thread_id));
         lines.push(format!("Provenance: {:?}", summary.provenance));
-        lines.push(format!("Workspace: {}", summary.workspace_root.as_deref().unwrap_or("(none)")));
-        lines.push(format!("Branch: {}", summary.git_branch.as_deref().unwrap_or("(none)")));
-        lines.push(format!("Directory: {}", summary.cwd_display));
-        lines.push(format!("Rollout: {}", summary.rollout_slug));
-        if !summary.tags.is_empty() {
-            lines.push(format!("Tags: {}", summary.tags.join(", ")));
+        lines.push(String::new());
+
+        // Context
+        lines.push("── Context ──────────────────────────".to_owned());
+        lines.push(format!("  Workspace:  {}", summary.workspace_root.as_deref().unwrap_or("(none)")));
+        lines.push(format!("  Branch:     {}", summary.git_branch.as_deref().unwrap_or("(none)")));
+        lines.push(format!("  Directory:  {}", summary.cwd_display));
+        lines.push(String::new());
+
+        // Tags & usage
+        lines.push("── Tags & Usage ─────────────────────".to_owned());
+        if summary.tags.is_empty() {
+            lines.push("  Tags:       (none)".to_owned());
+        } else {
+            lines.push(format!("  Tags:       {}", summary.tags.iter().map(|t| format!("#{t}")).collect::<Vec<_>>().join("  ")));
         }
-        lines.push(format!("Usage count: {}", summary.usage_count));
+        lines.push(format!("  Used:       {}×", summary.usage_count));
         let dt = chrono::DateTime::from_timestamp(summary.source_updated_at, 0);
         if let Some(dt) = dt {
-            lines.push(format!("Last updated: {}", dt.format("%Y-%m-%d %H:%M UTC")));
+            lines.push(format!("  Updated:    {}", dt.format("%Y-%m-%d %H:%M UTC")));
         }
         lines.push(String::new());
-        lines.push("── Preview ──".to_owned());
+
+        // Preview
+        lines.push("── Content Preview ──────────────────".to_owned());
         for line in summary.preview.lines() {
-            lines.push(line.to_owned());
+            lines.push(format!("  {line}"));
+        }
+        if summary.preview.is_empty() {
+            lines.push("  (empty preview)".to_owned());
         }
 
         self.mode = ViewMode::TextViewer(Box::new(TextViewerState {
-            title: "Epoch Detail",
+            title: " Epoch Detail ",
             lines,
             scroll_top: Cell::new(0),
             viewport_rows: Cell::new(DEFAULT_VISIBLE_ROWS),

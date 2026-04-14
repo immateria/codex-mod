@@ -470,16 +470,14 @@ impl MemoriesSettingsView {
                         detail,
                         Style::default().fg(colors::text_dim()),
                     ))
+                    .with_selected_hint("Enter to edit · d delete")
             })
             .collect();
 
         // "Add new memory" entry at the end.
         rows.push(
             SettingsMenuRow::new(list.entries.len(), "+ Add new pinned memory".to_owned())
-                .with_detail(crate::bottom_pane::settings_ui::rows::StyledText::new(
-                    String::new(),
-                    Style::default().fg(colors::text_dim()),
-                )),
+                .with_selected_hint("Enter or n"),
         );
         rows
     }
@@ -627,15 +625,13 @@ impl MemoriesSettingsView {
     // ── Tag browser ─────────────────────────────────────────────────────
 
     pub(super) fn tag_browser_rows(browser: &TagBrowserState) -> Vec<SettingsMenuRow<'static, usize>> {
-        let now = Utc::now();
-        let _ = now; // suppress unused if needed
-
         browser
             .tags
             .iter()
             .enumerate()
             .map(|(idx, tc)| {
-                let label = tc.tag.clone();
+                let total = tc.epoch_count + tc.user_count;
+                let label = format!("#{}", tc.tag);
                 let mut parts = Vec::new();
                 if tc.epoch_count > 0 {
                     parts.push(format!(
@@ -652,10 +648,15 @@ impl MemoriesSettingsView {
                 }
                 let detail = parts.join(" · ");
                 SettingsMenuRow::new(idx, label)
+                    .with_value(crate::bottom_pane::settings_ui::rows::StyledText::new(
+                        format!("{total}"),
+                        Style::default().fg(colors::function()),
+                    ))
                     .with_detail(crate::bottom_pane::settings_ui::rows::StyledText::new(
                         detail,
                         Style::default().fg(colors::text_dim()),
                     ))
+                    .with_selected_hint("Enter to filter")
             })
             .collect()
     }
@@ -664,21 +665,39 @@ impl MemoriesSettingsView {
         let total = browser.tags.len();
         let dim = Style::default().fg(colors::text_dim());
 
-        let header_text = if total == 0 {
-            "No tags found. Tags are auto-generated when epochs are extracted.".to_owned()
+        let header = if total == 0 {
+            vec![
+                Line::from(Span::styled(
+                    "No tags found yet.",
+                    Style::default().fg(colors::warning()),
+                )),
+                Line::from(Span::styled(
+                    "Tags are auto-generated when session epochs are extracted.",
+                    dim,
+                )),
+                Line::from(Span::styled(
+                    "Run a session, then Refresh artifacts to populate tags.",
+                    dim,
+                )),
+            ]
         } else {
-            format!(
-                "{total} unique tag{} across epochs and pinned memories",
-                if total == 1 { "" } else { "s" }
-            )
+            let total_epochs: usize = browser.tags.iter().map(|t| t.epoch_count).sum();
+            let total_pinned: usize = browser.tags.iter().map(|t| t.user_count).sum();
+            let mut summary = format!("{total} tag{}", if total == 1 { "" } else { "s" });
+            if total_epochs > 0 {
+                summary.push_str(&format!(" across {total_epochs} epoch references"));
+            }
+            if total_pinned > 0 {
+                summary.push_str(&format!(", {total_pinned} pinned memory references"));
+            }
+            vec![Line::from(Span::styled(summary, dim))]
         };
-        let header = vec![Line::from(Span::styled(header_text, dim))];
 
-        let mut hints: Vec<KeyHint<'static>> = vec![
+        let hints: Vec<KeyHint<'static>> = vec![
             hint_nav(" navigate"),
-            hint_enter(" filter epochs"),
+            hint_enter(" filter epochs by tag"),
+            hint_esc(" back"),
         ];
-        hints.push(hint_esc(" back"));
         let footer = vec![shortcut_line(&hints)];
 
         let state = browser.list_state.get();
@@ -703,43 +722,58 @@ impl MemoriesSettingsView {
             .iter()
             .enumerate()
             .map(|(idx, ep)| {
-                // Label: first line of preview, truncated
+                // Label: first line of preview, truncated to 80 chars for readability
                 let first_line: String = ep
                     .preview
                     .lines()
                     .next()
-                    .unwrap_or("(empty)")
+                    .unwrap_or("(empty epoch)")
                     .chars()
-                    .take(60)
+                    .take(80)
                     .collect();
-                let label = if ep.preview.lines().count() > 1 || ep.preview.len() > 60 {
+                let label = if ep.preview.lines().count() > 1 || ep.preview.len() > 80 {
                     format!("{first_line}…")
                 } else {
                     first_line
                 };
 
-                // Detail: workspace + branch + tags + age
+                // Detail: age + workspace:branch + tags + usage
                 let mut parts = Vec::new();
-                if let Some(ref ws) = ep.workspace_root {
-                    // Show just the last path component
-                    let short = std::path::Path::new(ws)
-                        .file_name()
-                        .map(|s| s.to_string_lossy().into_owned())
-                        .unwrap_or_else(|| ws.clone());
-                    parts.push(short);
-                }
-                if let Some(ref branch) = ep.git_branch {
-                    parts.push(format!("⎇ {branch}"));
-                }
-                if !ep.tags.is_empty() {
-                    parts.push(format!("[{}]", ep.tags.join(", ")));
-                }
+
                 let age = {
                     let dt = chrono::DateTime::from_timestamp(ep.source_updated_at, 0)
                         .unwrap_or_else(Utc::now);
                     format_age(dt, now)
                 };
                 parts.push(age);
+
+                // Compact workspace:branch display
+                let location = match (ep.workspace_root.as_ref(), ep.git_branch.as_ref()) {
+                    (Some(ws), Some(branch)) => {
+                        let short = std::path::Path::new(ws)
+                            .file_name()
+                            .map(|s| s.to_string_lossy().into_owned())
+                            .unwrap_or_else(|| ws.clone());
+                        Some(format!("{short}⎇{branch}"))
+                    }
+                    (Some(ws), None) => {
+                        let short = std::path::Path::new(ws)
+                            .file_name()
+                            .map(|s| s.to_string_lossy().into_owned())
+                            .unwrap_or_else(|| ws.clone());
+                        Some(short)
+                    }
+                    (None, Some(branch)) => Some(format!("⎇{branch}")),
+                    (None, None) => None,
+                };
+                if let Some(loc) = location {
+                    parts.push(loc);
+                }
+
+                if !ep.tags.is_empty() {
+                    let tags: String = ep.tags.iter().map(|t| format!("#{t}")).collect::<Vec<_>>().join(" ");
+                    parts.push(tags);
+                }
 
                 if ep.usage_count > 0 {
                     parts.push(format!("used {}×", ep.usage_count));
@@ -751,6 +785,7 @@ impl MemoriesSettingsView {
                         detail,
                         Style::default().fg(colors::text_dim()),
                     ))
+                    .with_selected_hint("Enter to view")
             })
             .collect()
     }
@@ -759,30 +794,59 @@ impl MemoriesSettingsView {
         let total = browser.epochs.len();
         let dim = Style::default().fg(colors::text_dim());
 
-        let header_text = if let Some(ref tag) = browser.filter_tag {
+        let header = if let Some(ref tag) = browser.filter_tag {
             if total == 0 {
-                format!("No epochs tagged \"{tag}\"")
+                vec![
+                    Line::from(Span::styled(
+                        format!("No epochs tagged #{tag}"),
+                        Style::default().fg(colors::warning()),
+                    )),
+                    Line::from(Span::styled(
+                        "This tag may only exist on pinned memories.",
+                        dim,
+                    )),
+                ]
             } else {
-                format!(
-                    "{total} epoch{} tagged \"{tag}\"",
-                    if total == 1 { "" } else { "s" }
-                )
+                vec![Line::from(Span::styled(
+                    format!(
+                        "{total} epoch{} tagged #{tag}",
+                        if total == 1 { "" } else { "s" }
+                    ),
+                    dim,
+                ))]
             }
         } else if total == 0 {
-            "No epochs extracted yet. Run a session and wait for extraction.".to_owned()
+            vec![
+                Line::from(Span::styled(
+                    "No epochs extracted yet.",
+                    Style::default().fg(colors::warning()),
+                )),
+                Line::from(Span::styled(
+                    "Run a session, then Refresh artifacts to extract memory epochs.",
+                    dim,
+                )),
+            ]
         } else {
-            format!(
-                "{total} auto-extracted epoch{} — the LLM's memory building blocks",
-                if total == 1 { "" } else { "s" }
-            )
+            let used: usize = browser.epochs.iter().filter(|e| e.usage_count > 0).count();
+            let summary = if used > 0 {
+                format!(
+                    "{total} epoch{} ({used} used in prompts)",
+                    if total == 1 { "" } else { "s" }
+                )
+            } else {
+                format!(
+                    "{total} auto-extracted epoch{}",
+                    if total == 1 { "" } else { "s" }
+                )
+            };
+            vec![Line::from(Span::styled(summary, dim))]
         };
-        let header = vec![Line::from(Span::styled(header_text, dim))];
 
         let hints: Vec<KeyHint<'static>> = vec![
             hint_nav(" navigate"),
-            hint_enter(" view detail"),
+            hint_enter(" view full content"),
             hint_esc(if browser.filter_tag.is_some() {
-                " tags"
+                " back to tags"
             } else {
                 " back"
             }),

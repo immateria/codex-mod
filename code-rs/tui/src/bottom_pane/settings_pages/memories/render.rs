@@ -29,6 +29,40 @@ impl MemoriesSettingsView {
                         },
                     ));
                 }
+                // Show contextual hint when selected (consistent with other settings pages).
+                if is_selected {
+                    let lr = crate::icons::nav_left_right();
+                    let hint: std::borrow::Cow<'_, str> = match row {
+                        RowKind::Scope => format!("({lr} to cycle)").into(),
+                        RowKind::GenerateMemories
+                        | RowKind::UseMemories
+                        | RowKind::SkipMcpOrWebSearch => format!("({lr} to toggle)").into(),
+                        RowKind::MaxRawMemories
+                        | RowKind::MaxRolloutAgeDays
+                        | RowKind::MaxRolloutsPerStartup
+                        | RowKind::MinRolloutIdleHours => "Enter to edit".into(),
+                        RowKind::ManageUserMemories => "Enter to manage".into(),
+                        RowKind::BrowseTags => "Enter to browse".into(),
+                        RowKind::BrowseEpochs => "Enter to browse".into(),
+                        RowKind::ViewSummary
+                        | RowKind::ViewRawMemories
+                        | RowKind::ViewModelPrompt
+                        | RowKind::ViewStatus => "Enter to view".into(),
+                        RowKind::BrowseRollouts => "Enter to browse".into(),
+                        RowKind::RefreshArtifacts
+                        | RowKind::ClearArtifacts => "Enter to run".into(),
+                        RowKind::OpenDirectory => "Enter to open".into(),
+                        RowKind::Apply => {
+                            if self.current_scope_dirty() {
+                                "Enter to save".into()
+                            } else {
+                                "No changes".into()
+                            }
+                        }
+                        RowKind::Close => "Enter/Esc".into(),
+                    };
+                    spec = spec.with_selected_hint(hint);
+                }
                 spec
             })
             .collect()
