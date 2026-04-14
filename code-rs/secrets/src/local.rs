@@ -1,9 +1,11 @@
 use std::collections::BTreeMap;
+use std::collections::HashMap;
 use std::fs;
 use std::io::Write;
 use std::path::Path;
 use std::path::PathBuf;
 use std::sync::Arc;
+use std::sync::LazyLock;
 use std::sync::Mutex;
 use std::sync::atomic::Ordering;
 use std::sync::atomic::compiler_fence;
@@ -34,6 +36,15 @@ use super::SecretsBackend;
 use super::compute_keyring_account;
 use super::keyring_service;
 
+/// Process-level passphrase cache keyed by canonical `code_home` path.
+///
+/// Prevents repeated macOS Keychain access dialogs when multiple
+/// `LocalSecretsBackend` or `SecretsManager` instances share the same
+/// `code_home`. The passphrase is loaded from the OS keyring at most once
+/// per process, then re-used for all subsequent decrypt/encrypt calls.
+static PASSPHRASE_CACHE: LazyLock<Mutex<HashMap<PathBuf, SecretString>>> =
+    LazyLock::new(|| Mutex::new(HashMap::new()));
+
 const SECRETS_VERSION: u8 = 1;
 const LOCAL_SECRETS_FILENAME: &str = "local.age";
 const LOCAL_PASSPHRASE_FILENAME: &str = "passphrase";
@@ -53,24 +64,10 @@ impl SecretsFile {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct LocalSecretsBackend {
     code_home: PathBuf,
     keyring_store: Arc<dyn KeyringStore>,
-    /// Cache the passphrase after first keyring load so we only prompt once
-    /// per process lifetime instead of once per operation.
-    cached_passphrase: Mutex<Option<SecretString>>,
-}
-
-impl Clone for LocalSecretsBackend {
-    fn clone(&self) -> Self {
-        let cached = self.cached_passphrase.lock().ok().and_then(|g| g.clone());
-        Self {
-            code_home: self.code_home.clone(),
-            keyring_store: Arc::clone(&self.keyring_store),
-            cached_passphrase: Mutex::new(cached),
-        }
-    }
 }
 
 impl LocalSecretsBackend {
@@ -78,7 +75,6 @@ impl LocalSecretsBackend {
         Self {
             code_home,
             keyring_store,
-            cached_passphrase: Mutex::new(None),
         }
     }
 
@@ -178,20 +174,24 @@ impl LocalSecretsBackend {
     }
 
     fn load_or_create_passphrase(&self) -> Result<SecretString> {
-        // Fast path: return cached passphrase without hitting the keyring.
-        if let Ok(guard) = self.cached_passphrase.lock()
-            && let Some(cached) = guard.as_ref()
+        let canonical_home = self
+            .code_home
+            .canonicalize()
+            .unwrap_or_else(|_| self.code_home.clone());
+
+        // Fast path: return from process-level cache without touching the keyring.
+        if let Ok(cache) = PASSPHRASE_CACHE.lock()
+            && let Some(cached) = cache.get(&canonical_home)
         {
             return Ok(cached.clone());
         }
 
-        let result = self.load_or_create_passphrase_impl(
-            cfg!(target_os = "android") || cfg!(test),
-        )?;
+        let result = self
+            .load_or_create_passphrase_impl(cfg!(target_os = "android") || cfg!(test))?;
 
-        // Cache for subsequent calls.
-        if let Ok(mut guard) = self.cached_passphrase.lock() {
-            *guard = Some(result.clone());
+        // Store so all future instances (and all scopes) skip the keyring.
+        if let Ok(mut cache) = PASSPHRASE_CACHE.lock() {
+            cache.entry(canonical_home).or_insert_with(|| result.clone());
         }
 
         Ok(result)
