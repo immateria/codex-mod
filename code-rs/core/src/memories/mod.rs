@@ -94,6 +94,8 @@ pub struct MemoriesDbStatus {
     pub empty_epoch_count: usize,
     /// Epochs extracted from real session data.
     pub derived_epoch_count: usize,
+    /// Number of user-created pinned memories.
+    pub user_memory_count: usize,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -321,6 +323,7 @@ fn empty_db_status() -> MemoriesDbStatus {
         last_artifact_build_at: None,
         empty_epoch_count: 0,
         derived_epoch_count: 0,
+        user_memory_count: 0,
     }
 }
 
@@ -663,6 +666,7 @@ async fn load_memories_db_status(code_home: &Path) -> io::Result<MemoriesDbStatu
         last_artifact_build_at: db.last_artifact_build_at,
         empty_epoch_count: db.empty_epoch_count,
         derived_epoch_count: db.derived_epoch_count,
+        user_memory_count: db.user_memory_count,
     };
     store_cached_db_status(code_home, status.clone());
     Ok(status)
@@ -887,6 +891,35 @@ fn read_optional_text_file(path: &Path) -> io::Result<Option<String>> {
     }
 }
 
+// ── User Memory CRUD wrappers ───────────────────────────────────────────
+
+pub use code_memories_state::UserMemory;
+
+pub async fn insert_user_memory(code_home: &Path, memory: &UserMemory) -> io::Result<()> {
+    let state = open_memories_state(code_home).await?;
+    state.insert_user_memory(memory).await.map_err(io::Error::other)
+}
+
+pub async fn list_user_memories(code_home: &Path) -> io::Result<Vec<UserMemory>> {
+    let state = open_memories_state(code_home).await?;
+    state.list_user_memories().await.map_err(io::Error::other)
+}
+
+pub async fn update_user_memory(code_home: &Path, memory: &UserMemory) -> io::Result<bool> {
+    let state = open_memories_state(code_home).await?;
+    state.update_user_memory(memory).await.map_err(io::Error::other)
+}
+
+pub async fn delete_user_memory(code_home: &Path, id: &str) -> io::Result<bool> {
+    let state = open_memories_state(code_home).await?;
+    state.delete_user_memory(id).await.map_err(io::Error::other)
+}
+
+pub async fn list_all_user_memory_tags(code_home: &Path) -> io::Result<Vec<String>> {
+    let state = open_memories_state(code_home).await?;
+    state.list_all_user_memory_tags().await.map_err(io::Error::other)
+}
+
 #[cfg(test)]
 mod tests {
     use std::io;
@@ -980,6 +1013,7 @@ mod tests {
             raw_memory: "raw memory".to_string(),
             rollout_summary: "rollout summary".to_string(),
             rollout_slug: "memory-slug".to_string(),
+            tags: Vec::new(),
         };
         state
             .replace_stage1_epochs(thread_id, std::slice::from_ref(&epoch))

@@ -204,6 +204,7 @@ mod tests {
             last_usage: Some(10),
             rollout_summary_path: "rollout_summaries/demo.md".to_string(),
             prompt_entry: "Manifest-selected memory".to_string(),
+            tags: Vec::new(),
         }]);
         tokio::fs::write(
             snapshot_dir.join("manifest.json"),
@@ -253,6 +254,7 @@ mod tests {
             last_usage: Some(10),
             rollout_summary_path: "rollout_summaries/demo.md".to_string(),
             prompt_entry: "Incompatible memory".to_string(),
+            tags: Vec::new(),
         }]);
         tokio::fs::write(
             snapshot_dir.join("manifest.json"),

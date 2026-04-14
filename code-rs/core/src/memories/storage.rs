@@ -426,6 +426,7 @@ fn finalize_epoch(
         raw_memory,
         rollout_summary,
         rollout_slug,
+        tags: Vec::new(),
     }
 }
 
@@ -772,6 +773,7 @@ fn render_manifest_from_refs(selected: &[&Stage1EpochRecord]) -> io::Result<Snap
                     epoch_rollout_summary_filename(record.id)
                 ),
                 prompt_entry: render_prompt_entry(record),
+                tags: record.tags.clone(),
             })
         })
         .collect::<io::Result<Vec<_>>>()?;
@@ -1898,6 +1900,7 @@ mod tests {
             rollout_slug: "demo-rollout".to_string(),
             usage_count: 0,
             last_usage: None,
+            tags: Vec::new(),
         };
 
         let summary = render_memory_summary(std::slice::from_ref(&record));

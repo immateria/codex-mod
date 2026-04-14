@@ -14,7 +14,7 @@ use tracing::warn;
 use uuid::Uuid;
 
 const APP_ID: i64 = 1_129_136_980;
-const STATE_SCHEMA_VERSION: i64 = 6;
+const STATE_SCHEMA_VERSION: i64 = 7;
 const ARTIFACT_STATE_KEY: &str = "global";
 const JOB_KIND_STAGE1: &str = "stage1";
 const JOB_KIND_ARTIFACTS: &str = "artifacts";
@@ -197,6 +197,8 @@ pub struct Stage1EpochInput {
     pub raw_memory: String,
     pub rollout_summary: String,
     pub rollout_slug: String,
+    /// Freeform tags for semantic classification (e.g. "style", "struct:User").
+    pub tags: Vec<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -223,6 +225,22 @@ pub struct Stage1EpochRecord {
     pub rollout_slug: String,
     pub usage_count: i64,
     pub last_usage: Option<i64>,
+    /// Freeform tags for semantic classification.
+    pub tags: Vec<String>,
+}
+
+/// A user-created pinned memory entry.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct UserMemory {
+    pub id: String,
+    pub content: String,
+    /// Freeform tags for semantic classification.
+    pub tags: Vec<String>,
+    /// Optional scope limiter (e.g. workspace path, project name).
+    pub scope: Option<String>,
+    pub created_at: i64,
+    pub updated_at: i64,
+    pub pinned: bool,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -246,6 +264,8 @@ pub struct MemoriesStateStatus {
     pub empty_epoch_count: usize,
     /// Number of epochs with provenance = 'derived'.
     pub derived_epoch_count: usize,
+    /// Number of user-created pinned memories.
+    pub user_memory_count: usize,
 }
 
 #[derive(Debug, Clone)]
@@ -285,6 +305,13 @@ trait MemoriesStore: Send + Sync {
     async fn fail_artifact_build_job(&self, token: &str, reason: &str) -> Result<()>;
     async fn record_epoch_usage(&self, epoch_ids: &[MemoryEpochId]) -> Result<()>;
     async fn status(&self, allowed_sources: &[SessionSource]) -> Result<MemoriesStateStatus>;
+
+    // User memory CRUD
+    async fn insert_user_memory(&self, memory: &UserMemory) -> Result<()>;
+    async fn list_user_memories(&self) -> Result<Vec<UserMemory>>;
+    async fn update_user_memory(&self, memory: &UserMemory) -> Result<bool>;
+    async fn delete_user_memory(&self, id: &str) -> Result<bool>;
+    async fn list_all_user_memory_tags(&self) -> Result<Vec<String>>;
 }
 
 struct SqliteMemoriesStore {
@@ -403,6 +430,26 @@ impl MemoriesState {
     pub async fn status(&self, allowed_sources: &[SessionSource]) -> Result<MemoriesStateStatus> {
         self.backend.status(allowed_sources).await
     }
+
+    pub async fn insert_user_memory(&self, memory: &UserMemory) -> Result<()> {
+        self.backend.insert_user_memory(memory).await
+    }
+
+    pub async fn list_user_memories(&self) -> Result<Vec<UserMemory>> {
+        self.backend.list_user_memories().await
+    }
+
+    pub async fn update_user_memory(&self, memory: &UserMemory) -> Result<bool> {
+        self.backend.update_user_memory(memory).await
+    }
+
+    pub async fn delete_user_memory(&self, id: &str) -> Result<bool> {
+        self.backend.delete_user_memory(id).await
+    }
+
+    pub async fn list_all_user_memory_tags(&self) -> Result<Vec<String>> {
+        self.backend.list_all_user_memory_tags().await
+    }
 }
 
 fn db_path(code_home: &Path) -> PathBuf {
@@ -419,31 +466,39 @@ async fn apply_migrations(pool: &SqlitePool) -> Result<()> {
         .await?;
 
     match current_version {
-        0 => create_schema_v6(&mut tx).await?,
+        0 => create_schema_v7(&mut tx).await?,
         1 => {
             migrate_v1_to_v2(&mut tx).await?;
             migrate_v2_to_v3(&mut tx).await?;
             migrate_v3_to_v4(&mut tx).await?;
             migrate_v4_to_v5(&mut tx).await?;
             migrate_v5_to_v6(&mut tx).await?;
+            migrate_v6_to_v7(&mut tx).await?;
         }
         2 => {
             migrate_v2_to_v3(&mut tx).await?;
             migrate_v3_to_v4(&mut tx).await?;
             migrate_v4_to_v5(&mut tx).await?;
             migrate_v5_to_v6(&mut tx).await?;
+            migrate_v6_to_v7(&mut tx).await?;
         }
         3 => {
             migrate_v3_to_v4(&mut tx).await?;
             migrate_v4_to_v5(&mut tx).await?;
             migrate_v5_to_v6(&mut tx).await?;
+            migrate_v6_to_v7(&mut tx).await?;
         }
         4 => {
             migrate_v4_to_v5(&mut tx).await?;
             migrate_v5_to_v6(&mut tx).await?;
+            migrate_v6_to_v7(&mut tx).await?;
         }
-        5 => migrate_v5_to_v6(&mut tx).await?,
-        6 => {}
+        5 => {
+            migrate_v5_to_v6(&mut tx).await?;
+            migrate_v6_to_v7(&mut tx).await?;
+        }
+        6 => migrate_v6_to_v7(&mut tx).await?,
+        7 => {}
         version => {
             return Err(anyhow::anyhow!(
                 "unsupported memories sqlite schema version {version}"
@@ -463,7 +518,7 @@ async fn apply_migrations(pool: &SqlitePool) -> Result<()> {
     Ok(())
 }
 
-async fn create_schema_v6(tx: &mut sqlx::Transaction<'_, Sqlite>) -> Result<()> {
+async fn create_schema_v7(tx: &mut sqlx::Transaction<'_, Sqlite>) -> Result<()> {
     tx.execute(sqlx::query(
         "
 CREATE TABLE IF NOT EXISTS memory_threads (
@@ -508,8 +563,23 @@ CREATE TABLE IF NOT EXISTS stage1_epochs (
     rollout_slug TEXT NOT NULL,
     usage_count INTEGER NOT NULL DEFAULT 0,
     last_usage INTEGER,
+    tags TEXT NOT NULL DEFAULT '[]',
     PRIMARY KEY(thread_id, epoch_index),
     FOREIGN KEY(thread_id) REFERENCES memory_threads(thread_id) ON DELETE CASCADE
+)
+        ",
+    ))
+    .await?;
+    tx.execute(sqlx::query(
+        "
+CREATE TABLE IF NOT EXISTS user_memories (
+    id TEXT PRIMARY KEY,
+    content TEXT NOT NULL,
+    tags TEXT NOT NULL DEFAULT '[]',
+    scope TEXT,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL,
+    pinned INTEGER NOT NULL DEFAULT 1
 )
         ",
     ))
@@ -584,6 +654,30 @@ async fn migrate_v5_to_v6(tx: &mut sqlx::Transaction<'_, Sqlite>) -> Result<()> 
     .await?;
     tx.execute(sqlx::query(
         "ALTER TABLE memory_jobs ADD COLUMN terminal_failed_at INTEGER",
+    ))
+    .await?;
+    Ok(())
+}
+
+async fn migrate_v6_to_v7(tx: &mut sqlx::Transaction<'_, Sqlite>) -> Result<()> {
+    // Add tags column to existing stage1_epochs table.
+    tx.execute(sqlx::query(
+        "ALTER TABLE stage1_epochs ADD COLUMN tags TEXT NOT NULL DEFAULT '[]'",
+    ))
+    .await?;
+    // Create user_memories table for pinned/user-created memories.
+    tx.execute(sqlx::query(
+        "
+CREATE TABLE IF NOT EXISTS user_memories (
+    id TEXT PRIMARY KEY,
+    content TEXT NOT NULL,
+    tags TEXT NOT NULL DEFAULT '[]',
+    scope TEXT,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL,
+    pinned INTEGER NOT NULL DEFAULT 1
+)
+        ",
     ))
     .await?;
     Ok(())
@@ -845,6 +939,7 @@ struct PersistedEpochRow {
     rollout_slug: String,
     usage_count: i64,
     last_usage: Option<i64>,
+    tags: Vec<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -889,6 +984,7 @@ impl PersistedEpochRow {
             && self.raw_memory == input.raw_memory
             && self.rollout_summary == input.rollout_summary
             && self.rollout_slug == input.rollout_slug
+            && self.tags == input.tags
     }
 }
 
@@ -931,7 +1027,8 @@ SELECT
     rollout_summary,
     rollout_slug,
     usage_count,
-    last_usage
+    last_usage,
+    tags
 FROM stage1_epochs
 WHERE thread_id = ?
 ORDER BY epoch_index ASC
@@ -944,6 +1041,8 @@ ORDER BY epoch_index ASC
 }
 
 fn persisted_epoch_from_row(row: sqlx::sqlite::SqliteRow) -> Result<PersistedEpochRow> {
+    let tags_json: String = row.try_get("tags").unwrap_or_else(|_| "[]".to_string());
+    let tags: Vec<String> = serde_json::from_str(&tags_json).unwrap_or_default();
     Ok(PersistedEpochRow {
         id: MemoryEpochId {
             thread_id: Uuid::parse_str(&row.try_get::<String, _>("thread_id")?)?,
@@ -967,6 +1066,7 @@ fn persisted_epoch_from_row(row: sqlx::sqlite::SqliteRow) -> Result<PersistedEpo
         rollout_slug: row.try_get("rollout_slug")?,
         usage_count: row.try_get("usage_count")?,
         last_usage: row.try_get("last_usage")?,
+        tags,
     })
 }
 
@@ -1244,8 +1344,8 @@ INSERT INTO stage1_epochs (
     thread_id, epoch_index, provenance, source_updated_at, generated_at, epoch_start_at, epoch_end_at,
     epoch_start_line, epoch_end_line, platform_family, shell_style, shell_program,
     workspace_root, cwd_display, git_branch, raw_memory, rollout_summary, rollout_slug,
-    usage_count, last_usage
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    usage_count, last_usage, tags
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     ",
                 )
                 .bind(epoch.id.thread_id.to_string())
@@ -1268,6 +1368,7 @@ INSERT INTO stage1_epochs (
                 .bind(&epoch.rollout_slug)
                 .bind(usage_count)
                 .bind(last_usage)
+                .bind(serde_json::to_string(&epoch.tags).unwrap_or_else(|_| "[]".to_string()))
                 .execute(&mut *tx)
                 .await?;
             }
@@ -1557,6 +1658,9 @@ WHERE memory_jobs.lease_until IS NULL OR memory_jobs.lease_until < ? OR memory_j
         )
         .fetch_one(&self.pool)
         .await?;
+        let user_memory_count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM user_memories")
+            .fetch_one(&self.pool)
+            .await?;
 
         let mut running_query = QueryBuilder::<Sqlite>::new(
             "
@@ -1706,11 +1810,88 @@ WHERE mj.kind = ",
             last_artifact_build_at: as_iso(last_artifact_build_at),
             empty_epoch_count: empty_epoch_count as usize,
             derived_epoch_count: derived_epoch_count as usize,
+            user_memory_count: user_memory_count as usize,
         })
+    }
+
+    async fn insert_user_memory(&self, memory: &UserMemory) -> Result<()> {
+        let tags_json = serde_json::to_string(&memory.tags).unwrap_or_else(|_| "[]".to_string());
+        sqlx::query(
+            "INSERT INTO user_memories (id, content, tags, scope, created_at, updated_at, pinned) VALUES (?, ?, ?, ?, ?, ?, ?)",
+        )
+        .bind(&memory.id)
+        .bind(&memory.content)
+        .bind(&tags_json)
+        .bind(memory.scope.as_deref())
+        .bind(memory.created_at)
+        .bind(memory.updated_at)
+        .bind(memory.pinned as i64)
+        .execute(&self.pool)
+        .await?;
+        Ok(())
+    }
+
+    async fn list_user_memories(&self) -> Result<Vec<UserMemory>> {
+        let rows = sqlx::query(
+            "SELECT id, content, tags, scope, created_at, updated_at, pinned FROM user_memories ORDER BY created_at DESC",
+        )
+        .fetch_all(&self.pool)
+        .await?;
+        let mut memories = Vec::with_capacity(rows.len());
+        for row in rows {
+            memories.push(user_memory_from_row(row)?);
+        }
+        Ok(memories)
+    }
+
+    async fn update_user_memory(&self, memory: &UserMemory) -> Result<bool> {
+        let tags_json = serde_json::to_string(&memory.tags).unwrap_or_else(|_| "[]".to_string());
+        let updated = sqlx::query(
+            "UPDATE user_memories SET content = ?, tags = ?, scope = ?, updated_at = ?, pinned = ? WHERE id = ?",
+        )
+        .bind(&memory.content)
+        .bind(&tags_json)
+        .bind(memory.scope.as_deref())
+        .bind(memory.updated_at)
+        .bind(memory.pinned as i64)
+        .bind(&memory.id)
+        .execute(&self.pool)
+        .await?
+        .rows_affected();
+        Ok(updated > 0)
+    }
+
+    async fn delete_user_memory(&self, id: &str) -> Result<bool> {
+        let deleted = sqlx::query("DELETE FROM user_memories WHERE id = ?")
+            .bind(id)
+            .execute(&self.pool)
+            .await?
+            .rows_affected();
+        Ok(deleted > 0)
+    }
+
+    async fn list_all_user_memory_tags(&self) -> Result<Vec<String>> {
+        let rows: Vec<(String,)> = sqlx::query_as("SELECT tags FROM user_memories")
+            .fetch_all(&self.pool)
+            .await?;
+        let mut all_tags = std::collections::BTreeSet::new();
+        for (tags_json,) in rows {
+            if let Ok(tags) = serde_json::from_str::<Vec<String>>(&tags_json) {
+                for tag in tags {
+                    let normalized = tag.trim().to_lowercase();
+                    if !normalized.is_empty() {
+                        all_tags.insert(normalized);
+                    }
+                }
+            }
+        }
+        Ok(all_tags.into_iter().collect())
     }
 }
 
 fn stage1_epoch_record_from_row(row: sqlx::sqlite::SqliteRow) -> Result<Stage1EpochRecord> {
+    let tags_json: String = row.try_get("tags").unwrap_or_else(|_| "[]".to_string());
+    let tags: Vec<String> = serde_json::from_str(&tags_json).unwrap_or_default();
     Ok(Stage1EpochRecord {
         id: MemoryEpochId {
             thread_id: Uuid::parse_str(&row.try_get::<String, _>("thread_id")?)?,
@@ -1737,6 +1918,21 @@ fn stage1_epoch_record_from_row(row: sqlx::sqlite::SqliteRow) -> Result<Stage1Ep
         rollout_slug: row.try_get("rollout_slug")?,
         usage_count: row.try_get("usage_count")?,
         last_usage: row.try_get("last_usage")?,
+        tags,
+    })
+}
+
+fn user_memory_from_row(row: sqlx::sqlite::SqliteRow) -> Result<UserMemory> {
+    let tags_json: String = row.try_get("tags").unwrap_or_else(|_| "[]".to_string());
+    let tags: Vec<String> = serde_json::from_str(&tags_json).unwrap_or_default();
+    Ok(UserMemory {
+        id: row.try_get("id")?,
+        content: row.try_get("content")?,
+        tags,
+        scope: row.try_get("scope")?,
+        created_at: row.try_get("created_at")?,
+        updated_at: row.try_get("updated_at")?,
+        pinned: row.try_get::<i64, _>("pinned").unwrap_or(1) != 0,
     })
 }
 
@@ -1794,6 +1990,7 @@ mod tests {
             raw_memory: raw_memory.to_string(),
             rollout_summary: format!("{raw_memory} summary"),
             rollout_slug: format!("{thread_id}-{epoch_index}"),
+            tags: Vec::new(),
         }
     }
 

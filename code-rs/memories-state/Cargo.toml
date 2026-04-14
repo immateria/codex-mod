@@ -16,6 +16,7 @@ async-trait = { workspace = true }
 chrono = { workspace = true }
 code-protocol = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
 sqlx = { workspace = true }
 tokio = { workspace = true, features = ["fs", "rt-multi-thread", "macros", "time"] }
 tracing = { workspace = true }

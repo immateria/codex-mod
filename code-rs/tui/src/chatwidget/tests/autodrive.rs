@@ -184,6 +184,7 @@
             artifact_job_running: false,
             artifact_dirty: true,
             last_artifact_build_at: Some("2026-03-07T12:00:00Z".to_string()),
+            user_memory_count: 0,
         },
         effective: code_core::config_types::MemoriesConfig::default(),
         sources: code_core::MemoriesResolvedSources {

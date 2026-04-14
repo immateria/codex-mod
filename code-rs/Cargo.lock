@@ -2002,6 +2002,7 @@ dependencies = [
  "code-protocol",
  "pretty_assertions",
  "serde",
+ "serde_json",
  "sqlx",
  "tempfile",
  "tokio",

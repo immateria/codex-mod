@@ -43,6 +43,9 @@ pub(crate) struct SnapshotEpochManifestEntry {
     pub last_usage: Option<i64>,
     pub rollout_summary_path: String,
     pub prompt_entry: String,
+    /// Freeform tags for semantic classification. Defaults to empty for pre-v7 data.
+    #[serde(default)]
+    pub tags: Vec<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -295,6 +298,7 @@ mod tests {
             last_usage,
             rollout_summary_path: format!("rollout_summaries/{usage_count}.md"),
             prompt_entry: format!("entry-{usage_count}"),
+            tags: Vec::new(),
         }
     }
 
