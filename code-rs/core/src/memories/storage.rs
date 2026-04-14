@@ -31,7 +31,7 @@ use super::ensure_layout;
 use super::generation_snapshot_dir;
 use super::manifest::{
     memory_platform_family_from_os_family, memory_shell_style_from_script_style,
-    SnapshotEpochManifestEntry, SnapshotManifest,
+    SnapshotEpochManifestEntry, SnapshotManifest, UserMemoryManifestEntry,
 };
 use super::memory_root;
 use super::snapshot_manifest_path;
@@ -677,7 +677,13 @@ async fn maybe_build_artifacts_from_state(
         .await
         .map_err(io::Error::other)?;
 
-    let artifacts = render_artifacts_from_state(&selected)?;
+    let user_memories = state
+        .list_user_memories()
+        .await
+        .map_err(io::Error::other)
+        .unwrap_or_default();
+
+    let artifacts = render_artifacts_from_state(&selected, &user_memories)?;
     if let Err(err) = write_memory_artifacts(code_home, artifacts).await {
         let _ = state
             .fail_artifact_build_job(&lease.ownership_token, &err.to_string())
@@ -727,7 +733,10 @@ fn deduplicate_epochs<'a>(epochs: &[&'a Stage1EpochRecord]) -> Vec<&'a Stage1Epo
     result
 }
 
-fn render_artifacts_from_state(selected: &[Stage1EpochRecord]) -> io::Result<MemoryArtifacts> {
+fn render_artifacts_from_state(
+    selected: &[Stage1EpochRecord],
+    user_memories: &[code_memories_state::UserMemory],
+) -> io::Result<MemoryArtifacts> {
     // Filter to only epochs with useful content for prompt injection.
     // Raw memories and rollout summaries still include all epochs for debugging.
     let useful: Vec<&Stage1EpochRecord> = selected
@@ -735,7 +744,16 @@ fn render_artifacts_from_state(selected: &[Stage1EpochRecord]) -> io::Result<Mem
         .filter(|r| epoch_has_useful_content(r))
         .collect();
     let useful_deduped = deduplicate_epochs(&useful);
-    let manifest = render_manifest_from_refs(&useful_deduped)?;
+    let user_manifest_entries: Vec<UserMemoryManifestEntry> = user_memories
+        .iter()
+        .map(|m| UserMemoryManifestEntry {
+            id: m.id.clone(),
+            content: m.content.clone(),
+            tags: m.tags.clone(),
+            pinned: m.pinned,
+        })
+        .collect();
+    let manifest = render_manifest_with_user_memories(&useful_deduped, user_manifest_entries)?;
     Ok(MemoryArtifacts {
         memory_summary: render_memory_summary_from_refs(&useful_deduped),
         raw_memories: render_raw_memories(selected),
@@ -836,7 +854,10 @@ fn render_rollout_summaries(selected: &[Stage1EpochRecord]) -> HashMap<String, S
         .collect()
 }
 
-fn render_manifest_from_refs(selected: &[&Stage1EpochRecord]) -> io::Result<SnapshotManifest> {
+fn render_manifest_with_user_memories(
+    selected: &[&Stage1EpochRecord],
+    user_memories: Vec<UserMemoryManifestEntry>,
+) -> io::Result<SnapshotManifest> {
     let epochs = selected
         .iter()
         .map(|record| {
@@ -861,7 +882,7 @@ fn render_manifest_from_refs(selected: &[&Stage1EpochRecord]) -> io::Result<Snap
             })
         })
         .collect::<io::Result<Vec<_>>>()?;
-    Ok(SnapshotManifest::new(epochs))
+    Ok(SnapshotManifest::with_user_memories(epochs, user_memories))
 }
 
 fn render_prompt_entry(record: &Stage1EpochRecord) -> String {

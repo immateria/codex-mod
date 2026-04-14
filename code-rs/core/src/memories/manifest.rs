@@ -17,13 +17,39 @@ const MANIFEST_VERSION: u32 = 1;
 pub(crate) struct SnapshotManifest {
     pub version: u32,
     pub epochs: Vec<SnapshotEpochManifestEntry>,
+    /// User-created pinned memories. Always injected first in prompt.
+    #[serde(default)]
+    pub user_memories: Vec<UserMemoryManifestEntry>,
+}
+
+/// A user-created memory entry as it appears in the manifest.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub(crate) struct UserMemoryManifestEntry {
+    pub id: String,
+    pub content: String,
+    pub tags: Vec<String>,
+    pub pinned: bool,
 }
 
 impl SnapshotManifest {
+    /// Convenience constructor for manifests without user memories (used in tests).
+    #[allow(dead_code)]
     pub(crate) fn new(epochs: Vec<SnapshotEpochManifestEntry>) -> Self {
         Self {
             version: MANIFEST_VERSION,
             epochs,
+            user_memories: Vec::new(),
+        }
+    }
+
+    pub(crate) fn with_user_memories(
+        epochs: Vec<SnapshotEpochManifestEntry>,
+        user_memories: Vec<UserMemoryManifestEntry>,
+    ) -> Self {
+        Self {
+            version: MANIFEST_VERSION,
+            epochs,
+            user_memories,
         }
     }
 }
@@ -109,15 +135,40 @@ pub(crate) fn select_prompt_entries(
     max_bytes: usize,
 ) -> Option<MemoryPromptSelection> {
     let target_shell = context.shell_style?;
-    let mut compatible: Vec<(bool, u8, u8, u8, u8, &SnapshotEpochManifestEntry)> = manifest
+
+    let mut selected_epoch_ids = Vec::new();
+    let mut summary_text = String::new();
+
+    // ── Phase 1: Inject pinned user memories first (always included) ──
+    // Collect all user-memory tags for affinity boosting below.
+    let mut user_tags: std::collections::HashSet<&str> = std::collections::HashSet::new();
+    for mem in &manifest.user_memories {
+        if !mem.pinned {
+            continue;
+        }
+        for tag in &mem.tags {
+            user_tags.insert(tag.as_str());
+        }
+        let chunk = if summary_text.is_empty() {
+            format!("[pinned] {}", mem.content)
+        } else {
+            format!("\n\n[pinned] {}", mem.content)
+        };
+        summary_text.push_str(&chunk);
+    }
+
+    // ── Phase 2: Rank auto-extracted epochs with tag affinity boost ──
+    let mut compatible: Vec<(bool, u8, u8, u8, u8, u8, &SnapshotEpochManifestEntry)> = manifest
         .epochs
         .iter()
         .filter_map(|entry| {
             let platform_rank = platform_compatibility_rank(context.platform_family, entry.platform_family)?;
             let shell_rank = shell_compatibility_rank(target_shell, entry.shell_style)?;
             let same_workspace = workspace_match(context.workspace_root.as_ref(), entry.workspace_root.as_ref());
+            let tag_affinity = tag_affinity_rank(&entry.tags, &user_tags);
             Some((
                 same_workspace,
+                tag_affinity,
                 branch_affinity_rank(context.git_branch.as_ref(), entry.git_branch.as_ref(), same_workspace),
                 platform_rank,
                 shell_rank,
@@ -127,14 +178,15 @@ pub(crate) fn select_prompt_entries(
         })
         .collect();
 
-    if compatible.is_empty() {
+    if compatible.is_empty() && summary_text.is_empty() {
         return None;
     }
 
     compatible.sort_by_key(
-        |(same_workspace, branch_rank, platform_rank, shell_rank, provenance_rank, entry)| {
+        |(same_workspace, tag_affinity, branch_rank, platform_rank, shell_rank, provenance_rank, entry)| {
         (
             !same_workspace,
+            *tag_affinity,
             *branch_rank,
             *platform_rank,
             *shell_rank,
@@ -148,9 +200,7 @@ pub(crate) fn select_prompt_entries(
         },
     );
 
-    let mut selected_epoch_ids = Vec::new();
-    let mut summary_text = String::new();
-    for (_, _, _, _, _, entry) in compatible {
+    for (_, _, _, _, _, _, entry) in compatible {
         let chunk = if summary_text.is_empty() {
             entry.prompt_entry.clone()
         } else {
@@ -158,8 +208,6 @@ pub(crate) fn select_prompt_entries(
         };
         let would_fit = summary_text.len().saturating_add(chunk.len()) <= max_bytes;
         if would_fit || selected_epoch_ids.is_empty() {
-            // Keep rank order strict once the prompt budget is exceeded. The
-            // top-ranked entry always lands, even if it alone exceeds budget.
             summary_text.push_str(&chunk);
             selected_epoch_ids.push(entry.id);
         } else {
@@ -167,7 +215,11 @@ pub(crate) fn select_prompt_entries(
         }
     }
 
-    (!selected_epoch_ids.is_empty()).then_some(MemoryPromptSelection {
+    if summary_text.is_empty() {
+        return None;
+    }
+
+    Some(MemoryPromptSelection {
         summary_text,
         selected_epoch_ids,
     })
@@ -194,6 +246,20 @@ fn branch_affinity_rank(
         (Some(_), Some(_)) => 2,
         _ => 1,
     }
+}
+
+/// Tag affinity: 0 = has matching tags (best), 1 = has tags but no overlap, 2 = no tags.
+fn tag_affinity_rank(
+    entry_tags: &[String],
+    user_tags: &std::collections::HashSet<&str>,
+) -> u8 {
+    if entry_tags.is_empty() {
+        return 2;
+    }
+    if !user_tags.is_empty() && entry_tags.iter().any(|t| user_tags.contains(t.as_str())) {
+        return 0;
+    }
+    1
 }
 
 fn provenance_rank(provenance: Stage1EpochProvenance) -> u8 {
