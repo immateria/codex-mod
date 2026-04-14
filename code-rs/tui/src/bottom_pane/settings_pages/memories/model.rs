@@ -956,7 +956,7 @@ impl MemoriesSettingsView {
             dt.map_or("unknown date".to_owned(), |d| d.format("%Y-%m-%d %H:%M UTC").to_string())
         };
         let provenance_label = summary.provenance.display_label();
-        lines.push(summary.rollout_slug.to_string());
+        lines.push(summary.display_name());
         lines.push(format!("Epoch #{} · {} · {}", summary.id.epoch_index, provenance_label, age));
         lines.push(String::new());
 
@@ -998,7 +998,7 @@ impl MemoriesSettingsView {
 
         // Internal ID (collapsed at bottom for debugging)
         lines.push(String::new());
-        lines.push(format!("Session: {}  Epoch: {}", summary.id.thread_id, summary.id.epoch_index));
+        lines.push(format!("Session: {} ({})", summary.short_id(), summary.rollout_slug));
 
         self.mode = ViewMode::TextViewer(Box::new(TextViewerState {
             title: " Epoch Detail ",

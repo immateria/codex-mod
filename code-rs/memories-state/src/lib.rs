@@ -278,6 +278,63 @@ pub struct EpochSummary {
     pub preview: String,
 }
 
+impl EpochSummary {
+    /// Human-readable session name built from workspace, branch, and date.
+    ///
+    /// Examples:
+    /// - `"code-termux · main · Jan 15"`
+    /// - `"my-app · feat/login · Mar 02"`
+    /// - `"~/projects · Apr 14"`
+    /// - `"Session · Dec 31"`
+    pub fn display_name(&self) -> String {
+        let mut parts = Vec::with_capacity(3);
+
+        // Workspace short name (last path component)
+        if let Some(ref ws) = self.workspace_root {
+            if let Some(name) = std::path::Path::new(ws).file_name() {
+                parts.push(name.to_string_lossy().into_owned());
+            }
+        } else if !self.cwd_display.is_empty()
+            && self.cwd_display != "~"
+            && let Some(name) = std::path::Path::new(&self.cwd_display).file_name()
+        {
+            let s = name.to_string_lossy();
+            if !s.is_empty() {
+                parts.push(s.into_owned());
+            }
+        }
+
+        // Branch (skip main/master — they're the default)
+        if let Some(ref branch) = self.git_branch {
+            let b = branch.as_str();
+            if b != "main" && b != "master" && b != "develop" {
+                parts.push(branch.clone());
+            } else if parts.is_empty() {
+                // If workspace was empty, at least show something
+                parts.push(branch.clone());
+            }
+        }
+
+        // Fallback if we have nothing yet
+        if parts.is_empty() {
+            parts.push("Session".to_owned());
+        }
+
+        // Short date
+        if let Some(dt) = chrono::DateTime::from_timestamp(self.source_updated_at, 0) {
+            parts.push(dt.format("%b %d").to_string());
+        }
+
+        parts.join(" · ")
+    }
+
+    /// Short 8-char hex identifier derived from the thread UUID.
+    pub fn short_id(&self) -> String {
+        let s = self.id.thread_id.to_string();
+        s[..8.min(s.len())].to_owned()
+    }
+}
+
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct ReconcileResult {
     pub upserted_threads: usize,

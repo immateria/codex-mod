@@ -722,22 +722,10 @@ impl MemoriesSettingsView {
             .iter()
             .enumerate()
             .map(|(idx, ep)| {
-                // Label: first line of preview, truncated to 80 chars for readability
-                let first_line: String = ep
-                    .preview
-                    .lines()
-                    .next()
-                    .unwrap_or("(empty epoch)")
-                    .chars()
-                    .take(80)
-                    .collect();
-                let label = if ep.preview.lines().count() > 1 || ep.preview.len() > 80 {
-                    format!("{first_line}…")
-                } else {
-                    first_line
-                };
+                // Label: human-readable session name (workspace · branch · date)
+                let label = format!("#{} {}", ep.id.epoch_index, ep.display_name());
 
-                // Detail: age + workspace:branch + tags + usage
+                // Detail line: age + preview snippet + tags + usage
                 let mut parts = Vec::new();
 
                 let age = {
@@ -747,32 +735,26 @@ impl MemoriesSettingsView {
                 };
                 parts.push(age);
 
-                // Compact workspace:branch display
-                let location = match (ep.workspace_root.as_ref(), ep.git_branch.as_ref()) {
-                    (Some(ws), Some(branch)) => {
-                        let short = std::path::Path::new(ws)
-                            .file_name()
-                            .map(|s| s.to_string_lossy().into_owned())
-                            .unwrap_or_else(|| ws.clone());
-                        Some(format!("{short}⎇{branch}"))
-                    }
-                    (Some(ws), None) => {
-                        let short = std::path::Path::new(ws)
-                            .file_name()
-                            .map(|s| s.to_string_lossy().into_owned())
-                            .unwrap_or_else(|| ws.clone());
-                        Some(short)
-                    }
-                    (None, Some(branch)) => Some(format!("⎇{branch}")),
-                    (None, None) => None,
-                };
-                if let Some(loc) = location {
-                    parts.push(loc);
+                // Short preview snippet for context
+                let snippet: String = ep
+                    .preview
+                    .lines()
+                    .next()
+                    .unwrap_or("")
+                    .chars()
+                    .take(50)
+                    .collect();
+                if !snippet.is_empty() {
+                    parts.push(snippet);
                 }
 
                 if !ep.tags.is_empty() {
-                    let tags: String = ep.tags.iter().map(|t| format!("#{t}")).collect::<Vec<_>>().join(" ");
-                    parts.push(tags);
+                    let tags: String = ep.tags.iter().take(3).map(|t| format!("#{t}")).collect::<Vec<_>>().join(" ");
+                    if ep.tags.len() > 3 {
+                        parts.push(format!("{tags} +{}", ep.tags.len() - 3));
+                    } else {
+                        parts.push(tags);
+                    }
                 }
 
                 if ep.usage_count > 0 {
