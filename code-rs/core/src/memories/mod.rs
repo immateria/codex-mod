@@ -19,6 +19,7 @@ mod control;
 mod manifest;
 mod prompts;
 mod storage;
+pub(crate) mod tagger;
 
 const MEMORIES_DIR: &str = "memories";
 const CURRENT_GENERATION_FILENAME: &str = "current";
