@@ -4,6 +4,7 @@ use std::io::Write;
 use std::path::Path;
 use std::path::PathBuf;
 use std::sync::Arc;
+use std::sync::Mutex;
 use std::sync::atomic::Ordering;
 use std::sync::atomic::compiler_fence;
 use std::time::SystemTime;
@@ -52,10 +53,24 @@ impl SecretsFile {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct LocalSecretsBackend {
     code_home: PathBuf,
     keyring_store: Arc<dyn KeyringStore>,
+    /// Cache the passphrase after first keyring load so we only prompt once
+    /// per process lifetime instead of once per operation.
+    cached_passphrase: Mutex<Option<SecretString>>,
+}
+
+impl Clone for LocalSecretsBackend {
+    fn clone(&self) -> Self {
+        let cached = self.cached_passphrase.lock().ok().and_then(|g| g.clone());
+        Self {
+            code_home: self.code_home.clone(),
+            keyring_store: Arc::clone(&self.keyring_store),
+            cached_passphrase: Mutex::new(cached),
+        }
+    }
 }
 
 impl LocalSecretsBackend {
@@ -63,6 +78,7 @@ impl LocalSecretsBackend {
         Self {
             code_home,
             keyring_store,
+            cached_passphrase: Mutex::new(None),
         }
     }
 
@@ -162,7 +178,23 @@ impl LocalSecretsBackend {
     }
 
     fn load_or_create_passphrase(&self) -> Result<SecretString> {
-        self.load_or_create_passphrase_impl(cfg!(target_os = "android") || cfg!(test))
+        // Fast path: return cached passphrase without hitting the keyring.
+        if let Ok(guard) = self.cached_passphrase.lock()
+            && let Some(cached) = guard.as_ref()
+        {
+            return Ok(cached.clone());
+        }
+
+        let result = self.load_or_create_passphrase_impl(
+            cfg!(target_os = "android") || cfg!(test),
+        )?;
+
+        // Cache for subsequent calls.
+        if let Ok(mut guard) = self.cached_passphrase.lock() {
+            *guard = Some(result.clone());
+        }
+
+        Ok(result)
     }
 
     fn load_or_create_passphrase_impl(&self, allow_file_fallback: bool) -> Result<SecretString> {
