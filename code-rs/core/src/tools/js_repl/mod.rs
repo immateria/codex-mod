@@ -944,7 +944,18 @@ impl JsReplManager {
                     // the user sees the error instead of silently dropping it.
                     let resolved_id = if id == "__fatal__" {
                         let lock = pending_execs.lock().await;
-                        lock.keys().next().cloned()
+                        match lock.len() {
+                            0 => None,
+                            1 => lock.keys().next().cloned(),
+                            n => {
+                                warn!(
+                                    count = n,
+                                    "js_repl kernel sent __fatal__ but multiple execs pending; \
+                                     this should not happen — routing to none"
+                                );
+                                None
+                            }
+                        }
                     } else {
                         Some(id.to_owned())
                     };
