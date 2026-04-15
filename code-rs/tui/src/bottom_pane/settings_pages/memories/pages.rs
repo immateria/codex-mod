@@ -421,8 +421,18 @@ fn format_age(when: DateTime<Utc>, now: DateTime<Utc>) -> String {
         format!("{}m ago", secs / 60)
     } else if secs < 86_400 {
         format!("{}h ago", secs / 3600)
+    } else if secs < 86_400 * 7 {
+        let days = secs / 86_400;
+        format!("{days}d ago")
+    } else if secs < 86_400 * 30 {
+        let weeks = secs / (86_400 * 7);
+        format!("{weeks}w ago")
+    } else if secs < 86_400 * 365 {
+        let months = secs / (86_400 * 30);
+        format!("{months}mo ago")
     } else {
-        format!("{}d ago", secs / 86_400)
+        let years = secs / (86_400 * 365);
+        format!("{years}y ago")
     }
 }
 

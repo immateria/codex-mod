@@ -138,16 +138,28 @@ pub(crate) async fn refresh_memory_artifacts_from_catalog(
         match build_stage1_epochs(code_home, &claim).await {
             Ok(epochs) => {
                 if let Err(err) = state.replace_stage1_epochs(claim.thread_id, &epochs).await {
-                    let _ = state.fail_stage1_job(claim.thread_id, &err.to_string()).await;
-                    warn!(
-                        "failed to persist stage1 epochs for {}: {err}",
-                        claim.thread_id
-                    );
+                    if let Err(state_err) = state.fail_stage1_job(claim.thread_id, &err.to_string()).await {
+                        warn!(
+                            "failed to persist stage1 epochs for {} and failed to record failure: persist={err}, state={state_err}",
+                            claim.thread_id
+                        );
+                    } else {
+                        warn!(
+                            "failed to persist stage1 epochs for {}: {err}",
+                            claim.thread_id
+                        );
+                    }
                 }
             }
             Err(err) => {
-                let _ = state.fail_stage1_job(claim.thread_id, &err.to_string()).await;
-                warn!("failed to extract stage1 epochs for {}: {err}", claim.thread_id);
+                if let Err(state_err) = state.fail_stage1_job(claim.thread_id, &err.to_string()).await {
+                    warn!(
+                        "failed to extract stage1 epochs for {} and failed to record failure: extract={err}, state={state_err}",
+                        claim.thread_id
+                    );
+                } else {
+                    warn!("failed to extract stage1 epochs for {}: {err}", claim.thread_id);
+                }
             }
         }
     }

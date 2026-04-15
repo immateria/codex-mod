@@ -343,7 +343,9 @@ fn write_file_atomically(path: &Path, contents: &[u8]) -> Result<()> {
                 }
             }
 
-            let _ = fs::remove_file(&tmp_path);
+            if let Err(cleanup_err) = fs::remove_file(&tmp_path) {
+                warn!("failed to clean up temp secrets file at {}: {cleanup_err}", tmp_path.display());
+            }
             Err(initial_error).with_context(|| {
                 format!(
                     "failed to atomically replace secrets file at {} with {}",

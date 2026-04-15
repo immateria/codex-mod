@@ -213,16 +213,16 @@ pub(crate) fn select_prompt_entries(
         );
 
         for (_, _, _, _, _, _, entry) in compatible {
-            let chunk = if summary_text.is_empty() {
-                entry.prompt_entry.clone()
-            } else {
-                format!("\n\n{}", entry.prompt_entry)
-            };
-            let would_fit = summary_text.len().saturating_add(chunk.len()) <= max_bytes;
+            let separator_len = if summary_text.is_empty() { 0 } else { 2 }; // "\n\n"
+            let total_add = separator_len + entry.prompt_entry.len();
+            let would_fit = summary_text.len().saturating_add(total_add) <= max_bytes;
             // Allow one oversized auto epoch only when the prompt is
             // completely empty (preserves existing test-backed behavior).
             if would_fit || summary_text.is_empty() {
-                summary_text.push_str(&chunk);
+                if !summary_text.is_empty() {
+                    summary_text.push_str("\n\n");
+                }
+                summary_text.push_str(&entry.prompt_entry);
                 selected_epoch_ids.push(entry.id);
             } else {
                 break;
