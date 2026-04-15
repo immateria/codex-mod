@@ -477,7 +477,15 @@ impl MemoriesSettingsView {
                 detail_parts.push(age);
 
                 if !memory.tags.is_empty() {
-                    let tags_str = memory.tags.iter().take(4).map(|t| format!("#{t}")).collect::<Vec<_>>().join(" ");
+                    let tags_str: String = {
+                        let mut s = String::new();
+                        for (i, t) in memory.tags.iter().take(4).enumerate() {
+                            if i > 0 { s.push(' '); }
+                            s.push('#');
+                            s.push_str(t);
+                        }
+                        s
+                    };
                     if memory.tags.len() > 4 {
                         detail_parts.push(format!("{tags_str} +{}", memory.tags.len() - 4));
                     } else {
@@ -774,7 +782,15 @@ impl MemoriesSettingsView {
                 }
 
                 if !ep.tags.is_empty() {
-                    let tags: String = ep.tags.iter().take(3).map(|t| format!("#{t}")).collect::<Vec<_>>().join(" ");
+                    let tags: String = {
+                        let mut s = String::new();
+                        for (i, t) in ep.tags.iter().take(3).enumerate() {
+                            if i > 0 { s.push(' '); }
+                            s.push('#');
+                            s.push_str(t);
+                        }
+                        s
+                    };
                     if ep.tags.len() > 3 {
                         detail_parts.push(format!("{tags} +{}", ep.tags.len() - 3));
                     } else {

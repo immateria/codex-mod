@@ -87,20 +87,19 @@ impl ToolRegistry {
         ctx: crate::codex::ToolCallCtx,
         attempt_req: u64,
     ) -> ResponseInputItem {
-        let tool_name = call.tool_name.clone();
         let outputs_custom = call.payload.outputs_custom();
 
-        let Some(handler) = self.handler(tool_name.as_str()) else {
+        let Some(handler) = self.handler(&call.tool_name) else {
             return unsupported_tool_call_output(
                 &ctx.call_id,
                 outputs_custom,
-                format!("unsupported call: {tool_name}"),
+                format!("unsupported call: {}", call.tool_name),
             );
         };
 
         let inv = ToolInvocation {
             ctx,
-            tool_name,
+            tool_name: call.tool_name,
             payload: call.payload,
             attempt_req,
         };

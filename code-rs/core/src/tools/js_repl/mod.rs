@@ -660,6 +660,7 @@ impl JsReplManager {
         Ok(command)
     }
 
+    #[allow(clippy::too_many_arguments)]
     async fn handle_tool_request(
         sess: &Session,
         turn_diff_tracker: &mut TurnDiffTracker,
@@ -862,12 +863,6 @@ impl JsReplManager {
     }
 
     // ── Debug snapshot helpers ───────────────────────────────────────────
-
-    #[allow(dead_code)]
-    async fn kernel_stderr_tail_snapshot(recent_stderr: &Arc<Mutex<VecDeque<String>>>) -> String {
-        let tail = recent_stderr.lock().await;
-        format_stderr_tail(&tail)
-    }
 
     async fn kernel_debug_snapshot(
         child: &Arc<Mutex<Child>>,
@@ -1202,7 +1197,14 @@ fn format_stderr_tail(lines: &VecDeque<String>) -> String {
     if lines.is_empty() {
         return "<empty>".to_string();
     }
-    lines.iter().cloned().collect::<Vec<_>>().join(STDERR_TAIL_SEPARATOR)
+    let mut out = String::new();
+    for (i, line) in lines.iter().enumerate() {
+        if i > 0 {
+            out.push_str(STDERR_TAIL_SEPARATOR);
+        }
+        out.push_str(line);
+    }
+    out
 }
 
 fn truncate_utf8_prefix_by_bytes(input: &str, max_bytes: usize) -> String {

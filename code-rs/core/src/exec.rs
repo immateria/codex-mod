@@ -535,7 +535,9 @@ async fn consume_truncated_output(
         let safe_sub_id = crate::fs_sanitize::safe_path_component(&stream.sub_id, "sub");
         let safe_call_id = crate::fs_sanitize::safe_path_component(&stream.call_id, "call");
         let base_dir = root.join(safe_sub_id).join(safe_call_id);
-        let _ = tokio::fs::create_dir_all(&base_dir).await;
+        let _ = tokio::fs::create_dir_all(&base_dir).await.map_err(|e| {
+            tracing::debug!("failed to create spool dir {}: {e}", base_dir.display());
+        });
 
         let stdout_path = base_dir.join("stdout.log");
         let stderr_path = base_dir.join("stderr.log");

@@ -989,7 +989,15 @@ impl MemoriesSettingsView {
         if summary.tags.is_empty() {
             lines.push("  Tags:       (none — refresh to auto-tag)".to_owned());
         } else {
-            lines.push(format!("  Tags:       {}", summary.tags.iter().map(|t| format!("#{t}")).collect::<Vec<_>>().join("  ")));
+            lines.push(format!("  Tags:       {}", {
+                let mut s = String::new();
+                for (i, t) in summary.tags.iter().enumerate() {
+                    if i > 0 { s.push_str("  "); }
+                    s.push('#');
+                    s.push_str(t);
+                }
+                s
+            }));
         }
         lines.push(format!("  Prompt use: {}×", summary.usage_count));
         lines.push(String::new());
