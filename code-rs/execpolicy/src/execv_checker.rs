@@ -192,7 +192,7 @@ system_path=[{fake_cp:?}]
         let source = source_path.to_str().unwrap().to_string();
         let dest = dest_path.to_str().unwrap().to_string();
 
-        let cwd = Some(root_path.clone().into());
+        let cwd: Option<std::ffi::OsString> = Some(root_path.clone().into_os_string());
 
         let checker = setup(&fake_cp);
         let exec_call = ExecCall {
