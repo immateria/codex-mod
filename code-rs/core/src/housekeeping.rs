@@ -539,8 +539,11 @@ fn purge_session_registry(session_dir: &Path, worktree_path: &Path) {
         if let Ok(mut file) = OpenOptions::new().write(true).truncate(true).open(&file_path)
             && !kept.is_empty() {
                 let content = kept.join("\n");
-                let _ = file.write_all(content.as_bytes());
-                let _ = file.write_all(b"\n");
+                if let Err(e) = file.write_all(content.as_bytes())
+                    .and_then(|()| file.write_all(b"\n"))
+                {
+                    warn!("failed to rewrite session registry {}: {e}", file_path.display());
+                }
             }
     }
 }

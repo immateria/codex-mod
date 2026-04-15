@@ -109,6 +109,8 @@ struct UserMemoryListState {
 struct UserMemoryEditorState {
     /// `None` = creating new, `Some(id)` = editing existing.
     editing_id: Option<String>,
+    /// Original `created_at` for edits (preserved on update).
+    original_created_at: Option<i64>,
     content_field: FormTextField,
     tags_field: FormTextField,
     /// Which field is focused.

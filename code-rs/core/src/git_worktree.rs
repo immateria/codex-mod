@@ -447,12 +447,17 @@ async fn record_worktree_in_session(git_root: &Path, worktree_path: &Path) {
     let mut base = dirs::home_dir().unwrap_or_else(|| PathBuf::from("."));
     // Global session registry: ~/.code/working/_session
     base = base.join(".code").join("working").join("_session");
-    if let Err(_e) = tokio::fs::create_dir_all(&base).await { return; }
+    if let Err(e) = tokio::fs::create_dir_all(&base).await {
+        tracing::warn!("failed to create session dir {}: {e}", base.display());
+        return;
+    }
     let file = base.join(format!("pid-{pid}.txt"));
     // Store git_root and worktree_path separated by a tab; one entry per line.
     if let Ok(mut f) = OpenOptions::new().create(true).append(true).open(&file).await {
         let line = format!("{}\t{}\n", git_root.display(), worktree_path.display());
-        let _ = tokio::io::AsyncWriteExt::write_all(&mut f, line.as_bytes()).await;
+        if let Err(e) = tokio::io::AsyncWriteExt::write_all(&mut f, line.as_bytes()).await {
+            tracing::warn!("failed to write session registry {}: {e}", file.display());
+        }
     }
 }
 

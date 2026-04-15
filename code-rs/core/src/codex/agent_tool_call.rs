@@ -11,7 +11,13 @@ const AGENT_PREVIEW_MAX_BYTES: usize = 32 * 1024; // 32 KiB
 
 fn preview_first_n_lines(s: &str, n: usize) -> (String, usize) {
     let total_lines = s.lines().count();
-    let mut preview: String = s.lines().take(n).collect::<Vec<_>>().join("\n");
+    let mut preview = String::with_capacity(s.len().min(4096));
+    for (i, line) in s.lines().take(n).enumerate() {
+        if i > 0 {
+            preview.push('\n');
+        }
+        preview.push_str(line);
+    }
 
     let (maybe_truncated, was_truncated, _, _) =
         truncate_middle_bytes(&preview, AGENT_PREVIEW_MAX_BYTES);

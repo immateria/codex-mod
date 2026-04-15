@@ -783,6 +783,7 @@ impl MemoriesSettingsView {
     pub(super) fn open_user_memory_create(&mut self, parent_list: Box<UserMemoryListState>) {
         self.mode = ViewMode::UserMemoryEditor(Box::new(UserMemoryEditorState {
             editing_id: None,
+            original_created_at: None,
             content_field: FormTextField::new_multi_line(),
             tags_field: FormTextField::new_single_line(),
             focus: UserMemoryEditorFocus::Content,
@@ -804,6 +805,7 @@ impl MemoriesSettingsView {
         tags_field.set_text(&tags_text);
         self.mode = ViewMode::UserMemoryEditor(Box::new(UserMemoryEditorState {
             editing_id: Some(memory.id.clone()),
+            original_created_at: Some(memory.created_at),
             content_field,
             tags_field,
             focus: UserMemoryEditorFocus::Content,
@@ -839,6 +841,8 @@ impl MemoriesSettingsView {
             .unwrap_or_default()
             .as_secs() as i64;
 
+        let created_at = editor.original_created_at.unwrap_or(now);
+
         let memory = UserMemory {
             id: editor
                 .editing_id
@@ -847,7 +851,7 @@ impl MemoriesSettingsView {
             content,
             tags,
             scope: None,
-            created_at: now,
+            created_at,
             updated_at: now,
             pinned: true,
         };

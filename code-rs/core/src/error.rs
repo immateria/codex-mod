@@ -333,7 +333,7 @@ fn format_reset_duration(total_secs: u64) -> String {
     }
 
     match parts.len() {
-        1 => parts[0].clone(),
+        1 => parts.into_iter().next().unwrap(),
         2 => format!("{} {}", parts[0], parts[1]),
         _ => format!("{} {} {}", parts[0], parts[1], parts[2]),
     }

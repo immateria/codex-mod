@@ -51,7 +51,16 @@ impl AutoDrivePidFile {
 
         let pid = std::process::id();
         let cwd = env::current_dir().ok();
-        let command = env::args().collect::<Vec<_>>().join(" ");
+        let command = {
+            let mut cmd = String::new();
+            for arg in env::args() {
+                if !cmd.is_empty() {
+                    cmd.push(' ');
+                }
+                cmd.push_str(&arg);
+            }
+            cmd
+        };
 
         let metadata = AutoDrivePidMetadata {
             pid,
