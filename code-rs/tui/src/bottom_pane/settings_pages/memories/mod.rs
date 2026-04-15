@@ -63,6 +63,7 @@ enum EditTarget {
 enum TextViewerParent {
     Main,
     RolloutList(Box<RolloutListState>),
+    EpochBrowser(Box<EpochBrowserState>),
 }
 
 /// Persistent search state for the text viewer.

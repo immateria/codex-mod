@@ -323,6 +323,7 @@ impl MemoriesSettingsView {
         let back_label = match viewer.parent {
             TextViewerParent::Main => " back",
             TextViewerParent::RolloutList(_) => " back to list",
+            TextViewerParent::EpochBrowser(_) => " back to epochs",
         };
         let mut hints: Vec<KeyHint<'static>> = vec![
             hint_nav(" scroll"),
@@ -437,34 +438,44 @@ impl MemoriesSettingsView {
             .iter()
             .enumerate()
             .map(|(idx, memory)| {
-                // Truncate content for preview (first line, max 60 chars).
-                let preview: String = memory
+                // Preview: first line, truncated at 80 chars. Only add
+                // ellipsis when content is actually truncated.
+                let first_line: String = memory
                     .content
                     .lines()
                     .next()
                     .unwrap_or("")
                     .chars()
-                    .take(60)
+                    .take(80)
                     .collect();
-                let preview = if memory.content.len() > 60 || memory.content.contains('\n') {
-                    format!("{preview}…")
+                let is_multiline = memory.content.contains('\n');
+                let is_truncated = first_line.chars().count() < memory.content.lines().next().map_or(0, |l| l.chars().count());
+                let pinned_badge = if memory.pinned { "📌 " } else { "" };
+                let preview = if is_multiline || is_truncated {
+                    format!("{pinned_badge}{first_line}…")
                 } else {
-                    preview
+                    format!("{pinned_badge}{first_line}")
                 };
 
-                let tags_str = if memory.tags.is_empty() {
-                    String::new()
-                } else {
-                    format!(" [{}]", memory.tags.join(", "))
-                };
+                let mut detail_parts = Vec::new();
 
                 let age = {
                     let dt = chrono::DateTime::from_timestamp(memory.updated_at, 0)
                         .unwrap_or_else(Utc::now);
                     format_age(dt, now)
                 };
+                detail_parts.push(age);
 
-                let detail = format!("{age}{tags_str}");
+                if !memory.tags.is_empty() {
+                    let tags_str = memory.tags.iter().take(4).map(|t| format!("#{t}")).collect::<Vec<_>>().join(" ");
+                    if memory.tags.len() > 4 {
+                        detail_parts.push(format!("{tags_str} +{}", memory.tags.len() - 4));
+                    } else {
+                        detail_parts.push(tags_str);
+                    }
+                }
+
+                let detail = detail_parts.join(" · ");
                 SettingsMenuRow::new(idx, preview)
                     .with_detail(crate::bottom_pane::settings_ui::rows::StyledText::new(
                         detail,
@@ -488,8 +499,22 @@ impl MemoriesSettingsView {
         let dim = Style::default().fg(colors::text_dim());
 
         let header_text = if let Some(ref id) = list.pending_delete {
-            let short_id = if id.len() > 16 { &id[..16] } else { id.as_str() };
-            format!("Delete memory {short_id}…? [y]es / [n]o")
+            // Find the memory to show a meaningful preview in confirmation.
+            let preview = list.entries.iter()
+                .find(|m| m.id == *id)
+                .map(|m| {
+                    let first_line: String = m.content.lines().next().unwrap_or("").chars().take(40).collect();
+                    if first_line.chars().count() < m.content.len() {
+                        format!("\"{first_line}…\"")
+                    } else {
+                        format!("\"{first_line}\"")
+                    }
+                })
+                .unwrap_or_else(|| {
+                    let short_id = if id.len() > 16 { &id[..16] } else { id.as_str() };
+                    short_id.to_owned()
+                });
+            format!("Delete {preview}? [y]es / [n]o")
         } else if total == 0 {
             "No pinned memories yet. Press Enter or 'n' to create one.".to_owned()
         } else {
@@ -715,16 +740,28 @@ impl MemoriesSettingsView {
     // ── Epoch browser ───────────────────────────────────────────────────
 
     pub(super) fn epoch_browser_rows(browser: &EpochBrowserState) -> Vec<SettingsMenuRow<'static, usize>> {
+        let now = Utc::now();
         browser
             .epochs
             .iter()
             .enumerate()
             .map(|(idx, ep)| {
-                // Label: compact session name with epoch index
-                let label = format!("#{} {}", ep.id.epoch_index, ep.display_name());
+                // Provenance badge
+                let badge = match ep.provenance {
+                    code_core::Stage1EpochProvenance::Derived => "✦",
+                    code_core::Stage1EpochProvenance::CatalogFallback => "◇",
+                    code_core::Stage1EpochProvenance::EmptyDerivationFallback => "○",
+                };
+                let label = format!("{badge} {}", ep.display_name());
 
-                // Detail: tags (most informative at a glance)
+                // Detail: age · tags · usage
                 let mut detail_parts = Vec::new();
+
+                let age = chrono::DateTime::from_timestamp(ep.source_updated_at, 0)
+                    .map(|dt| format_age(dt, now));
+                if let Some(age) = age {
+                    detail_parts.push(age);
+                }
 
                 if !ep.tags.is_empty() {
                     let tags: String = ep.tags.iter().take(3).map(|t| format!("#{t}")).collect::<Vec<_>>().join(" ");
@@ -736,7 +773,7 @@ impl MemoriesSettingsView {
                 }
 
                 if ep.usage_count > 0 {
-                    detail_parts.push(format!("{}×", ep.usage_count));
+                    detail_parts.push(format!("{}× used", ep.usage_count));
                 }
 
                 let detail = detail_parts.join(" · ");
@@ -802,7 +839,13 @@ impl MemoriesSettingsView {
                     if total == 1 { "" } else { "s" }
                 )
             };
-            vec![Line::from(Span::styled(summary, dim))]
+            vec![
+                Line::from(Span::styled(summary, dim)),
+                Line::from(Span::styled(
+                    "✦ extracted  ◇ catalog fallback  ○ empty-session fallback",
+                    dim,
+                )),
+            ]
         };
 
         let hints: Vec<KeyHint<'static>> = vec![

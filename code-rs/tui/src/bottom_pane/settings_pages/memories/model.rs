@@ -404,9 +404,9 @@ impl MemoriesSettingsView {
             RowKind::OpenDirectory => self.code_home.join("memories").display().to_string(),
             RowKind::Apply => {
                 if self.current_scope_dirty() {
-                    "Pending".to_owned()
+                    "● Unsaved changes".to_owned()
                 } else {
-                    "Saved".to_owned()
+                    "✓ Saved".to_owned()
                 }
             }
             RowKind::Close => String::new(),
@@ -947,7 +947,11 @@ impl MemoriesSettingsView {
     }
 
     /// Open a text viewer showing the full epoch detail.
-    pub(super) fn open_epoch_detail(&mut self, summary: &code_core::EpochSummary) {
+    pub(super) fn open_epoch_detail(
+        &mut self,
+        summary: &code_core::EpochSummary,
+        parent_browser: Box<EpochBrowserState>,
+    ) {
         let mut lines = Vec::new();
 
         // Human-friendly header — rollout_slug is the readable session name.
@@ -1005,7 +1009,7 @@ impl MemoriesSettingsView {
             lines,
             scroll_top: Cell::new(0),
             viewport_rows: Cell::new(DEFAULT_VISIBLE_ROWS),
-            parent: TextViewerParent::Main,
+            parent: TextViewerParent::EpochBrowser(parent_browser),
             search: None,
         }));
     }

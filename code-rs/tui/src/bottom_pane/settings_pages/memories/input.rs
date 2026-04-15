@@ -440,6 +440,7 @@ impl MemoriesSettingsView {
                 match viewer.parent {
                     TextViewerParent::Main => self.mode = ViewMode::Main,
                     TextViewerParent::RolloutList(list) => self.mode = ViewMode::RolloutList(list),
+                    TextViewerParent::EpochBrowser(browser) => self.mode = ViewMode::EpochBrowser(browser),
                 }
                 return true;
             }
@@ -889,10 +890,10 @@ impl MemoriesSettingsView {
             KeyCode::Enter | KeyCode::Char(' ') => {
                 let idx = state.selected_idx.unwrap_or(0).min(total.saturating_sub(1));
                 let summary = browser.epochs[idx].clone();
-                let ViewMode::EpochBrowser(_) = std::mem::replace(&mut self.mode, ViewMode::Transition) else {
+                let ViewMode::EpochBrowser(parent_browser) = std::mem::replace(&mut self.mode, ViewMode::Transition) else {
                     return true;
                 };
-                self.open_epoch_detail(&summary);
+                self.open_epoch_detail(&summary, parent_browser);
                 return true;
             }
             _ => {

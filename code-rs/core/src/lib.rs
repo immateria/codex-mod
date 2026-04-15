@@ -137,6 +137,7 @@ pub use memories::list_epochs_by_tag;
 pub use memories::get_all_tag_counts_sync;
 pub use memories::list_epoch_summaries_sync;
 pub use memories::list_epochs_by_tag_sync;
+pub use memories::Stage1EpochProvenance;
 mod conversation_manager;
 pub mod protocol;
 pub mod secrets_resolver;

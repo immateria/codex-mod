@@ -900,6 +900,7 @@ fn read_optional_text_file(path: &Path) -> io::Result<Option<String>> {
 pub use code_memories_state::UserMemory;
 pub use code_memories_state::TagCount;
 pub use code_memories_state::EpochSummary;
+pub use code_memories_state::Stage1EpochProvenance;
 
 pub async fn insert_user_memory(code_home: &Path, memory: &UserMemory) -> io::Result<()> {
     let state = open_memories_state(code_home).await?;
