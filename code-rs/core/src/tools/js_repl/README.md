@@ -32,12 +32,24 @@ Communication is JSON-lines over stdin/stdout:
 
 ## Key Behaviors
 
-### Generation-Scoped Async
-Every exec increments `execGeneration`. Timer callbacks (`setTimeout`, `setInterval`,
-`queueMicrotask`) and `codex.tool()` calls check the generation — stale callbacks
-from previous execs are silently dropped. `_cancelStaleTimers()` clears all pending
-timers at both the start of each exec and in the finally block on exec completion,
-ensuring background timers die immediately when a cell finishes (success or error).
+### Timer and Async Lifecycle
+
+**Timers do not survive cell boundaries.** All tracked `setTimeout` and
+`setInterval` handles are cancelled when an exec completes (success or error)
+and again when the next exec starts.  This is intentional — the REPL is not a
+long-running event loop; it is a sequence of discrete evaluations.
+
+The mechanism:
+- Both kernels wrap `setTimeout`/`setInterval`/`queueMicrotask` so every
+  callback is tagged with the `execGeneration` that created it.
+- `_cancelStaleTimers()` clears **all** pending tracked timers. It runs at
+  exec start (to catch anything that leaked) and in the `finally` block at
+  exec completion.
+- Late callbacks that fire after their generation ends are silently dropped.
+- `codex.tool()` calls are similarly rejected after the owning generation ends.
+
+Persistent state (bindings, module caches) survives between cells.
+In-flight async work (timers, intervals, background tool calls) does not.
 
 ### Persistent Console Capture
 `console.log/info/warn/error/debug` are permanently captured. Calls only accumulate
@@ -49,35 +61,57 @@ REPL state is carried between cells via `__replBindings` on the global/context.
 Each cell's bindings are snapshot-ed after evaluation; the next cell's prelude
 reads values from the snapshot (not from a module import chain).
 
-### Node Module Linker
-The Node kernel supports three resolution kinds:
-- **builtin** — `node:*` modules (with a deny list for process, child_process, etc.)
-- **file** — local `.js`/`.mjs` files via relative/absolute/`file://` paths, loaded as
-  `SourceTextModule` in the VM context with module caching
-- **package** — bare specifiers resolved via `createRequire()` across configured
-  `node_module_dirs`, sandboxed to `node_modules/` boundaries
+---
 
-### Deno Kernel
-Uses Deno's native permission model. Imports are handled by Deno itself via
-data-URL `import()`. Has the same generation-scoped async, persistent console,
-and fatal error handlers as the Node kernel.
+## Runtime Contract
 
-### Security / Containment Model
+Both Node and Deno must satisfy the following shared contract. Any new runtime
+added in the future must implement the same behaviors.
 
-**Deno** provides real containment: permissions are derived from the kernel
-launch flags (`--allow-env`, `--allow-read=<tmp_dir>`), and Deno enforces them
-at the runtime level.
+### Required capabilities (all runtimes)
 
-**Node** is a convenience / dev-mode runtime, **not** a containment boundary:
-- On macOS, the kernel process runs inside a `sandbox-exec` (seatbelt) profile
-  that restricts file/network access, but this does not cover code loaded by
-  host `import()` (package/builtin modules execute in the host realm).
-- On Linux, Android/Termux, and Windows, the kernel process runs with the same
-  permissions as the parent process. There is no sandbox.
-- Transitive imports inside packages bypass the VM context's deny-list logic.
+| Capability | Description |
+|------------|-------------|
+| **JSON-lines protocol** | `exec` → `exec_result` on stdin/stdout; `run_tool` / `run_tool_result` for nested tool calls |
+| **Generation-scoped async** | Timer/interval/microtask callbacks tagged with exec generation; stale callbacks dropped |
+| **Timer cleanup** | All tracked timers cancelled on exec completion (success or error) |
+| **Persistent console** | `console.*` output captured per-exec; late-generation output dropped |
+| **Snapshot persistence** | Bindings carried between cells via `__replBindings` on the global scope |
+| **Fatal error reporting** | `uncaughtException` / `unhandledRejection` → `exec_result` with error before exit |
+| **Graceful reset** | Kernel process can be killed and restarted; state is lost on reset |
 
-If you need strict isolation, configure `js_repl_runtime = "deno"` as the
-default. Node should be treated as **unsafe unless explicitly opted in**.
+### Per-runtime differences
+
+| Aspect | Node | Deno |
+|--------|------|------|
+| **Import model** | VM-linked local files + host-loaded packages (see below) | Data-URL evaluation via Deno runtime |
+| **Containment** | Convenience/dev mode (not a sandbox) | Real permission-based sandbox |
+| **Package imports** | Bare specifiers via `createRequire()` from `node_module_dirs` | Handled by Deno's native resolver |
+| **Local file imports** | `SourceTextModule` in VM context, canonical path caching | Not supported |
+| **Builtin imports** | `node:*` with deny list | Deno builtins via native runtime |
+| **Platform sandbox** | macOS seatbelt only; no sandbox on other platforms | Deno `--allow-*` flags on all platforms |
+
+### Node Import Boundary (Known Limitation)
+
+Node's import system has a **split trust boundary** that is the largest
+unresolved architectural issue:
+
+- **Local files** (`./foo.js`, `../lib.mjs`) are loaded as `SourceTextModule`
+  in the VM context. They share the REPL's console capture, globals, and
+  generation tracking. This is correct.
+
+- **Packages and builtins** (`lodash`, `node:fs`) are loaded via host
+  `import()` and wrapped back as `SyntheticModule`. The actual package code
+  executes in the **host realm**, not the VM context. This means:
+  - Package code has access to the real `process`, `require`, etc.
+  - Package `console.log()` writes to real stdout, not the captured console
+  - Transitive imports inside packages bypass the REPL's deny list
+  - The seatbelt (macOS only) constrains the process, but not the code path
+
+This is documented honestly because the fix is non-trivial: making packages
+load inside the VM module graph requires changes to Node's experimental
+`--experimental-vm-modules` linker API. Until then, Node should be treated as
+a convenience runtime, not a containment boundary.
 
 ### Runtime Health Preflight
 
