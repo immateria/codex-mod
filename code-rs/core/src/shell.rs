@@ -96,9 +96,14 @@ impl Shell {
                 // turn it into a PowerShell command.
                 let first = command.first().map(String::as_str);
                 if first != Some(ps.exe.as_str()) {
-                    // TODO (CODEX_2900): Handle escaping newlines.
+                    // If any argument contains newlines, use -EncodedCommand which
+                    // accepts a Base64-encoded UTF-16LE script string. This safely
+                    // transports multiline scripts, embedded quotes, and all
+                    // special characters without shell escaping issues.
                     if command.iter().any(|a| a.contains('\n') || a.contains('\r')) {
-                        return Some(command);
+                        let script = shlex::try_join(command.iter().map(String::as_str))
+                            .unwrap_or_else(|_| command.join(" "));
+                        return Some(encode_powershell_command(&ps.exe, &script));
                     }
 
                     let joined = shlex::try_join(command.iter().map(String::as_str)).ok();
@@ -189,6 +194,26 @@ fn generic_shell_expects_script_argument(shell_command: &[String]) -> bool {
         shell_command.last().map(String::as_str),
         Some("-c" | "-lc")
     )
+}
+
+/// Encode a PowerShell script as a `-EncodedCommand` invocation.
+///
+/// PowerShell's `-EncodedCommand` parameter accepts a Base64-encoded UTF-16LE
+/// string, which safely transports multiline scripts, embedded quotes, and all
+/// special characters without any shell escaping.
+fn encode_powershell_command(exe: &str, script: &str) -> Vec<String> {
+    use base64::Engine as _;
+    let utf16le: Vec<u8> = script
+        .encode_utf16()
+        .flat_map(|u| u.to_le_bytes())
+        .collect();
+    let encoded = base64::engine::general_purpose::STANDARD.encode(&utf16le);
+    vec![
+        exe.to_owned(),
+        "-NoProfile".to_owned(),
+        "-EncodedCommand".to_owned(),
+        encoded,
+    ]
 }
 
 #[cfg(unix)]
