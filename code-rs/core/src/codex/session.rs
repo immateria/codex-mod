@@ -382,8 +382,7 @@ pub(crate) struct Session {
     pub(super) dynamic_tools: Vec<DynamicToolSpec>,
     pub(super) exec_command_manager: Arc<crate::exec_command::SessionManager>,
     pub(super) js_repl_default_runtime: crate::config::JsReplRuntimeKindToml,
-    pub(super) js_repl_node: crate::tools::js_repl::JsReplHandle,
-    pub(super) js_repl_deno: crate::tools::js_repl::JsReplHandle,
+    pub(super) js_repl_handles: std::collections::HashMap<crate::config::JsReplRuntimeKindToml, crate::tools::js_repl::JsReplHandle>,
     pub(super) network_proxy: Option<crate::config::network_proxy_spec::StartedNetworkProxy>,
     pub(super) network_approval: Arc<crate::network_approval::NetworkApprovalService>,
 
@@ -702,20 +701,20 @@ impl Session {
         &self,
         kind: crate::config::JsReplRuntimeKindToml,
     ) -> Result<Arc<crate::tools::js_repl::JsReplManager>, String> {
-        match kind {
-            crate::config::JsReplRuntimeKindToml::Node => self.js_repl_node.manager().await,
-            crate::config::JsReplRuntimeKindToml::Deno => self.js_repl_deno.manager().await,
-        }
+        self.js_repl_handles
+            .get(&kind)
+            .ok_or_else(|| format!("no js_repl handle for runtime {kind:?}"))?
+            .manager()
+            .await
     }
 
     pub(crate) fn js_repl_manager_if_started_for_runtime(
         &self,
         kind: crate::config::JsReplRuntimeKindToml,
     ) -> Option<Arc<crate::tools::js_repl::JsReplManager>> {
-        match kind {
-            crate::config::JsReplRuntimeKindToml::Node => self.js_repl_node.manager_if_started(),
-            crate::config::JsReplRuntimeKindToml::Deno => self.js_repl_deno.manager_if_started(),
-        }
+        self.js_repl_handles
+            .get(&kind)
+            .and_then(crate::tools::js_repl::JsReplHandle::manager_if_started)
     }
 
     pub(crate) fn background_exec_cmd_display(&self, call_id: &str) -> Option<String> {
@@ -2500,15 +2499,12 @@ impl Session {
             mgr.kill_all().await;
         });
 
-        if let Some(js_mgr) = self.js_repl_node.manager_if_started() {
-            tokio::spawn(async move {
-                js_mgr.kill().await;
-            });
-        }
-        if let Some(js_mgr) = self.js_repl_deno.manager_if_started() {
-            tokio::spawn(async move {
-                js_mgr.kill().await;
-            });
+        for handle in self.js_repl_handles.values() {
+            if let Some(js_mgr) = handle.manager_if_started() {
+                tokio::spawn(async move {
+                    js_mgr.kill().await;
+                });
+            }
         }
     }
 

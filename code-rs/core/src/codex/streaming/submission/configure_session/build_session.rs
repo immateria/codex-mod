@@ -402,22 +402,32 @@ impl Runner<'_> {
             dynamic_tools,
             exec_command_manager: Arc::new(crate::exec_command::SessionManager::default()),
             js_repl_default_runtime,
-            js_repl_node: crate::tools::js_repl::JsReplHandle::new(
-                crate::tools::js_repl::JsReplRuntimeConfig {
-                    kind: crate::config::JsReplRuntimeKindToml::Node,
-                    runtime_path: config.js_repl_node_path.clone(),
-                    runtime_args: config.js_repl_node_args.clone(),
-                    node_module_dirs: config.js_repl_node_module_dirs.clone(),
-                },
-            ),
-            js_repl_deno: crate::tools::js_repl::JsReplHandle::new(
-                crate::tools::js_repl::JsReplRuntimeConfig {
-                    kind: crate::config::JsReplRuntimeKindToml::Deno,
-                    runtime_path: config.js_repl_deno_path.clone(),
-                    runtime_args: config.js_repl_deno_args.clone(),
-                    node_module_dirs: Vec::new(),
-                },
-            ),
+            js_repl_handles: {
+                let mut handles = std::collections::HashMap::new();
+                handles.insert(
+                    crate::config::JsReplRuntimeKindToml::Node,
+                    crate::tools::js_repl::JsReplHandle::new(
+                        crate::tools::js_repl::JsReplRuntimeConfig {
+                            kind: crate::config::JsReplRuntimeKindToml::Node,
+                            runtime_path: config.js_repl_node_path.clone(),
+                            runtime_args: config.js_repl_node_args.clone(),
+                            node_module_dirs: config.js_repl_node_module_dirs.clone(),
+                        },
+                    ),
+                );
+                handles.insert(
+                    crate::config::JsReplRuntimeKindToml::Deno,
+                    crate::tools::js_repl::JsReplHandle::new(
+                        crate::tools::js_repl::JsReplRuntimeConfig {
+                            kind: crate::config::JsReplRuntimeKindToml::Deno,
+                            runtime_path: config.js_repl_deno_path.clone(),
+                            runtime_args: config.js_repl_deno_args.clone(),
+                            node_module_dirs: Vec::new(),
+                        },
+                    ),
+                );
+                handles
+            },
             network_proxy,
             network_approval: Arc::clone(&network_approval),
             tx_event: self.tx_event.clone(),

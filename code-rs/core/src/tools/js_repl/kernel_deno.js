@@ -18,24 +18,92 @@ function formatLog(args) {
     .join(" ");
 }
 
-function withCapturedConsole(fn) {
-  const logs = [];
-  const original = globalThis.console;
-  const captured = {
-    ...original,
-    log: (...args) => logs.push(formatLog(args)),
-    info: (...args) => logs.push(formatLog(args)),
-    warn: (...args) => logs.push(formatLog(args)),
-    error: (...args) => logs.push(formatLog(args)),
-    debug: (...args) => logs.push(formatLog(args)),
-  };
-  globalThis.console = captured;
-  return Promise.resolve()
-    .then(() => fn(logs))
-    .finally(() => {
-      globalThis.console = original;
-    });
+function withCapturedConsole(_fn) {
+  // DEPRECATED: Console capture is now persistent. This function is kept
+  // for structural compatibility but the capture is always active.
+  throw new Error("withCapturedConsole is deprecated — console is permanently captured");
 }
+
+// ── Persistent console capture ──────────────────────────────────────
+// Console is always captured — user-visible output is collected per-exec
+// and returned inside exec_result. This prevents late callbacks from
+// writing to protocol stdout.
+let _capturedLogs = [];
+let _captureGeneration = 0;
+
+const _originalConsole = globalThis.console;
+globalThis.console = {
+  ..._originalConsole,
+  log: (...args) => {
+    if (execGeneration === _captureGeneration) _capturedLogs.push(formatLog(args));
+  },
+  info: (...args) => {
+    if (execGeneration === _captureGeneration) _capturedLogs.push(formatLog(args));
+  },
+  warn: (...args) => {
+    if (execGeneration === _captureGeneration) _capturedLogs.push(formatLog(args));
+  },
+  error: (...args) => {
+    if (execGeneration === _captureGeneration) _capturedLogs.push(formatLog(args));
+  },
+  debug: (...args) => {
+    if (execGeneration === _captureGeneration) _capturedLogs.push(formatLog(args));
+  },
+};
+
+// ── Generation-scoped timer wrappers ────────────────────────────────
+const _activeTimers = new Map();
+let _nextTimerId = 1;
+
+function _wrapTimer(hostFn, clearHostFn, kind) {
+  return (callback, ...args) => {
+    const gen = execGeneration;
+    const wrapperId = _nextTimerId++;
+    const hostId = hostFn((...cbArgs) => {
+      _activeTimers.delete(wrapperId);
+      if (execGeneration !== gen) return;
+      callback(...cbArgs);
+    }, ...args);
+    _activeTimers.set(wrapperId, { gen, kind, hostId, clearFn: clearHostFn });
+    return wrapperId;
+  };
+}
+
+function _wrapClearTimer(kind) {
+  return (wrapperId) => {
+    const entry = _activeTimers.get(wrapperId);
+    if (entry && entry.kind === kind) {
+      entry.clearFn(entry.hostId);
+      _activeTimers.delete(wrapperId);
+    }
+  };
+}
+
+function _cancelStaleTimers() {
+  for (const [id, entry] of _activeTimers) {
+    entry.clearFn(entry.hostId);
+    _activeTimers.delete(id);
+  }
+}
+
+// Deno has setTimeout/setInterval on globalThis.
+const _hostSetTimeout = globalThis.setTimeout;
+const _hostClearTimeout = globalThis.clearTimeout;
+const _hostSetInterval = globalThis.setInterval;
+const _hostClearInterval = globalThis.clearInterval;
+const _hostQueueMicrotask = globalThis.queueMicrotask;
+
+globalThis.setTimeout = _wrapTimer(_hostSetTimeout, _hostClearTimeout, "timeout");
+globalThis.clearTimeout = _wrapClearTimer("timeout");
+globalThis.setInterval = _wrapTimer(_hostSetInterval, _hostClearInterval, "interval");
+globalThis.clearInterval = _wrapClearTimer("interval");
+globalThis.queueMicrotask = (callback) => {
+  const gen = execGeneration;
+  _hostQueueMicrotask(() => {
+    if (execGeneration !== gen) return;
+    callback();
+  });
+};
 
 /**
  * @typedef {{ name: string, kind: "const"|"let"|"var"|"function"|"class" }} Binding
@@ -196,9 +264,23 @@ function toDataUrl(source) {
 }
 
 async function handleExec(message) {
+  const gen = ++execGeneration;
+
+  // Reset capture state for this generation.
+  _capturedLogs = [];
+  _captureGeneration = gen;
+  // Cancel stale timers from previous generations.
+  _cancelStaleTimers();
+
   const tool = (toolName, args) => {
     if (typeof toolName !== "string" || !toolName) {
       return Promise.reject(new Error("codex.tool expects a tool name string"));
+    }
+    // Reject stale tool calls from dead generations.
+    if (execGeneration !== gen) {
+      return Promise.reject(
+        new Error(`codex.tool rejected: stale generation (${gen} vs current ${execGeneration})`)
+      );
     }
     const id = `${message.id}-tool-${toolCounter++}`;
     let argumentsJson = "{}";
@@ -229,9 +311,7 @@ async function handleExec(message) {
   try {
     const code = typeof message.code === "string" ? message.code : "";
     const { source, nextBindings } = await buildModuleSource(code);
-    let output = "";
 
-    const gen = ++execGeneration;
     globalThis.state = state;
     globalThis.codex = {
       state,
@@ -242,26 +322,24 @@ async function handleExec(message) {
     };
     globalThis.tmpDir = tmpDir;
 
-    await withCapturedConsole(async (logs) => {
-      // Inject the snapshot of carried bindings so the prelude can read
-      // values without importing from the previous data-URL module.
-      if (previousSnapshot) {
-        globalThis.__replBindings = previousSnapshot;
-      }
+    // Inject the snapshot of carried bindings so the prelude can read
+    // values without importing from the previous data-URL module.
+    if (previousSnapshot) {
+      globalThis.__replBindings = previousSnapshot;
+    }
 
-      const moduleUrl = toDataUrl(source);
-      const ns = await import(moduleUrl);
+    const moduleUrl = toDataUrl(source);
+    const ns = await import(moduleUrl);
 
-      // Snapshot the namespace values so the next cell can access them
-      // without retaining a reference to this module's data URL.
-      const snapshot = Object.create(null);
-      for (const b of nextBindings) {
-        snapshot[b.name] = ns[b.name];
-      }
-      previousSnapshot = snapshot;
-      previousBindings = nextBindings;
-      output = logs.join("\n");
-    });
+    // Snapshot the namespace values so the next cell can access them
+    // without retaining a reference to this module's data URL.
+    const snapshot = Object.create(null);
+    for (const b of nextBindings) {
+      snapshot[b.name] = ns[b.name];
+    }
+    previousSnapshot = snapshot;
+    previousBindings = nextBindings;
+    const output = _capturedLogs.join("\n");
 
     send({
       type: "exec_result",
@@ -271,11 +349,12 @@ async function handleExec(message) {
       error: null,
     });
   } catch (error) {
+    const output = _capturedLogs.join("\n");
     send({
       type: "exec_result",
       id: message.id,
       ok: false,
-      output: "",
+      output,
       error: error && error.message ? error.message : String(error),
     });
   }
@@ -290,6 +369,38 @@ function handleToolResult(message) {
 }
 
 let queue = Promise.resolve();
+
+// ── Fatal error handlers ────────────────────────────────────────────
+// Mirror Node kernel behavior: surface fatal errors and exit cleanly.
+let _fatalExitScheduled = false;
+
+function _scheduleFatalExit(reason, error) {
+  if (_fatalExitScheduled) return;
+  _fatalExitScheduled = true;
+  const msg = error && error.message ? error.message : String(error ?? "unknown");
+  try {
+    send({
+      type: "exec_result",
+      id: "__fatal__",
+      ok: false,
+      output: "",
+      error: `kernel fatal: ${reason}: ${msg}`,
+    });
+  } catch {
+    // stdout may already be broken
+  }
+  _hostSetTimeout(() => Deno.exit(1), 0);
+}
+
+globalThis.addEventListener("error", (event) => {
+  event.preventDefault();
+  _scheduleFatalExit("uncaught error", event.error ?? event.message);
+});
+
+globalThis.addEventListener("unhandledrejection", (event) => {
+  event.preventDefault();
+  _scheduleFatalExit("unhandled rejection", event.reason);
+});
 
 async function handleLine(line) {
   if (!line.trim()) return;

@@ -1098,7 +1098,7 @@ pub struct ProjectConfig {
     pub commands: Vec<ProjectCommandConfig>,
 }
 
-#[derive(Debug, Clone, Copy, Deserialize, Serialize, PartialEq, Eq, JsonSchema, Default)]
+#[derive(Debug, Clone, Copy, Deserialize, Serialize, PartialEq, Eq, Hash, JsonSchema, Default)]
 #[serde(rename_all = "lowercase")]
 pub enum JsReplRuntimeKindToml {
     #[default]

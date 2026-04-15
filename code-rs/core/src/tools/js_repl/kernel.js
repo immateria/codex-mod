@@ -9,11 +9,11 @@ const { builtinModules, createRequire } = require("node:module");
 const { createInterface } = require("node:readline");
 const { performance } = require("node:perf_hooks");
 const path = require("node:path");
-const { URL, URLSearchParams, pathToFileURL } = require("node:url");
+const { URL, URLSearchParams, pathToFileURL, fileURLToPath } = require("node:url");
 const { inspect, TextDecoder, TextEncoder } = require("node:util");
 const vm = require("node:vm");
 
-const { SourceTextModule } = vm;
+const { SourceTextModule, SyntheticModule } = vm;
 const meriyahPromise = import("./meriyah.umd.min.js").then((m) => m.default ?? m);
 
 // vm contexts start with very few globals. Populate common Node/web globals
@@ -46,14 +46,64 @@ if (typeof performance !== "undefined") {
   context.performance = performance;
 }
 context.crypto = crypto.webcrypto ?? crypto;
-context.setTimeout = setTimeout;
-context.clearTimeout = clearTimeout;
-context.setInterval = setInterval;
-context.clearInterval = clearInterval;
-context.queueMicrotask = queueMicrotask;
+
+// ── Generation-scoped timer wrappers ────────────────────────────────
+// Every scheduled callback is tagged with the generation that created it.
+// When a generation ends (exec completes or reset), repeating callbacks
+// are cancelled and one-shot callbacks that fire after their generation
+// is dead are silently dropped.
+const _activeTimers = new Map(); // id -> { gen, kind, hostId }
+let _nextTimerId = 1;
+
+function _wrapTimer(hostFn, clearHostFn, kind) {
+  return (callback, ...args) => {
+    const gen = execGeneration;
+    const wrapperId = _nextTimerId++;
+    const hostId = hostFn((...cbArgs) => {
+      _activeTimers.delete(wrapperId);
+      if (execGeneration !== gen) {
+        // Generation changed — stale callback, drop it.
+        return;
+      }
+      callback(...cbArgs);
+    }, ...args);
+    _activeTimers.set(wrapperId, { gen, kind, hostId, clearFn: clearHostFn });
+    return wrapperId;
+  };
+}
+
+function _wrapClearTimer(kind) {
+  return (wrapperId) => {
+    const entry = _activeTimers.get(wrapperId);
+    if (entry && entry.kind === kind) {
+      entry.clearFn(entry.hostId);
+      _activeTimers.delete(wrapperId);
+    }
+  };
+}
+
+// Cancel all timers from the current or older generations.
+function _cancelStaleTimers() {
+  for (const [id, entry] of _activeTimers) {
+    entry.clearFn(entry.hostId);
+    _activeTimers.delete(id);
+  }
+}
+
+context.setTimeout = _wrapTimer(setTimeout, clearTimeout, "timeout");
+context.clearTimeout = _wrapClearTimer("timeout");
+context.setInterval = _wrapTimer(setInterval, clearInterval, "interval");
+context.clearInterval = _wrapClearTimer("interval");
+context.queueMicrotask = (callback) => {
+  const gen = execGeneration;
+  queueMicrotask(() => {
+    if (execGeneration !== gen) return;
+    callback();
+  });
+};
 if (typeof setImmediate !== "undefined") {
-  context.setImmediate = setImmediate;
-  context.clearImmediate = clearImmediate;
+  context.setImmediate = _wrapTimer(setImmediate, clearImmediate, "immediate");
+  context.clearImmediate = _wrapClearTimer("immediate");
 }
 context.atob = (data) => Buffer.from(data, "base64").toString("binary");
 context.btoa = (data) => Buffer.from(data, "binary").toString("base64");
@@ -163,6 +213,14 @@ const moduleSearchBases = (() => {
 
 const importResolveConditions = new Set(["node", "import"]);
 const requireByBase = new Map();
+const linkedFileModules = new Map();
+const linkedNativeModules = new Map();
+const linkedModuleEvaluations = new Map();
+
+function clearLocalFileModuleCaches() {
+  linkedFileModules.clear();
+  linkedModuleEvaluations.clear();
+}
 
 function canonicalizePath(value) {
   try {
@@ -170,6 +228,28 @@ function canonicalizePath(value) {
   } catch {
     return value;
   }
+}
+
+function resolveResultToUrl(resolved) {
+  if (resolved.kind === "builtin") {
+    return resolved.specifier;
+  }
+  if (resolved.kind === "file") {
+    return pathToFileURL(resolved.path).href;
+  }
+  if (resolved.kind === "package") {
+    return resolved.specifier;
+  }
+  throw new Error(`Unsupported module resolution kind: ${resolved.kind}`);
+}
+
+function setImportMeta(meta, mod, isMain = false) {
+  meta.url = pathToFileURL(mod.identifier).href;
+  meta.filename = mod.identifier;
+  meta.dirname = path.dirname(mod.identifier);
+  meta.main = isMain;
+  meta.resolve = (specifier) =>
+    resolveResultToUrl(resolveSpecifier(specifier, mod.identifier));
 }
 
 function getRequireForBase(base) {
@@ -223,6 +303,95 @@ function isBarePackageSpecifier(specifier) {
   return true;
 }
 
+function isExplicitRelativePathSpecifier(specifier) {
+  return (
+    specifier.startsWith("./") ||
+    specifier.startsWith("../") ||
+    specifier.startsWith(".\\") ||
+    specifier.startsWith("..\\")
+  );
+}
+
+function isFileUrlSpecifier(specifier) {
+  if (typeof specifier !== "string" || !specifier.startsWith("file:")) {
+    return false;
+  }
+  try {
+    return new URL(specifier).protocol === "file:";
+  } catch {
+    return false;
+  }
+}
+
+function isPathSpecifier(specifier) {
+  if (
+    typeof specifier !== "string" ||
+    !specifier ||
+    specifier.trim() !== specifier
+  ) {
+    return false;
+  }
+  return (
+    isExplicitRelativePathSpecifier(specifier) ||
+    path.isAbsolute(specifier) ||
+    isFileUrlSpecifier(specifier)
+  );
+}
+
+function resolvePathSpecifier(specifier, referrerIdentifier = null) {
+  let candidate;
+  if (isFileUrlSpecifier(specifier)) {
+    try {
+      candidate = fileURLToPath(new URL(specifier));
+    } catch (err) {
+      throw new Error(`Failed to resolve module "${specifier}": ${err.message}`);
+    }
+  } else {
+    const baseDir =
+      referrerIdentifier && path.isAbsolute(referrerIdentifier)
+        ? path.dirname(referrerIdentifier)
+        : process.cwd();
+    candidate = path.isAbsolute(specifier)
+      ? specifier
+      : path.resolve(baseDir, specifier);
+  }
+
+  let resolvedPath;
+  try {
+    resolvedPath = fs.realpathSync.native(candidate);
+  } catch (err) {
+    if (err?.code === "ENOENT") {
+      throw new Error(`Module not found: ${specifier}`);
+    }
+    throw new Error(`Failed to resolve module "${specifier}": ${err.message}`);
+  }
+
+  let stats;
+  try {
+    stats = fs.statSync(resolvedPath);
+  } catch (err) {
+    if (err?.code === "ENOENT") {
+      throw new Error(`Module not found: ${specifier}`);
+    }
+    throw new Error(`Failed to inspect module "${specifier}": ${err.message}`);
+  }
+
+  if (!stats.isFile()) {
+    throw new Error(
+      `Unsupported import specifier "${specifier}" in js_repl. Directory imports are not supported.`,
+    );
+  }
+
+  const extension = path.extname(resolvedPath).toLowerCase();
+  if (extension !== ".js" && extension !== ".mjs") {
+    throw new Error(
+      `Unsupported import specifier "${specifier}" in js_repl. Only .js and .mjs files are supported.`,
+    );
+  }
+
+  return { kind: "file", path: resolvedPath };
+}
+
 function resolveBareSpecifier(specifier) {
   let firstResolutionError = null;
 
@@ -251,7 +420,7 @@ function resolveBareSpecifier(specifier) {
   return null;
 }
 
-function resolveSpecifier(specifier) {
+function resolveSpecifier(specifier, referrerIdentifier = null) {
   if (specifier.startsWith("node:") || builtinModuleSet.has(specifier)) {
     if (isDeniedBuiltin(specifier)) {
       throw new Error(`Importing module "${specifier}" is not allowed in js_repl`);
@@ -259,9 +428,13 @@ function resolveSpecifier(specifier) {
     return { kind: "builtin", specifier: toNodeBuiltinSpecifier(specifier) };
   }
 
+  if (isPathSpecifier(specifier)) {
+    return resolvePathSpecifier(specifier, referrerIdentifier);
+  }
+
   if (!isBarePackageSpecifier(specifier)) {
     throw new Error(
-      `Unsupported import specifier "${specifier}" in js_repl. Use a package name like "lodash" or "@scope/pkg".`,
+      `Unsupported import specifier "${specifier}" in js_repl. Use a package name like "lodash" or "@scope/pkg", or a relative/absolute/file:// .js/.mjs path.`,
     );
   }
 
@@ -270,17 +443,96 @@ function resolveSpecifier(specifier) {
     throw new Error(`Module not found: ${specifier}`);
   }
 
-  return { kind: "path", path: resolvedBare };
+  return { kind: "package", path: resolvedBare, specifier };
 }
 
-function importResolved(resolved) {
+function importNativeResolved(resolved) {
   if (resolved.kind === "builtin") {
     return import(resolved.specifier);
   }
-  if (resolved.kind === "path") {
+  if (resolved.kind === "package") {
     return import(pathToFileURL(resolved.path).href);
   }
   throw new Error(`Unsupported module resolution kind: ${resolved.kind}`);
+}
+
+async function loadLinkedNativeModule(resolved) {
+  const key =
+    resolved.kind === "builtin"
+      ? `builtin:${resolved.specifier}`
+      : `package:${resolved.path}`;
+  let modulePromise = linkedNativeModules.get(key);
+  if (!modulePromise) {
+    modulePromise = (async () => {
+      const namespace = await importNativeResolved(resolved);
+      const exportNames = Object.getOwnPropertyNames(namespace);
+      return new SyntheticModule(
+        exportNames,
+        function initSyntheticModule() {
+          for (const name of exportNames) {
+            this.setExport(name, namespace[name]);
+          }
+        },
+        { context },
+      );
+    })();
+    linkedNativeModules.set(key, modulePromise);
+  }
+  return modulePromise;
+}
+
+async function loadLinkedFileModule(modulePath) {
+  let module = linkedFileModules.get(modulePath);
+  if (!module) {
+    const source = fs.readFileSync(modulePath, "utf8");
+    module = new SourceTextModule(source, {
+      context,
+      identifier: modulePath,
+      initializeImportMeta(meta, mod) {
+        setImportMeta(meta, mod, false);
+      },
+      importModuleDynamically(specifier, referrer) {
+        return importResolved(resolveSpecifier(specifier, referrer?.identifier));
+      },
+    });
+    linkedFileModules.set(modulePath, module);
+  }
+  if (module.status === "unlinked") {
+    await module.link(async (specifier, referencingModule) => {
+      const resolved = resolveSpecifier(specifier, referencingModule?.identifier);
+      if (resolved.kind !== "file") {
+        throw new Error(
+          `Static import "${specifier}" is not supported from js_repl local files. Use await import("${specifier}") instead.`,
+        );
+      }
+      return loadLinkedFileModule(resolved.path);
+    });
+  }
+  return module;
+}
+
+async function loadLinkedModule(resolved) {
+  if (resolved.kind === "file") {
+    return loadLinkedFileModule(resolved.path);
+  }
+  if (resolved.kind === "builtin" || resolved.kind === "package") {
+    return loadLinkedNativeModule(resolved);
+  }
+  throw new Error(`Unsupported module resolution kind: ${resolved.kind}`);
+}
+
+async function importResolved(resolved) {
+  if (resolved.kind === "file") {
+    const module = await loadLinkedFileModule(resolved.path);
+    let evaluation = linkedModuleEvaluations.get(resolved.path);
+    if (!evaluation) {
+      evaluation = module.evaluate();
+      linkedModuleEvaluations.set(resolved.path, evaluation);
+    }
+    await evaluation;
+    return module.namespace;
+  }
+  return importNativeResolved(resolved);
 }
 
 function collectPatternNames(pattern, kind, map) {
@@ -471,38 +723,62 @@ function formatLog(args) {
     .join(" ");
 }
 
-function withCapturedConsole(ctx, fn) {
-  const logs = [];
-  const original = ctx.console ?? console;
-  const captured = {
-    ...original,
-    log: (...args) => {
-      logs.push(formatLog(args));
-    },
-    info: (...args) => {
-      logs.push(formatLog(args));
-    },
-    warn: (...args) => {
-      logs.push(formatLog(args));
-    },
-    error: (...args) => {
-      logs.push(formatLog(args));
-    },
-    debug: (...args) => {
-      logs.push(formatLog(args));
-    },
-  };
-  ctx.console = captured;
-  return fn(logs).finally(() => {
-    ctx.console = original;
-  });
-}
+// ── Persistent console capture ──────────────────────────────────────
+// Console is always captured — user-visible output is collected per-exec
+// and returned inside exec_result. This prevents background callbacks or
+// host-loaded packages from writing to protocol stdout.
+let _capturedLogs = [];
+let _captureGeneration = 0;
+
+const capturedConsole = {
+  log: (...args) => {
+    if (execGeneration === _captureGeneration) {
+      _capturedLogs.push(formatLog(args));
+    }
+  },
+  info: (...args) => {
+    if (execGeneration === _captureGeneration) {
+      _capturedLogs.push(formatLog(args));
+    }
+  },
+  warn: (...args) => {
+    if (execGeneration === _captureGeneration) {
+      _capturedLogs.push(formatLog(args));
+    }
+  },
+  error: (...args) => {
+    if (execGeneration === _captureGeneration) {
+      _capturedLogs.push(formatLog(args));
+    }
+  },
+  debug: (...args) => {
+    if (execGeneration === _captureGeneration) {
+      _capturedLogs.push(formatLog(args));
+    }
+  },
+};
+// Install captured console permanently on the vm context.
+context.console = capturedConsole;
 
 async function handleExec(message) {
   activeExecId = message.id;
+  const gen = ++execGeneration;
+
+  // Reset capture state for this generation.
+  _capturedLogs = [];
+  _captureGeneration = gen;
+  // Cancel stale timers from previous generations.
+  _cancelStaleTimers();
+
   const tool = (toolName, args) => {
     if (typeof toolName !== "string" || !toolName) {
       return Promise.reject(new Error("codex.tool expects a tool name string"));
+    }
+    // Reject stale tool calls from dead generations.
+    if (execGeneration !== gen) {
+      return Promise.reject(
+        new Error(`codex.tool rejected: stale generation (${gen} vs current ${execGeneration})`)
+      );
     }
     const id = `${message.id}-tool-${toolCounter++}`;
     let argumentsJson = "{}";
@@ -534,9 +810,7 @@ async function handleExec(message) {
   try {
     const code = typeof message.code === "string" ? message.code : "";
     const { source, nextBindings } = await buildModuleSource(code);
-    let output = "";
 
-    const gen = ++execGeneration;
     context.state = state;
     context.codex = {
       state,
@@ -547,41 +821,39 @@ async function handleExec(message) {
     };
     context.tmpDir = tmpDir;
 
-    await withCapturedConsole(context, async (logs) => {
-      // Inject the snapshot of carried bindings into the vm context so
-      // the prelude can read values without an import chain.
-      if (previousSnapshot) {
-        context.__replBindings = previousSnapshot;
-      }
+    // Inject the snapshot of carried bindings into the vm context so
+    // the prelude can read values without an import chain.
+    if (previousSnapshot) {
+      context.__replBindings = previousSnapshot;
+    }
 
-      const module = new SourceTextModule(source, {
-        context,
-        identifier: `cell-${cellCounter++}.mjs`,
-        initializeImportMeta(meta, mod) {
-          meta.url = `file://${mod.identifier}`;
-        },
-        importModuleDynamically(specifier) {
-          return importResolved(resolveSpecifier(specifier));
-        },
-      });
-
-      await module.link(async (specifier) => {
-        const resolved = resolveSpecifier(specifier);
-        return importResolved(resolved);
-      });
-
-      await module.evaluate();
-
-      // Snapshot the namespace values so the next cell can access them
-      // without retaining a reference to this module.
-      const snapshot = Object.create(null);
-      for (const b of nextBindings) {
-        snapshot[b.name] = module.namespace[b.name];
-      }
-      previousSnapshot = snapshot;
-      previousBindings = nextBindings;
-      output = logs.join("\n");
+    const module = new SourceTextModule(source, {
+      context,
+      identifier: `cell-${cellCounter++}.mjs`,
+      initializeImportMeta(meta, mod) {
+        setImportMeta(meta, mod, true);
+      },
+      importModuleDynamically(specifier, referrer) {
+        return importResolved(resolveSpecifier(specifier, referrer?.identifier));
+      },
     });
+
+    await module.link(async (specifier, referencingModule) => {
+      const resolved = resolveSpecifier(specifier, referencingModule?.identifier);
+      return loadLinkedModule(resolved);
+    });
+
+    await module.evaluate();
+
+    // Snapshot the namespace values so the next cell can access them
+    // without retaining a reference to this module.
+    const snapshot = Object.create(null);
+    for (const b of nextBindings) {
+      snapshot[b.name] = module.namespace[b.name];
+    }
+    previousSnapshot = snapshot;
+    previousBindings = nextBindings;
+    const output = _capturedLogs.join("\n");
 
     send({
       type: "exec_result",
@@ -591,11 +863,12 @@ async function handleExec(message) {
       error: null,
     });
   } catch (error) {
+    const output = _capturedLogs.join("\n");
     send({
       type: "exec_result",
       id: message.id,
       ok: false,
-      output: "",
+      output,
       error: error && error.message ? error.message : String(error),
     });
   } finally {
