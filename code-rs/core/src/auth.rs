@@ -4,10 +4,6 @@ use reqwest::StatusCode;
 use serde::Deserialize;
 use serde::Serialize;
 use std::env;
-use std::fs::OpenOptions;
-use std::io::Write;
-#[cfg(unix)]
-use std::os::unix::fs::OpenOptionsExt;
 use std::path::Path;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -784,17 +780,7 @@ pub fn try_read_auth_json(auth_file: &Path) -> std::io::Result<AuthDotJson> {
 }
 
 pub fn write_auth_json(auth_file: &Path, auth_dot_json: &AuthDotJson) -> std::io::Result<()> {
-    let json_data = serde_json::to_string_pretty(auth_dot_json)?;
-    let mut options = OpenOptions::new();
-    options.truncate(true).write(true).create(true);
-    #[cfg(unix)]
-    {
-        options.mode(0o600);
-    }
-    let mut file = options.open(auth_file)?;
-    file.write_all(json_data.as_bytes())?;
-    file.flush()?;
-    Ok(())
+    crate::util::write_json_file_secure(auth_file, auth_dot_json)
 }
 
 /// Save auth payload using the specified backend.

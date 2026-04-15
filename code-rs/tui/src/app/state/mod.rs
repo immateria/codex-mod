@@ -110,6 +110,16 @@ pub(super) struct LoginFlowState {
     pub(super) join_handle: JoinHandle<()>,
 }
 
+impl LoginFlowState {
+    /// Shut down the login server (if running) and abort the spawned task.
+    pub(super) fn cancel(self) {
+        if let Some(shutdown) = self.shutdown {
+            shutdown.shutdown();
+        }
+        self.join_handle.abort();
+    }
+}
+
 pub(crate) struct App<'a> {
     pub(super) _server: Arc<ConversationManager>,
     pub(super) app_event_tx: AppEventSender,

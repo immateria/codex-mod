@@ -147,10 +147,7 @@
                         }
 
                         if let Some(flow) = self.login_flow.take() {
-                            if let Some(shutdown) = flow.shutdown {
-                                shutdown.shutdown();
-                            }
-                            flow.join_handle.abort();
+                            flow.cancel();
                         }
 
                         let opts = ServerOptions::new(
@@ -192,10 +189,7 @@
                         }
 
                         if let Some(flow) = self.login_flow.take() {
-                            if let Some(shutdown) = flow.shutdown {
-                                shutdown.shutdown();
-                            }
-                            flow.join_handle.abort();
+                            flow.cancel();
                         }
                         widget.notify_login_device_code_pending();
 
@@ -225,10 +219,7 @@
                 }
                 AppEvent::LoginCancelChatGpt => {
                     if let Some(flow) = self.login_flow.take() {
-                        if let Some(shutdown) = flow.shutdown {
-                            shutdown.shutdown();
-                        }
-                        flow.join_handle.abort();
+                        flow.cancel();
                     }
                     if let AppState::Chat { widget } = &mut self.app_state {
                         widget.notify_login_flow_cancelled();
@@ -236,13 +227,7 @@
                 }
                 AppEvent::LoginChatGptComplete { result } => {
                     if let Some(flow) = self.login_flow.take() {
-                        if let Some(shutdown) = flow.shutdown {
-                            shutdown.shutdown();
-                        }
-                        // Allow the task to finish naturally; if still running, abort.
-                        if !flow.join_handle.is_finished() {
-                            flow.join_handle.abort();
-                        }
+                        flow.cancel();
                     }
 
                     if let AppState::Chat { widget } = &mut self.app_state {
@@ -256,12 +241,7 @@
                 }
                 AppEvent::LoginDeviceCodeFailed { message } => {
                     if let Some(flow) = self.login_flow.take() {
-                        if let Some(shutdown) = flow.shutdown {
-                            shutdown.shutdown();
-                        }
-                        if !flow.join_handle.is_finished() {
-                            flow.join_handle.abort();
-                        }
+                        flow.cancel();
                     }
                     if let AppState::Chat { widget } = &mut self.app_state {
                         widget.notify_login_device_code_failed(message);
@@ -269,12 +249,7 @@
                 }
                 AppEvent::LoginDeviceCodeComplete { result } => {
                     if let Some(flow) = self.login_flow.take() {
-                        if let Some(shutdown) = flow.shutdown {
-                            shutdown.shutdown();
-                        }
-                        if !flow.join_handle.is_finished() {
-                            flow.join_handle.abort();
-                        }
+                        flow.cancel();
                     }
 
                     if let AppState::Chat { widget } = &mut self.app_state {

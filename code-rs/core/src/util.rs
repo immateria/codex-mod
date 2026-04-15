@@ -1,12 +1,40 @@
+use std::fs::OpenOptions;
+use std::io::{self, Write};
+use std::path::Path;
 use std::time::Duration;
 
 use chrono::{DateTime, Datelike, NaiveDate, TimeZone, Timelike, Utc};
 use rand::Rng;
 use reqwest;
+use serde::Serialize;
 
 // ── MIME type constants ──────────────────────────────────────────────
 pub const MIME_OCTET_STREAM: &str = "application/octet-stream";
 pub const MIME_IMAGE_PNG: &str = "image/png";
+
+// ── Secure JSON file I/O ─────────────────────────────────────────────
+
+/// Write a serializable value as pretty-printed JSON with restricted
+/// permissions (0o600 on Unix) so credentials stay private.
+pub(crate) fn write_json_file_secure<T: Serialize>(path: &Path, data: &T) -> io::Result<()> {
+    if let Some(parent) = path.parent() {
+        if !parent.exists() {
+            std::fs::create_dir_all(parent)?;
+        }
+    }
+    let json = serde_json::to_string_pretty(data)?;
+    let mut options = OpenOptions::new();
+    options.truncate(true).write(true).create(true);
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::OpenOptionsExt;
+        options.mode(0o600);
+    }
+    let mut file = options.open(path)?;
+    file.write_all(json.as_bytes())?;
+    file.flush()?;
+    Ok(())
+}
 
 /// Maximum number of characters to keep when truncating a text snippet
 /// for display or logging (e.g. browser inspect, auto-drive goal, scratchpad).

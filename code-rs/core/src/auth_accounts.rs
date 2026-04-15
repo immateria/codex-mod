@@ -5,8 +5,8 @@ use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::collections::HashSet;
-use std::fs::{self, OpenOptions};
-use std::io::{self, Write};
+use std::fs;
+use std::io;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::sync::Mutex;
@@ -451,23 +451,7 @@ fn load_accounts_file(paths: &AccountStorePaths) -> io::Result<AccountsFile> {
 }
 
 fn write_accounts_file(path: &Path, data: &AccountsFile) -> io::Result<()> {
-    if let Some(parent) = path.parent()
-        && !parent.exists() {
-            std::fs::create_dir_all(parent)?;
-        }
-
-    let json = serde_json::to_string_pretty(data)?;
-    let mut options = OpenOptions::new();
-    options.truncate(true).write(true).create(true);
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::OpenOptionsExt;
-        options.mode(0o600);
-    }
-    let mut file = options.open(path)?;
-    file.write_all(json.as_bytes())?;
-    file.flush()?;
-    Ok(())
+    crate::util::write_json_file_secure(path, data)
 }
 
 fn normalize_email(email: &str) -> String {

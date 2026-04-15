@@ -39,6 +39,16 @@ use which::which;
 
 use super::CONFIG_TOML_FILE;
 
+/// Read a TOML config file and parse it into a `DocumentMut`.
+/// Returns an empty document if the file does not exist.
+fn read_config_doc(path: &Path) -> anyhow::Result<DocumentMut> {
+    match std::fs::read_to_string(path) {
+        Ok(s) => Ok(s.parse::<DocumentMut>()?),
+        Err(e) if e.kind() == ErrorKind::NotFound => Ok(DocumentMut::new()),
+        Err(e) => Err(e.into()),
+    }
+}
+
 pub fn load_config_as_toml(code_home: &Path) -> std::io::Result<TomlValue> {
     load_config_as_toml_blocking(code_home, LoaderOverrides::default())
 }
@@ -438,11 +448,7 @@ pub fn set_shell_style_profile_skill_mode(
 
     let config_path = code_home.join(CONFIG_TOML_FILE);
     let read_path = resolve_code_path_for_read(code_home, Path::new(CONFIG_TOML_FILE));
-    let mut doc = match std::fs::read_to_string(&read_path) {
-        Ok(s) => s.parse::<DocumentMut>()?,
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => DocumentMut::new(),
-        Err(e) => return Err(e.into()),
-    };
+    let mut doc = read_config_doc(&read_path)?;
 
     let style_key = style.to_string();
     let mut changed = false;
@@ -560,11 +566,7 @@ pub fn set_shell_style_profile_skills(
 ) -> anyhow::Result<bool> {
     let config_path = code_home.join(CONFIG_TOML_FILE);
     let read_path = resolve_code_path_for_read(code_home, Path::new(CONFIG_TOML_FILE));
-    let mut doc = match std::fs::read_to_string(&read_path) {
-        Ok(s) => s.parse::<DocumentMut>()?,
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => DocumentMut::new(),
-        Err(e) => return Err(e.into()),
-    };
+    let mut doc = read_config_doc(&read_path)?;
 
     let style_key = style.to_string();
     let mut changed = false;
@@ -660,11 +662,7 @@ pub fn set_shell_style_profile_paths(
 ) -> anyhow::Result<bool> {
     let config_path = code_home.join(CONFIG_TOML_FILE);
     let read_path = resolve_code_path_for_read(code_home, Path::new(CONFIG_TOML_FILE));
-    let mut doc = match std::fs::read_to_string(&read_path) {
-        Ok(s) => s.parse::<DocumentMut>()?,
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => DocumentMut::new(),
-        Err(e) => return Err(e.into()),
-    };
+    let mut doc = read_config_doc(&read_path)?;
 
     let style_key = style.to_string();
     let mut changed = false;
@@ -763,11 +761,7 @@ pub fn set_shell_style_profile_summary(
 
     let config_path = code_home.join(CONFIG_TOML_FILE);
     let read_path = resolve_code_path_for_read(code_home, Path::new(CONFIG_TOML_FILE));
-    let mut doc = match std::fs::read_to_string(&read_path) {
-        Ok(s) => s.parse::<DocumentMut>()?,
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => DocumentMut::new(),
-        Err(e) => return Err(e.into()),
-    };
+    let mut doc = read_config_doc(&read_path)?;
 
     let style_key = style.to_string();
     let mut changed = false;
@@ -876,11 +870,7 @@ pub fn set_shell_style_profile_mcp_servers(
 ) -> anyhow::Result<bool> {
     let config_path = code_home.join(CONFIG_TOML_FILE);
     let read_path = resolve_code_path_for_read(code_home, Path::new(CONFIG_TOML_FILE));
-    let mut doc = match std::fs::read_to_string(&read_path) {
-        Ok(s) => s.parse::<DocumentMut>()?,
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => DocumentMut::new(),
-        Err(e) => return Err(e.into()),
-    };
+    let mut doc = read_config_doc(&read_path)?;
 
     let style_key = style.to_string();
     let mut changed = false;
@@ -1193,11 +1183,7 @@ pub fn set_project_trusted(code_home: &Path, project_path: &Path) -> anyhow::Res
     let config_path = code_home.join(CONFIG_TOML_FILE);
     // Parse existing config if present; otherwise start a new document.
     let read_path = resolve_code_path_for_read(code_home, Path::new(CONFIG_TOML_FILE));
-    let mut doc = match std::fs::read_to_string(&read_path) {
-        Ok(s) => s.parse::<DocumentMut>()?,
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => DocumentMut::new(),
-        Err(e) => return Err(e.into()),
-    };
+    let mut doc = read_config_doc(&read_path)?;
 
     set_project_trusted_inner(&mut doc, project_path)?;
 
@@ -1280,11 +1266,7 @@ pub fn set_tui_theme_name(code_home: &Path, theme: ThemeName) -> anyhow::Result<
 
     // Parse existing config if present; otherwise start a new document.
     let read_path = resolve_code_path_for_read(code_home, Path::new(CONFIG_TOML_FILE));
-    let mut doc = match std::fs::read_to_string(&read_path) {
-        Ok(s) => s.parse::<DocumentMut>()?,
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => DocumentMut::new(),
-        Err(e) => return Err(e.into()),
-    };
+    let mut doc = read_config_doc(&read_path)?;
 
     // Map enum to kebab-case string used in config
     let theme_str = match theme {
@@ -1349,11 +1331,7 @@ pub fn set_cached_terminal_background(
 ) -> anyhow::Result<()> {
     let config_path = code_home.join(CONFIG_TOML_FILE);
     let read_path = resolve_code_path_for_read(code_home, Path::new(CONFIG_TOML_FILE));
-    let mut doc = match std::fs::read_to_string(&read_path) {
-        Ok(s) => s.parse::<DocumentMut>()?,
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => DocumentMut::new(),
-        Err(e) => return Err(e.into()),
-    };
+    let mut doc = read_config_doc(&read_path)?;
 
     let mut tbl = toml_edit::Table::new();
     tbl.set_implicit(false);
@@ -1395,11 +1373,7 @@ pub fn set_tui_spinner_name(code_home: &Path, spinner_name: &str) -> anyhow::Res
 
     // Parse existing config if present; otherwise start a new document.
     let read_path = resolve_code_path_for_read(code_home, Path::new(CONFIG_TOML_FILE));
-    let mut doc = match std::fs::read_to_string(&read_path) {
-        Ok(s) => s.parse::<DocumentMut>()?,
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => DocumentMut::new(),
-        Err(e) => return Err(e.into()),
-    };
+    let mut doc = read_config_doc(&read_path)?;
 
     // Write `[tui.spinner].name = "…"`
     doc["tui"]["spinner"]["name"] = toml_edit::value(spinner_name);
@@ -1428,11 +1402,7 @@ pub fn set_custom_spinner(
 ) -> anyhow::Result<()> {
     let config_path = code_home.join(CONFIG_TOML_FILE);
     let read_path = resolve_code_path_for_read(code_home, Path::new(CONFIG_TOML_FILE));
-    let mut doc = match std::fs::read_to_string(&read_path) {
-        Ok(s) => s.parse::<DocumentMut>()?,
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => DocumentMut::new(),
-        Err(e) => return Err(e.into()),
-    };
+    let mut doc = read_config_doc(&read_path)?;
     // Write custom spinner
     let node = &mut doc["tui"]["spinner"]["custom"][id];
     node["interval"] = toml_edit::value(interval as i64);
@@ -1462,11 +1432,7 @@ pub fn set_custom_theme(
 ) -> anyhow::Result<()> {
     let config_path = code_home.join(CONFIG_TOML_FILE);
     let read_path = resolve_code_path_for_read(code_home, Path::new(CONFIG_TOML_FILE));
-    let mut doc = match std::fs::read_to_string(&read_path) {
-        Ok(s) => s.parse::<DocumentMut>()?,
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => DocumentMut::new(),
-        Err(e) => return Err(e.into()),
-    };
+    let mut doc = read_config_doc(&read_path)?;
 
     // Optionally activate custom theme and persist label
     if set_active {
@@ -1531,11 +1497,7 @@ pub fn set_tui_alternate_screen(code_home: &Path, enabled: bool) -> anyhow::Resu
 
     // Parse existing config if present; otherwise start a new document.
     let read_path = resolve_code_path_for_read(code_home, Path::new(CONFIG_TOML_FILE));
-    let mut doc = match std::fs::read_to_string(&read_path) {
-        Ok(s) => s.parse::<DocumentMut>()?,
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => DocumentMut::new(),
-        Err(e) => return Err(e.into()),
-    };
+    let mut doc = read_config_doc(&read_path)?;
 
     // Write `[tui].alternate_screen = true/false`
     doc["tui"]["alternate_screen"] = toml_edit::value(enabled);
@@ -1559,11 +1521,7 @@ pub fn set_tui_alternate_screen(code_home: &Path, enabled: bool) -> anyhow::Resu
 pub fn set_tui_icon_mode(code_home: &Path, mode: crate::config_types::IconMode) -> anyhow::Result<()> {
     let config_path = code_home.join(CONFIG_TOML_FILE);
     let read_path = resolve_code_path_for_read(code_home, Path::new(CONFIG_TOML_FILE));
-    let mut doc = match std::fs::read_to_string(&read_path) {
-        Ok(s) => s.parse::<DocumentMut>()?,
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => DocumentMut::new(),
-        Err(e) => return Err(e.into()),
-    };
+    let mut doc = read_config_doc(&read_path)?;
     doc["tui"]["icon_mode"] = toml_edit::value(mode.as_str());
     // Remove deprecated legacy key.
     if let Some(tui) = doc.get_mut("tui").and_then(|v| v.as_table_mut()) {
@@ -1581,11 +1539,7 @@ pub fn set_tui_icon_mode(code_home: &Path, mode: crate::config_types::IconMode) 
 pub fn set_tui_header_show_bottom_line(code_home: &Path, enabled: bool) -> anyhow::Result<()> {
     let config_path = code_home.join(CONFIG_TOML_FILE);
     let read_path = resolve_code_path_for_read(code_home, Path::new(CONFIG_TOML_FILE));
-    let mut doc = match std::fs::read_to_string(&read_path) {
-        Ok(contents) => contents.parse::<DocumentMut>()?,
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => DocumentMut::new(),
-        Err(e) => return Err(e.into()),
-    };
+    let mut doc = read_config_doc(&read_path)?;
 
     doc["tui"]["header"]["show_bottom_line"] = toml_edit::value(enabled);
 
@@ -1603,11 +1557,7 @@ pub fn set_tui_limits_layout_mode(
 ) -> anyhow::Result<()> {
     let config_path = code_home.join(CONFIG_TOML_FILE);
     let read_path = resolve_code_path_for_read(code_home, Path::new(CONFIG_TOML_FILE));
-    let mut doc = match std::fs::read_to_string(&read_path) {
-        Ok(contents) => contents.parse::<DocumentMut>()?,
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => DocumentMut::new(),
-        Err(e) => return Err(e.into()),
-    };
+    let mut doc = read_config_doc(&read_path)?;
 
     let mode = match layout_mode {
         LimitsLayoutMode::Auto => "auto",
@@ -1631,11 +1581,7 @@ pub fn set_tui_settings_menu(
 ) -> anyhow::Result<()> {
     let config_path = code_home.join(CONFIG_TOML_FILE);
     let read_path = resolve_code_path_for_read(code_home, Path::new(CONFIG_TOML_FILE));
-    let mut doc = match std::fs::read_to_string(&read_path) {
-        Ok(contents) => contents.parse::<DocumentMut>()?,
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => DocumentMut::new(),
-        Err(e) => return Err(e.into()),
-    };
+    let mut doc = read_config_doc(&read_path)?;
 
     let open_mode = match settings_menu.open_mode {
         SettingsMenuOpenMode::Auto => "auto",
@@ -1663,11 +1609,7 @@ pub fn set_tui_hotkeys(
 ) -> anyhow::Result<()> {
     let config_path = code_home.join(CONFIG_TOML_FILE);
     let read_path = resolve_code_path_for_read(code_home, Path::new(CONFIG_TOML_FILE));
-    let mut doc = match std::fs::read_to_string(&read_path) {
-        Ok(contents) => contents.parse::<DocumentMut>()?,
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => DocumentMut::new(),
-        Err(e) => return Err(e.into()),
-    };
+    let mut doc = read_config_doc(&read_path)?;
 
     let tui_table = doc["tui"]
         .or_insert(TomlItem::Table(TomlTable::new()))
@@ -1811,11 +1753,7 @@ pub fn set_tui_notifications(
 
     let config_path = code_home.join(CONFIG_TOML_FILE);
     let read_path = resolve_code_path_for_read(code_home, Path::new(CONFIG_TOML_FILE));
-    let mut doc = match std::fs::read_to_string(&read_path) {
-        Ok(contents) => contents.parse::<DocumentMut>()?,
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => DocumentMut::new(),
-        Err(e) => return Err(e.into()),
-    };
+    let mut doc = read_config_doc(&read_path)?;
 
     match notifications {
         Notifications::Enabled(value) => {
@@ -1861,11 +1799,7 @@ pub fn set_tui_status_line_layout(
 ) -> anyhow::Result<()> {
     let config_path = code_home.join(CONFIG_TOML_FILE);
     let read_path = resolve_code_path_for_read(code_home, Path::new(CONFIG_TOML_FILE));
-    let mut doc = match std::fs::read_to_string(&read_path) {
-        Ok(contents) => contents.parse::<DocumentMut>()?,
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => DocumentMut::new(),
-        Err(e) => return Err(e.into()),
-    };
+    let mut doc = read_config_doc(&read_path)?;
 
     let normalized_top = top_item_ids
         .iter()
@@ -1937,11 +1871,7 @@ pub fn set_account_store_paths(
 ) -> anyhow::Result<()> {
     let config_path = code_home.join(CONFIG_TOML_FILE);
     let read_path = resolve_code_path_for_read(code_home, Path::new(CONFIG_TOML_FILE));
-    let mut doc = match std::fs::read_to_string(&read_path) {
-        Ok(contents) => contents.parse::<DocumentMut>()?,
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => DocumentMut::new(),
-        Err(e) => return Err(e.into()),
-    };
+    let mut doc = read_config_doc(&read_path)?;
 
     let normalized_read_paths = read_paths
         .iter()
@@ -1997,11 +1927,7 @@ pub fn set_tui_review_auto_resolve(code_home: &Path, enabled: bool) -> anyhow::R
     let config_path = code_home.join(CONFIG_TOML_FILE);
     let read_path = resolve_code_path_for_read(code_home, Path::new(CONFIG_TOML_FILE));
 
-    let mut doc = match std::fs::read_to_string(&read_path) {
-        Ok(contents) => contents.parse::<DocumentMut>()?,
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => DocumentMut::new(),
-        Err(e) => return Err(e.into()),
-    };
+    let mut doc = read_config_doc(&read_path)?;
 
     doc["tui"]["review_auto_resolve"] = toml_edit::value(enabled);
 
@@ -2018,11 +1944,7 @@ pub fn set_tui_auto_review_enabled(code_home: &Path, enabled: bool) -> anyhow::R
     let config_path = code_home.join(CONFIG_TOML_FILE);
     let read_path = resolve_code_path_for_read(code_home, Path::new(CONFIG_TOML_FILE));
 
-    let mut doc = match std::fs::read_to_string(&read_path) {
-        Ok(contents) => contents.parse::<DocumentMut>()?,
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => DocumentMut::new(),
-        Err(e) => return Err(e.into()),
-    };
+    let mut doc = read_config_doc(&read_path)?;
 
     doc["tui"]["auto_review_enabled"] = toml_edit::value(enabled);
 
@@ -2048,11 +1970,7 @@ pub fn set_review_model(
 
     let config_path = code_home.join(CONFIG_TOML_FILE);
     let read_path = resolve_code_path_for_read(code_home, Path::new(CONFIG_TOML_FILE));
-    let mut doc = match std::fs::read_to_string(&read_path) {
-        Ok(contents) => contents.parse::<DocumentMut>()?,
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => DocumentMut::new(),
-        Err(e) => return Err(e.into()),
-    };
+    let mut doc = read_config_doc(&read_path)?;
 
     doc["review_use_chat_model"] = toml_edit::value(use_chat_model);
     if !use_chat_model {
@@ -2083,11 +2001,7 @@ pub fn set_review_resolve_model(
 
     let config_path = code_home.join(CONFIG_TOML_FILE);
     let read_path = resolve_code_path_for_read(code_home, Path::new(CONFIG_TOML_FILE));
-    let mut doc = match std::fs::read_to_string(&read_path) {
-        Ok(contents) => contents.parse::<DocumentMut>()?,
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => DocumentMut::new(),
-        Err(e) => return Err(e.into()),
-    };
+    let mut doc = read_config_doc(&read_path)?;
 
     doc["review_resolve_use_chat_model"] = toml_edit::value(use_chat_model);
     if !use_chat_model {
@@ -2114,11 +2028,7 @@ pub fn set_planning_model(
     let config_path = code_home.join(CONFIG_TOML_FILE);
     let read_path = resolve_code_path_for_read(code_home, Path::new(CONFIG_TOML_FILE));
 
-    let mut doc = match std::fs::read_to_string(&read_path) {
-        Ok(contents) => contents.parse::<DocumentMut>()?,
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => DocumentMut::new(),
-        Err(e) => return Err(e.into()),
-    };
+    let mut doc = read_config_doc(&read_path)?;
 
     doc["planning_use_chat_model"] = toml_edit::value(use_chat_model);
     if !use_chat_model {
@@ -2154,11 +2064,7 @@ pub fn set_auto_review_model(
     let config_path = code_home.join(CONFIG_TOML_FILE);
     let read_path = resolve_code_path_for_read(code_home, Path::new(CONFIG_TOML_FILE));
 
-    let mut doc = match std::fs::read_to_string(&read_path) {
-        Ok(contents) => contents.parse::<DocumentMut>()?,
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => DocumentMut::new(),
-        Err(e) => return Err(e.into()),
-    };
+    let mut doc = read_config_doc(&read_path)?;
 
     doc["auto_review_use_chat_model"] = toml_edit::value(use_chat_model);
     if !use_chat_model {
@@ -2190,11 +2096,7 @@ pub fn set_auto_review_resolve_model(
     let config_path = code_home.join(CONFIG_TOML_FILE);
     let read_path = resolve_code_path_for_read(code_home, Path::new(CONFIG_TOML_FILE));
 
-    let mut doc = match std::fs::read_to_string(&read_path) {
-        Ok(contents) => contents.parse::<DocumentMut>()?,
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => DocumentMut::new(),
-        Err(e) => return Err(e.into()),
-    };
+    let mut doc = read_config_doc(&read_path)?;
 
     doc["auto_review_resolve_use_chat_model"] = toml_edit::value(use_chat_model);
     if !use_chat_model {
@@ -2220,11 +2122,7 @@ pub fn set_auto_drive_settings(
     let config_path = code_home.join(CONFIG_TOML_FILE);
     let read_path = resolve_code_path_for_read(code_home, Path::new(CONFIG_TOML_FILE));
 
-    let mut doc = match std::fs::read_to_string(&read_path) {
-        Ok(contents) => contents.parse::<DocumentMut>()?,
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => DocumentMut::new(),
-        Err(e) => return Err(e.into()),
-    };
+    let mut doc = read_config_doc(&read_path)?;
 
     if let Some(tui_tbl) = doc["tui"].as_table_mut() {
         tui_tbl.remove("auto_drive");
@@ -2324,11 +2222,7 @@ pub fn set_github_check_on_push(code_home: &Path, enabled: bool) -> anyhow::Resu
 
     // Parse existing config if present; otherwise start a new document.
     let read_path = resolve_code_path_for_read(code_home, Path::new(CONFIG_TOML_FILE));
-    let mut doc = match std::fs::read_to_string(&read_path) {
-        Ok(s) => s.parse::<DocumentMut>()?,
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => DocumentMut::new(),
-        Err(e) => return Err(e.into()),
-    };
+    let mut doc = read_config_doc(&read_path)?;
 
     // Write `[github].check_workflows_on_push = <enabled>`
     doc["github"]["check_workflows_on_push"] = toml_edit::value(enabled);
@@ -2353,11 +2247,7 @@ pub fn set_github_actionlint_on_patch(
 ) -> anyhow::Result<()> {
     let config_path = code_home.join(CONFIG_TOML_FILE);
     let read_path = resolve_code_path_for_read(code_home, Path::new(CONFIG_TOML_FILE));
-    let mut doc = match std::fs::read_to_string(&read_path) {
-        Ok(s) => s.parse::<DocumentMut>()?,
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => DocumentMut::new(),
-        Err(e) => return Err(e.into()),
-    };
+    let mut doc = read_config_doc(&read_path)?;
 
     doc["github"]["actionlint_on_patch"] = toml_edit::value(enabled);
 
@@ -2376,11 +2266,7 @@ pub fn set_validation_group_enabled(
 ) -> anyhow::Result<()> {
     let config_path = code_home.join(CONFIG_TOML_FILE);
     let read_path = resolve_code_path_for_read(code_home, Path::new(CONFIG_TOML_FILE));
-    let mut doc = match std::fs::read_to_string(&read_path) {
-        Ok(s) => s.parse::<DocumentMut>()?,
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => DocumentMut::new(),
-        Err(e) => return Err(e.into()),
-    };
+    let mut doc = read_config_doc(&read_path)?;
 
     doc["validation"]["groups"][group] = toml_edit::value(enabled);
 
@@ -2399,11 +2285,7 @@ pub fn set_validation_tool_enabled(
 ) -> anyhow::Result<()> {
     let config_path = code_home.join(CONFIG_TOML_FILE);
     let read_path = resolve_code_path_for_read(code_home, Path::new(CONFIG_TOML_FILE));
-    let mut doc = match std::fs::read_to_string(&read_path) {
-        Ok(s) => s.parse::<DocumentMut>()?,
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => DocumentMut::new(),
-        Err(e) => return Err(e.into()),
-    };
+    let mut doc = read_config_doc(&read_path)?;
 
     doc["validation"]["tools"][tool] = toml_edit::value(enabled);
 
@@ -2426,11 +2308,7 @@ pub fn set_project_access_mode(
 
     // Parse existing config if present; otherwise start a new document.
     let read_path = resolve_code_path_for_read(code_home, Path::new(CONFIG_TOML_FILE));
-    let mut doc = match std::fs::read_to_string(&read_path) {
-        Ok(s) => s.parse::<DocumentMut>()?,
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => DocumentMut::new(),
-        Err(e) => return Err(e.into()),
-    };
+    let mut doc = read_config_doc(&read_path)?;
 
     // Ensure projects table and the per-project table exist
     let project_key = project_path.to_string_lossy().into_owned();
@@ -2509,11 +2387,7 @@ pub fn add_project_allowed_command(
 
     let config_path = code_home.join(CONFIG_TOML_FILE);
     let read_path = resolve_code_path_for_read(code_home, Path::new(CONFIG_TOML_FILE));
-    let mut doc = match std::fs::read_to_string(&read_path) {
-        Ok(s) => s.parse::<DocumentMut>()?,
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => DocumentMut::new(),
-        Err(e) => return Err(e.into()),
-    };
+    let mut doc = read_config_doc(&read_path)?;
 
     let project_key = project_path.to_string_lossy().into_owned();
     if doc
@@ -3018,11 +2892,7 @@ pub fn add_mcp_server(
 
     let config_path = code_home.join(CONFIG_TOML_FILE);
     let read_path = resolve_code_path_for_read(code_home, Path::new(CONFIG_TOML_FILE));
-    let mut doc = match std::fs::read_to_string(&read_path) {
-        Ok(s) => s.parse::<DocumentMut>()?,
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => DocumentMut::new(),
-        Err(e) => return Err(e.into()),
-    };
+    let mut doc = read_config_doc(&read_path)?;
 
     // Ensure target tables exist
     if !doc.as_table().contains_key("mcp_servers") {
@@ -3192,11 +3062,7 @@ pub fn set_mcp_server_enabled(
 ) -> anyhow::Result<bool> {
     let config_path = code_home.join(CONFIG_TOML_FILE);
     let read_path = resolve_code_path_for_read(code_home, Path::new(CONFIG_TOML_FILE));
-    let mut doc = match std::fs::read_to_string(&read_path) {
-        Ok(s) => s.parse::<DocumentMut>()?,
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => DocumentMut::new(),
-        Err(e) => return Err(e.into()),
-    };
+    let mut doc = read_config_doc(&read_path)?;
 
     // Helper to ensure table exists
     fn ensure_table<'a>(doc: &'a mut DocumentMut, key: &'a str) -> &'a mut toml_edit::Table {
@@ -3259,11 +3125,7 @@ pub fn set_mcp_server_tool_enabled(
 
     let config_path = code_home.join(CONFIG_TOML_FILE);
     let read_path = resolve_code_path_for_read(code_home, Path::new(CONFIG_TOML_FILE));
-    let mut doc = match std::fs::read_to_string(&read_path) {
-        Ok(s) => s.parse::<DocumentMut>()?,
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => DocumentMut::new(),
-        Err(e) => return Err(e.into()),
-    };
+    let mut doc = read_config_doc(&read_path)?;
 
     fn find_server_table_mut<'a>(
         doc: &'a mut DocumentMut,
@@ -3365,11 +3227,7 @@ pub fn set_mcp_server_scheduling(
 
     let config_path = code_home.join(CONFIG_TOML_FILE);
     let read_path = resolve_code_path_for_read(code_home, Path::new(CONFIG_TOML_FILE));
-    let mut doc = match std::fs::read_to_string(&read_path) {
-        Ok(s) => s.parse::<DocumentMut>()?,
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => DocumentMut::new(),
-        Err(e) => return Err(e.into()),
-    };
+    let mut doc = read_config_doc(&read_path)?;
 
     fn find_server_table_mut<'a>(
         doc: &'a mut DocumentMut,
@@ -3460,11 +3318,7 @@ pub fn set_mcp_tool_scheduling_override(
 
     let config_path = code_home.join(CONFIG_TOML_FILE);
     let read_path = resolve_code_path_for_read(code_home, Path::new(CONFIG_TOML_FILE));
-    let mut doc = match std::fs::read_to_string(&read_path) {
-        Ok(s) => s.parse::<DocumentMut>()?,
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => DocumentMut::new(),
-        Err(e) => return Err(e.into()),
-    };
+    let mut doc = read_config_doc(&read_path)?;
 
     fn find_server_table_mut<'a>(
         doc: &'a mut DocumentMut,
@@ -3763,11 +3617,7 @@ pub fn set_network_proxy_settings(
 ) -> anyhow::Result<()> {
     let config_path = code_home.join(CONFIG_TOML_FILE);
     let read_path = resolve_code_path_for_read(code_home, Path::new(CONFIG_TOML_FILE));
-    let mut doc = match std::fs::read_to_string(&read_path) {
-        Ok(contents) => contents.parse::<DocumentMut>()?,
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => DocumentMut::new(),
-        Err(e) => return Err(e.into()),
-    };
+    let mut doc = read_config_doc(&read_path)?;
 
     let network_table = doc["network"]
         .or_insert(TomlItem::Table(TomlTable::new()))
@@ -4087,11 +3937,7 @@ pub fn set_exec_limits_settings(
 ) -> anyhow::Result<()> {
     let config_path = code_home.join(CONFIG_TOML_FILE);
     let read_path = resolve_code_path_for_read(code_home, Path::new(CONFIG_TOML_FILE));
-    let mut doc = match std::fs::read_to_string(&read_path) {
-        Ok(contents) => contents.parse::<DocumentMut>()?,
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => DocumentMut::new(),
-        Err(e) => return Err(e.into()),
-    };
+    let mut doc = read_config_doc(&read_path)?;
 
     let exec_table = doc["exec_limits"]
         .or_insert(TomlItem::Table(TomlTable::new()))
@@ -4119,11 +3965,7 @@ pub fn set_js_repl_settings(
 ) -> anyhow::Result<()> {
     let config_path = code_home.join(CONFIG_TOML_FILE);
     let read_path = resolve_code_path_for_read(code_home, Path::new(CONFIG_TOML_FILE));
-    let mut doc = match std::fs::read_to_string(&read_path) {
-        Ok(contents) => contents.parse::<DocumentMut>()?,
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => DocumentMut::new(),
-        Err(e) => return Err(e.into()),
-    };
+    let mut doc = read_config_doc(&read_path)?;
 
     let tools_table = doc["tools"]
         .or_insert(TomlItem::Table(TomlTable::new()))

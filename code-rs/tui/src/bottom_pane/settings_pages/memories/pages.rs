@@ -692,7 +692,7 @@ impl MemoriesSettingsView {
                 let detail = parts.join(" · ");
                 SettingsMenuRow::new(idx, label)
                     .with_value(crate::bottom_pane::settings_ui::rows::StyledText::new(
-                        format!("{total}"),
+                        total.to_string(),
                         Style::default().fg(colors::function()),
                     ))
                     .with_detail(crate::bottom_pane::settings_ui::rows::StyledText::new(
