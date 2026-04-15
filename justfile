@@ -1,20 +1,20 @@
-set working-directory := "codex-rs"
+set working-directory := "code-rs"
 set positional-arguments
 
 # Display help
 help:
     just -l
 
-# `codex`
-alias c := codex
-codex *args:
-    cargo run --bin codex -- "$@"
+# `code`
+alias c := code
+code *args:
+    cargo run --bin code -- "$@"
 
-# `codex exec`
+# `code exec`
 exec *args:
-    cargo run --bin codex -- exec "$@"
+    cargo run --bin code -- exec "$@"
 
-# Start codex-exec-server and run codex-tui.
+# Start code-exec-server and run code-tui.
 [no-cd]
 tui-with-exec-server *args:
     ./scripts/run_tui_with_exec_server.sh "$@"
@@ -46,11 +46,11 @@ install:
 test:
     cargo nextest run --no-fail-fast
 
-# Build and run Codex from source using Bazel.
+# Build and run Code from source using Bazel.
 # Note we have to use the combination of `[no-cd]` and `--run_under="cd $PWD &&"`
 # to ensure that Bazel runs the command in the current working directory.
 [no-cd]
-bazel-codex *args:
+bazel-code *args:
     bazel run //codex-rs/cli:codex --run_under="cd $PWD &&" -- "$@"
 
 [no-cd]

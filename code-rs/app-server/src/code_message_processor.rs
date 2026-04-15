@@ -1515,10 +1515,20 @@ async fn apply_bespoke_event_handling(
             let rx = outgoing
                 .send_request_to_connection(owner_connection_id, APPLY_PATCH_APPROVAL_METHOD, Some(value))
                 .await;
-            // TODO(mbolin): Enforce a timeout so this task does not live indefinitely?
+            // Enforce a 5-minute timeout so this task does not live indefinitely
+            // if the frontend disconnects or wedges.
             let approval_id = call_id.clone(); // correlate by call_id, not event_id
             tokio::spawn(async move {
-                on_patch_approval_response(approval_id, rx, conversation).await;
+                match timeout(Duration::from_secs(300), on_patch_approval_response(approval_id.clone(), rx, conversation.clone())).await {
+                    Ok(_) => {}
+                    Err(_) => {
+                        tracing::warn!("patch approval timed out for call_id={approval_id}");
+                        let _ = conversation.submit(Op::PatchApproval {
+                            id: approval_id,
+                            decision: core_protocol::ReviewDecision::Denied,
+                        }).await;
+                    }
+                }
             });
         }
         EventMsg::ExecApprovalRequest(ExecApprovalRequestEvent {
@@ -1546,10 +1556,21 @@ async fn apply_bespoke_event_handling(
                 .send_request_to_connection(owner_connection_id, EXEC_COMMAND_APPROVAL_METHOD, Some(value))
                 .await;
 
-            // TODO(mbolin): Enforce a timeout so this task does not live indefinitely?
+            // Enforce a 5-minute timeout so this task does not live indefinitely
+            // if the frontend disconnects or wedges.
             let approval_id = effective_approval_id; // correlate by approval_id/call_id, not event_id
             tokio::spawn(async move {
-                on_exec_approval_response(approval_id, Some(turn_id), rx, conversation).await;
+                match timeout(Duration::from_secs(300), on_exec_approval_response(approval_id.clone(), Some(turn_id), rx, conversation.clone())).await {
+                    Ok(_) => {}
+                    Err(_) => {
+                        tracing::warn!("exec approval timed out for approval_id={approval_id}");
+                        let _ = conversation.submit(Op::ExecApproval {
+                            id: approval_id,
+                            turn_id: None,
+                            decision: core_protocol::ReviewDecision::Denied,
+                        }).await;
+                    }
+                }
             });
         }
         EventMsg::DynamicToolCallRequest(request) => {

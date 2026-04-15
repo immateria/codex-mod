@@ -35,9 +35,23 @@ pub struct PatchApprovalElicitRequestParams {
     pub code_changes: HashMap<PathBuf, FileChange>,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+// MCP elicitation response follows the standard { action, content } shape.
+// We convert ElicitationAction → ReviewDecision for core's approval system.
+#[derive(Debug, Deserialize)]
 pub struct PatchApprovalResponse {
-    pub decision: ReviewDecision,
+    pub action: code_protocol::approvals::ElicitationAction,
+    #[serde(default)]
+    pub content: Option<serde_json::Value>,
+}
+
+impl PatchApprovalResponse {
+    fn to_decision(&self) -> ReviewDecision {
+        match self.action {
+            code_protocol::approvals::ElicitationAction::Accept => ReviewDecision::Approved,
+            code_protocol::approvals::ElicitationAction::Decline => ReviewDecision::Denied,
+            code_protocol::approvals::ElicitationAction::Cancel => ReviewDecision::Abort,
+        }
+    }
 }
 
 pub(crate) struct PatchApprovalRequestContext {
@@ -151,14 +165,15 @@ pub(crate) async fn on_patch_approval_response(
     let response = serde_json::from_value::<PatchApprovalResponse>(value).unwrap_or_else(|err| {
         error!("failed to deserialize PatchApprovalResponse: {err}");
         PatchApprovalResponse {
-            decision: ReviewDecision::Denied,
+            action: code_protocol::approvals::ElicitationAction::Decline,
+            content: None,
         }
     });
 
     if let Err(err) = codex
         .submit(Op::PatchApproval {
             id: approval_id,
-            decision: response.decision,
+            decision: response.to_decision(),
         })
         .await
     {

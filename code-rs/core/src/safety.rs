@@ -188,13 +188,12 @@ pub fn assess_patch_safety(
         AskForApproval::OnFailure
         | AskForApproval::Never
         | AskForApproval::OnRequest
-        | AskForApproval::Reject(_) => {
+        | AskForApproval::Reject(_)
+        | AskForApproval::UnlessTrusted => {
             // Continue to see if this can be auto-approved.
-        }
-        // TODO(ragona): I'm not sure this is actually correct? I believe in this case
-        // we want to continue to the writable paths check before asking the user.
-        AskForApproval::UnlessTrusted => {
-            return SafetyCheck::AskUser;
+            // UnlessTrusted falls through so patches within writable paths
+            // can be auto-approved in a sandbox (matching exec command behavior
+            // where trusted == safe within writable roots).
         }
     }
 

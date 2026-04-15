@@ -37,13 +37,23 @@ pub struct ExecApprovalElicitRequestParams {
     pub code_cwd: PathBuf,
 }
 
-// TODO(mbolin): ExecApprovalResponse does not conform to ElicitResult. See:
-// - https://github.com/modelcontextprotocol/modelcontextprotocol/blob/f962dc1780fa5eed7fb7c8a0232f1fc83ef220cd/schema/2025-06-18/schema.json#L617-L636
-// - https://modelcontextprotocol.io/specification/draft/client/elicitation#protocol-messages
-// It should have "action" and "content" fields.
-#[derive(Debug, Serialize, Deserialize)]
+// MCP elicitation response follows the standard { action, content } shape.
+// We convert ElicitationAction → ReviewDecision for core's approval system.
+#[derive(Debug, Deserialize)]
 pub struct ExecApprovalResponse {
-    pub decision: ReviewDecision,
+    pub action: code_protocol::approvals::ElicitationAction,
+    #[serde(default)]
+    pub content: Option<serde_json::Value>,
+}
+
+impl ExecApprovalResponse {
+    fn to_decision(&self) -> ReviewDecision {
+        match self.action {
+            code_protocol::approvals::ElicitationAction::Accept => ReviewDecision::Approved,
+            code_protocol::approvals::ElicitationAction::Decline => ReviewDecision::Denied,
+            code_protocol::approvals::ElicitationAction::Cancel => ReviewDecision::Abort,
+        }
+    }
 }
 
 pub(crate) struct ExecApprovalRequestContext {
@@ -149,7 +159,8 @@ async fn on_exec_approval_response(
         // If we cannot deserialize the response, we deny the request to be
         // conservative.
         ExecApprovalResponse {
-            decision: ReviewDecision::Denied,
+            action: code_protocol::approvals::ElicitationAction::Decline,
+            content: None,
         }
     });
 
@@ -157,7 +168,7 @@ async fn on_exec_approval_response(
         .submit(Op::ExecApproval {
             id: approval_id,
             turn_id: None,
-            decision: response.decision,
+            decision: response.to_decision(),
         })
         .await
     {
