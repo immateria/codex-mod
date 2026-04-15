@@ -134,6 +134,8 @@ pub use workspace_acl::is_command_cwd_root;
 #[cfg(target_os = "windows")]
 pub use workspace_acl::protect_workspace_agents_dir;
 #[cfg(target_os = "windows")]
+pub use workspace_acl::protect_workspace_code_dir;
+#[cfg(target_os = "windows")]
 pub use workspace_acl::protect_workspace_codex_dir;
 
 #[cfg(not(target_os = "windows"))]
@@ -173,6 +175,7 @@ mod windows_impl {
     use super::winutil::to_wide;
     use super::workspace_acl::is_command_cwd_root;
     use super::workspace_acl::protect_workspace_agents_dir;
+    use super::workspace_acl::protect_workspace_code_dir;
     use super::workspace_acl::protect_workspace_codex_dir;
     use anyhow::Result;
     use std::collections::HashMap;
@@ -352,6 +355,7 @@ mod windows_impl {
             if let Some(psid) = psid_workspace {
                 allow_null_device(psid);
                 let _ = protect_workspace_codex_dir(&current_dir, psid);
+                let _ = protect_workspace_code_dir(&current_dir, psid);
                 let _ = protect_workspace_agents_dir(&current_dir, psid);
             }
         }
@@ -561,6 +565,7 @@ mod windows_impl {
             allow_null_device(psid_generic);
             allow_null_device(psid_workspace);
             let _ = protect_workspace_codex_dir(&current_dir, psid_workspace);
+            let _ = protect_workspace_code_dir(&current_dir, psid_workspace);
             let _ = protect_workspace_agents_dir(&current_dir, psid_workspace);
         }
 

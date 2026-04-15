@@ -290,7 +290,7 @@ fn run_list(config_overrides: &CliConfigOverrides, list_args: ListArgs) -> Resul
     }
 
     if entries.is_empty() {
-        println!("No MCP servers configured yet. Try `codex mcp add my-tool -- my-command`.");
+        println!("No MCP servers configured yet. Try `code mcp add my-tool -- my-command`.");
         return Ok(());
     }
 
@@ -516,7 +516,7 @@ fn run_get(config_overrides: &CliConfigOverrides, get_args: GetArgs) -> Result<(
     if let Some(timeout) = server.tool_timeout_sec {
         println!("  tool_timeout_sec: {:.3}", timeout.as_secs_f64());
     }
-    println!("  remove: codex mcp remove {}", get_args.name);
+    println!("  remove: code mcp remove {}", get_args.name);
 
     Ok(())
 }

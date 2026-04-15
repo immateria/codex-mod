@@ -72,6 +72,7 @@ pub(crate) async fn handle_patch_approval_request(
     }
     message_lines.push("Allow Codex to apply proposed code changes?".to_owned());
 
+    let call_id_for_response = call_id.clone();
     let params = PatchApprovalElicitRequestParams {
         message: message_lines.join("\n"),
         requested_schema: ElicitRequestParamsRequestedSchema {
@@ -118,7 +119,6 @@ pub(crate) async fn handle_patch_approval_request(
     // "no pending approval found" warnings and a stuck approval UI.
     {
         let codex = codex.clone();
-        let call_id_for_response = tool_call_id.clone();
         tokio::spawn(async move {
             on_patch_approval_response(call_id_for_response, on_response, codex).await;
         });

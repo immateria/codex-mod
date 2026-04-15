@@ -688,7 +688,7 @@ impl SandboxPolicy {
 
                         // Make .agents/skills and .codex/config.toml and
                         // related files read-only to the agent, by default.
-                        for subdir in &[".agents", ".codex"] {
+                        for subdir in &[".agents", ".codex", ".code"] {
                             let top_level_codex = match writable_root.join(subdir) {
                                 Ok(path) => path,
                                 Err(err) => panic!("valid relative path: {err}"),
