@@ -85,15 +85,19 @@ fn parse_freeform_args(input: &str) -> Result<crate::tools::js_repl::JsReplArgs,
                         return Err("js_repl pragma specifies runtime more than once".to_owned());
                     }
                     let normalized = value.trim().to_ascii_lowercase();
-                    runtime = match normalized.as_str() {
-                        "node" => Some(crate::config::JsReplRuntimeKindToml::Node),
-                        "deno" => Some(crate::config::JsReplRuntimeKindToml::Deno),
-                        _ => {
-                            return Err(format!(
-                                "js_repl pragma runtime must be `node` or `deno`; got `{value}`"
-                            ));
-                        }
-                    };
+                    runtime = crate::config::JsReplRuntimeKindToml::ALL
+                        .iter()
+                        .find(|k| k.label() == normalized)
+                        .copied();
+                    if runtime.is_none() {
+                        let valid: Vec<_> = crate::config::JsReplRuntimeKindToml::ALL
+                            .iter()
+                            .map(|k| k.label())
+                            .collect();
+                        return Err(format!(
+                            "js_repl pragma runtime must be one of {valid:?}; got `{value}`"
+                        ));
+                    }
                 }
                 _ => {
                     return Err(format!(
@@ -319,10 +323,7 @@ impl ToolHandler for JsReplResetToolHandler {
         }
 
         let mut first_err: Option<String> = None;
-        for runtime in [
-            crate::config::JsReplRuntimeKindToml::Node,
-            crate::config::JsReplRuntimeKindToml::Deno,
-        ] {
+        for &runtime in crate::config::JsReplRuntimeKindToml::ALL {
             if let Some(manager) = sess.js_repl_manager_if_started_for_runtime(runtime)
                 && let Err(err) = manager.reset().await
                 && first_err.is_none()
@@ -376,5 +377,60 @@ mod tests {
             err,
             "js_repl pragma only supports timeout_ms and runtime; got `nope`"
         );
+    }
+
+    #[test]
+    fn parse_freeform_args_with_node_runtime() {
+        let input = "// codex-js-repl: runtime=node\nconsole.log('ok');";
+        let args = parse_freeform_args(input).expect("parse args");
+        assert_eq!(args.runtime, Some(crate::config::JsReplRuntimeKindToml::Node));
+    }
+
+    #[test]
+    fn parse_freeform_args_rejects_unknown_runtime() {
+        let err = parse_freeform_args("// codex-js-repl: runtime=bun\nconsole.log('ok');")
+            .expect_err("err");
+        assert!(
+            err.contains("bun"),
+            "error should mention the invalid runtime: {err}"
+        );
+    }
+
+    #[test]
+    fn parse_freeform_args_rejects_json_wrapped_code() {
+        let err = parse_freeform_args(r#"{"code":"await doThing()"}"#).expect_err("err");
+        assert!(
+            err.contains("freeform"),
+            "error should explain freeform format: {err}"
+        );
+    }
+
+    #[test]
+    fn parse_freeform_args_rejects_reset_key() {
+        let err = parse_freeform_args("// codex-js-repl: reset=true\nconsole.log('ok');")
+            .expect_err("err");
+        assert!(
+            err.contains("reset"),
+            "error should mention the rejected key: {err}"
+        );
+    }
+
+    #[test]
+    fn parse_freeform_args_rejects_duplicate_runtime() {
+        let err = parse_freeform_args(
+            "// codex-js-repl: runtime=node runtime=deno\nconsole.log('ok');",
+        )
+        .expect_err("err");
+        assert!(
+            err.contains("more than once"),
+            "error should explain duplicate: {err}"
+        );
+    }
+
+    #[test]
+    fn parse_freeform_args_runtime_case_insensitive() {
+        let input = "// codex-js-repl: runtime=NODE\nconsole.log('ok');";
+        let args = parse_freeform_args(input).expect("parse args");
+        assert_eq!(args.runtime, Some(crate::config::JsReplRuntimeKindToml::Node));
     }
 }

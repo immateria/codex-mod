@@ -12,10 +12,7 @@ impl JsReplSettingsView {
     }
 
     fn cycle_runtime(&mut self) {
-        self.settings.runtime = match self.settings.runtime {
-            JsReplRuntimeKindToml::Node => JsReplRuntimeKindToml::Deno,
-            JsReplRuntimeKindToml::Deno => JsReplRuntimeKindToml::Node,
-        };
+        self.settings.runtime = self.settings.runtime.next();
         self.dirty = true;
     }
 

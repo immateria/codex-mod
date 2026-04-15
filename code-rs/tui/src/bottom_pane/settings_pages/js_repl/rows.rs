@@ -33,10 +33,7 @@ impl JsReplSettingsView {
     }
 
     pub(super) fn runtime_label(kind: JsReplRuntimeKindToml) -> &'static str {
-        match kind {
-            JsReplRuntimeKindToml::Node => "node",
-            JsReplRuntimeKindToml::Deno => "deno",
-        }
+        kind.label()
     }
 
     pub(super) fn enabled_value(enabled: bool) -> StyledText<'static> {

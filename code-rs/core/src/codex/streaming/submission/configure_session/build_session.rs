@@ -233,14 +233,14 @@ impl Runner<'_> {
             match probe_handle.probe_health().await {
                 Ok(version) => {
                     tracing::info!(
-                        runtime = ?default_rt,
+                        runtime = %default_rt,
                         version = %version,
                         "js_repl runtime available"
                     );
                 }
                 Err(err) => {
                     tracing::warn!(
-                        runtime = ?default_rt,
+                        runtime = %default_rt,
                         error = %err,
                         "js_repl runtime unavailable — disabling tool"
                     );

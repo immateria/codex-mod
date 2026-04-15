@@ -162,10 +162,7 @@ impl JsReplHandle {
     /// describing why the runtime is unavailable.
     pub(crate) async fn probe_health(&self) -> Result<String, String> {
         let executable = self.runtime.runtime_path.clone().unwrap_or_else(|| {
-            PathBuf::from(match self.runtime.kind {
-                crate::config::JsReplRuntimeKindToml::Node => "node",
-                crate::config::JsReplRuntimeKindToml::Deno => "deno",
-            })
+            PathBuf::from(self.runtime.kind.default_executable())
         });
         detect_runtime_version(self.runtime.kind, &executable).await
     }
@@ -237,10 +234,7 @@ impl JsReplManager {
     }
 
     pub(crate) fn runtime_kind_str(&self) -> &str {
-        match self.runtime.kind {
-            crate::config::JsReplRuntimeKindToml::Node => "node",
-            crate::config::JsReplRuntimeKindToml::Deno => "deno",
-        }
+        self.runtime.kind.label()
     }
 
     pub(crate) fn runtime_version(&self) -> &str {
@@ -562,100 +556,95 @@ impl JsReplManager {
         let sandbox_policy = sess.get_sandbox_policy();
         let sandbox_policy_cwd = sess.get_cwd();
         let enforce_managed_network = sess.managed_network_proxy().is_some();
+        let caps = self.runtime.kind.capabilities();
 
         let mut env_overrides = HashMap::<String, String>::new();
         if let Some(proxy) = sess.managed_network_proxy() {
             proxy.apply_to_env(&mut env_overrides);
         }
 
+        // Seatbelt is available only when: the runtime supports it, we're on
+        // macOS, and the sandbox policy isn't DangerFullAccess.
         let seatbelt_enabled = cfg!(target_os = "macos")
-            && matches!(self.runtime.kind, crate::config::JsReplRuntimeKindToml::Node)
+            && caps.supports_seatbelt
             && !matches!(
                 sandbox_policy,
                 crate::protocol::SandboxPolicy::DangerFullAccess
             );
 
+        // If managed network is required but this runtime can't enforce it
+        // (neither via its own sandbox nor via seatbelt), reject early.
         if enforce_managed_network
-            && matches!(self.runtime.kind, crate::config::JsReplRuntimeKindToml::Node)
+            && !caps.can_enforce_network_without_seatbelt
             && !seatbelt_enabled
             && !matches!(
                 sandbox_policy,
                 crate::protocol::SandboxPolicy::DangerFullAccess
             )
         {
-            return Err(
-                "js_repl Node runtime cannot be enforced with network mediation on this platform. Set `[tools].js_repl_runtime = \"deno\"` (recommended) or disable network mediation.".to_owned(),
-            );
+            return Err(format!(
+                "js_repl {} runtime cannot enforce network mediation on this platform. \
+                 Set `[tools].js_repl_runtime = \"deno\"` (recommended) or disable \
+                 network mediation.",
+                self.runtime.kind
+            ));
         }
 
-        let mut command = match self.runtime.kind {
-            crate::config::JsReplRuntimeKindToml::Node => {
-                if seatbelt_enabled {
-                    if enforce_managed_network
-                        && !crate::seatbelt::has_loopback_proxy_endpoints(&env_overrides)
-                    {
-                        return Err(
-                            "managed network enforcement active but no usable proxy endpoints".to_owned(),
-                        );
-                    }
-
-                    let mut child_command: Vec<String> = Vec::with_capacity(2 + self.runtime.args.len());
-                    child_command.push(self.runtime.executable.to_string_lossy().into_owned());
-                    child_command.extend(self.runtime.args.iter().cloned());
-                    child_command.push(self.kernel_path.to_string_lossy().into_owned());
-
-                    let seatbelt_args = crate::seatbelt::build_seatbelt_args(
-                        child_command,
-                        sandbox_policy,
-                        sandbox_policy_cwd,
-                        enforce_managed_network,
-                        &env_overrides,
-                    );
-                    let mut command = Command::new(crate::seatbelt::seatbelt_exec_path());
-                    command.args(seatbelt_args);
-                    command.env(crate::spawn::CODEX_SANDBOX_ENV_VAR, "seatbelt");
-                    command
-                } else {
-                    let mut command = Command::new(&self.runtime.executable);
-                    command.args(&self.runtime.args);
-                    command.arg(&self.kernel_path);
-                    command
-                }
+        let mut command = if seatbelt_enabled {
+            // Wrap the runtime invocation inside macOS seatbelt.
+            if enforce_managed_network
+                && !crate::seatbelt::has_loopback_proxy_endpoints(&env_overrides)
+            {
+                return Err(
+                    "managed network enforcement active but no usable proxy endpoints".to_owned(),
+                );
             }
-            crate::config::JsReplRuntimeKindToml::Deno => {
-                let mut command = Command::new(&self.runtime.executable);
 
-                // Deno provides its own permission sandboxing. Run the kernel with
-                // minimal permissions and disable interactive prompts.
-                let allow_env =
-                    "CODEX_JS_TMP_DIR,CODEX_JS_REPL_RUNTIME,CODEX_JS_REPL_RUNTIME_VERSION";
-                let tmp_dir = self.tmp_dir.path().display();
-                command.arg("run");
-                command.arg("--quiet");
-                command.arg("--no-prompt");
-                command.arg(format!("--allow-env={allow_env}"));
-                command.arg(format!("--allow-read={tmp_dir}"));
-                command.args(&self.runtime.args);
-                command.arg(&self.kernel_path);
-                command
-            }
+            let mut child_command: Vec<String> = Vec::with_capacity(2 + self.runtime.args.len());
+            child_command.push(self.runtime.executable.to_string_lossy().into_owned());
+            child_command.extend(self.runtime.args.iter().cloned());
+            child_command.push(self.kernel_path.to_string_lossy().into_owned());
+
+            let seatbelt_args = crate::seatbelt::build_seatbelt_args(
+                child_command,
+                sandbox_policy,
+                sandbox_policy_cwd,
+                enforce_managed_network,
+                &env_overrides,
+            );
+            let mut cmd = Command::new(crate::seatbelt::seatbelt_exec_path());
+            cmd.args(seatbelt_args);
+            cmd.env(crate::spawn::CODEX_SANDBOX_ENV_VAR, "seatbelt");
+            cmd
+        } else if matches!(caps.sandbox, crate::config::RuntimeSandboxKind::BuiltinPermissions) {
+            // Runtime has its own permission sandbox (Deno).
+            let mut cmd = Command::new(&self.runtime.executable);
+            let allow_env = caps.sandbox_env_passthrough.join(",");
+            let tmp_dir = self.tmp_dir.path().display();
+            cmd.arg("run");
+            cmd.arg("--quiet");
+            cmd.arg("--no-prompt");
+            cmd.arg(format!("--allow-env={allow_env}"));
+            cmd.arg(format!("--allow-read={tmp_dir}"));
+            cmd.args(&self.runtime.args);
+            cmd.arg(&self.kernel_path);
+            cmd
+        } else {
+            // No sandbox available — run directly.
+            let mut cmd = Command::new(&self.runtime.executable);
+            cmd.args(&self.runtime.args);
+            cmd.arg(&self.kernel_path);
+            cmd
         };
+
         command.current_dir(cwd);
         command.kill_on_drop(true);
 
         command.env("CODEX_JS_TMP_DIR", self.tmp_dir.path());
-        command.env(
-            "CODEX_JS_REPL_RUNTIME",
-            match self.runtime.kind {
-                crate::config::JsReplRuntimeKindToml::Node => "node",
-                crate::config::JsReplRuntimeKindToml::Deno => "deno",
-            },
-        );
+        command.env("CODEX_JS_REPL_RUNTIME", self.runtime.kind.label());
         command.env("CODEX_JS_REPL_RUNTIME_VERSION", self.runtime.version.clone());
 
-        if matches!(self.runtime.kind, crate::config::JsReplRuntimeKindToml::Node)
-            && !self.runtime.node_module_dirs.is_empty()
-        {
+        if caps.uses_node_module_dirs && !self.runtime.node_module_dirs.is_empty() {
             let joined = std::env::join_paths(
                 self.runtime
                     .node_module_dirs
@@ -1365,10 +1354,7 @@ fn freeform_tool_name_snapshot(sess: &Session) -> HashSet<String> {
 
 async fn resolve_runtime(cfg: JsReplRuntimeConfig) -> Result<ResolvedRuntime, String> {
     let executable = cfg.runtime_path.unwrap_or_else(|| {
-        PathBuf::from(match cfg.kind {
-            crate::config::JsReplRuntimeKindToml::Node => "node",
-            crate::config::JsReplRuntimeKindToml::Deno => "deno",
-        })
+        PathBuf::from(cfg.kind.default_executable())
     });
 
     let version = detect_runtime_version(cfg.kind, &executable).await?;
@@ -1483,6 +1469,9 @@ fn version_at_least(found: (u64, u64, u64), min: (u64, u64, u64)) -> bool {
 mod tests {
     use super::parse_version_triplet;
     use super::version_at_least;
+    use super::ExecResultMessage;
+    use super::JsReplRuntimeConfig;
+    use super::ToolRequest;
 
     #[test]
     fn parses_node_versions_with_prefix_and_suffix() {
@@ -1500,5 +1489,61 @@ mod tests {
         assert!(version_at_least((19, 0, 0), (18, 999, 999)));
         assert!(!version_at_least((17, 99, 99), (18, 0, 0)));
         assert!(!version_at_least((18, 0, 0), (18, 0, 1)));
+    }
+
+    #[test]
+    fn exec_result_err_preserves_output() {
+        let msg = ExecResultMessage::Err {
+            output: "console.log output before error".to_owned(),
+            message: "ReferenceError: x is not defined".to_owned(),
+        };
+        match msg {
+            ExecResultMessage::Err { output, message } => {
+                assert_eq!(output, "console.log output before error");
+                assert_eq!(message, "ReferenceError: x is not defined");
+            }
+            ExecResultMessage::Ok { .. } => panic!("expected Err variant"),
+        }
+    }
+
+    #[test]
+    fn exec_result_ok_carries_output() {
+        let msg = ExecResultMessage::Ok {
+            output: "42".to_owned(),
+        };
+        match msg {
+            ExecResultMessage::Ok { output } => assert_eq!(output, "42"),
+            ExecResultMessage::Err { .. } => panic!("expected Ok variant"),
+        }
+    }
+
+    #[test]
+    fn runtime_config_clone_preserves_fields() {
+        let cfg = JsReplRuntimeConfig {
+            kind: crate::config::JsReplRuntimeKindToml::Node,
+            runtime_path: Some(std::path::PathBuf::from("/usr/bin/node")),
+            runtime_args: vec!["--max-old-space-size=512".to_owned()],
+            node_module_dirs: vec![std::path::PathBuf::from("/app/node_modules")],
+        };
+        let cloned = cfg.clone();
+        assert_eq!(cloned.kind, cfg.kind);
+        assert_eq!(cloned.runtime_path, cfg.runtime_path);
+        assert_eq!(cloned.runtime_args, cfg.runtime_args);
+        assert_eq!(cloned.node_module_dirs, cfg.node_module_dirs);
+    }
+
+    #[test]
+    fn tool_request_carries_cancel_token() {
+        let token = tokio_util::sync::CancellationToken::new();
+        let req = ToolRequest {
+            id: "t-1".to_owned(),
+            exec_id: "e-1".to_owned(),
+            tool_name: "shell".to_owned(),
+            arguments: "{}".to_owned(),
+            cancel: token.clone(),
+        };
+        assert!(!req.cancel.is_cancelled());
+        token.cancel();
+        assert!(req.cancel.is_cancelled());
     }
 }

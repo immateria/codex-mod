@@ -1106,6 +1106,91 @@ pub enum JsReplRuntimeKindToml {
     Deno,
 }
 
+impl JsReplRuntimeKindToml {
+    /// All known runtime variants, in definition order.
+    pub const ALL: &[Self] = &[Self::Node, Self::Deno];
+
+    /// Lowercase label suitable for config values, env vars, and UI display.
+    pub fn label(self) -> &'static str {
+        match self {
+            Self::Node => "node",
+            Self::Deno => "deno",
+        }
+    }
+
+    /// Default executable name when no explicit path is configured.
+    pub fn default_executable(self) -> &'static str {
+        self.label()
+    }
+
+    /// Cycle to the next variant (wraps around).
+    pub fn next(self) -> Self {
+        let all = Self::ALL;
+        let idx = all.iter().position(|&v| v == self).unwrap_or(0);
+        all[(idx + 1) % all.len()]
+    }
+
+    /// Returns the capability descriptor for this runtime kind.
+    pub fn capabilities(self) -> RuntimeCapabilities {
+        match self {
+            Self::Node => RuntimeCapabilities {
+                sandbox: RuntimeSandboxKind::ExternalOnly,
+                supports_seatbelt: true,
+                can_enforce_network_without_seatbelt: false,
+                sandbox_env_passthrough: &[],
+                uses_node_module_dirs: true,
+            },
+            Self::Deno => RuntimeCapabilities {
+                sandbox: RuntimeSandboxKind::BuiltinPermissions,
+                supports_seatbelt: false,
+                can_enforce_network_without_seatbelt: true,
+                sandbox_env_passthrough: &[
+                    "CODEX_JS_TMP_DIR",
+                    "CODEX_JS_REPL_RUNTIME",
+                    "CODEX_JS_REPL_RUNTIME_VERSION",
+                ],
+                uses_node_module_dirs: false,
+            },
+        }
+    }
+}
+
+impl std::fmt::Display for JsReplRuntimeKindToml {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.label())
+    }
+}
+
+/// Describes how a runtime implements process-level sandboxing.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RuntimeSandboxKind {
+    /// Runtime has no built-in sandbox.  On macOS the host can wrap it in
+    /// seatbelt; on other platforms it runs unsandboxed.
+    ExternalOnly,
+    /// Runtime has its own permission-based sandbox (e.g. Deno `--allow-*`).
+    BuiltinPermissions,
+}
+
+/// Capability descriptor for a JS REPL runtime.  Returned by
+/// [`JsReplRuntimeKindToml::capabilities`] and consumed by the command
+/// builder to make sandbox/network/module decisions data-driven.
+#[derive(Debug, Clone)]
+pub struct RuntimeCapabilities {
+    /// Sandbox mechanism this runtime uses.
+    pub sandbox: RuntimeSandboxKind,
+    /// Whether the host may wrap this runtime in macOS seatbelt.
+    pub supports_seatbelt: bool,
+    /// Whether managed-network enforcement can be applied without seatbelt
+    /// (Deno can do this via its permission flags; Node cannot).
+    pub can_enforce_network_without_seatbelt: bool,
+    /// Env vars that must be explicitly allowed through the runtime's own
+    /// sandbox (e.g. Deno `--allow-env=...`).  Empty for runtimes without
+    /// built-in env sandboxing.
+    pub sandbox_env_passthrough: &'static [&'static str],
+    /// Whether this runtime uses `node_module_dirs` config.
+    pub uses_node_module_dirs: bool,
+}
+
 /// Settings for configuring the optional `js_repl` tool.
 ///
 /// These values are persisted under `[tools]` in `config.toml`.
@@ -4997,5 +5082,115 @@ mod upgrade_command_tests {
                 "@just-every/code@latest".to_string(),
             ]
         );
+    }
+}
+
+#[cfg(test)]
+mod js_repl_runtime_kind_tests {
+    use super::{JsReplRuntimeKindToml, RuntimeSandboxKind};
+
+    #[test]
+    fn all_contains_every_variant() {
+        assert_eq!(JsReplRuntimeKindToml::ALL.len(), 2);
+        assert!(JsReplRuntimeKindToml::ALL.contains(&JsReplRuntimeKindToml::Node));
+        assert!(JsReplRuntimeKindToml::ALL.contains(&JsReplRuntimeKindToml::Deno));
+    }
+
+    #[test]
+    fn label_returns_lowercase_string() {
+        assert_eq!(JsReplRuntimeKindToml::Node.label(), "node");
+        assert_eq!(JsReplRuntimeKindToml::Deno.label(), "deno");
+    }
+
+    #[test]
+    fn display_matches_label() {
+        assert_eq!(format!("{}", JsReplRuntimeKindToml::Node), "node");
+        assert_eq!(format!("{}", JsReplRuntimeKindToml::Deno), "deno");
+    }
+
+    #[test]
+    fn default_executable_matches_label() {
+        for &kind in JsReplRuntimeKindToml::ALL {
+            assert_eq!(kind.default_executable(), kind.label());
+        }
+    }
+
+    #[test]
+    fn next_cycles_through_all_variants() {
+        let start = JsReplRuntimeKindToml::Node;
+        let second = start.next();
+        assert_eq!(second, JsReplRuntimeKindToml::Deno);
+        let back = second.next();
+        assert_eq!(back, JsReplRuntimeKindToml::Node);
+    }
+
+    #[test]
+    fn next_wraps_around_for_all_variants() {
+        for &kind in JsReplRuntimeKindToml::ALL {
+            let mut current = kind;
+            for _ in 0..JsReplRuntimeKindToml::ALL.len() {
+                current = current.next();
+            }
+            assert_eq!(current, kind, "cycling through ALL should return to start");
+        }
+    }
+
+    #[test]
+    fn node_capabilities_are_external_sandbox() {
+        let caps = JsReplRuntimeKindToml::Node.capabilities();
+        assert_eq!(caps.sandbox, RuntimeSandboxKind::ExternalOnly);
+        assert!(caps.supports_seatbelt);
+        assert!(!caps.can_enforce_network_without_seatbelt);
+        assert!(caps.sandbox_env_passthrough.is_empty());
+        assert!(caps.uses_node_module_dirs);
+    }
+
+    #[test]
+    fn deno_capabilities_are_builtin_permissions() {
+        let caps = JsReplRuntimeKindToml::Deno.capabilities();
+        assert_eq!(caps.sandbox, RuntimeSandboxKind::BuiltinPermissions);
+        assert!(!caps.supports_seatbelt);
+        assert!(caps.can_enforce_network_without_seatbelt);
+        assert!(!caps.sandbox_env_passthrough.is_empty());
+        assert!(!caps.uses_node_module_dirs);
+    }
+
+    #[test]
+    fn deno_env_passthrough_includes_codex_vars() {
+        let caps = JsReplRuntimeKindToml::Deno.capabilities();
+        assert!(caps.sandbox_env_passthrough.contains(&"CODEX_JS_TMP_DIR"));
+        assert!(caps.sandbox_env_passthrough.contains(&"CODEX_JS_REPL_RUNTIME"));
+        assert!(caps.sandbox_env_passthrough.contains(&"CODEX_JS_REPL_RUNTIME_VERSION"));
+    }
+
+    #[test]
+    fn every_variant_has_capabilities() {
+        for &kind in JsReplRuntimeKindToml::ALL {
+            let caps = kind.capabilities();
+            let _ = caps.sandbox;
+        }
+    }
+
+    #[test]
+    fn serde_round_trip() {
+        for &kind in JsReplRuntimeKindToml::ALL {
+            let json = serde_json::to_string(&kind).expect("serialize");
+            let back: JsReplRuntimeKindToml =
+                serde_json::from_str(&json).expect("deserialize");
+            assert_eq!(back, kind);
+        }
+    }
+
+    #[test]
+    fn toml_deserialization() {
+        #[derive(serde::Deserialize)]
+        struct Wrapper {
+            rt: JsReplRuntimeKindToml,
+        }
+        let w: Wrapper = toml::from_str("rt = \"node\"").expect("deserialize node");
+        assert_eq!(w.rt, JsReplRuntimeKindToml::Node);
+
+        let w: Wrapper = toml::from_str("rt = \"deno\"").expect("deserialize deno");
+        assert_eq!(w.rt, JsReplRuntimeKindToml::Deno);
     }
 }

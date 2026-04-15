@@ -3974,10 +3974,7 @@ pub fn set_js_repl_settings(
 
     tools_table["js_repl"] = toml_edit::value(settings.enabled);
 
-    let runtime = match settings.runtime {
-        super::JsReplRuntimeKindToml::Node => "node",
-        super::JsReplRuntimeKindToml::Deno => "deno",
-    };
+    let runtime = settings.runtime.label();
     tools_table["js_repl_runtime"] = toml_edit::value(runtime);
 
     // Write path/args to the per-runtime TOML keys based on selected runtime.
