@@ -357,6 +357,9 @@ async function handleExec(message) {
       output,
       error: error && error.message ? error.message : String(error),
     });
+  } finally {
+    // End the generation immediately so background timers/callbacks are dead.
+    _cancelStaleTimers();
   }
 }
 

@@ -76,6 +76,7 @@ struct ToolRequest {
     exec_id: String,
     tool_name: String,
     arguments: String,
+    cancel: CancellationToken,
 }
 
 #[derive(Clone, Debug)]
@@ -92,7 +93,7 @@ pub(crate) struct JsExecError {
 #[derive(Debug)]
 enum ExecResultMessage {
     Ok { output: String },
-    Err { message: String },
+    Err { output: String, message: String },
 }
 
 /// Per-exec nested tool-call tracking with cancellation + settlement.
@@ -154,6 +155,19 @@ impl JsReplHandle {
             runtime,
             cell: OnceCell::new(),
         }
+    }
+
+    /// Quick check whether the configured runtime binary exists and responds
+    /// to `--version`.  Returns `Ok(version_string)` on success or an error
+    /// describing why the runtime is unavailable.
+    pub(crate) async fn probe_health(&self) -> Result<String, String> {
+        let executable = self.runtime.runtime_path.clone().unwrap_or_else(|| {
+            PathBuf::from(match self.runtime.kind {
+                crate::config::JsReplRuntimeKindToml::Node => "node",
+                crate::config::JsReplRuntimeKindToml::Deno => "deno",
+            })
+        });
+        detect_runtime_version(self.runtime.kind, &executable).await
     }
 
     pub(crate) async fn manager(&self) -> Result<Arc<JsReplManager>, String> {
@@ -368,6 +382,7 @@ impl JsReplManager {
                         &stdin,
                         &self.next_tool_seq,
                         &tool_req,
+                        tool_req.cancel.clone(),
                     )
                     .await;
                     // Mark this nested tool call as finished.
@@ -402,8 +417,8 @@ impl JsReplManager {
 
         match result {
             ExecResultMessage::Ok { output } => Ok(JsExecResult { output }),
-            ExecResultMessage::Err { message } => Err(JsExecError {
-                output: String::new(),
+            ExecResultMessage::Err { output, message } => Err(JsExecError {
+                output,
                 error: message,
             }),
         }
@@ -434,6 +449,7 @@ impl JsReplManager {
         let mut pending = pending.lock().await;
         for (_, tx) in pending.drain() {
             let _ = tx.send(ExecResultMessage::Err {
+                output: String::new(),
                 message: "js_repl kernel was reset".to_owned(),
             });
         }
@@ -670,6 +686,7 @@ impl JsReplManager {
         stdin: &Arc<Mutex<ChildStdin>>,
         next_tool_seq: &AtomicU64,
         tool_req: &ToolRequest,
+        cancel: CancellationToken,
     ) {
         // Self-invocation guard.
         if is_js_repl_internal_tool(&tool_req.tool_name) {
@@ -720,9 +737,21 @@ impl JsReplManager {
             }
         };
 
-        let output = ToolRouter::global()
-            .dispatch_response_item(sess, turn_diff_tracker, meta, item)
-            .await;
+        let output = tokio::select! {
+            result = ToolRouter::global()
+                .dispatch_response_item(sess, turn_diff_tracker, meta, item) => result,
+            _ = cancel.cancelled() => {
+                let response = json!({
+                    "type": "run_tool_result",
+                    "id": tool_req.id,
+                    "ok": false,
+                    "response": JsonValue::Null,
+                    "error": "js_repl tool call cancelled (exec reset or timeout)",
+                });
+                let _ = send_json_line(stdin, &response).await;
+                return;
+            }
+        };
 
         let (ok, response, error) = if let Some(output) = output {
             match serde_json::to_value(&output) {
@@ -935,8 +964,23 @@ impl JsReplManager {
                     let Some(id) = message.get("id").and_then(JsonValue::as_str) else {
                         continue;
                     };
+
+                    // Deno sends __fatal__ when an unhandled error crashes the
+                    // kernel.  Route it to whatever exec is currently pending so
+                    // the user sees the error instead of silently dropping it.
+                    let resolved_id = if id == "__fatal__" {
+                        let lock = pending_execs.lock().await;
+                        lock.keys().next().cloned()
+                    } else {
+                        Some(id.to_owned())
+                    };
+                    let Some(resolved_id) = resolved_id else {
+                        warn!("js_repl kernel sent __fatal__ with no pending exec");
+                        continue;
+                    };
+
                     // Wait for any nested tool calls to settle before delivering result.
-                    JsReplManager::wait_for_exec_tool_calls_map(&exec_tool_calls, id).await;
+                    JsReplManager::wait_for_exec_tool_calls_map(&exec_tool_calls, &resolved_id).await;
 
                     let ok = message.get("ok").and_then(JsonValue::as_bool).unwrap_or(false);
                     let output = message
@@ -947,19 +991,20 @@ impl JsReplManager {
                         .get("error")
                         .and_then(JsonValue::as_str)
                         .map(ToString::to_string);
-                    let sender = pending_execs.lock().await.remove(id);
+                    let sender = pending_execs.lock().await.remove(&resolved_id);
                     if let Some(sender) = sender {
                         let payload = if ok {
                             ExecResultMessage::Ok { output }
                         } else {
                             ExecResultMessage::Err {
+                                output,
                                 message: error
                                     .unwrap_or_else(|| "js_repl execution failed".to_string()),
                             }
                         };
                         let _ = sender.send(payload);
                     }
-                    JsReplManager::clear_exec_tool_calls_map(&exec_tool_calls, id).await;
+                    JsReplManager::clear_exec_tool_calls_map(&exec_tool_calls, &resolved_id).await;
                 }
                 "run_tool" => {
                     let Some(id) = message.get("id").and_then(JsonValue::as_str) else {
@@ -979,7 +1024,7 @@ impl JsReplManager {
                         .unwrap_or_default().to_owned();
 
                     // Check if the exec is still active via exec_tool_calls registration.
-                    let Some(_reset_cancel) =
+                    let Some(exec_cancel) =
                         JsReplManager::begin_exec_tool_call(&exec_tool_calls, &exec_id).await
                     else {
                         let snapshot =
@@ -1038,6 +1083,7 @@ impl JsReplManager {
                         exec_id: exec_id.clone(),
                         tool_name,
                         arguments,
+                        cancel: exec_cancel,
                     };
                     if let Err(err) = tool_tx.send(tool_req) {
                         let response = json!({
@@ -1098,6 +1144,7 @@ impl JsReplManager {
         let pending_exec_ids: Vec<String> = pending.keys().cloned().collect();
         for (_, tx) in pending.drain() {
             let _ = tx.send(ExecResultMessage::Err {
+                output: String::new(),
                 message: kernel_exit_message.clone(),
             });
         }

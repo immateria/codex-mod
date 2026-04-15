@@ -215,6 +215,40 @@ impl Runner<'_> {
         tools_config.search_tool = config.tools_search_tool;
         tools_config.js_repl = config.tools_js_repl;
 
+        // Probe runtime health early: if the default JS runtime is unavailable,
+        // disable the tool so the model doesn't repeatedly try a broken REPL.
+        if tools_config.js_repl {
+            let default_rt = config.js_repl_default_runtime;
+            let probe_handle = crate::tools::js_repl::JsReplHandle::new(
+                crate::tools::js_repl::JsReplRuntimeConfig {
+                    kind: default_rt,
+                    runtime_path: match default_rt {
+                        crate::config::JsReplRuntimeKindToml::Node => config.js_repl_node_path.clone(),
+                        crate::config::JsReplRuntimeKindToml::Deno => config.js_repl_deno_path.clone(),
+                    },
+                    runtime_args: Vec::new(),
+                    node_module_dirs: Vec::new(),
+                },
+            );
+            match probe_handle.probe_health().await {
+                Ok(version) => {
+                    tracing::info!(
+                        runtime = ?default_rt,
+                        version = %version,
+                        "js_repl runtime available"
+                    );
+                }
+                Err(err) => {
+                    tracing::warn!(
+                        runtime = ?default_rt,
+                        error = %err,
+                        "js_repl runtime unavailable — disabling tool"
+                    );
+                    tools_config.js_repl = false;
+                }
+            }
+        }
+
         let mut agent_models: Vec<String> = if config.agents.is_empty() {
             default_agent_configs()
                 .into_iter()

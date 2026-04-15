@@ -36,7 +36,8 @@ Communication is JSON-lines over stdin/stdout:
 Every exec increments `execGeneration`. Timer callbacks (`setTimeout`, `setInterval`,
 `queueMicrotask`) and `codex.tool()` calls check the generation — stale callbacks
 from previous execs are silently dropped. `_cancelStaleTimers()` clears all pending
-timers at the start of each exec.
+timers at both the start of each exec and in the finally block on exec completion,
+ensuring background timers die immediately when a cell finishes (success or error).
 
 ### Persistent Console Capture
 `console.log/info/warn/error/debug` are permanently captured. Calls only accumulate
@@ -60,6 +61,30 @@ The Node kernel supports three resolution kinds:
 Uses Deno's native permission model. Imports are handled by Deno itself via
 data-URL `import()`. Has the same generation-scoped async, persistent console,
 and fatal error handlers as the Node kernel.
+
+### Security / Containment Model
+
+**Deno** provides real containment: permissions are derived from the kernel
+launch flags (`--allow-env`, `--allow-read=<tmp_dir>`), and Deno enforces them
+at the runtime level.
+
+**Node** is a convenience / dev-mode runtime, **not** a containment boundary:
+- On macOS, the kernel process runs inside a `sandbox-exec` (seatbelt) profile
+  that restricts file/network access, but this does not cover code loaded by
+  host `import()` (package/builtin modules execute in the host realm).
+- On Linux, Android/Termux, and Windows, the kernel process runs with the same
+  permissions as the parent process. There is no sandbox.
+- Transitive imports inside packages bypass the VM context's deny-list logic.
+
+If you need strict isolation, configure `js_repl_runtime = "deno"` as the
+default. Node should be treated as **unsafe unless explicitly opted in**.
+
+### Runtime Health Preflight
+
+At session build time, the host probes the default runtime binary with
+`--version`. If the runtime is missing, too old, or broken, the `js_repl` tool
+is automatically disabled so the model doesn't repeatedly invoke a dead REPL.
+Warnings are logged to help diagnose configuration issues.
 
 ### Error Handling
 - **Manager:** Bounded stderr tail buffer, `KernelDebugSnapshot` with PID/status/stderr,

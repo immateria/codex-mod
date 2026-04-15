@@ -500,12 +500,9 @@ async function loadLinkedFileModule(modulePath) {
   if (module.status === "unlinked") {
     await module.link(async (specifier, referencingModule) => {
       const resolved = resolveSpecifier(specifier, referencingModule?.identifier);
-      if (resolved.kind !== "file") {
-        throw new Error(
-          `Static import "${specifier}" is not supported from js_repl local files. Use await import("${specifier}") instead.`,
-        );
-      }
-      return loadLinkedFileModule(resolved.path);
+      // Allow local files to statically import files, packages, and builtins
+      // — the same resolution contract as top-level cells.
+      return loadLinkedModule(resolved);
     });
   }
   return module;
@@ -872,6 +869,8 @@ async function handleExec(message) {
       error: error && error.message ? error.message : String(error),
     });
   } finally {
+    // End the generation immediately so background timers/callbacks are dead.
+    _cancelStaleTimers();
     if (activeExecId === message.id) {
       activeExecId = null;
     }
