@@ -54,19 +54,7 @@
                 AppEvent::SetJsReplSettings(settings) => {
                     match code_core::config::set_js_repl_settings(&self.config.code_home, &settings) {
                         Ok(()) => {
-                            self.config.tools_js_repl = settings.enabled;
-                            self.config.js_repl_default_runtime = settings.runtime;
-                            match settings.runtime {
-                                code_core::config::JsReplRuntimeKindToml::Node => {
-                                    self.config.js_repl_node_path.clone_from(&settings.runtime_path);
-                                    self.config.js_repl_node_args.clone_from(&settings.runtime_args);
-                                }
-                                code_core::config::JsReplRuntimeKindToml::Deno => {
-                                    self.config.js_repl_deno_path.clone_from(&settings.runtime_path);
-                                    self.config.js_repl_deno_args.clone_from(&settings.runtime_args);
-                                }
-                            }
-                            self.config.js_repl_node_module_dirs.clone_from(&settings.node_module_dirs);
+                            self.config.apply_js_repl_settings(&settings);
                             if let AppState::Chat { widget } = &mut self.app_state {
                                 widget.apply_js_repl_settings(settings);
                                 let status = if self.config.tools_js_repl { "Enabled" } else { "Disabled" };

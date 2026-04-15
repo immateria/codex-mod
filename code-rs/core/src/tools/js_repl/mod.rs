@@ -54,11 +54,11 @@ const MODEL_DIAG_STDERR_MAX_BYTES: usize = 1_024;
 const MODEL_DIAG_ERROR_MAX_BYTES: usize = 256;
 
 #[derive(Clone, Debug)]
-pub(crate) struct JsReplRuntimeConfig {
-    pub(crate) kind: crate::config::JsReplRuntimeKindToml,
-    pub(crate) runtime_path: Option<PathBuf>,
-    pub(crate) runtime_args: Vec<String>,
-    pub(crate) node_module_dirs: Vec<PathBuf>,
+pub struct JsReplRuntimeConfig {
+    pub kind: crate::config::JsReplRuntimeKindToml,
+    pub runtime_path: Option<PathBuf>,
+    pub runtime_args: Vec<String>,
+    pub node_module_dirs: Vec<PathBuf>,
 }
 
 #[derive(Clone, Debug)]

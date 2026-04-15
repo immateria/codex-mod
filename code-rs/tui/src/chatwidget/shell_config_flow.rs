@@ -269,20 +269,7 @@ impl ChatWidget<'_> {
     }
 
     pub(crate) fn apply_js_repl_settings(&mut self, settings: code_core::config::JsReplSettingsToml) {
-        self.config.tools_js_repl = settings.enabled;
-        self.config.js_repl_default_runtime = settings.runtime;
-        // Write path/args to the per-runtime config based on selected runtime.
-        match settings.runtime {
-            code_core::config::JsReplRuntimeKindToml::Node => {
-                self.config.js_repl_node_path = settings.runtime_path;
-                self.config.js_repl_node_args = settings.runtime_args;
-            }
-            code_core::config::JsReplRuntimeKindToml::Deno => {
-                self.config.js_repl_deno_path = settings.runtime_path;
-                self.config.js_repl_deno_args = settings.runtime_args;
-            }
-        }
-        self.config.js_repl_node_module_dirs = settings.node_module_dirs;
+        self.config.apply_js_repl_settings(&settings);
         self.submit_configure_session_for_current_settings();
         self.refresh_settings_overview_rows();
         self.request_redraw();

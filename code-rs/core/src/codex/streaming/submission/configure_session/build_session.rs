@@ -220,15 +220,7 @@ impl Runner<'_> {
         if tools_config.js_repl {
             let default_rt = config.js_repl_default_runtime;
             let probe_handle = crate::tools::js_repl::JsReplHandle::new(
-                crate::tools::js_repl::JsReplRuntimeConfig {
-                    kind: default_rt,
-                    runtime_path: match default_rt {
-                        crate::config::JsReplRuntimeKindToml::Node => config.js_repl_node_path.clone(),
-                        crate::config::JsReplRuntimeKindToml::Deno => config.js_repl_deno_path.clone(),
-                    },
-                    runtime_args: Vec::new(),
-                    node_module_dirs: Vec::new(),
-                },
+                config.js_repl_runtime_config(default_rt),
             );
             match probe_handle.probe_health().await {
                 Ok(version) => {
@@ -438,28 +430,14 @@ impl Runner<'_> {
             js_repl_default_runtime,
             js_repl_handles: {
                 let mut handles = std::collections::HashMap::new();
-                handles.insert(
-                    crate::config::JsReplRuntimeKindToml::Node,
-                    crate::tools::js_repl::JsReplHandle::new(
-                        crate::tools::js_repl::JsReplRuntimeConfig {
-                            kind: crate::config::JsReplRuntimeKindToml::Node,
-                            runtime_path: config.js_repl_node_path.clone(),
-                            runtime_args: config.js_repl_node_args.clone(),
-                            node_module_dirs: config.js_repl_node_module_dirs.clone(),
-                        },
-                    ),
-                );
-                handles.insert(
-                    crate::config::JsReplRuntimeKindToml::Deno,
-                    crate::tools::js_repl::JsReplHandle::new(
-                        crate::tools::js_repl::JsReplRuntimeConfig {
-                            kind: crate::config::JsReplRuntimeKindToml::Deno,
-                            runtime_path: config.js_repl_deno_path.clone(),
-                            runtime_args: config.js_repl_deno_args.clone(),
-                            node_module_dirs: Vec::new(),
-                        },
-                    ),
-                );
+                for &kind in crate::config::JsReplRuntimeKindToml::ALL {
+                    handles.insert(
+                        kind,
+                        crate::tools::js_repl::JsReplHandle::new(
+                            config.js_repl_runtime_config(kind),
+                        ),
+                    );
+                }
                 handles
             },
             network_proxy,

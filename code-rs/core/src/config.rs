@@ -701,6 +701,56 @@ impl Config {
         let cfg = validation::deserialize_config_toml_with_cli_warnings(&root_value, &cli_paths)?;
         Config::load_from_base_config_with_overrides(cfg, overrides, code_home)
     }
+
+    /// Build a [`JsReplRuntimeConfig`](crate::tools::js_repl::JsReplRuntimeConfig) for the
+    /// given runtime kind from the merged config fields.
+    ///
+    /// This is the single access point for per-runtime path, args, and
+    /// module-dirs — callers should use this instead of matching on the
+    /// runtime kind and picking flat fields by hand.
+    pub fn js_repl_runtime_config(
+        &self,
+        kind: JsReplRuntimeKindToml,
+    ) -> crate::tools::js_repl::JsReplRuntimeConfig {
+        let (runtime_path, runtime_args, node_module_dirs) = match kind {
+            JsReplRuntimeKindToml::Node => (
+                self.js_repl_node_path.clone(),
+                self.js_repl_node_args.clone(),
+                self.js_repl_node_module_dirs.clone(),
+            ),
+            JsReplRuntimeKindToml::Deno => (
+                self.js_repl_deno_path.clone(),
+                self.js_repl_deno_args.clone(),
+                Vec::new(),
+            ),
+        };
+        crate::tools::js_repl::JsReplRuntimeConfig {
+            kind,
+            runtime_path,
+            runtime_args,
+            node_module_dirs,
+        }
+    }
+
+    /// Apply a [`JsReplSettingsToml`] to the config, updating per-runtime
+    /// flat fields based on the selected runtime kind.
+    ///
+    /// This is the write counterpart to [`Config::js_repl_runtime_config`].
+    pub fn apply_js_repl_settings(&mut self, settings: &JsReplSettingsToml) {
+        self.tools_js_repl = settings.enabled;
+        self.js_repl_default_runtime = settings.runtime;
+        match settings.runtime {
+            JsReplRuntimeKindToml::Node => {
+                self.js_repl_node_path.clone_from(&settings.runtime_path);
+                self.js_repl_node_args.clone_from(&settings.runtime_args);
+            }
+            JsReplRuntimeKindToml::Deno => {
+                self.js_repl_deno_path.clone_from(&settings.runtime_path);
+                self.js_repl_deno_args.clone_from(&settings.runtime_args);
+            }
+        }
+        self.js_repl_node_module_dirs.clone_from(&settings.node_module_dirs);
+    }
 }
 
 pub fn load_config_as_toml_with_cli_overrides(
