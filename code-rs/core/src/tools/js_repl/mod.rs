@@ -376,7 +376,6 @@ impl JsReplManager {
                         &stdin,
                         &self.next_tool_seq,
                         &tool_req,
-                        tool_req.cancel.clone(),
                     )
                     .await;
                     // Mark this nested tool call as finished.
@@ -675,21 +674,7 @@ impl JsReplManager {
         stdin: &Arc<Mutex<ChildStdin>>,
         next_tool_seq: &AtomicU64,
         tool_req: &ToolRequest,
-        cancel: CancellationToken,
     ) {
-        // Self-invocation guard.
-        if is_js_repl_internal_tool(&tool_req.tool_name) {
-            let response = json!({
-                "type": "run_tool_result",
-                "id": tool_req.id,
-                "ok": false,
-                "response": JsonValue::Null,
-                "error": "js_repl cannot invoke itself",
-            });
-            let _ = send_json_line(stdin, &response).await;
-            return;
-        }
-
         let base_seq = parent_ctx.seq_hint.unwrap_or(0);
         let local_seq = next_tool_seq.fetch_add(1, Ordering::Relaxed);
         let seq_hint = Some(base_seq.saturating_add(1).saturating_add(local_seq));
@@ -729,7 +714,7 @@ impl JsReplManager {
         let output = tokio::select! {
             result = ToolRouter::global()
                 .dispatch_response_item(sess, turn_diff_tracker, meta, item) => result,
-            _ = cancel.cancelled() => {
+            _ = tool_req.cancel.cancelled() => {
                 let response = json!({
                     "type": "run_tool_result",
                     "id": tool_req.id,
