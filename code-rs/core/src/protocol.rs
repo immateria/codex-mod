@@ -159,12 +159,17 @@ pub struct ConfigureSessionOp {
     #[serde(default)]
     pub tools_js_repl: bool,
     #[serde(default)]
-    pub js_repl_runtime: crate::config::JsReplRuntimeKindToml,
+    pub js_repl_default_runtime: crate::config::JsReplRuntimeKindToml,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[serde(default)]
-    pub js_repl_runtime_path: Option<std::path::PathBuf>,
+    pub js_repl_node_path: Option<std::path::PathBuf>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub js_repl_runtime_args: Vec<String>,
+    pub js_repl_node_args: Vec<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default)]
+    pub js_repl_deno_path: Option<std::path::PathBuf>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub js_repl_deno_args: Vec<String>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub js_repl_node_module_dirs: Vec<std::path::PathBuf>,
     #[serde(default, skip_serializing_if = "MemoriesConfig::is_default")]
@@ -1832,9 +1837,11 @@ mod tests {
             shell_style_profiles: HashMap::new(),
             network: None,
             tools_js_repl: true,
-            js_repl_runtime: crate::config::JsReplRuntimeKindToml::Node,
-            js_repl_runtime_path: None,
-            js_repl_runtime_args: Vec::new(),
+            js_repl_default_runtime: crate::config::JsReplRuntimeKindToml::Node,
+            js_repl_node_path: None,
+            js_repl_node_args: Vec::new(),
+            js_repl_deno_path: None,
+            js_repl_deno_args: Vec::new(),
             js_repl_node_module_dirs: Vec::new(),
             memories: crate::config_types::MemoriesConfig::default(),
             collaboration_mode: CollaborationModeKind::Default,

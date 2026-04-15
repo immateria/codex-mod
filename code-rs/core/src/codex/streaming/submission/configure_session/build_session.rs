@@ -310,23 +310,7 @@ impl Runner<'_> {
             }
         };
 
-        let js_repl_default_runtime = config.js_repl_runtime;
-        let js_repl_node_runtime_path = match js_repl_default_runtime {
-            crate::config::JsReplRuntimeKindToml::Node => config.js_repl_runtime_path.clone(),
-            crate::config::JsReplRuntimeKindToml::Deno => None,
-        };
-        let js_repl_node_runtime_args = match js_repl_default_runtime {
-            crate::config::JsReplRuntimeKindToml::Node => config.js_repl_runtime_args.clone(),
-            crate::config::JsReplRuntimeKindToml::Deno => Vec::new(),
-        };
-        let js_repl_deno_runtime_path = match js_repl_default_runtime {
-            crate::config::JsReplRuntimeKindToml::Deno => config.js_repl_runtime_path.clone(),
-            crate::config::JsReplRuntimeKindToml::Node => None,
-        };
-        let js_repl_deno_runtime_args = match js_repl_default_runtime {
-            crate::config::JsReplRuntimeKindToml::Deno => config.js_repl_runtime_args.clone(),
-            crate::config::JsReplRuntimeKindToml::Node => Vec::new(),
-        };
+        let js_repl_default_runtime = config.js_repl_default_runtime;
 
         if let Err(err) = crate::memories::open_memories_state(config.code_home.as_path()).await {
             warn!("failed to initialize memories sqlite state: {err}");
@@ -421,16 +405,16 @@ impl Runner<'_> {
             js_repl_node: crate::tools::js_repl::JsReplHandle::new(
                 crate::tools::js_repl::JsReplRuntimeConfig {
                     kind: crate::config::JsReplRuntimeKindToml::Node,
-                    runtime_path: js_repl_node_runtime_path,
-                    runtime_args: js_repl_node_runtime_args,
+                    runtime_path: config.js_repl_node_path.clone(),
+                    runtime_args: config.js_repl_node_args.clone(),
                     node_module_dirs: config.js_repl_node_module_dirs.clone(),
                 },
             ),
             js_repl_deno: crate::tools::js_repl::JsReplHandle::new(
                 crate::tools::js_repl::JsReplRuntimeConfig {
                     kind: crate::config::JsReplRuntimeKindToml::Deno,
-                    runtime_path: js_repl_deno_runtime_path,
-                    runtime_args: js_repl_deno_runtime_args,
+                    runtime_path: config.js_repl_deno_path.clone(),
+                    runtime_args: config.js_repl_deno_args.clone(),
                     node_module_dirs: Vec::new(),
                 },
             ),

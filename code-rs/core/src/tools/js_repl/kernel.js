@@ -13,7 +13,7 @@ const { URL, URLSearchParams, pathToFileURL } = require("node:url");
 const { inspect, TextDecoder, TextEncoder } = require("node:util");
 const vm = require("node:vm");
 
-const { SourceTextModule, SyntheticModule } = vm;
+const { SourceTextModule } = vm;
 const meriyahPromise = import("./meriyah.umd.min.js").then((m) => m.default ?? m);
 
 // vm contexts start with very few globals. Populate common Node/web globals
@@ -64,16 +64,19 @@ context.btoa = (data) => Buffer.from(data, "binary").toString("base64");
 
 // REPL state model:
 // - Every exec is compiled as a fresh ESM "cell".
-// - `previousModule` is the most recently evaluated module namespace.
+// - `previousSnapshot` holds a plain object of binding values from the last cell.
 // - `previousBindings` tracks which top-level names should be carried forward.
-// Each new cell imports a synthetic view of the previous namespace and
-// redeclares those names so user variables behave like a persistent REPL.
-let previousModule = null;
+// The next cell reads carried values from `__replBindings` on the vm context,
+// avoiding a growing module chain.
+let previousSnapshot = null;
 /** @type {Binding[]} */
 let previousBindings = [];
 let cellCounter = 0;
 let activeExecId = null;
 let fatalExitScheduled = false;
+// Generation counter: incremented on every exec and exposed to the vm context
+// so user code can guard long-lived callbacks against stale generations.
+let execGeneration = 0;
 
 const builtinModuleSet = new Set([
   ...builtinModules,
@@ -316,18 +319,31 @@ function collectPatternNames(pattern, kind, map) {
   }
 }
 
+function collectDeclarationBindings(stmt, map) {
+  if (stmt.type === "VariableDeclaration") {
+    const kind = stmt.kind;
+    for (const decl of stmt.declarations) {
+      collectPatternNames(decl.id, kind, map);
+    }
+  } else if (stmt.type === "FunctionDeclaration" && stmt.id) {
+    map.set(stmt.id.name, "function");
+  } else if (stmt.type === "ClassDeclaration" && stmt.id) {
+    map.set(stmt.id.name, "class");
+  }
+}
+
 function collectBindings(ast) {
   const map = new Map();
   for (const stmt of ast.body ?? []) {
-    if (stmt.type === "VariableDeclaration") {
-      const kind = stmt.kind;
-      for (const decl of stmt.declarations) {
-        collectPatternNames(decl.id, kind, map);
+    collectDeclarationBindings(stmt, map);
+    if (stmt.type === "ImportDeclaration") {
+      for (const spec of stmt.specifiers ?? []) {
+        if (spec.local?.name && !map.has(spec.local.name)) {
+          map.set(spec.local.name, "const");
+        }
       }
-    } else if (stmt.type === "FunctionDeclaration" && stmt.id) {
-      map.set(stmt.id.name, "function");
-    } else if (stmt.type === "ClassDeclaration" && stmt.id) {
-      map.set(stmt.id.name, "class");
+    } else if (stmt.type === "ExportNamedDeclaration" && stmt.declaration) {
+      collectDeclarationBindings(stmt.declaration, map);
     } else if (stmt.type === "ForStatement") {
       if (
         stmt.init &&
@@ -363,19 +379,24 @@ async function buildModuleSource(code) {
     disableWebCompat: true,
   });
   const currentBindings = collectBindings(ast);
-  const priorBindings = previousModule ? previousBindings : [];
+  const priorBindings = previousSnapshot ? previousBindings : [];
+
+  // Names declared in the current cell should NOT be injected from the
+  // snapshot — the user's new declaration takes precedence.
+  const currentNames = new Set(currentBindings.map((b) => b.name));
 
   let prelude = "";
-  if (previousModule && priorBindings.length) {
-    // Recreate carried bindings before running user code in this new cell.
-    prelude += 'import * as __prev from "@prev";\n';
-    prelude += priorBindings
-      .map((b) => {
-        const keyword = b.kind === "var" ? "var" : b.kind === "const" ? "const" : "let";
-        return `${keyword} ${b.name} = __prev.${b.name};`;
-      })
-      .join("\n");
-    prelude += "\n";
+  if (previousSnapshot && priorBindings.length) {
+    const injected = priorBindings.filter((b) => !currentNames.has(b.name));
+    if (injected.length) {
+      prelude = injected
+        .map((b) => {
+          const keyword = b.kind === "var" ? "var" : b.kind === "const" ? "const" : "let";
+          return `${keyword} ${b.name} = __replBindings.${b.name};`;
+        })
+        .join("\n");
+      prelude += "\n";
+    }
   }
 
   const mergedBindings = new Map();
@@ -385,7 +406,6 @@ async function buildModuleSource(code) {
   for (const binding of currentBindings) {
     mergedBindings.set(binding.name, binding.kind);
   }
-  // Export the merged binding set so the next cell can import it through @prev.
   const exportNames = Array.from(mergedBindings.keys());
   const exportStmt = exportNames.length ? `\nexport { ${exportNames.join(", ")} };` : "";
 
@@ -394,8 +414,7 @@ async function buildModuleSource(code) {
 }
 
 function send(message) {
-  process.stdout.write(JSON.stringify(message));
-  process.stdout.write("\n");
+  process.stdout.write(`${JSON.stringify(message)}\n`);
 }
 
 function formatErrorMessage(error) {
@@ -517,16 +536,24 @@ async function handleExec(message) {
     const { source, nextBindings } = await buildModuleSource(code);
     let output = "";
 
+    const gen = ++execGeneration;
     context.state = state;
     context.codex = {
       state,
       tmpDir,
       runtime: { name: runtimeName, version: runtimeVersion },
       tool,
+      generation: gen,
     };
     context.tmpDir = tmpDir;
 
     await withCapturedConsole(context, async (logs) => {
+      // Inject the snapshot of carried bindings into the vm context so
+      // the prelude can read values without an import chain.
+      if (previousSnapshot) {
+        context.__replBindings = previousSnapshot;
+      }
+
       const module = new SourceTextModule(source, {
         context,
         identifier: `cell-${cellCounter++}.mjs`,
@@ -539,28 +566,19 @@ async function handleExec(message) {
       });
 
       await module.link(async (specifier) => {
-        if (specifier === "@prev" && previousModule) {
-          const exportNames = previousBindings.map((b) => b.name);
-          // Build a synthetic module snapshot of the prior cell's exports.
-          // This is the bridge that carries values from cell N to cell N+1.
-          const synthetic = new SyntheticModule(
-            exportNames,
-            function initSynthetic() {
-              for (const binding of previousBindings) {
-                this.setExport(binding.name, previousModule.namespace[binding.name]);
-              }
-            },
-            { context },
-          );
-          return synthetic;
-        }
-
         const resolved = resolveSpecifier(specifier);
         return importResolved(resolved);
       });
 
       await module.evaluate();
-      previousModule = module;
+
+      // Snapshot the namespace values so the next cell can access them
+      // without retaining a reference to this module.
+      const snapshot = Object.create(null);
+      for (const b of nextBindings) {
+        snapshot[b.name] = module.namespace[b.name];
+      }
+      previousSnapshot = snapshot;
       previousBindings = nextBindings;
       output = logs.join("\n");
     });

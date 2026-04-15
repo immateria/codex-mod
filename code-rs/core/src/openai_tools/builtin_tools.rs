@@ -606,7 +606,7 @@ pub(super) fn create_js_repl_reset_tool() -> OpenAiTool {
     OpenAiTool::Function(ResponsesApiTool {
         name: JS_REPL_RESET_TOOL_NAME.to_owned(),
         description:
-            "Restarts the js_repl kernel for this run and clears persisted top-level bindings.".to_owned(),
+            "Restarts the js_repl kernel process, clearing all state including top-level bindings, imported modules, and in-flight timers.".to_owned(),
         strict: false,
         parameters: JsonSchema::Object {
             properties: BTreeMap::new(),

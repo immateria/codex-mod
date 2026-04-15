@@ -34,9 +34,11 @@ impl Runner<'_> {
             shell_style_profiles,
             network,
             tools_js_repl,
-            js_repl_runtime,
-            js_repl_runtime_path,
-            js_repl_runtime_args,
+            js_repl_default_runtime,
+            js_repl_node_path,
+            js_repl_node_args,
+            js_repl_deno_path,
+            js_repl_deno_args,
             js_repl_node_module_dirs,
             memories,
             collaboration_mode,
@@ -94,9 +96,11 @@ impl Runner<'_> {
         updated_config.dynamic_tools = dynamic_tools.clone();
         updated_config.network = network.clone();
         updated_config.tools_js_repl = tools_js_repl;
-        updated_config.js_repl_runtime = js_repl_runtime;
-        updated_config.js_repl_runtime_path = js_repl_runtime_path;
-        updated_config.js_repl_runtime_args = js_repl_runtime_args;
+        updated_config.js_repl_default_runtime = js_repl_default_runtime;
+        updated_config.js_repl_node_path = js_repl_node_path;
+        updated_config.js_repl_node_args = js_repl_node_args;
+        updated_config.js_repl_deno_path = js_repl_deno_path;
+        updated_config.js_repl_deno_args = js_repl_deno_args;
         updated_config.js_repl_node_module_dirs = js_repl_node_module_dirs;
         updated_config.memories = memories;
         updated_config.shell_style_profiles = shell_style_profiles;

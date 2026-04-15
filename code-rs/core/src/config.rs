@@ -570,12 +570,16 @@ pub struct Config {
     pub tools_search_tool: bool,
     /// Enable the optional `js_repl` tool (off by default).
     pub tools_js_repl: bool,
-    /// Select the runtime used by `js_repl` (default: `node`).
-    pub js_repl_runtime: JsReplRuntimeKindToml,
-    /// Optional explicit path to the runtime executable used by `js_repl`.
-    pub js_repl_runtime_path: Option<PathBuf>,
-    /// Additional arguments passed to the `js_repl` runtime process.
-    pub js_repl_runtime_args: Vec<String>,
+    /// Select the default runtime used by `js_repl` (default: `node`).
+    pub js_repl_default_runtime: JsReplRuntimeKindToml,
+    /// Optional explicit path to the Node runtime executable used by `js_repl`.
+    pub js_repl_node_path: Option<PathBuf>,
+    /// Additional arguments passed to the Node `js_repl` runtime process.
+    pub js_repl_node_args: Vec<String>,
+    /// Optional explicit path to the Deno runtime executable used by `js_repl`.
+    pub js_repl_deno_path: Option<PathBuf>,
+    /// Additional arguments passed to the Deno `js_repl` runtime process.
+    pub js_repl_deno_args: Vec<String>,
     /// Extra directories to search for packages when using the Node runtime.
     ///
     /// These paths are passed to the `js_repl` kernel via `CODEX_JS_REPL_NODE_MODULE_DIRS`.
@@ -1144,18 +1148,35 @@ pub struct ToolsToml {
     #[serde(default)]
     pub js_repl: Option<bool>,
 
-    /// Select the runtime used by `js_repl` (default: `node`).
+    /// Select the default runtime used by `js_repl` (default: `node`).
     #[serde(default)]
     pub js_repl_runtime: Option<JsReplRuntimeKindToml>,
 
-    /// Optional explicit path to the runtime executable used by `js_repl`.
-    /// When omitted, the runtime is resolved from PATH (for example `node`).
+    /// Legacy: path to the default runtime executable. Prefer per-runtime
+    /// fields (`js_repl_node_path`, `js_repl_deno_path`) instead.
     #[serde(default)]
     pub js_repl_runtime_path: Option<PathBuf>,
 
-    /// Additional arguments passed to the `js_repl` runtime process.
+    /// Legacy: arguments for the default runtime. Prefer per-runtime
+    /// fields (`js_repl_node_args`, `js_repl_deno_args`) instead.
     #[serde(default)]
     pub js_repl_runtime_args: Option<Vec<String>>,
+
+    /// Explicit path to the Node runtime executable for `js_repl`.
+    #[serde(default)]
+    pub js_repl_node_path: Option<PathBuf>,
+
+    /// Additional arguments passed to the Node `js_repl` runtime process.
+    #[serde(default)]
+    pub js_repl_node_args: Option<Vec<String>>,
+
+    /// Explicit path to the Deno runtime executable for `js_repl`.
+    #[serde(default)]
+    pub js_repl_deno_path: Option<PathBuf>,
+
+    /// Additional arguments passed to the Deno `js_repl` runtime process.
+    #[serde(default)]
+    pub js_repl_deno_args: Option<Vec<String>>,
 
     /// Extra directories to search for packages when using the Node runtime.
     ///
@@ -1786,23 +1807,55 @@ impl Config {
             .and_then(|t| t.search_tool)
             .unwrap_or(false);
         let tools_js_repl = cfg.tools.as_ref().and_then(|t| t.js_repl).unwrap_or(false);
-        let js_repl_runtime = cfg
+        let js_repl_default_runtime = cfg
             .tools
             .as_ref()
             .and_then(|t| t.js_repl_runtime)
             .unwrap_or_default();
-        let js_repl_runtime_path = cfg
-            .tools
-            .as_ref()
-            .and_then(|t| t.js_repl_runtime_path.clone());
-        let js_repl_runtime_args = cfg
-            .tools
-            .as_ref()
+        // Per-runtime path/args: prefer explicit per-runtime fields, fall back
+        // to the legacy flat fields when they match the default runtime.
+        let tools_ref = cfg.tools.as_ref();
+        let legacy_path = tools_ref.and_then(|t| t.js_repl_runtime_path.clone());
+        let legacy_args = tools_ref
             .and_then(|t| t.js_repl_runtime_args.clone())
             .unwrap_or_default();
-        let js_repl_node_module_dirs = cfg
-            .tools
-            .as_ref()
+        let js_repl_node_path = tools_ref
+            .and_then(|t| t.js_repl_node_path.clone())
+            .or_else(|| {
+                if js_repl_default_runtime == JsReplRuntimeKindToml::Node {
+                    legacy_path.clone()
+                } else {
+                    None
+                }
+            });
+        let js_repl_node_args = tools_ref
+            .and_then(|t| t.js_repl_node_args.clone())
+            .unwrap_or_else(|| {
+                if js_repl_default_runtime == JsReplRuntimeKindToml::Node {
+                    legacy_args.clone()
+                } else {
+                    Vec::new()
+                }
+            });
+        let js_repl_deno_path = tools_ref
+            .and_then(|t| t.js_repl_deno_path.clone())
+            .or_else(|| {
+                if js_repl_default_runtime == JsReplRuntimeKindToml::Deno {
+                    legacy_path
+                } else {
+                    None
+                }
+            });
+        let js_repl_deno_args = tools_ref
+            .and_then(|t| t.js_repl_deno_args.clone())
+            .unwrap_or_else(|| {
+                if js_repl_default_runtime == JsReplRuntimeKindToml::Deno {
+                    legacy_args
+                } else {
+                    Vec::new()
+                }
+            });
+        let js_repl_node_module_dirs = tools_ref
             .and_then(|t| t.js_repl_node_module_dirs.clone())
             .unwrap_or_default();
         let tools_web_search_allowed_domains = cfg
@@ -2332,9 +2385,11 @@ impl Config {
             tools_web_search_external,
             tools_search_tool,
             tools_js_repl,
-            js_repl_runtime,
-            js_repl_runtime_path,
-            js_repl_runtime_args,
+            js_repl_default_runtime,
+            js_repl_node_path,
+            js_repl_node_args,
+            js_repl_deno_path,
+            js_repl_deno_args,
             js_repl_node_module_dirs,
             tools_web_search_allowed_domains,
             // Honor upstream opt-in switch name for our experimental streamable shell tool.

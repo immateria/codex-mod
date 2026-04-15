@@ -165,17 +165,19 @@ impl ChatWidget<'_> {
 
     pub(super) fn settings_summary_js_repl(&self) -> Option<String> {
         let enabled = if self.config.tools_js_repl { "Enabled" } else { "Disabled" };
-        let runtime = match self.config.js_repl_runtime {
+        let runtime = match self.config.js_repl_default_runtime {
             code_core::config::JsReplRuntimeKindToml::Node => "node",
             code_core::config::JsReplRuntimeKindToml::Deno => "deno",
         };
-        let runtime_path = self
-            .config
-            .js_repl_runtime_path
+        let runtime_path = match self.config.js_repl_default_runtime {
+            code_core::config::JsReplRuntimeKindToml::Node => &self.config.js_repl_node_path,
+            code_core::config::JsReplRuntimeKindToml::Deno => &self.config.js_repl_deno_path,
+        };
+        let path_str = runtime_path
             .as_ref().map_or_else(|| "auto".to_owned(), |path| path.to_string_lossy().into_owned());
 
         Some(format!(
-            "Status: {enabled} · Runtime: {runtime} · Path: {runtime_path}"
+            "Status: {enabled} · Runtime: {runtime} · Path: {path_str}"
         ))
     }
 

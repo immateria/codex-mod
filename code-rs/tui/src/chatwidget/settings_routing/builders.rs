@@ -164,11 +164,22 @@ impl ChatWidget<'_> {
 
     pub(super) fn build_js_repl_settings_view(&mut self) -> JsReplSettingsView {
         let ticket = self.make_background_tail_ticket();
+        let rt = self.config.js_repl_default_runtime;
+        let (runtime_path, runtime_args) = match rt {
+            code_core::config::JsReplRuntimeKindToml::Node => (
+                self.config.js_repl_node_path.clone(),
+                self.config.js_repl_node_args.clone(),
+            ),
+            code_core::config::JsReplRuntimeKindToml::Deno => (
+                self.config.js_repl_deno_path.clone(),
+                self.config.js_repl_deno_args.clone(),
+            ),
+        };
         let settings = code_core::config::JsReplSettingsToml {
             enabled: self.config.tools_js_repl,
-            runtime: self.config.js_repl_runtime,
-            runtime_path: self.config.js_repl_runtime_path.clone(),
-            runtime_args: self.config.js_repl_runtime_args.clone(),
+            runtime: rt,
+            runtime_path,
+            runtime_args,
             node_module_dirs: self.config.js_repl_node_module_dirs.clone(),
         };
         let network_enabled = cfg!(feature = "managed-network-proxy")

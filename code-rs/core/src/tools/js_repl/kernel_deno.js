@@ -41,10 +41,17 @@ function withCapturedConsole(fn) {
  * @typedef {{ name: string, kind: "const"|"let"|"var"|"function"|"class" }} Binding
  */
 
-let previousModuleUrl = null;
+// REPL state model:
+// - Every exec is compiled as a fresh ESM "cell" evaluated via data-URL import.
+// - `previousSnapshot` holds a plain object of binding values from the last cell.
+// - `previousBindings` tracks which top-level names should be carried forward.
+// The next cell reads carried values from `globalThis.__replBindings`,
+// avoiding a growing data-URL import chain.
+let previousSnapshot = null;
 /** @type {Binding[]} */
 let previousBindings = [];
 let cellCounter = 0;
+let execGeneration = 0;
 
 /** @type {Map<string, (msg: any) => void>} */
 const pendingTool = new Map();
@@ -100,18 +107,31 @@ function collectPatternNames(pattern, kind, map) {
   }
 }
 
+function collectDeclarationBindings(stmt, map) {
+  if (stmt.type === "VariableDeclaration") {
+    const kind = stmt.kind;
+    for (const decl of stmt.declarations) {
+      collectPatternNames(decl.id, kind, map);
+    }
+  } else if (stmt.type === "FunctionDeclaration" && stmt.id) {
+    map.set(stmt.id.name, "function");
+  } else if (stmt.type === "ClassDeclaration" && stmt.id) {
+    map.set(stmt.id.name, "class");
+  }
+}
+
 function collectBindings(ast) {
   const map = new Map();
   for (const stmt of ast.body ?? []) {
-    if (stmt.type === "VariableDeclaration") {
-      const kind = stmt.kind;
-      for (const decl of stmt.declarations) {
-        collectPatternNames(decl.id, kind, map);
+    collectDeclarationBindings(stmt, map);
+    if (stmt.type === "ImportDeclaration") {
+      for (const spec of stmt.specifiers ?? []) {
+        if (spec.local?.name && !map.has(spec.local.name)) {
+          map.set(spec.local.name, "const");
+        }
       }
-    } else if (stmt.type === "FunctionDeclaration" && stmt.id) {
-      map.set(stmt.id.name, "function");
-    } else if (stmt.type === "ClassDeclaration" && stmt.id) {
-      map.set(stmt.id.name, "class");
+    } else if (stmt.type === "ExportNamedDeclaration" && stmt.declaration) {
+      collectDeclarationBindings(stmt.declaration, map);
     } else if (stmt.type === "ForStatement") {
       if (stmt.init && stmt.init.type === "VariableDeclaration" && stmt.init.kind === "var") {
         for (const decl of stmt.init.declarations) {
@@ -142,15 +162,21 @@ async function buildModuleSource(code) {
     disableWebCompat: true,
   });
   const currentBindings = collectBindings(ast);
-  const priorBindings = previousModuleUrl ? previousBindings : [];
+  const priorBindings = previousSnapshot ? previousBindings : [];
+
+  // Names declared in the current cell should NOT be injected from the
+  // snapshot — the user's new declaration takes precedence.
+  const currentNames = new Set(currentBindings.map((b) => b.name));
 
   let prelude = "";
-  if (previousModuleUrl && priorBindings.length) {
-    prelude += `import * as __prev from ${JSON.stringify(previousModuleUrl)};\n`;
-    prelude += priorBindings
-      .map((b) => `${keywordForBindingKind(b.kind)} ${b.name} = __prev.${b.name};`)
-      .join("\n");
-    prelude += "\n";
+  if (previousSnapshot && priorBindings.length) {
+    const injected = priorBindings.filter((b) => !currentNames.has(b.name));
+    if (injected.length) {
+      prelude = injected
+        .map((b) => `${keywordForBindingKind(b.kind)} ${b.name} = globalThis.__replBindings.${b.name};`)
+        .join("\n");
+      prelude += "\n";
+    }
   }
 
   const mergedBindings = new Map();
@@ -205,19 +231,34 @@ async function handleExec(message) {
     const { source, nextBindings } = await buildModuleSource(code);
     let output = "";
 
+    const gen = ++execGeneration;
     globalThis.state = state;
     globalThis.codex = {
       state,
       tmpDir,
       runtime: { name: runtimeName, version: runtimeVersion },
       tool,
+      generation: gen,
     };
     globalThis.tmpDir = tmpDir;
 
     await withCapturedConsole(async (logs) => {
+      // Inject the snapshot of carried bindings so the prelude can read
+      // values without importing from the previous data-URL module.
+      if (previousSnapshot) {
+        globalThis.__replBindings = previousSnapshot;
+      }
+
       const moduleUrl = toDataUrl(source);
-      await import(moduleUrl);
-      previousModuleUrl = moduleUrl;
+      const ns = await import(moduleUrl);
+
+      // Snapshot the namespace values so the next cell can access them
+      // without retaining a reference to this module's data URL.
+      const snapshot = Object.create(null);
+      for (const b of nextBindings) {
+        snapshot[b.name] = ns[b.name];
+      }
+      previousSnapshot = snapshot;
       previousBindings = nextBindings;
       output = logs.join("\n");
     });

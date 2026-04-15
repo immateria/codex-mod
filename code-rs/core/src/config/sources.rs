@@ -4138,21 +4138,30 @@ pub fn set_js_repl_settings(
     };
     tools_table["js_repl_runtime"] = toml_edit::value(runtime);
 
+    // Write path/args to the per-runtime TOML keys based on selected runtime.
+    let (path_key, args_key) = match settings.runtime {
+        super::JsReplRuntimeKindToml::Node => ("js_repl_node_path", "js_repl_node_args"),
+        super::JsReplRuntimeKindToml::Deno => ("js_repl_deno_path", "js_repl_deno_args"),
+    };
     match settings.runtime_path.as_ref() {
         Some(path) => {
-            tools_table["js_repl_runtime_path"] =
+            tools_table[path_key] =
                 toml_edit::value(path.to_string_lossy().trim().to_owned());
         }
         None => {
-            tools_table.remove("js_repl_runtime_path");
+            tools_table.remove(path_key);
         }
     }
 
     let _ = write_exact_string_array(
         tools_table,
-        "js_repl_runtime_args",
+        args_key,
         &settings.runtime_args,
     )?;
+
+    // Clean up legacy flat fields if present.
+    tools_table.remove("js_repl_runtime_path");
+    tools_table.remove("js_repl_runtime_args");
     let _ = write_path_array(
         tools_table,
         "js_repl_node_module_dirs",
