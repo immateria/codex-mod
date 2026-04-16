@@ -22,6 +22,7 @@ const {
   classifyBindingChanges,
   errorMentionsBinding,
   makeTimerSystem,
+  normalizeToDataUrl,
 } = require("./kernel_common.js");
 
 const { SourceTextModule, SyntheticModule } = vm;
@@ -150,7 +151,10 @@ function isDeniedBuiltin(specifier) {
 
 /** @type {Map<string, (msg: any) => void>} */
 const pendingTool = new Map();
+/** @type {Map<string, (msg: any) => void>} */
+const pendingEmitImage = new Map();
 let toolCounter = 0;
+let imageCounter = 0;
 const tmpDir = process.env.CODEX_REPL_TMP_DIR || process.cwd();
 const runtimeName = process.env.CODEX_REPL_RUNTIME || "node";
 const runtimeVersion =
@@ -709,6 +713,62 @@ async function handleExec(message) {
       tmpDir,
       runtime: { name: runtimeName, version: runtimeVersion },
       tool,
+      /**
+       * Emit an image that will be included in the tool-call output sent
+       * back to the model.  Accepts a data-URL string or a Uint8Array /
+       * Buffer / ArrayBuffer (which will be base64-encoded automatically).
+       *
+       * @param {string|Uint8Array|ArrayBuffer|Buffer} imageOrUrl
+       * @param {"auto"|"low"|"high"} [detail="auto"]
+       * @returns {Promise<{ok:boolean, error?:string}>}
+       */
+      emitImage(imageOrUrl, detail) {
+        const dataUrl = normalizeToDataUrl(imageOrUrl);
+        if (!dataUrl) {
+          return Promise.reject(
+            new Error("codex.emitImage: expected a data: URL string or binary buffer"),
+          );
+        }
+        if (execGeneration !== gen) {
+          return Promise.reject(
+            new Error(`codex.emitImage rejected: stale generation (${gen} vs current ${execGeneration})`),
+          );
+        }
+        const id = `${message.id}-img-${imageCounter++}`;
+        const operation = new Promise((resolve, reject) => {
+          send({
+            type: "emit_image",
+            id,
+            exec_id: message.id,
+            image_url: dataUrl,
+            detail: detail || "auto",
+          });
+          pendingEmitImage.set(id, (res) => {
+            if (!res.ok) {
+              reject(new Error(res.error || "emitImage failed"));
+            } else {
+              resolve({ ok: true });
+            }
+          });
+        });
+        // Track as background task like tool calls.
+        const observation = { observed: false };
+        const tracked = operation.then(
+          () => ({ ok: true, error: null, observation }),
+          (error) => ({ ok: false, error, observation }),
+        );
+        pendingBackgroundTasks.add(tracked);
+        return {
+          then(onFulfilled, onRejected) {
+            observation.observed = true;
+            const p = operation.then(onFulfilled, onRejected);
+            if (!onRejected) p.catch(() => {});
+            return p;
+          },
+          catch(onRejected) { observation.observed = true; return operation.catch(onRejected); },
+          finally(onFinally) { observation.observed = true; return operation.finally(onFinally); },
+        };
+      },
       generation: gen,
       // Introspection: list all tracked REPL bindings with their
       // declaration keyword and current snapshot value.
@@ -737,6 +797,9 @@ async function handleExec(message) {
         return found ? keywordForBindingKind(found.kind) : null;
       },
     };
+    // Freeze the codex API object so user code cannot replace or delete
+    // methods (e.g. codex.tool = something_malicious).
+    Object.freeze(context.codex);
     context.tmpDir = tmpDir;
 
     // Inject the snapshot of carried bindings into the vm context so
@@ -763,6 +826,10 @@ async function handleExec(message) {
     });
 
     await module.evaluate();
+
+    // Clean up the injection point so user code in background callbacks
+    // (or subsequent synchronous reads) cannot access the raw snapshot.
+    delete context.__replBindings;
 
     // Await any un-awaited background tasks (tool calls, etc.) before
     // snapshotting.  Surface the first unobserved failure as a cell error.
@@ -921,6 +988,12 @@ async function handleExec(message) {
         resolver({ ok: false, error: "cell terminated before tool call completed" });
       }
     }
+    for (const [callId, resolver] of pendingEmitImage) {
+      if (callId.startsWith(`${message.id}-img-`)) {
+        pendingEmitImage.delete(callId);
+        resolver({ ok: false, error: "cell terminated before emitImage completed" });
+      }
+    }
     if (activeExecId === message.id) {
       activeExecId = null;
     }
@@ -969,6 +1042,18 @@ input.on("line", (line) => {
   }
   if (message.type === "run_tool_result") {
     handleToolResult(message);
+    return;
+  }
+  if (message.type === "emit_image_result") {
+    const resolver = pendingEmitImage.get(message.id);
+    if (resolver) {
+      pendingEmitImage.delete(message.id);
+      resolver(message);
+    } else {
+      process.stderr.write(
+        `[kernel_node] unexpected emit_image_result for unknown id: ${message.id}\n`
+      );
+    }
     return;
   }
   process.stderr.write(`[kernel_node] ignoring unknown message type: ${message.type}\n`);

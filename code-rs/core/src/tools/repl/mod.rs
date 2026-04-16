@@ -338,7 +338,7 @@ impl ReplManager {
         self.settle_exec(&id).await;
 
         match result {
-            ExecResultMessage::Ok { output } => Ok(ReplExecResult { output }),
+            ExecResultMessage::Ok { output, content_items } => Ok(ReplExecResult { output, content_items }),
             ExecResultMessage::Err { output, message } => Err(ReplExecError {
                 output,
                 error: message,
@@ -797,10 +797,21 @@ impl ReplManager {
                         .get("error")
                         .and_then(JsonValue::as_str)
                         .map(ToString::to_string);
+
+                    // Drain content items (emitted images, etc.) accumulated
+                    // during this exec before the tool-calls state is cleared.
+                    let content_items = {
+                        let mut calls = exec_tool_calls.lock().await;
+                        calls
+                            .get_mut(&resolved_id)
+                            .map(|state| std::mem::take(&mut state.content_items))
+                            .unwrap_or_default()
+                    };
+
                     let sender = pending_execs.lock().await.remove(&resolved_id);
                     if let Some(sender) = sender {
                         let payload = if ok {
-                            ExecResultMessage::Ok { output }
+                            ExecResultMessage::Ok { output, content_items }
                         } else {
                             ExecResultMessage::Err {
                                 output,
@@ -907,6 +918,96 @@ impl ReplManager {
                             );
                         }
                         ReplManager::finish_exec_tool_call(&exec_tool_calls, &exec_id).await;
+                    }
+                }
+                "emit_image" => {
+                    let Some(id) = message.get("id").and_then(JsonValue::as_str) else {
+                        continue;
+                    };
+                    let exec_id = message
+                        .get("exec_id")
+                        .and_then(JsonValue::as_str)
+                        .unwrap_or_default();
+                    let image_url = message
+                        .get("image_url")
+                        .and_then(JsonValue::as_str)
+                        .unwrap_or_default();
+                    let detail_str = message
+                        .get("detail")
+                        .and_then(JsonValue::as_str);
+
+                    // 20 MB encoded limit to prevent OOM and API rejection.
+                    const MAX_DATA_URL_BYTES: usize = 20 * 1024 * 1024;
+
+                    let response = if !image_url
+                        .get(..5)
+                        .is_some_and(|s| s.eq_ignore_ascii_case("data:"))
+                    {
+                        json!({
+                            "type": "emit_image_result",
+                            "id": id,
+                            "ok": false,
+                            "error": "codex.emitImage only accepts data URLs",
+                        })
+                    } else if image_url.len() > MAX_DATA_URL_BYTES {
+                        json!({
+                            "type": "emit_image_result",
+                            "id": id,
+                            "ok": false,
+                            "error": format!(
+                                "image data URL exceeds {MAX_DATA_URL_BYTES} byte limit ({} bytes)",
+                                image_url.len(),
+                            ),
+                        })
+                    } else {
+                        let detail = detail_str.and_then(|s| match s {
+                            "low" => Some(code_protocol::models::ImageDetail::Low),
+                            "high" => Some(code_protocol::models::ImageDetail::High),
+                            "auto" => Some(code_protocol::models::ImageDetail::Auto),
+                            _ => None,
+                        });
+                        let content_item =
+                            code_protocol::models::FunctionCallOutputContentItem::InputImage {
+                                image_url: image_url.to_owned(),
+                                detail,
+                            };
+                        let stored = {
+                            let mut calls = exec_tool_calls.lock().await;
+                            if let Some(state) = calls.get_mut(exec_id) {
+                                state.content_items.push(content_item);
+                                true
+                            } else {
+                                false
+                            }
+                        };
+                        if stored {
+                            json!({
+                                "type": "emit_image_result",
+                                "id": id,
+                                "ok": true,
+                            })
+                        } else {
+                            json!({
+                                "type": "emit_image_result",
+                                "id": id,
+                                "ok": false,
+                                "error": "exec context not found (possibly timed out)",
+                            })
+                        }
+                    };
+
+                    if let Err(err) = send_json_line(&stdin, &response).await {
+                        let snapshot =
+                            ReplManager::kernel_debug_snapshot(&child, &recent_stderr).await;
+                        warn!(
+                            exec_id = %exec_id,
+                            emit_id = %id,
+                            error = %err,
+                            kernel_pid = ?snapshot.pid,
+                            kernel_status = %snapshot.status,
+                            kernel_stderr_tail = %snapshot.stderr_tail,
+                            "failed to reply to kernel emit_image request"
+                        );
                     }
                 }
                 other => {
@@ -1094,9 +1195,10 @@ mod tests {
     fn exec_result_ok_carries_output() {
         let msg = ExecResultMessage::Ok {
             output: "42".to_owned(),
+            content_items: Vec::new(),
         };
         match msg {
-            ExecResultMessage::Ok { output } => assert_eq!(output, "42"),
+            ExecResultMessage::Ok { output, .. } => assert_eq!(output, "42"),
             ExecResultMessage::Err { .. } => panic!("expected Ok variant"),
         }
     }

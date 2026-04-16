@@ -193,6 +193,49 @@ function makeTimerSystem(execGenerationFn) {
   return { wrapTimer, wrapClearTimer, cancelStaleTimers };
 }
 
+// ── Image helpers ────────────────────────────────────────────────────
+
+/**
+ * Accept an image input and ensure it is a data: URL string.
+ *
+ * Supported inputs:
+ *  - A string starting with "data:" → returned as-is
+ *  - A Uint8Array, ArrayBuffer, or Node Buffer → base64-encoded as
+ *    `data:application/octet-stream;base64,...`
+ *
+ * Returns `null` for unsupported inputs so callers can reject gracefully.
+ */
+function normalizeToDataUrl(input) {
+  if (typeof input === "string") {
+    if (input.slice(0, 5).toLowerCase() === "data:") return input;
+    return null;
+  }
+  let bytes;
+  if (input instanceof Uint8Array) {
+    bytes = input;
+  } else if (input instanceof ArrayBuffer) {
+    bytes = new Uint8Array(input);
+  } else if (typeof Buffer !== "undefined" && Buffer.isBuffer(input)) {
+    bytes = new Uint8Array(input.buffer, input.byteOffset, input.byteLength);
+  } else {
+    return null;
+  }
+  if (bytes.length === 0) return null;
+  let b64;
+  if (typeof Buffer !== "undefined") {
+    b64 = Buffer.from(bytes).toString("base64");
+  } else {
+    // Chunked conversion avoids call-stack overflow from spread on
+    // large arrays (Deno lacks Buffer).
+    let binary = "";
+    for (let i = 0; i < bytes.length; i++) {
+      binary += String.fromCharCode(bytes[i]);
+    }
+    b64 = btoa(binary);
+  }
+  return `data:application/octet-stream;base64,${b64}`;
+}
+
 // ── Exports ─────────────────────────────────────────────────────────
 
 if (typeof module !== "undefined" && module.exports) {
@@ -206,6 +249,7 @@ if (typeof module !== "undefined" && module.exports) {
     classifyBindingChanges,
     errorMentionsBinding,
     makeTimerSystem,
+    normalizeToDataUrl,
   };
 }
 
@@ -220,5 +264,6 @@ if (typeof globalThis !== "undefined") {
     classifyBindingChanges,
     errorMentionsBinding,
     makeTimerSystem,
+    normalizeToDataUrl,
   };
 }

@@ -1,3 +1,4 @@
+use code_protocol::models::FunctionCallOutputContentItem;
 use serde::Deserialize;
 use std::path::PathBuf;
 
@@ -23,6 +24,8 @@ pub(super) struct ResolvedRuntime {
 #[derive(Clone, Debug)]
 pub(crate) struct ReplExecResult {
     pub output: String,
+    /// Content items emitted via `codex.emitImage()` during execution.
+    pub content_items: Vec<FunctionCallOutputContentItem>,
 }
 
 #[derive(Clone, Debug)]
@@ -33,7 +36,10 @@ pub(crate) struct ReplExecError {
 
 #[derive(Debug)]
 pub(super) enum ExecResultMessage {
-    Ok { output: String },
+    Ok {
+        output: String,
+        content_items: Vec<FunctionCallOutputContentItem>,
+    },
     Err { output: String, message: String },
 }
 
@@ -61,6 +67,8 @@ pub(super) struct ToolRequest {
 #[derive(Default)]
 pub(super) struct ExecToolCalls {
     pub in_flight: usize,
+    /// Content items accumulated during this exec (e.g. emitted images).
+    pub content_items: Vec<FunctionCallOutputContentItem>,
     pub cancel: tokio_util::sync::CancellationToken,
     pub notify: std::sync::Arc<tokio::sync::Notify>,
 }

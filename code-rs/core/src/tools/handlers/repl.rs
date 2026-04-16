@@ -9,6 +9,7 @@ use crate::tools::registry::unsupported_tool_call_output;
 use crate::turn_diff_tracker::TurnDiffTracker;
 use crate::tools::handlers::{tool_error, tool_output};
 use async_trait::async_trait;
+use code_protocol::models::FunctionCallOutputContentItem;
 use code_protocol::models::FunctionCallOutputPayload;
 use code_protocol::models::ResponseInputItem;
 use serde::Deserialize;
@@ -270,7 +271,26 @@ impl ToolHandler for ReplToolHandler {
                 )
                 .await;
 
-                if outputs_custom {
+                if !result.content_items.is_empty() {
+                    // Build a multi-modal response with text + images.
+                    let mut items = Vec::with_capacity(result.content_items.len() + 1);
+                    items.push(FunctionCallOutputContentItem::InputText {
+                        text: result.output,
+                    });
+                    items.extend(result.content_items);
+                    let payload = FunctionCallOutputPayload::from_content_items(items);
+                    if outputs_custom {
+                        ResponseInputItem::CustomToolCallOutput {
+                            call_id: ctx.call_id,
+                            output: payload,
+                        }
+                    } else {
+                        ResponseInputItem::FunctionCallOutput {
+                            call_id: ctx.call_id,
+                            output: payload,
+                        }
+                    }
+                } else if outputs_custom {
                     ResponseInputItem::CustomToolCallOutput {
                         call_id: ctx.call_id,
                         output: FunctionCallOutputPayload::from_text(result.output),
