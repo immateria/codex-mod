@@ -4,9 +4,26 @@
 // We intentionally keep this kernel self-contained: it doesn't import remote
 // modules and relies on Deno's permission model for safety.
 
+// Load shared kernel utilities (AST binding collection, timer system).
+// kernel_common.js is written to the same tmp dir by the Rust host.
+const _commonPath = new URL("./kernel_common.js", import.meta.url).href;
+await import(_commonPath);
+const {
+  collectPatternNames,
+  collectDeclarationBindings,
+  collectBindings,
+  keywordForBindingKind,
+  makeTimerSystem,
+} = globalThis.__kernelCommon;
+
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();
 
+// Synchronous write to avoid making send() async.  The fatal error handler
+// (_scheduleFatalExit) calls send() from error/rejection callbacks where
+// async is unsafe, so sync is required there.  We use the same path for
+// normal sends for simplicity; payloads are small and the host reads
+// continuously, so pipe backpressure is not a practical concern.
 function send(message) {
   const payload = encoder.encode(JSON.stringify(message) + "\n");
   Deno.stdout.writeSync(payload);
@@ -35,46 +52,15 @@ for (const method of ["log", "info", "warn", "error", "debug"]) {
 globalThis.console = _capturedConsole;
 
 // ── Generation-scoped timer wrappers ────────────────────────────────
-const _activeTimers = new Map();
-let _nextTimerId = 1;
-
-function _wrapTimer(hostFn, clearHostFn, kind) {
-  return (callback, ...args) => {
-    const gen = execGeneration;
-    const wrapperId = _nextTimerId++;
-    const hostId = hostFn((...cbArgs) => {
-      _activeTimers.delete(wrapperId);
-      if (execGeneration !== gen) return;
-      callback(...cbArgs);
-    }, ...args);
-    _activeTimers.set(wrapperId, { gen, kind, hostId, clearFn: clearHostFn });
-    return wrapperId;
-  };
-}
-
-function _wrapClearTimer(kind) {
-  return (wrapperId) => {
-    const entry = _activeTimers.get(wrapperId);
-    if (entry && entry.kind === kind) {
-      entry.clearFn(entry.hostId);
-      _activeTimers.delete(wrapperId);
-    }
-  };
-}
-
-function _cancelStaleTimers() {
-  for (const [id, entry] of _activeTimers) {
-    entry.clearFn(entry.hostId);
-    _activeTimers.delete(id);
-  }
-}
-
-// Deno has setTimeout/setInterval on globalThis.
+// Capture host timer functions before overriding them.
 const _hostSetTimeout = globalThis.setTimeout;
 const _hostClearTimeout = globalThis.clearTimeout;
 const _hostSetInterval = globalThis.setInterval;
 const _hostClearInterval = globalThis.clearInterval;
 const _hostQueueMicrotask = globalThis.queueMicrotask;
+
+const { wrapTimer: _wrapTimer, wrapClearTimer: _wrapClearTimer, cancelStaleTimers: _cancelStaleTimers } =
+  makeTimerSystem(() => execGeneration);
 
 globalThis.setTimeout = _wrapTimer(_hostSetTimeout, _hostClearTimeout, "timeout");
 globalThis.clearTimeout = _wrapClearTimer("timeout");
@@ -121,88 +107,6 @@ await import("./meriyah.umd.min.js");
 const meriyah = globalThis.meriyah;
 if (!meriyah || typeof meriyah.parseModule !== "function") {
   throw new Error("Failed to load meriyah parser in Deno kernel");
-}
-
-function collectPatternNames(pattern, kind, map) {
-  if (!pattern) return;
-  switch (pattern.type) {
-    case "Identifier":
-      if (!map.has(pattern.name)) map.set(pattern.name, kind);
-      return;
-    case "ObjectPattern":
-      for (const prop of pattern.properties ?? []) {
-        if (prop.type === "Property") {
-          collectPatternNames(prop.value, kind, map);
-        } else if (prop.type === "RestElement") {
-          collectPatternNames(prop.argument, kind, map);
-        }
-      }
-      return;
-    case "ArrayPattern":
-      for (const elem of pattern.elements ?? []) {
-        if (!elem) continue;
-        if (elem.type === "RestElement") {
-          collectPatternNames(elem.argument, kind, map);
-        } else {
-          collectPatternNames(elem, kind, map);
-        }
-      }
-      return;
-    case "AssignmentPattern":
-      collectPatternNames(pattern.left, kind, map);
-      return;
-    case "RestElement":
-      collectPatternNames(pattern.argument, kind, map);
-      return;
-    default:
-      return;
-  }
-}
-
-function collectDeclarationBindings(stmt, map) {
-  if (stmt.type === "VariableDeclaration") {
-    const kind = stmt.kind;
-    for (const decl of stmt.declarations) {
-      collectPatternNames(decl.id, kind, map);
-    }
-  } else if (stmt.type === "FunctionDeclaration" && stmt.id) {
-    map.set(stmt.id.name, "function");
-  } else if (stmt.type === "ClassDeclaration" && stmt.id) {
-    map.set(stmt.id.name, "class");
-  }
-}
-
-function collectBindings(ast) {
-  const map = new Map();
-  for (const stmt of ast.body ?? []) {
-    collectDeclarationBindings(stmt, map);
-    if (stmt.type === "ImportDeclaration") {
-      for (const spec of stmt.specifiers ?? []) {
-        if (spec.local?.name && !map.has(spec.local.name)) {
-          map.set(spec.local.name, "const");
-        }
-      }
-    } else if (stmt.type === "ExportNamedDeclaration" && stmt.declaration) {
-      collectDeclarationBindings(stmt.declaration, map);
-    } else if (stmt.type === "ForStatement") {
-      if (stmt.init && stmt.init.type === "VariableDeclaration" && stmt.init.kind === "var") {
-        for (const decl of stmt.init.declarations) {
-          collectPatternNames(decl.id, "var", map);
-        }
-      }
-    } else if (stmt.type === "ForInStatement" || stmt.type === "ForOfStatement") {
-      if (stmt.left && stmt.left.type === "VariableDeclaration" && stmt.left.kind === "var") {
-        for (const decl of stmt.left.declarations) {
-          collectPatternNames(decl.id, "var", map);
-        }
-      }
-    }
-  }
-  return Array.from(map.entries()).map(([name, kind]) => ({ name, kind }));
-}
-
-function keywordForBindingKind(kind) {
-  return kind === "var" ? "var" : kind === "const" ? "const" : "let";
 }
 
 async function buildModuleSource(code) {
@@ -345,6 +249,13 @@ async function handleExec(message) {
   } finally {
     // End the generation immediately so background timers/callbacks are dead.
     _cancelStaleTimers();
+    // Prune any un-awaited tool call resolvers from this exec to prevent
+    // unbounded growth of pendingTool if codex.tool() is called without await.
+    for (const [callId] of pendingTool) {
+      if (callId.startsWith(`${message.id}-tool-`)) {
+        pendingTool.delete(callId);
+      }
+    }
     if (activeExecId === message.id) {
       activeExecId = null;
     }
@@ -412,6 +323,9 @@ async function handleLine(line) {
   try {
     message = JSON.parse(line);
   } catch {
+    try {
+      Deno.stderr.writeSync(encoder.encode(`[kernel_deno] ignoring non-JSON line from host\n`));
+    } catch { /* best effort */ }
     return;
   }
 
@@ -421,7 +335,11 @@ async function handleLine(line) {
   }
   if (message.type === "run_tool_result") {
     handleToolResult(message);
+    return;
   }
+  try {
+    Deno.stderr.writeSync(encoder.encode(`[kernel_deno] ignoring unknown message type: ${message.type}\n`));
+  } catch { /* best effort */ }
 }
 
 let buffered = "";

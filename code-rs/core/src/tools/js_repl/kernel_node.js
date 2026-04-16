@@ -13,6 +13,14 @@ const { URL, URLSearchParams, pathToFileURL, fileURLToPath } = require("node:url
 const { inspect, TextDecoder, TextEncoder } = require("node:util");
 const vm = require("node:vm");
 
+const {
+  collectPatternNames,
+  collectDeclarationBindings,
+  collectBindings,
+  keywordForBindingKind,
+  makeTimerSystem,
+} = require("./kernel_common.js");
+
 const { SourceTextModule, SyntheticModule } = vm;
 const meriyahPromise = import("./meriyah.umd.min.js").then((m) => m.default ?? m);
 
@@ -52,43 +60,8 @@ context.crypto = crypto.webcrypto ?? crypto;
 // When a generation ends (exec completes or reset), repeating callbacks
 // are cancelled and one-shot callbacks that fire after their generation
 // is dead are silently dropped.
-const _activeTimers = new Map(); // id -> { gen, kind, hostId }
-let _nextTimerId = 1;
-
-function _wrapTimer(hostFn, clearHostFn, kind) {
-  return (callback, ...args) => {
-    const gen = execGeneration;
-    const wrapperId = _nextTimerId++;
-    const hostId = hostFn((...cbArgs) => {
-      _activeTimers.delete(wrapperId);
-      if (execGeneration !== gen) {
-        // Generation changed — stale callback, drop it.
-        return;
-      }
-      callback(...cbArgs);
-    }, ...args);
-    _activeTimers.set(wrapperId, { gen, kind, hostId, clearFn: clearHostFn });
-    return wrapperId;
-  };
-}
-
-function _wrapClearTimer(kind) {
-  return (wrapperId) => {
-    const entry = _activeTimers.get(wrapperId);
-    if (entry && entry.kind === kind) {
-      entry.clearFn(entry.hostId);
-      _activeTimers.delete(wrapperId);
-    }
-  };
-}
-
-// Cancel all timers from the current or older generations.
-function _cancelStaleTimers() {
-  for (const [id, entry] of _activeTimers) {
-    entry.clearFn(entry.hostId);
-    _activeTimers.delete(id);
-  }
-}
+const { wrapTimer: _wrapTimer, wrapClearTimer: _wrapClearTimer, cancelStaleTimers: _cancelStaleTimers } =
+  makeTimerSystem(() => execGeneration);
 
 context.setTimeout = _wrapTimer(setTimeout, clearTimeout, "timeout");
 context.clearTimeout = _wrapClearTimer("timeout");
@@ -532,98 +505,6 @@ async function importResolved(resolved) {
   return importNativeResolved(resolved);
 }
 
-function collectPatternNames(pattern, kind, map) {
-  if (!pattern) return;
-  switch (pattern.type) {
-    case "Identifier":
-      if (!map.has(pattern.name)) map.set(pattern.name, kind);
-      return;
-    case "ObjectPattern":
-      for (const prop of pattern.properties ?? []) {
-        if (prop.type === "Property") {
-          collectPatternNames(prop.value, kind, map);
-        } else if (prop.type === "RestElement") {
-          collectPatternNames(prop.argument, kind, map);
-        }
-      }
-      return;
-    case "ArrayPattern":
-      for (const elem of pattern.elements ?? []) {
-        if (!elem) continue;
-        if (elem.type === "RestElement") {
-          collectPatternNames(elem.argument, kind, map);
-        } else {
-          collectPatternNames(elem, kind, map);
-        }
-      }
-      return;
-    case "AssignmentPattern":
-      collectPatternNames(pattern.left, kind, map);
-      return;
-    case "RestElement":
-      collectPatternNames(pattern.argument, kind, map);
-      return;
-    default:
-      return;
-  }
-}
-
-function collectDeclarationBindings(stmt, map) {
-  if (stmt.type === "VariableDeclaration") {
-    const kind = stmt.kind;
-    for (const decl of stmt.declarations) {
-      collectPatternNames(decl.id, kind, map);
-    }
-  } else if (stmt.type === "FunctionDeclaration" && stmt.id) {
-    map.set(stmt.id.name, "function");
-  } else if (stmt.type === "ClassDeclaration" && stmt.id) {
-    map.set(stmt.id.name, "class");
-  }
-}
-
-function collectBindings(ast) {
-  const map = new Map();
-  for (const stmt of ast.body ?? []) {
-    collectDeclarationBindings(stmt, map);
-    if (stmt.type === "ImportDeclaration") {
-      for (const spec of stmt.specifiers ?? []) {
-        if (spec.local?.name && !map.has(spec.local.name)) {
-          map.set(spec.local.name, "const");
-        }
-      }
-    } else if (stmt.type === "ExportNamedDeclaration" && stmt.declaration) {
-      collectDeclarationBindings(stmt.declaration, map);
-    } else if (stmt.type === "ForStatement") {
-      if (
-        stmt.init &&
-        stmt.init.type === "VariableDeclaration" &&
-        stmt.init.kind === "var"
-      ) {
-        for (const decl of stmt.init.declarations) {
-          collectPatternNames(decl.id, "var", map);
-        }
-      }
-    } else if (stmt.type === "ForInStatement" || stmt.type === "ForOfStatement") {
-      if (
-        stmt.left &&
-        stmt.left.type === "VariableDeclaration" &&
-        stmt.left.kind === "var"
-      ) {
-        for (const decl of stmt.left.declarations) {
-          collectPatternNames(decl.id, "var", map);
-        }
-      }
-    }
-  }
-  return Array.from(map.entries()).map(([name, kind]) => ({ name, kind }));
-}
-
-function keywordForBindingKind(kind) {
-  if (kind === "var") return "var";
-  if (kind === "const") return "const";
-  return "let";
-}
-
 async function buildModuleSource(code) {
   const meriyah = await meriyahPromise;
   const ast = meriyah.parseModule(code, {
@@ -867,6 +748,13 @@ async function handleExec(message) {
   } finally {
     // End the generation immediately so background timers/callbacks are dead.
     _cancelStaleTimers();
+    // Prune any un-awaited tool call resolvers from this exec to prevent
+    // unbounded growth of pendingTool if codex.tool() is called without await.
+    for (const [callId] of pendingTool) {
+      if (callId.startsWith(`${message.id}-tool-`)) {
+        pendingTool.delete(callId);
+      }
+    }
     if (activeExecId === message.id) {
       activeExecId = null;
     }
@@ -905,6 +793,7 @@ input.on("line", (line) => {
   try {
     message = JSON.parse(line);
   } catch {
+    process.stderr.write(`[kernel_node] ignoring non-JSON line from host\n`);
     return;
   }
 
@@ -914,5 +803,7 @@ input.on("line", (line) => {
   }
   if (message.type === "run_tool_result") {
     handleToolResult(message);
+    return;
   }
+  process.stderr.write(`[kernel_node] ignoring unknown message type: ${message.type}\n`);
 });

@@ -38,6 +38,7 @@ pub(crate) const JS_REPL_PRAGMA_PREFIX: &str = "// codex-js-repl:";
 
 const KERNEL_SOURCE_NODE: &str = include_str!("kernel_node.js");
 const KERNEL_SOURCE_DENO: &str = include_str!("kernel_deno.js");
+const KERNEL_COMMON: &str = include_str!("kernel_common.js");
 const MERIYAH_UMD: &str = include_str!("meriyah.umd.min.js");
 
 /// Default per-exec timeout (15 s).  Keeps interactive feedback snappy
@@ -207,6 +208,10 @@ struct Kernel {
     recent_stderr: Arc<Mutex<VecDeque<String>>>,
     stdin: Arc<Mutex<ChildStdin>>,
     pending_execs: Arc<Mutex<HashMap<String, oneshot::Sender<ExecResultMessage>>>>,
+    /// Uses tokio::sync::Mutex (not std) because the lock is intentionally
+    /// held across awaits for the entire duration of `execute()`.  This is
+    /// correct — there is a single consumer — but would deadlock with
+    /// std::sync::Mutex.
     tool_rx: Arc<Mutex<tokio::sync::mpsc::UnboundedReceiver<ToolRequest>>>,
     shutdown: CancellationToken,
 }
@@ -223,6 +228,7 @@ impl JsReplManager {
             crate::config::JsReplRuntimeKindToml::Deno => "kernel_deno.js",
         };
         let kernel_path = tmp_dir.path().join(kernel_filename);
+        let common_path = tmp_dir.path().join("kernel_common.js");
         let meriyah_path = tmp_dir.path().join("meriyah.umd.min.js");
         let kernel_source = match runtime.kind {
             crate::config::JsReplRuntimeKindToml::Node => KERNEL_SOURCE_NODE,
@@ -233,6 +239,11 @@ impl JsReplManager {
                 tokio::fs::write(&kernel_path, kernel_source)
                     .await
                     .map_err(|err| format!("failed to write js_repl kernel: {err}"))
+            },
+            async {
+                tokio::fs::write(&common_path, KERNEL_COMMON)
+                    .await
+                    .map_err(|err| format!("failed to write js_repl common: {err}"))
             },
             async {
                 tokio::fs::write(&meriyah_path, MERIYAH_UMD)
@@ -1115,7 +1126,9 @@ impl JsReplManager {
                         JsReplManager::finish_exec_tool_call(&exec_tool_calls, &exec_id).await;
                     }
                 }
-                _ => {}
+                other => {
+                    warn!(message_type = ?other, "js_repl kernel sent unrecognized message type");
+                }
             }
         };
 
