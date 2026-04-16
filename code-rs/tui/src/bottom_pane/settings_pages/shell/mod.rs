@@ -69,3 +69,18 @@ pub(crate) struct ShellSelectionView {
 }
 
 crate::bottom_pane::chrome_view::impl_chrome_view!(ShellSelectionView, framed);
+
+impl ShellSelectionView {
+    fn desired_height_impl(&self, _width: u16) -> u16 {
+        let lines = self.item_count().saturating_add(6);
+        u16::try_from(lines).unwrap_or(u16::MAX).max(12)
+    }
+
+    fn update_hover_delegate(
+        &mut self,
+        mouse_pos: (u16, u16),
+        area: ratatui::layout::Rect,
+    ) -> bool {
+        self.update_action_hover(area, mouse_pos)
+    }
+}

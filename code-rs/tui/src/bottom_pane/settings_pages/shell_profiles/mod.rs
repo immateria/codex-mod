@@ -1,4 +1,3 @@
-use std::any::Any;
 use std::cell::Cell;
 use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
@@ -23,14 +22,11 @@ use crate::components::mode_guard::ModeGuard;
 use crate::components::scroll_state::ScrollState;
 use crate::native_picker::{pick_path, NativePickerKind};
 use crate::ui_interaction::{
-    redraw_if,
     SelectableListMouseResult,
     SETTINGS_LIST_MOUSE_CONFIG,
 };
 use crate::util::buffer::{fill_bg, fill_rect, write_line};
 
-use crate::bottom_pane::{BottomPaneView, ConditionalUpdate};
-use crate::bottom_pane::BottomPane;
 use crate::bottom_pane::chrome::ChromeMode;
 use crate::bottom_pane::SettingsSection;
 

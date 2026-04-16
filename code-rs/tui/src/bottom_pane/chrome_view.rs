@@ -120,6 +120,7 @@ macro_rules! impl_chrome_view {
     };
     ($view:ty, framed) => {
         impl $view {
+            #[allow(dead_code)]
             pub(crate) fn framed(
                 &self,
             ) -> $crate::bottom_pane::chrome_view::Framed<'_, $view> {
