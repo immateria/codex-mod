@@ -224,12 +224,18 @@ impl JsReplManager {
             crate::config::JsReplRuntimeKindToml::Node => KERNEL_SOURCE_NODE,
             crate::config::JsReplRuntimeKindToml::Deno => KERNEL_SOURCE_DENO,
         };
-        tokio::fs::write(&kernel_path, kernel_source)
-            .await
-            .map_err(|err| format!("failed to write js_repl kernel: {err}"))?;
-        tokio::fs::write(&meriyah_path, MERIYAH_UMD)
-            .await
-            .map_err(|err| format!("failed to write js_repl parser: {err}"))?;
+        tokio::try_join!(
+            async {
+                tokio::fs::write(&kernel_path, kernel_source)
+                    .await
+                    .map_err(|err| format!("failed to write js_repl kernel: {err}"))
+            },
+            async {
+                tokio::fs::write(&meriyah_path, MERIYAH_UMD)
+                    .await
+                    .map_err(|err| format!("failed to write js_repl parser: {err}"))
+            },
+        )?;
 
         Ok(Arc::new(Self {
             runtime,
@@ -287,7 +293,7 @@ impl JsReplManager {
             let mut guard = self.kernel.lock().await;
             if guard.is_none() {
                 *guard = Some(
-                    self.start_kernel(sess, parent_ctx, attempt_req, cwd)
+                    self.start_kernel(sess, cwd)
                         .await
                         .map_err(|error| JsExecError {
                     output: String::new(),
@@ -493,11 +499,9 @@ impl JsReplManager {
     async fn start_kernel(
         &self,
         sess: &Session,
-        parent_ctx: &ToolCallCtx,
-        attempt_req: u64,
         cwd: &Path,
     ) -> Result<Kernel, String> {
-        let mut command = self.build_runtime_command(sess, parent_ctx, attempt_req, cwd)?;
+        let mut command = self.build_runtime_command(sess, cwd)?;
         let mut child = command
             .spawn()
             .map_err(|err| {
@@ -566,8 +570,6 @@ impl JsReplManager {
     fn build_runtime_command(
         &self,
         sess: &Session,
-        _parent_ctx: &ToolCallCtx,
-        _attempt_req: u64,
         cwd: &Path,
     ) -> Result<Command, String> {
         let sandbox_policy = sess.get_sandbox_policy();
