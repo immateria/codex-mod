@@ -623,6 +623,9 @@ async function handleExec(message) {
   // Redeclared bindings from classifyBindingChanges — provides context
   // for errors involving prior-cell bindings.
   let redeclared = [];
+  // Hoisted for catch-block access (partial binding recovery).
+  let cellModule = null;
+  let cellNextBindings = [];
 
   // Background tasks (un-awaited tool calls, etc.) tracked per exec so
   // we can await them before finalising the result.  Unobserved failures
@@ -693,6 +696,7 @@ async function handleExec(message) {
     const code = typeof message.code === "string" ? message.code : "";
     const { ast, currentBindings, source, nextBindings } = await buildModuleSource(code);
     cellAst = ast;
+    cellNextBindings = nextBindings;
     const meriyahParser = await meriyahPromise;
 
     // Classify binding changes — redeclared bindings provide richer
@@ -751,6 +755,7 @@ async function handleExec(message) {
         return importResolved(resolveSpecifier(specifier, referrer?.identifier));
       },
     });
+    cellModule = module;
 
     await module.link(async (specifier, referencingModule) => {
       const resolved = resolveSpecifier(specifier, referencingModule?.identifier);
@@ -840,6 +845,60 @@ async function handleExec(message) {
       if (errorMentionsBinding(errMsg, r.name)) {
         enhancedError += `\n  note: \`${r.name}\` was previously declared as \`${keywordForBindingKind(r.priorKind)}\``;
         break;
+      }
+    }
+
+    // Partial binding recovery.  If the module fully evaluated (bg-task
+    // error), take a complete snapshot.  Otherwise probe the errored
+    // module's namespace — TDZ errors identify uninitialized bindings.
+    if (cellModule && cellNextBindings.length > 0) {
+      if (cellModule.status === "evaluated") {
+        // Module ran to completion — snapshot all bindings (same as
+        // the happy path) so binding kinds stay in sync.
+        const snapshot = Object.create(null);
+        for (const b of cellNextBindings) {
+          snapshot[b.name] = cellModule.namespace[b.name];
+        }
+        previousSnapshot = snapshot;
+        previousBindings = cellNextBindings;
+      } else {
+        const partialSnapshot = previousSnapshot
+          ? Object.assign(Object.create(null), previousSnapshot)
+          : Object.create(null);
+        const knownNames = new Set(
+          previousBindings ? previousBindings.map((b) => b.name) : [],
+        );
+        const partialBindings = previousBindings ? [...previousBindings] : [];
+        let recovered = false;
+
+        for (const b of cellNextBindings) {
+          try {
+            const value = cellModule.namespace[b.name];
+            // Skip var-hoisted undefined that would clobber a prior
+            // binding's real value (the assignment didn't complete).
+            if (value === undefined && b.kind === "var" && knownNames.has(b.name)) {
+              continue;
+            }
+            partialSnapshot[b.name] = value;
+            if (!knownNames.has(b.name)) {
+              partialBindings.push(b);
+              knownNames.add(b.name);
+            } else {
+              // Update the binding kind for redeclared names so the
+              // next prelude uses the correct keyword.
+              const idx = partialBindings.findIndex((pb) => pb.name === b.name);
+              if (idx !== -1) partialBindings[idx] = b;
+            }
+            recovered = true;
+          } catch {
+            // TDZ or namespace access error — binding not initialized.
+          }
+        }
+
+        if (recovered) {
+          previousSnapshot = partialSnapshot;
+          previousBindings = partialBindings;
+        }
       }
     }
 

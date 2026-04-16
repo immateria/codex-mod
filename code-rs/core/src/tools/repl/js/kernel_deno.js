@@ -348,6 +348,11 @@ async function handleExec(message) {
       }
     }
 
+    // NOTE: Partial binding recovery (reading initialized bindings from
+    // a failed module's namespace) is only available in the Node kernel.
+    // Deno's dynamic import() rejects without exposing the module
+    // namespace, so failed cells preserve the prior snapshot as-is.
+
     send({
       type: "exec_result",
       id: message.id,
