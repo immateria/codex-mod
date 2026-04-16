@@ -133,7 +133,9 @@ Warnings are logged to help diagnose configuration issues.
 | File | Purpose |
 |------|---------|
 | `mod.rs` | Host-side manager: kernel lifecycle, execute(), read_stdout/stderr, error handling |
-| `kernel.js` | Node kernel: VM sandbox, module linker, timer wrappers, console capture |
+| `kernel_node.js` | Node kernel: VM sandbox, exec handler, timer wrappers, console capture |
+| `node_resolver.js` | Node module resolution: specifier parsing, linking, caching, import pipeline |
 | `kernel_deno.js` | Deno kernel: permission-based sandbox, data-URL evaluation |
+| `kernel_common.js` | Shared JS utilities: AST binding collection, timer system, image helpers |
 | `meriyah.umd.min.js` | Parser for binding collection (shared by both kernels) |
 | `handlers/repl.rs` | Pragma parsing, runtime dispatch, tool handler registration |

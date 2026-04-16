@@ -57,6 +57,7 @@ pub(crate) const REPL_PRAGMA_PREFIX: &str = "// codex-repl:";
 const KERNEL_SOURCE_NODE: &str = include_str!("js/kernel_node.js");
 const KERNEL_SOURCE_DENO: &str = include_str!("js/kernel_deno.js");
 const KERNEL_COMMON: &str = include_str!("js/kernel_common.js");
+const NODE_RESOLVER: &str = include_str!("js/node_resolver.js");
 const MERIYAH_UMD: &str = include_str!("js/meriyah.umd.min.js");
 
 /// Default per-exec timeout (15 s).
@@ -139,11 +140,16 @@ impl ReplManager {
         };
         let kernel_path = tmp_dir.path().join(kernel_filename);
         let common_path = tmp_dir.path().join("kernel_common.js");
+        let resolver_path = tmp_dir.path().join("node_resolver.js");
         let meriyah_path = tmp_dir.path().join("meriyah.umd.min.js");
         let kernel_source = match runtime.kind {
             crate::config::ReplRuntimeKindToml::Node => KERNEL_SOURCE_NODE,
             crate::config::ReplRuntimeKindToml::Deno => KERNEL_SOURCE_DENO,
         };
+
+        // Write support files in parallel.  The Node resolver is only
+        // needed for Node kernels but is small; always writing it keeps
+        // the join straightforward.
         tokio::try_join!(
             async {
                 tokio::fs::write(&kernel_path, kernel_source)
@@ -154,6 +160,11 @@ impl ReplManager {
                 tokio::fs::write(&common_path, KERNEL_COMMON)
                     .await
                     .map_err(|err| format!("failed to write repl common: {err}"))
+            },
+            async {
+                tokio::fs::write(&resolver_path, NODE_RESOLVER)
+                    .await
+                    .map_err(|err| format!("failed to write repl resolver: {err}"))
             },
             async {
                 tokio::fs::write(&meriyah_path, MERIYAH_UMD)

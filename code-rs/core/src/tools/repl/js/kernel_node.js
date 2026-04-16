@@ -5,11 +5,9 @@
 const { Buffer } = require("node:buffer");
 const crypto = require("node:crypto");
 const fs = require("node:fs");
-const { builtinModules, createRequire } = require("node:module");
 const { createInterface } = require("node:readline");
 const { performance } = require("node:perf_hooks");
-const path = require("node:path");
-const { URL, URLSearchParams, pathToFileURL, fileURLToPath } = require("node:url");
+const { URL, URLSearchParams } = require("node:url");
 const { inspect, TextDecoder, TextEncoder } = require("node:util");
 const vm = require("node:vm");
 
@@ -25,7 +23,9 @@ const {
   normalizeToDataUrl,
 } = require("./kernel_common.js");
 
-const { SourceTextModule, SyntheticModule } = vm;
+const resolver = require("./node_resolver.js");
+
+const { SourceTextModule } = vm;
 const meriyahPromise = import("./meriyah.umd.min.js").then((m) => m.default ?? m);
 
 // vm contexts start with very few globals. Populate common Node/web globals
@@ -105,49 +105,8 @@ let fatalExitScheduled = false;
 // so user code can guard long-lived callbacks against stale generations.
 let execGeneration = 0;
 
-const builtinModuleSet = new Set([
-  ...builtinModules,
-  ...builtinModules.map((name) => `node:${name}`),
-]);
-const deniedBuiltinModules = new Set([
-  "process",
-  "node:process",
-  "child_process",
-  "node:child_process",
-  "worker_threads",
-  "node:worker_threads",
-  // Avoid bypassing import restrictions via createRequire().
-  "module",
-  "node:module",
-  // Block obvious network surfaces. Mediation should be done via tools.
-  "net",
-  "node:net",
-  "tls",
-  "node:tls",
-  "http",
-  "node:http",
-  "https",
-  "node:https",
-  "http2",
-  "node:http2",
-  "dns",
-  "node:dns",
-  "dgram",
-  "node:dgram",
-  "undici",
-  "node:undici",
-]);
-
-function toNodeBuiltinSpecifier(specifier) {
-  return specifier.startsWith("node:") ? specifier : `node:${specifier}`;
-}
-
-function isDeniedBuiltin(specifier) {
-  const normalized = specifier.startsWith("node:") ? specifier.slice(5) : specifier;
-  return (
-    deniedBuiltinModules.has(specifier) || deniedBuiltinModules.has(normalized)
-  );
-}
+// Initialize the module resolver with the vm context.
+resolver.init(context);
 
 /** @type {Map<string, (msg: any) => void>} */
 const pendingTool = new Map();
@@ -163,354 +122,6 @@ const runtimeVersion =
 // Explicit long-lived mutable store exposed as `codex.state`. This is useful
 // when callers want shared state without relying on lexical binding carry-over.
 const state = {};
-
-const nodeModuleDirEnv = process.env.CODEX_REPL_NODE_MODULE_DIRS ?? "";
-const moduleSearchBases = (() => {
-  const bases = [];
-  const seen = new Set();
-  for (const entry of nodeModuleDirEnv.split(path.delimiter)) {
-    const trimmed = entry.trim();
-    if (!trimmed) {
-      continue;
-    }
-    const resolved = path.isAbsolute(trimmed)
-      ? trimmed
-      : path.resolve(process.cwd(), trimmed);
-    const base =
-      path.basename(resolved) === "node_modules" ? path.dirname(resolved) : resolved;
-    if (seen.has(base)) {
-      continue;
-    }
-    seen.add(base);
-    bases.push(base);
-  }
-  const cwd = process.cwd();
-  if (!seen.has(cwd)) {
-    bases.push(cwd);
-  }
-  return bases;
-})();
-
-const importResolveConditions = new Set(["node", "import"]);
-const requireByBase = new Map();
-const linkedFileModules = new Map();
-const linkedNativeModules = new Map();
-const linkedModuleEvaluations = new Map();
-
-function clearLocalFileModuleCaches() {
-  linkedFileModules.clear();
-  linkedModuleEvaluations.clear();
-}
-
-function canonicalizePath(value) {
-  try {
-    return fs.realpathSync.native(value);
-  } catch {
-    return value;
-  }
-}
-
-function resolveResultToUrl(resolved) {
-  if (resolved.kind === "builtin") {
-    return resolved.specifier;
-  }
-  if (resolved.kind === "file") {
-    return pathToFileURL(resolved.path).href;
-  }
-  if (resolved.kind === "package") {
-    return resolved.specifier;
-  }
-  throw new Error(`Unsupported module resolution kind: ${resolved.kind}`);
-}
-
-function setImportMeta(meta, mod, isMain = false) {
-  meta.url = pathToFileURL(mod.identifier).href;
-  meta.filename = mod.identifier;
-  meta.dirname = path.dirname(mod.identifier);
-  meta.main = isMain;
-  meta.resolve = (specifier) =>
-    resolveResultToUrl(resolveSpecifier(specifier, mod.identifier));
-}
-
-function getRequireForBase(base) {
-  let req = requireByBase.get(base);
-  if (!req) {
-    req = createRequire(path.join(base, "__codex_repl__.cjs"));
-    requireByBase.set(base, req);
-  }
-  return req;
-}
-
-function isModuleNotFoundError(err) {
-  return (
-    err?.code === "MODULE_NOT_FOUND" || err?.code === "ERR_MODULE_NOT_FOUND"
-  );
-}
-
-function isWithinBaseNodeModules(base, resolvedPath) {
-  const canonicalBase = canonicalizePath(base);
-  const canonicalResolved = canonicalizePath(resolvedPath);
-  const nodeModulesRoot = path.resolve(canonicalBase, "node_modules");
-  const relative = path.relative(nodeModulesRoot, canonicalResolved);
-  return (
-    relative !== "" && !relative.startsWith("..") && !path.isAbsolute(relative)
-  );
-}
-
-function isBarePackageSpecifier(specifier) {
-  if (
-    typeof specifier !== "string" ||
-    !specifier ||
-    specifier.trim() !== specifier
-  ) {
-    return false;
-  }
-  if (specifier.startsWith("./") || specifier.startsWith("../")) {
-    return false;
-  }
-  if (specifier.startsWith("/") || specifier.startsWith("\\")) {
-    return false;
-  }
-  if (path.isAbsolute(specifier)) {
-    return false;
-  }
-  if (/^[a-zA-Z][a-zA-Z\d+.-]*:/.test(specifier)) {
-    return false;
-  }
-  if (specifier.includes("\\")) {
-    return false;
-  }
-  return true;
-}
-
-function isExplicitRelativePathSpecifier(specifier) {
-  return (
-    specifier.startsWith("./") ||
-    specifier.startsWith("../") ||
-    specifier.startsWith(".\\") ||
-    specifier.startsWith("..\\")
-  );
-}
-
-function isFileUrlSpecifier(specifier) {
-  if (typeof specifier !== "string" || !specifier.startsWith("file:")) {
-    return false;
-  }
-  try {
-    return new URL(specifier).protocol === "file:";
-  } catch {
-    return false;
-  }
-}
-
-function isPathSpecifier(specifier) {
-  if (
-    typeof specifier !== "string" ||
-    !specifier ||
-    specifier.trim() !== specifier
-  ) {
-    return false;
-  }
-  return (
-    isExplicitRelativePathSpecifier(specifier) ||
-    path.isAbsolute(specifier) ||
-    isFileUrlSpecifier(specifier)
-  );
-}
-
-function resolvePathSpecifier(specifier, referrerIdentifier = null) {
-  let candidate;
-  if (isFileUrlSpecifier(specifier)) {
-    try {
-      candidate = fileURLToPath(new URL(specifier));
-    } catch (err) {
-      throw new Error(`Failed to resolve module "${specifier}": ${err.message}`);
-    }
-  } else {
-    const baseDir =
-      referrerIdentifier && path.isAbsolute(referrerIdentifier)
-        ? path.dirname(referrerIdentifier)
-        : process.cwd();
-    candidate = path.isAbsolute(specifier)
-      ? specifier
-      : path.resolve(baseDir, specifier);
-  }
-
-  let resolvedPath;
-  try {
-    resolvedPath = fs.realpathSync.native(candidate);
-  } catch (err) {
-    if (err?.code === "ENOENT") {
-      throw new Error(`Module not found: ${specifier}`);
-    }
-    throw new Error(`Failed to resolve module "${specifier}": ${err.message}`);
-  }
-
-  let stats;
-  try {
-    stats = fs.statSync(resolvedPath);
-  } catch (err) {
-    if (err?.code === "ENOENT") {
-      throw new Error(`Module not found: ${specifier}`);
-    }
-    throw new Error(`Failed to inspect module "${specifier}": ${err.message}`);
-  }
-
-  if (!stats.isFile()) {
-    throw new Error(
-      `Unsupported import specifier "${specifier}" in the REPL. Directory imports are not supported.`,
-    );
-  }
-
-  const extension = path.extname(resolvedPath).toLowerCase();
-  if (extension !== ".js" && extension !== ".mjs") {
-    throw new Error(
-      `Unsupported import specifier "${specifier}" in the REPL. Only .js and .mjs files are supported.`,
-    );
-  }
-
-  return { kind: "file", path: resolvedPath };
-}
-
-function resolveBareSpecifier(specifier) {
-  let firstResolutionError = null;
-
-  for (const base of moduleSearchBases) {
-    try {
-      const resolved = getRequireForBase(base).resolve(specifier, {
-        conditions: importResolveConditions,
-      });
-      if (isWithinBaseNodeModules(base, resolved)) {
-        return resolved;
-      }
-      // Ignore resolutions that escape this base via parent node_modules lookup.
-    } catch (err) {
-      if (isModuleNotFoundError(err)) {
-        continue;
-      }
-      if (!firstResolutionError) {
-        firstResolutionError = err;
-      }
-    }
-  }
-
-  if (firstResolutionError) {
-    throw firstResolutionError;
-  }
-  return null;
-}
-
-function resolveSpecifier(specifier, referrerIdentifier = null) {
-  if (specifier.startsWith("node:") || builtinModuleSet.has(specifier)) {
-    if (isDeniedBuiltin(specifier)) {
-      throw new Error(`Importing module "${specifier}" is not allowed in the REPL`);
-    }
-    return { kind: "builtin", specifier: toNodeBuiltinSpecifier(specifier) };
-  }
-
-  if (isPathSpecifier(specifier)) {
-    return resolvePathSpecifier(specifier, referrerIdentifier);
-  }
-
-  if (!isBarePackageSpecifier(specifier)) {
-    throw new Error(
-      `Unsupported import specifier "${specifier}" in the REPL. Use a package name like "lodash" or "@scope/pkg", or a relative/absolute/file:// .js/.mjs path.`,
-    );
-  }
-
-  const resolvedBare = resolveBareSpecifier(specifier);
-  if (!resolvedBare) {
-    throw new Error(`Module not found: ${specifier}`);
-  }
-
-  return { kind: "package", path: resolvedBare, specifier };
-}
-
-function importNativeResolved(resolved) {
-  if (resolved.kind === "builtin") {
-    return import(resolved.specifier);
-  }
-  if (resolved.kind === "package") {
-    return import(pathToFileURL(resolved.path).href);
-  }
-  throw new Error(`Unsupported module resolution kind: ${resolved.kind}`);
-}
-
-async function loadLinkedNativeModule(resolved) {
-  const key =
-    resolved.kind === "builtin"
-      ? `builtin:${resolved.specifier}`
-      : `package:${resolved.path}`;
-  let modulePromise = linkedNativeModules.get(key);
-  if (!modulePromise) {
-    modulePromise = (async () => {
-      const namespace = await importNativeResolved(resolved);
-      const exportNames = Object.getOwnPropertyNames(namespace);
-      return new SyntheticModule(
-        exportNames,
-        function initSyntheticModule() {
-          for (const name of exportNames) {
-            this.setExport(name, namespace[name]);
-          }
-        },
-        { context },
-      );
-    })();
-    linkedNativeModules.set(key, modulePromise);
-  }
-  return modulePromise;
-}
-
-async function loadLinkedFileModule(modulePath) {
-  let module = linkedFileModules.get(modulePath);
-  if (!module) {
-    const source = fs.readFileSync(modulePath, "utf8");
-    module = new SourceTextModule(source, {
-      context,
-      identifier: modulePath,
-      initializeImportMeta(meta, mod) {
-        setImportMeta(meta, mod, false);
-      },
-      importModuleDynamically(specifier, referrer) {
-        return importResolved(resolveSpecifier(specifier, referrer?.identifier));
-      },
-    });
-    linkedFileModules.set(modulePath, module);
-  }
-  if (module.status === "unlinked") {
-    await module.link(async (specifier, referencingModule) => {
-      const resolved = resolveSpecifier(specifier, referencingModule?.identifier);
-      // Allow local files to statically import files, packages, and builtins
-      // — the same resolution contract as top-level cells.
-      return loadLinkedModule(resolved);
-    });
-  }
-  return module;
-}
-
-async function loadLinkedModule(resolved) {
-  if (resolved.kind === "file") {
-    return loadLinkedFileModule(resolved.path);
-  }
-  if (resolved.kind === "builtin" || resolved.kind === "package") {
-    return loadLinkedNativeModule(resolved);
-  }
-  throw new Error(`Unsupported module resolution kind: ${resolved.kind}`);
-}
-
-async function importResolved(resolved) {
-  if (resolved.kind === "file") {
-    const module = await loadLinkedFileModule(resolved.path);
-    let evaluation = linkedModuleEvaluations.get(resolved.path);
-    if (!evaluation) {
-      evaluation = module.evaluate();
-      linkedModuleEvaluations.set(resolved.path, evaluation);
-    }
-    await evaluation;
-    return module.namespace;
-  }
-  return importNativeResolved(resolved);
-}
 
 async function buildModuleSource(code) {
   const meriyah = await meriyahPromise;
@@ -620,7 +231,7 @@ async function handleExec(message) {
   _cancelStaleTimers();
   // Clear local file module caches so edits between execs are picked up.
   // Native (npm) module caches are intentionally preserved.
-  clearLocalFileModuleCaches();
+  resolver.clearLocalFileModuleCaches();
 
   // Parsed AST — retained for error attribution when eval fails.
   let cellAst = null;
@@ -812,17 +423,17 @@ async function handleExec(message) {
       context,
       identifier: `cell-${cellCounter++}.mjs`,
       initializeImportMeta(meta, mod) {
-        setImportMeta(meta, mod, true);
+        resolver.setImportMeta(meta, mod, true);
       },
       importModuleDynamically(specifier, referrer) {
-        return importResolved(resolveSpecifier(specifier, referrer?.identifier));
+        return resolver.importResolved(resolver.resolveSpecifier(specifier, referrer?.identifier));
       },
     });
     cellModule = module;
 
     await module.link(async (specifier, referencingModule) => {
-      const resolved = resolveSpecifier(specifier, referencingModule?.identifier);
-      return loadLinkedModule(resolved);
+      const resolved = resolver.resolveSpecifier(specifier, referencingModule?.identifier);
+      return resolver.loadLinkedModule(resolved);
     });
 
     await module.evaluate();
