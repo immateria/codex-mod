@@ -35,11 +35,7 @@ impl Runner<'_> {
             network,
             tools_repl,
             repl_default_runtime,
-            repl_node_path,
-            repl_node_args,
-            repl_deno_path,
-            repl_deno_args,
-            repl_node_module_dirs,
+            repl_runtimes,
             memories,
             collaboration_mode,
         } = req;
@@ -97,11 +93,17 @@ impl Runner<'_> {
         updated_config.network = network.clone();
         updated_config.tools_repl = tools_repl;
         updated_config.repl_default_runtime = repl_default_runtime;
-        updated_config.repl_node_path = repl_node_path;
-        updated_config.repl_node_args = repl_node_args;
-        updated_config.repl_deno_path = repl_deno_path;
-        updated_config.repl_deno_args = repl_deno_args;
-        updated_config.repl_node_module_dirs = repl_node_module_dirs;
+        updated_config.repl_runtimes = repl_runtimes.clone();
+        // Keep flat fields in sync from the registry for backward compatibility.
+        if let Some(spec) = repl_runtimes.get(&crate::config::ReplRuntimeKindToml::Node) {
+            updated_config.repl_node_path = spec.path.clone();
+            updated_config.repl_node_args = spec.args.clone();
+            updated_config.repl_node_module_dirs = spec.module_dirs.clone();
+        }
+        if let Some(spec) = repl_runtimes.get(&crate::config::ReplRuntimeKindToml::Deno) {
+            updated_config.repl_deno_path = spec.path.clone();
+            updated_config.repl_deno_args = spec.args.clone();
+        }
         updated_config.memories = memories;
         updated_config.shell_style_profiles = shell_style_profiles;
 

@@ -160,18 +160,8 @@ pub struct ConfigureSessionOp {
     pub tools_repl: bool,
     #[serde(default)]
     pub repl_default_runtime: crate::config::ReplRuntimeKindToml,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[serde(default)]
-    pub repl_node_path: Option<std::path::PathBuf>,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub repl_node_args: Vec<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[serde(default)]
-    pub repl_deno_path: Option<std::path::PathBuf>,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub repl_deno_args: Vec<String>,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub repl_node_module_dirs: Vec<std::path::PathBuf>,
+    #[serde(default, skip_serializing_if = "std::collections::BTreeMap::is_empty")]
+    pub repl_runtimes: std::collections::BTreeMap<crate::config::ReplRuntimeKindToml, crate::config::ReplRuntimeSpec>,
     #[serde(default, skip_serializing_if = "MemoriesConfig::is_default")]
     pub memories: MemoriesConfig,
     #[serde(default)]
@@ -1838,11 +1828,7 @@ mod tests {
             network: None,
             tools_repl: true,
             repl_default_runtime: crate::config::ReplRuntimeKindToml::Node,
-            repl_node_path: None,
-            repl_node_args: Vec::new(),
-            repl_deno_path: None,
-            repl_deno_args: Vec::new(),
-            repl_node_module_dirs: Vec::new(),
+            repl_runtimes: std::collections::BTreeMap::new(),
             memories: crate::config_types::MemoriesConfig::default(),
             collaboration_mode: CollaborationModeKind::Default,
         });

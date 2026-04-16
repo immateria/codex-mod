@@ -661,11 +661,7 @@ impl ChatWidget<'_> {
             network: self.config.network.clone(),
             tools_repl: self.config.tools_repl,
             repl_default_runtime: self.config.repl_default_runtime,
-            repl_node_path: self.config.repl_node_path.clone(),
-            repl_node_args: self.config.repl_node_args.clone(),
-            repl_deno_path: self.config.repl_deno_path.clone(),
-            repl_deno_args: self.config.repl_deno_args.clone(),
-            repl_node_module_dirs: self.config.repl_node_module_dirs.clone(),
+            repl_runtimes: self.config.repl_runtimes.clone(),
             memories: self.config.memories.clone(),
             collaboration_mode: self.current_collaboration_mode(),
         })

@@ -565,6 +565,12 @@ pub struct Config {
     pub tools_repl: bool,
     /// Select the default runtime used by `repl` (default: `node`).
     pub repl_default_runtime: ReplRuntimeKindToml,
+    /// Per-runtime configuration registry.  Each entry maps a runtime kind
+    /// to its resolved path/args/module_dirs.  This is the canonical source;
+    /// the flat `repl_node_*`/`repl_deno_*` fields below are kept only for
+    /// backward-compatible TOML deserialization and will be removed once the
+    /// new `[tools.repl_runtimes]` table is the primary config shape.
+    pub repl_runtimes: std::collections::BTreeMap<ReplRuntimeKindToml, ReplRuntimeSpec>,
     /// Optional explicit path to the Node runtime executable used by `repl`.
     pub repl_node_path: Option<PathBuf>,
     /// Additional arguments passed to the Node `repl` runtime process.
@@ -696,7 +702,7 @@ impl Config {
     }
 
     /// Build a [`ReplRuntimeConfig`](crate::tools::repl::ReplRuntimeConfig) for the
-    /// given runtime kind from the merged config fields.
+    /// given runtime kind from the runtime registry.
     ///
     /// This is the single access point for per-runtime path, args, and
     /// module-dirs — callers should use this instead of matching on the
@@ -705,33 +711,30 @@ impl Config {
         &self,
         kind: ReplRuntimeKindToml,
     ) -> crate::tools::repl::ReplRuntimeConfig {
-        let (runtime_path, runtime_args, node_module_dirs) = match kind {
-            ReplRuntimeKindToml::Node => (
-                self.repl_node_path.clone(),
-                self.repl_node_args.clone(),
-                self.repl_node_module_dirs.clone(),
-            ),
-            ReplRuntimeKindToml::Deno => (
-                self.repl_deno_path.clone(),
-                self.repl_deno_args.clone(),
-                Vec::new(),
-            ),
-        };
+        let spec = self.repl_runtimes.get(&kind);
         crate::tools::repl::ReplRuntimeConfig {
             kind,
-            runtime_path,
-            runtime_args,
-            node_module_dirs,
+            runtime_path: spec.and_then(|s| s.path.clone()),
+            runtime_args: spec.map_or_else(Vec::new, |s| s.args.clone()),
+            module_dirs: spec.map_or_else(Vec::new, |s| s.module_dirs.clone()),
         }
     }
 
-    /// Apply a [`ReplSettingsToml`] to the config, updating per-runtime
-    /// flat fields based on the selected runtime kind.
+    /// Apply a [`ReplSettingsToml`] to the config, updating the runtime
+    /// registry and flat fields for backward compatibility.
     ///
     /// This is the write counterpart to [`Config::repl_runtime_config`].
     pub fn apply_repl_settings(&mut self, settings: &ReplSettingsToml) {
         self.tools_repl = settings.enabled;
         self.repl_default_runtime = settings.runtime;
+
+        // Update registry map.
+        let spec = self.repl_runtimes.entry(settings.runtime).or_default();
+        spec.path.clone_from(&settings.runtime_path);
+        spec.args.clone_from(&settings.runtime_args);
+        spec.module_dirs.clone_from(&settings.node_module_dirs);
+
+        // Keep flat fields in sync for backward compat during transition.
         match settings.runtime {
             ReplRuntimeKindToml::Node => {
                 self.repl_node_path.clone_from(&settings.runtime_path);
@@ -1141,7 +1144,7 @@ pub struct ProjectConfig {
     pub commands: Vec<ProjectCommandConfig>,
 }
 
-#[derive(Debug, Clone, Copy, Deserialize, Serialize, PartialEq, Eq, Hash, JsonSchema, Default)]
+#[derive(Debug, Clone, Copy, Deserialize, Serialize, PartialEq, Eq, PartialOrd, Ord, Hash, JsonSchema, Default)]
 #[serde(rename_all = "lowercase")]
 pub enum ReplRuntimeKindToml {
     #[default]
@@ -1235,6 +1238,29 @@ pub struct RuntimeCapabilities {
     pub sandbox_env_passthrough: &'static [&'static str],
     /// Whether this runtime uses `node_module_dirs` config.
     pub uses_node_module_dirs: bool,
+}
+
+/// Per-runtime configuration for the REPL tool.
+///
+/// Each supported runtime (Node, Deno, future Python/Ruby) stores its
+/// resolved settings in this struct.  The resolved [`Config`] carries a
+/// `BTreeMap<ReplRuntimeKindToml, ReplRuntimeSpec>` so that adding a new
+/// runtime only requires adding an enum variant — no new flat fields.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ReplRuntimeSpec {
+    /// Optional path to the runtime executable.  When `None`, the
+    /// runtime's [`ReplRuntimeKindToml::default_executable`] is used.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub path: Option<PathBuf>,
+    /// Additional command-line arguments passed to the runtime process.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub args: Vec<String>,
+    /// Extra module/package search directories.
+    ///
+    /// For Node this is `node_modules` parent dirs; for Python it could be
+    /// virtualenv paths.  Runtimes that don't use module dirs leave this empty.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub module_dirs: Vec<PathBuf>,
 }
 
 /// Settings for configuring the optional `repl` tool.
@@ -1989,6 +2015,23 @@ impl Config {
         let repl_node_module_dirs = tools_ref
             .and_then(|t| t.repl_node_module_dirs.clone())
             .unwrap_or_default();
+
+        // Build the runtime registry from the resolved flat fields.
+        let repl_runtimes = {
+            let mut map = std::collections::BTreeMap::new();
+            map.insert(ReplRuntimeKindToml::Node, ReplRuntimeSpec {
+                path: repl_node_path.clone(),
+                args: repl_node_args.clone(),
+                module_dirs: repl_node_module_dirs.clone(),
+            });
+            map.insert(ReplRuntimeKindToml::Deno, ReplRuntimeSpec {
+                path: repl_deno_path.clone(),
+                args: repl_deno_args.clone(),
+                module_dirs: Vec::new(),
+            });
+            map
+        };
+
         let tools_web_search_allowed_domains = cfg
             .tools
             .as_ref()
@@ -2517,6 +2560,7 @@ impl Config {
             tools_search_tool,
             tools_repl,
             repl_default_runtime,
+            repl_runtimes,
             repl_node_path,
             repl_node_args,
             repl_deno_path,

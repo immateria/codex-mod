@@ -8,7 +8,9 @@ pub struct ReplRuntimeConfig {
     pub kind: crate::config::ReplRuntimeKindToml,
     pub runtime_path: Option<PathBuf>,
     pub runtime_args: Vec<String>,
-    pub node_module_dirs: Vec<PathBuf>,
+    /// Extra module/package search directories (Node: node_modules parents;
+    /// Python: virtualenv paths; etc.).
+    pub module_dirs: Vec<PathBuf>,
 }
 
 /// Resolved runtime after probing the binary for version/capabilities.
@@ -18,7 +20,7 @@ pub(super) struct ResolvedRuntime {
     pub executable: PathBuf,
     pub args: Vec<String>,
     pub version: String,
-    pub node_module_dirs: Vec<PathBuf>,
+    pub module_dirs: Vec<PathBuf>,
 }
 
 #[derive(Clone, Debug)]

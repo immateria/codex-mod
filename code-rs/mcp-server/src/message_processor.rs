@@ -1640,11 +1640,7 @@ fn configure_session_op_from_config(config: &Config) -> Op {
         network: config.network.clone(),
         tools_repl: config.tools_repl,
         repl_default_runtime: config.repl_default_runtime,
-        repl_node_path: config.repl_node_path.clone(),
-        repl_node_args: config.repl_node_args.clone(),
-        repl_deno_path: config.repl_deno_path.clone(),
-        repl_deno_args: config.repl_deno_args.clone(),
-        repl_node_module_dirs: config.repl_node_module_dirs.clone(),
+        repl_runtimes: config.repl_runtimes.clone(),
         memories: config.memories.clone(),
         collaboration_mode: code_core::protocol::CollaborationModeKind::from_sandbox_policy(
             &config.sandbox_policy,

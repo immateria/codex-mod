@@ -1229,13 +1229,13 @@ mod tests {
             kind: crate::config::ReplRuntimeKindToml::Node,
             runtime_path: Some(std::path::PathBuf::from("/usr/bin/node")),
             runtime_args: vec!["--max-old-space-size=512".to_owned()],
-            node_module_dirs: vec![std::path::PathBuf::from("/app/node_modules")],
+            module_dirs: vec![std::path::PathBuf::from("/app/node_modules")],
         };
         let cloned = cfg.clone();
         assert_eq!(cloned.kind, cfg.kind);
         assert_eq!(cloned.runtime_path, cfg.runtime_path);
         assert_eq!(cloned.runtime_args, cfg.runtime_args);
-        assert_eq!(cloned.node_module_dirs, cfg.node_module_dirs);
+        assert_eq!(cloned.module_dirs, cfg.module_dirs);
     }
 
     #[test]

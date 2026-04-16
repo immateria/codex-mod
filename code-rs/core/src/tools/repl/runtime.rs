@@ -44,7 +44,7 @@ pub(super) async fn resolve_runtime(cfg: ReplRuntimeConfig) -> Result<ResolvedRu
         executable,
         args,
         version,
-        node_module_dirs: cfg.node_module_dirs,
+        module_dirs: cfg.module_dirs,
     })
 }
 
@@ -193,9 +193,9 @@ pub(super) fn build_runtime_command(
     command.env("CODEX_REPL_RUNTIME", runtime.kind.label());
     command.env("CODEX_REPL_RUNTIME_VERSION", &runtime.version);
 
-    if caps.uses_node_module_dirs && !runtime.node_module_dirs.is_empty() {
-        let joined = std::env::join_paths(runtime.node_module_dirs.iter().map(|p| p.as_os_str()))
-            .map_err(|err| format!("failed to join repl_node_module_dirs: {err}"))?;
+    if caps.uses_node_module_dirs && !runtime.module_dirs.is_empty() {
+        let joined = std::env::join_paths(runtime.module_dirs.iter().map(|p| p.as_os_str()))
+            .map_err(|err| format!("failed to join repl module_dirs: {err}"))?;
         command.env("CODEX_REPL_NODE_MODULE_DIRS", joined);
     }
 
