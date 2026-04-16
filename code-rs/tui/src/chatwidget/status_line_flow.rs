@@ -305,9 +305,10 @@ impl ChatWidget<'_> {
                     } else {
                         format!(" {version}")
                     };
-                    Some(format!("js {kind}{v}{suffix}"))
+                    Some(format!("{kind}{v}{suffix}"))
                 } else {
-                    Some(format!("js{suffix}"))
+                    let default_rt = self.config.repl_default_runtime.label();
+                    Some(format!("{default_rt}{suffix}"))
                 }
             }
             StatusLineItem::ActiveProfile => self

@@ -88,8 +88,8 @@
         };
 
         assert!(
-            output.contains("js node 20.11.0"),
-            "expected to jump to the parent JS cell, got:\n{output}",
+            output.contains("node 20.11.0"),
+            "expected to jump to the parent REPL cell, got:\n{output}",
         );
     }
 
@@ -168,8 +168,8 @@
         };
 
         assert!(
-            output_parent.contains("js node 20.11.0"),
-            "expected to jump to the parent JS cell, got:\n{output_parent}",
+            output_parent.contains("node 20.11.0"),
+            "expected to jump to the parent REPL cell, got:\n{output_parent}",
         );
 
         harness.with_chat(|chat| {

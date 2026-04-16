@@ -87,7 +87,7 @@ impl StatusLineItem {
             StatusLineItem::TotalInputTokens => "9.3K in",
             StatusLineItem::TotalOutputTokens => "3.1K out",
             StatusLineItem::SessionId => "a18f2f0d-01d4-4dbf-b2b6-2f53",
-            StatusLineItem::Repl => "js node v20",
+            StatusLineItem::Repl => "node v20",
             StatusLineItem::ActiveProfile => "profile work",
         }
     }
