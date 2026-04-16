@@ -197,6 +197,7 @@ impl ReplManager {
             return Err(ReplExecError {
                 output: String::new(),
                 error: "repl kernel is unavailable".to_owned(),
+                content_items: Vec::new(),
             });
         };
 
@@ -222,6 +223,7 @@ impl ReplManager {
                         .map_err(|error| ReplExecError {
                     output: String::new(),
                     error,
+                    content_items: Vec::new(),
                 })?,
                 );
             }
@@ -230,6 +232,7 @@ impl ReplManager {
                 return Err(ReplExecError {
                     output: String::new(),
                     error: "repl kernel failed to start".to_owned(),
+                    content_items: Vec::new(),
                 });
             };
             (
@@ -266,7 +269,7 @@ impl ReplManager {
                 format!("failed to send repl request: {err}")
             };
             if let Err(e) = self.reset().await { warn!("repl reset failed: {e}"); }
-            return Err(ReplExecError { output: String::new(), error });
+            return Err(ReplExecError { output: String::new(), error, content_items: Vec::new() });
         }
 
         let mut tool_rx_guard = tool_rx.lock().await;
@@ -283,6 +286,7 @@ impl ReplManager {
                     return Err(ReplExecError {
                         output: String::new(),
                         error: format!("repl timed out after {timeout_ms}ms"),
+                        content_items: Vec::new(),
                     });
                 }
                 tool_req = tool_rx_guard.recv() => {
@@ -298,7 +302,7 @@ impl ReplManager {
                             &snapshot,
                         );
                         if let Err(e) = self.reset().await { warn!("repl reset failed: {e}"); }
-                        return Err(ReplExecError { output: String::new(), error: msg });
+                        return Err(ReplExecError { output: String::new(), error: msg, content_items: Vec::new() });
                     };
                     Self::handle_tool_request(
                         sess,
@@ -327,7 +331,7 @@ impl ReplManager {
                                 &snapshot,
                             );
                             if let Err(e) = self.reset().await { warn!("repl reset failed: {e}"); }
-                            return Err(ReplExecError { output: String::new(), error: msg });
+                            return Err(ReplExecError { output: String::new(), error: msg, content_items: Vec::new() });
                         }
                     }
                 }
@@ -339,9 +343,10 @@ impl ReplManager {
 
         match result {
             ExecResultMessage::Ok { output, content_items } => Ok(ReplExecResult { output, content_items }),
-            ExecResultMessage::Err { output, message } => Err(ReplExecError {
+            ExecResultMessage::Err { output, message, content_items } => Err(ReplExecError {
                 output,
                 error: message,
+                content_items,
             }),
         }
     }
@@ -385,6 +390,7 @@ impl ReplManager {
             let _ = tx.send(ExecResultMessage::Err {
                 output: String::new(),
                 message: "repl kernel was reset".to_owned(),
+                content_items: Vec::new(),
             });
         }
         drop(pending);
@@ -817,6 +823,7 @@ impl ReplManager {
                                 output,
                                 message: error
                                     .unwrap_or_else(|| "repl execution failed".to_string()),
+                                content_items,
                             }
                         };
                         let _ = sender.send(payload);
@@ -1059,6 +1066,7 @@ impl ReplManager {
             let _ = tx.send(ExecResultMessage::Err {
                 output: String::new(),
                 message: kernel_exit_message.clone(),
+                content_items: Vec::new(),
             });
         }
         drop(pending);
@@ -1181,9 +1189,10 @@ mod tests {
         let msg = ExecResultMessage::Err {
             output: "console.log output before error".to_owned(),
             message: "ReferenceError: x is not defined".to_owned(),
+            content_items: Vec::new(),
         };
         match msg {
-            ExecResultMessage::Err { output, message } => {
+            ExecResultMessage::Err { output, message, .. } => {
                 assert_eq!(output, "console.log output before error");
                 assert_eq!(message, "ReferenceError: x is not defined");
             }

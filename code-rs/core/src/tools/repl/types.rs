@@ -32,6 +32,8 @@ pub(crate) struct ReplExecResult {
 pub(crate) struct ReplExecError {
     pub output: String,
     pub error: String,
+    /// Content items emitted before the error (e.g. images).
+    pub content_items: Vec<FunctionCallOutputContentItem>,
 }
 
 #[derive(Debug)]
@@ -40,7 +42,13 @@ pub(super) enum ExecResultMessage {
         output: String,
         content_items: Vec<FunctionCallOutputContentItem>,
     },
-    Err { output: String, message: String },
+    Err {
+        output: String,
+        message: String,
+        /// Images emitted before the error occurred — preserved so the
+        /// model can see completed work even when execution fails.
+        content_items: Vec<FunctionCallOutputContentItem>,
+    },
 }
 
 #[derive(Clone, Debug, Deserialize)]

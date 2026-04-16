@@ -311,7 +311,27 @@ impl ToolHandler for ReplToolHandler {
                 )
                 .await;
 
-                if outputs_custom {
+                if !err.content_items.is_empty() {
+                    // Preserve images emitted before the error so the
+                    // model can see completed work.
+                    let mut items = Vec::with_capacity(err.content_items.len() + 1);
+                    items.push(FunctionCallOutputContentItem::InputText {
+                        text: combined,
+                    });
+                    items.extend(err.content_items);
+                    let payload = FunctionCallOutputPayload::from_content_items(items);
+                    if outputs_custom {
+                        ResponseInputItem::CustomToolCallOutput {
+                            call_id: ctx.call_id,
+                            output: payload,
+                        }
+                    } else {
+                        ResponseInputItem::FunctionCallOutput {
+                            call_id: ctx.call_id,
+                            output: payload,
+                        }
+                    }
+                } else if outputs_custom {
                     ResponseInputItem::CustomToolCallOutput {
                         call_id: ctx.call_id,
                         output: FunctionCallOutputPayload::from_text(combined),

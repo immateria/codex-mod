@@ -827,10 +827,6 @@ async function handleExec(message) {
 
     await module.evaluate();
 
-    // Clean up the injection point so user code in background callbacks
-    // (or subsequent synchronous reads) cannot access the raw snapshot.
-    delete context.__replBindings;
-
     // Await any un-awaited background tasks (tool calls, etc.) before
     // snapshotting.  Surface the first unobserved failure as a cell error.
     if (pendingBackgroundTasks.size > 0) {
@@ -977,6 +973,9 @@ async function handleExec(message) {
       error: enhancedError,
     });
   } finally {
+    // Clean up the injection point so user code in background callbacks
+    // cannot access the raw snapshot.
+    delete context.__replBindings;
     // End the generation immediately so background timers/callbacks are dead.
     _cancelStaleTimers();
     // Prune any un-awaited tool call resolvers from this exec.  Fire
