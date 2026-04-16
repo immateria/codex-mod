@@ -127,6 +127,32 @@ function buildModulePrelude(ast, previousSnapshot, previousBindings, bindingsPre
   return { currentBindings, prelude, exportStmt, nextBindings };
 }
 
+// ── Binding change classification ───────────────────────────────────
+// Compare current cell bindings against prior bindings to identify
+// newly introduced names vs redeclarations of existing names.
+
+function classifyBindingChanges(currentBindings, previousBindings) {
+  const priorNames = new Map(previousBindings.map((b) => [b.name, b.kind]));
+  const introduced = [];
+  const redeclared = [];
+  for (const b of currentBindings) {
+    if (priorNames.has(b.name)) {
+      redeclared.push({ name: b.name, priorKind: priorNames.get(b.name), newKind: b.kind });
+    } else {
+      introduced.push(b);
+    }
+  }
+  return { introduced, redeclared };
+}
+
+// Test whether an error message mentions a specific binding name as a
+// whole word (avoids false positives from substring matches).
+function errorMentionsBinding(errorMessage, bindingName) {
+  if (!bindingName || bindingName.length < 1) return false;
+  const escaped = bindingName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return new RegExp(`\\b${escaped}\\b`).test(errorMessage);
+}
+
 // ── Generation-scoped timer wrappers ────────────────────────────────
 
 function makeTimerSystem(execGenerationFn) {
@@ -177,6 +203,8 @@ if (typeof module !== "undefined" && module.exports) {
     collectBindings,
     keywordForBindingKind,
     buildModulePrelude,
+    classifyBindingChanges,
+    errorMentionsBinding,
     makeTimerSystem,
   };
 }
@@ -189,6 +217,8 @@ if (typeof globalThis !== "undefined") {
     collectBindings,
     keywordForBindingKind,
     buildModulePrelude,
+    classifyBindingChanges,
+    errorMentionsBinding,
     makeTimerSystem,
   };
 }

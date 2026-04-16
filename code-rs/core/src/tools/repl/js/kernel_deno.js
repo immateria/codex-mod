@@ -14,6 +14,8 @@ const {
   collectBindings,
   keywordForBindingKind,
   buildModulePrelude,
+  classifyBindingChanges,
+  errorMentionsBinding,
   makeTimerSystem,
 } = globalThis.__kernelCommon;
 
@@ -118,9 +120,9 @@ async function buildModuleSource(code) {
     loc: false,
     disableWebCompat: true,
   });
-  const { prelude, exportStmt, nextBindings } =
+  const { currentBindings, prelude, exportStmt, nextBindings } =
     buildModulePrelude(ast, previousSnapshot, previousBindings, "globalThis.__replBindings");
-  return { source: `${prelude}${code}${exportStmt}`, nextBindings };
+  return { ast, currentBindings, source: `${prelude}${code}${exportStmt}`, nextBindings };
 }
 
 function toDataUrl(source) {
@@ -137,6 +139,12 @@ async function handleExec(message) {
   _captureGeneration = gen;
   // Cancel stale timers from previous generations.
   _cancelStaleTimers();
+
+  // Parsed AST — retained for error attribution when eval fails.
+  let cellAst = null;
+  // Redeclared bindings from classifyBindingChanges — provides context
+  // for errors involving prior-cell bindings.
+  let redeclared = [];
 
   const tool = (toolName, args) => {
     if (typeof toolName !== "string" || !toolName) {
@@ -176,7 +184,12 @@ async function handleExec(message) {
 
   try {
     const code = typeof message.code === "string" ? message.code : "";
-    const { source, nextBindings } = await buildModuleSource(code);
+    const { ast, currentBindings, source, nextBindings } = await buildModuleSource(code);
+    cellAst = ast;
+
+    // Classify binding changes — redeclared bindings provide richer
+    // error context when a prior const/let is re-declared.
+    redeclared = classifyBindingChanges(currentBindings, previousBindings).redeclared;
 
     globalThis.state = state;
     globalThis.codex = {
@@ -185,6 +198,32 @@ async function handleExec(message) {
       runtime: { name: runtimeName, version: runtimeVersion },
       tool,
       generation: gen,
+      // Introspection: list all tracked REPL bindings with their
+      // declaration keyword and current snapshot value.
+      bindings: () => previousBindings.map((b) => ({
+        name: b.name,
+        kind: keywordForBindingKind(b.kind),
+        value: previousSnapshot ? previousSnapshot[b.name] : undefined,
+      })),
+      // Analyze code for its top-level bindings without executing it.
+      analyze: (snippet) => {
+        try {
+          const a = meriyah.parseModule(snippet, {
+            next: true, module: true, ranges: false, loc: false, disableWebCompat: true,
+          });
+          return collectBindings(a).map((b) => ({
+            name: b.name,
+            kind: keywordForBindingKind(b.kind),
+          }));
+        } catch (e) {
+          return { error: e.message };
+        }
+      },
+      // Look up the declaration keyword for a tracked binding name.
+      kindOf: (name) => {
+        const found = previousBindings.find((b) => b.name === name);
+        return found ? keywordForBindingKind(found.kind) : null;
+      },
     };
     globalThis.tmpDir = tmpDir;
 
@@ -216,12 +255,63 @@ async function handleExec(message) {
     });
   } catch (error) {
     const output = _capturedLogs.join("\n");
+    const errMsg = error && error.message ? error.message : String(error);
+    let enhancedError = errMsg;
+
+    // Try to attribute the error to a specific declaration for a more
+    // actionable diagnostic.  Walk each statement with
+    // collectDeclarationBindings; for destructuring declarations drill
+    // into patterns with collectPatternNames.
+    if (cellAst) {
+      let hintAdded = false;
+      outer:
+      for (const stmt of cellAst.body ?? []) {
+        // Check destructuring patterns first (more specific hint).
+        if (stmt.type === "VariableDeclaration") {
+          for (const decl of stmt.declarations) {
+            if (!decl.id || decl.id.type === "Identifier") continue;
+            const patternNames = new Map();
+            collectPatternNames(decl.id, stmt.kind, patternNames);
+            for (const [pName] of patternNames) {
+              if (errorMentionsBinding(errMsg, pName)) {
+                const shape = decl.id.type === "ObjectPattern" ? "object" : "array";
+                enhancedError += `\n  hint: \`${pName}\` is destructured from an ${shape} pattern in a \`${keywordForBindingKind(stmt.kind)}\` declaration`;
+                hintAdded = true;
+                break outer;
+              }
+            }
+          }
+        }
+        // General declaration check.
+        if (!hintAdded) {
+          const stmtMap = new Map();
+          collectDeclarationBindings(stmt, stmtMap);
+          for (const [dName, dKind] of stmtMap) {
+            if (errorMentionsBinding(errMsg, dName)) {
+              enhancedError += `\n  hint: check the \`${keywordForBindingKind(dKind)} ${dName}\` declaration`;
+              hintAdded = true;
+              break outer;
+            }
+          }
+        }
+      }
+    }
+
+    // If the error involves a binding that was redeclared from a previous
+    // cell, note the prior declaration kind for context.
+    for (const r of redeclared) {
+      if (errorMentionsBinding(errMsg, r.name)) {
+        enhancedError += `\n  note: \`${r.name}\` was previously declared as \`${keywordForBindingKind(r.priorKind)}\``;
+        break;
+      }
+    }
+
     send({
       type: "exec_result",
       id: message.id,
       ok: false,
       output,
-      error: error && error.message ? error.message : String(error),
+      error: enhancedError,
     });
   } finally {
     // End the generation immediately so background timers/callbacks are dead.
