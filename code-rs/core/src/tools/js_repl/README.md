@@ -48,7 +48,8 @@ The mechanism:
 - Late callbacks that fire after their generation ends are silently dropped.
 - `codex.tool()` calls are similarly rejected after the owning generation ends.
 
-Persistent state (bindings, module caches) survives between cells.
+Persistent state (bindings, npm module caches) survives between cells.
+Local file module caches are cleared between execs so edits are picked up.
 In-flight async work (timers, intervals, background tool calls) does not.
 
 ### Persistent Console Capture
