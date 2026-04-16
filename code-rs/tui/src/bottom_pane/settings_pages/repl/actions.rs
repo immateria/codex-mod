@@ -20,7 +20,11 @@ impl ReplSettingsView {
         let mut field = FormTextField::new_single_line();
         match target {
             TextTarget::RuntimePath => {
-                field.set_placeholder("node (or /path/to/node)");
+                let placeholder = format!(
+                    "{exe} (or /path/to/{exe})",
+                    exe = self.settings.runtime.default_executable()
+                );
+                field.set_placeholder(&placeholder);
                 field.set_text(
                     self.settings
                         .runtime_path
@@ -123,7 +127,7 @@ impl ReplSettingsView {
             Err(err) => {
                 self.app_event_tx.send_background_event_with_ticket(
                     &self.ticket,
-                    format!("JS REPL picker failed: {err:#}"),
+                    format!("REPL picker failed: {err:#}"),
                 );
             }
         }
@@ -160,7 +164,7 @@ impl ReplSettingsView {
             Err(err) => {
                 self.app_event_tx.send_background_event_with_ticket(
                     &self.ticket,
-                    format!("JS REPL picker failed: {err:#}"),
+                    format!("REPL picker failed: {err:#}"),
                 );
             }
         }
@@ -171,7 +175,7 @@ impl ReplSettingsView {
             .send(AppEvent::SetReplSettings(self.settings.clone()));
         self.app_event_tx.send_background_event_with_ticket(
             &self.ticket,
-            "JS REPL: applying…".to_owned(),
+            "REPL: applying…".to_owned(),
         );
         self.dirty = false;
     }

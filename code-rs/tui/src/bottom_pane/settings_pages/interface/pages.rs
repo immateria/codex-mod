@@ -171,13 +171,13 @@ impl InterfaceSettingsView {
                 format!("Hotkey for folding/unfolding the latest exec output (function key or {ca}+letter). Defaults to legacy `[`, while composer is empty.")
             }
             RowKind::ReplCodeFoldHotkey => {
-                format!("Hotkey for folding/unfolding the latest JS REPL code (function key or {ca}+letter). Defaults to legacy `\\`, while composer is empty.")
+                format!("Hotkey for folding/unfolding the latest REPL code (function key or {ca}+letter). Defaults to legacy `\\`, while composer is empty.")
             }
             RowKind::JumpToParentCallHotkey => {
                 format!("Hotkey for jumping to a parent tool call when a nested call is shown (function key or {ca}+letter). Defaults to legacy `]`, while composer is empty.")
             }
             RowKind::JumpToLatestChildCallHotkey => {
-                format!("Hotkey for jumping to the latest tool call spawned by JS REPL (function key or {ca}+letter). Defaults to legacy `}}`, while composer is empty.")
+                format!("Hotkey for jumping to the latest tool call spawned by REPL (function key or {ca}+letter). Defaults to legacy `}}`, while composer is empty.")
             }
             RowKind::ShowConfigToml => "Open config.toml in your file manager (Finder/Explorer).".into(),
             RowKind::ShowCodeHome => "Open CODE_HOME in your file manager.".into(),

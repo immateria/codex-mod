@@ -58,13 +58,13 @@
                             if let AppState::Chat { widget } = &mut self.app_state {
                                 widget.apply_repl_settings(settings);
                                 let status = if self.config.tools_repl { "Enabled" } else { "Disabled" };
-                                widget.flash_footer_notice(format!("JS REPL: {status}"));
+                                widget.flash_footer_notice(format!("REPL: {status}"));
                             }
                         }
                         Err(err) => {
                             if let AppState::Chat { widget } = &mut self.app_state {
                                 widget.flash_footer_notice(format!(
-                                    "Failed to persist JS REPL settings: {err}",
+                                    "Failed to persist REPL settings: {err}",
                                 ));
                             }
                         }

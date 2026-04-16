@@ -172,7 +172,7 @@ pub(crate) trait HistoryCell {
     fn as_any_mut(&mut self) -> &mut dyn std::any::Any;
 
     /// When present, a stable identifier for this history cell. Used for
-    /// navigation between nested tool calls (e.g. JS REPL spawning tools).
+    /// navigation between nested tool calls (e.g. REPL spawning tools).
     fn call_id(&self) -> Option<&str> {
         None
     }

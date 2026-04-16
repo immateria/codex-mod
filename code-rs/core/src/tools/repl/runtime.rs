@@ -28,7 +28,7 @@ pub(super) async fn resolve_runtime(cfg: ReplRuntimeConfig) -> Result<ResolvedRu
         }
     }
 
-    let mut args = Vec::with_capacity(cfg.runtime_args.len() + 1);
+    let mut args = Vec::with_capacity(cfg.runtime_args.len() + 2);
     if matches!(cfg.kind, crate::config::ReplRuntimeKindToml::Node)
         && !cfg
             .runtime_args
@@ -36,6 +36,12 @@ pub(super) async fn resolve_runtime(cfg: ReplRuntimeConfig) -> Result<ResolvedRu
             .any(|arg| arg == "--experimental-vm-modules")
     {
         args.push("--experimental-vm-modules".to_owned());
+    }
+    // Python must run with unbuffered I/O for the JSON-lines protocol.
+    if matches!(cfg.kind, crate::config::ReplRuntimeKindToml::Python)
+        && !cfg.runtime_args.iter().any(|arg| arg == "-u")
+    {
+        args.push("-u".to_owned());
     }
     args.extend(cfg.runtime_args);
 
@@ -88,6 +94,19 @@ pub(super) async fn detect_runtime_version(
                 }
             }
             // Fallback to first token of the first line.
+            Ok(text.lines().next().unwrap_or_default().trim().to_owned())
+        }
+        crate::config::ReplRuntimeKindToml::Python => {
+            // `python3 --version` outputs "Python 3.x.y"
+            for line in text.lines() {
+                let l = line.trim();
+                if let Some(rest) = l.strip_prefix("Python ") {
+                    let version = rest.split_whitespace().next().unwrap_or_default().trim();
+                    if !version.is_empty() {
+                        return Ok(version.to_owned());
+                    }
+                }
+            }
             Ok(text.lines().next().unwrap_or_default().trim().to_owned())
         }
     }
@@ -192,6 +211,11 @@ pub(super) fn build_runtime_command(
     command.env("CODEX_REPL_TMP_DIR", tmp_dir);
     command.env("CODEX_REPL_RUNTIME", runtime.kind.label());
     command.env("CODEX_REPL_RUNTIME_VERSION", &runtime.version);
+
+    // Ensure Python uses unbuffered I/O for the JSON-lines protocol.
+    if matches!(runtime.kind, crate::config::ReplRuntimeKindToml::Python) {
+        command.env("PYTHONUNBUFFERED", "1");
+    }
 
     if caps.uses_node_module_dirs && !runtime.module_dirs.is_empty() {
         let joined = std::env::join_paths(runtime.module_dirs.iter().map(|p| p.as_os_str()))

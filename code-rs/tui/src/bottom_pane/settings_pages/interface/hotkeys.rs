@@ -154,7 +154,7 @@ impl RowKind {
             Self::ShellSelectorHotkey => Some("Hotkey: shell selector"),
             Self::NetworkSettingsHotkey => Some("Hotkey: network settings"),
             Self::ExecOutputFoldHotkey => Some("Hotkey: fold output/details"),
-            Self::ReplCodeFoldHotkey => Some("Hotkey: fold JS REPL code"),
+            Self::ReplCodeFoldHotkey => Some("Hotkey: fold REPL code"),
             Self::JumpToParentCallHotkey => Some("Hotkey: jump to parent call"),
             Self::JumpToLatestChildCallHotkey => Some("Hotkey: jump to child call"),
             _ => None,

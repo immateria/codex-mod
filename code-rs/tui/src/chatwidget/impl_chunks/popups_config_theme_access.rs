@@ -178,7 +178,7 @@ impl ChatWidget<'_> {
             let fold_exec_hotkey = history_label(hotkeys.exec_output_fold, "[");
             lines.push(kv(&fold_exec_hotkey, "Fold latest exec output/tool details (composer empty)"));
             let fold_js_hotkey = history_label(hotkeys.repl_code_fold, "\\");
-            lines.push(kv(&fold_js_hotkey, "Fold latest JS REPL code (composer empty)"));
+            lines.push(kv(&fold_js_hotkey, "Fold latest REPL code (composer empty)"));
             let jump_parent_hotkey = history_label(hotkeys.jump_to_parent_call, "]");
             lines.push(kv(&jump_parent_hotkey, "Jump to parent tool call (composer empty)"));
             let jump_child_hotkey = history_label(hotkeys.jump_to_latest_child_call, "}");

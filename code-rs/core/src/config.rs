@@ -579,6 +579,10 @@ pub struct Config {
     pub repl_deno_path: Option<PathBuf>,
     /// Additional arguments passed to the Deno `repl` runtime process.
     pub repl_deno_args: Vec<String>,
+    /// Optional explicit path to the Python runtime executable used by `repl`.
+    pub repl_python_path: Option<PathBuf>,
+    /// Additional arguments passed to the Python `repl` runtime process.
+    pub repl_python_args: Vec<String>,
     /// Extra directories to search for packages when using the Node runtime.
     ///
     /// These paths are passed to the `repl` kernel via `CODEX_REPL_NODE_MODULE_DIRS`.
@@ -743,6 +747,10 @@ impl Config {
             ReplRuntimeKindToml::Deno => {
                 self.repl_deno_path.clone_from(&settings.runtime_path);
                 self.repl_deno_args.clone_from(&settings.runtime_args);
+            }
+            ReplRuntimeKindToml::Python => {
+                self.repl_python_path.clone_from(&settings.runtime_path);
+                self.repl_python_args.clone_from(&settings.runtime_args);
             }
         }
         self.repl_node_module_dirs.clone_from(&settings.node_module_dirs);
@@ -1150,23 +1158,28 @@ pub enum ReplRuntimeKindToml {
     #[default]
     Node,
     Deno,
+    Python,
 }
 
 impl ReplRuntimeKindToml {
     /// All known runtime variants, in definition order.
-    pub const ALL: &[Self] = &[Self::Node, Self::Deno];
+    pub const ALL: &[Self] = &[Self::Node, Self::Deno, Self::Python];
 
     /// Lowercase label suitable for config values, env vars, and UI display.
     pub fn label(self) -> &'static str {
         match self {
             Self::Node => "node",
             Self::Deno => "deno",
+            Self::Python => "python",
         }
     }
 
     /// Default executable name when no explicit path is configured.
     pub fn default_executable(self) -> &'static str {
-        self.label()
+        match self {
+            Self::Node | Self::Deno => self.label(),
+            Self::Python => "python3",
+        }
     }
 
     /// Cycle to the next variant (wraps around).
@@ -1200,6 +1213,13 @@ impl ReplRuntimeKindToml {
                 ],
                 uses_node_module_dirs: false,
             },
+            Self::Python => RuntimeCapabilities {
+                sandbox: RuntimeSandboxKind::ExternalOnly,
+                supports_seatbelt: true,
+                can_enforce_network_without_seatbelt: false,
+                sandbox_env_passthrough: &[],
+                uses_node_module_dirs: false,
+            },
         }
     }
 }
@@ -1220,7 +1240,7 @@ pub enum RuntimeSandboxKind {
     BuiltinPermissions,
 }
 
-/// Capability descriptor for a JS REPL runtime.  Returned by
+/// Capability descriptor for a REPL runtime.  Returned by
 /// [`ReplRuntimeKindToml::capabilities`] and consumed by the command
 /// builder to make sandbox/network/module decisions data-driven.
 #[derive(Debug, Clone)]
@@ -1334,6 +1354,14 @@ pub struct ToolsToml {
     /// Additional arguments passed to the Deno `repl` runtime process.
     #[serde(default)]
     pub repl_deno_args: Option<Vec<String>>,
+
+    /// Explicit path to the Python runtime executable for `repl`.
+    #[serde(default)]
+    pub repl_python_path: Option<PathBuf>,
+
+    /// Additional arguments passed to the Python `repl` runtime process.
+    #[serde(default)]
+    pub repl_python_args: Option<Vec<String>>,
 
     /// Extra directories to search for packages when using the Node runtime.
     ///
@@ -2012,6 +2040,11 @@ impl Config {
                     Vec::new()
                 }
             });
+        let repl_python_path = tools_ref
+            .and_then(|t| t.repl_python_path.clone());
+        let repl_python_args = tools_ref
+            .and_then(|t| t.repl_python_args.clone())
+            .unwrap_or_default();
         let repl_node_module_dirs = tools_ref
             .and_then(|t| t.repl_node_module_dirs.clone())
             .unwrap_or_default();
@@ -2027,6 +2060,11 @@ impl Config {
             map.insert(ReplRuntimeKindToml::Deno, ReplRuntimeSpec {
                 path: repl_deno_path.clone(),
                 args: repl_deno_args.clone(),
+                module_dirs: Vec::new(),
+            });
+            map.insert(ReplRuntimeKindToml::Python, ReplRuntimeSpec {
+                path: repl_python_path.clone(),
+                args: repl_python_args.clone(),
                 module_dirs: Vec::new(),
             });
             map
@@ -2565,6 +2603,8 @@ impl Config {
             repl_node_args,
             repl_deno_path,
             repl_deno_args,
+            repl_python_path,
+            repl_python_args,
             repl_node_module_dirs,
             tools_web_search_allowed_domains,
             // Honor upstream opt-in switch name for our experimental streamable shell tool.
@@ -5196,13 +5236,14 @@ mod repl_runtime_kind_tests {
     fn display_matches_label() {
         assert_eq!(format!("{}", ReplRuntimeKindToml::Node), "node");
         assert_eq!(format!("{}", ReplRuntimeKindToml::Deno), "deno");
+        assert_eq!(format!("{}", ReplRuntimeKindToml::Python), "python");
     }
 
     #[test]
-    fn default_executable_matches_label() {
-        for &kind in ReplRuntimeKindToml::ALL {
-            assert_eq!(kind.default_executable(), kind.label());
-        }
+    fn default_executable_matches_expected() {
+        assert_eq!(ReplRuntimeKindToml::Node.default_executable(), "node");
+        assert_eq!(ReplRuntimeKindToml::Deno.default_executable(), "deno");
+        assert_eq!(ReplRuntimeKindToml::Python.default_executable(), "python3");
     }
 
     #[test]
@@ -5210,7 +5251,9 @@ mod repl_runtime_kind_tests {
         let start = ReplRuntimeKindToml::Node;
         let second = start.next();
         assert_eq!(second, ReplRuntimeKindToml::Deno);
-        let back = second.next();
+        let third = second.next();
+        assert_eq!(third, ReplRuntimeKindToml::Python);
+        let back = third.next();
         assert_eq!(back, ReplRuntimeKindToml::Node);
     }
 
@@ -5242,6 +5285,16 @@ mod repl_runtime_kind_tests {
         assert!(!caps.supports_seatbelt);
         assert!(caps.can_enforce_network_without_seatbelt);
         assert!(!caps.sandbox_env_passthrough.is_empty());
+        assert!(!caps.uses_node_module_dirs);
+    }
+
+    #[test]
+    fn python_capabilities_are_external_sandbox() {
+        let caps = ReplRuntimeKindToml::Python.capabilities();
+        assert_eq!(caps.sandbox, RuntimeSandboxKind::ExternalOnly);
+        assert!(caps.supports_seatbelt);
+        assert!(!caps.can_enforce_network_without_seatbelt);
+        assert!(caps.sandbox_env_passthrough.is_empty());
         assert!(!caps.uses_node_module_dirs);
     }
 

@@ -9,7 +9,7 @@ use crate::bottom_pane::settings_ui::row_page::SettingsRowPage;
 
 impl ReplSettingsView {
     pub(super) fn main_page(&self) -> SettingsRowPage<'static> {
-        SettingsRowPage::new(" JS REPL ", self.render_header_lines(), self.render_footer_lines())
+        SettingsRowPage::new(" REPL ", self.render_header_lines(), self.render_footer_lines())
     }
 
     pub(super) fn render_footer_lines(&self) -> Vec<Line<'static>> {
@@ -73,14 +73,14 @@ impl ReplSettingsView {
 
     fn text_edit_title(target: TextTarget) -> &'static str {
         match target {
-            TextTarget::RuntimePath => " JS REPL: Runtime Path ",
+            TextTarget::RuntimePath => " REPL: Runtime Path ",
         }
     }
 
     fn list_edit_title(target: ListTarget) -> &'static str {
         match target {
-            ListTarget::RuntimeArgs => " JS REPL: Runtime Args ",
-            ListTarget::NodeModuleDirs => " JS REPL: Node Module Dirs ",
+            ListTarget::RuntimeArgs => " REPL: Runtime Args ",
+            ListTarget::NodeModuleDirs => " REPL: Node Module Dirs ",
         }
     }
 

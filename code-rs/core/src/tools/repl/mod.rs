@@ -59,6 +59,7 @@ const KERNEL_SOURCE_DENO: &str = include_str!("js/kernel_deno.js");
 const KERNEL_COMMON: &str = include_str!("js/kernel_common.js");
 const NODE_RESOLVER: &str = include_str!("js/node_resolver.js");
 const MERIYAH_UMD: &str = include_str!("js/meriyah.umd.min.js");
+const KERNEL_SOURCE_PYTHON: &str = include_str!("python/kernel_python.py");
 
 /// Default per-exec timeout (15 s).
 pub(crate) const DEFAULT_TIMEOUT_MS: u64 = 15_000;
@@ -137,6 +138,7 @@ impl ReplManager {
         let kernel_filename = match runtime.kind {
             crate::config::ReplRuntimeKindToml::Node => "kernel_node.js",
             crate::config::ReplRuntimeKindToml::Deno => "kernel_deno.js",
+            crate::config::ReplRuntimeKindToml::Python => "kernel_python.py",
         };
         let kernel_path = tmp_dir.path().join(kernel_filename);
         let common_path = tmp_dir.path().join("kernel_common.js");
@@ -145,33 +147,43 @@ impl ReplManager {
         let kernel_source = match runtime.kind {
             crate::config::ReplRuntimeKindToml::Node => KERNEL_SOURCE_NODE,
             crate::config::ReplRuntimeKindToml::Deno => KERNEL_SOURCE_DENO,
+            crate::config::ReplRuntimeKindToml::Python => KERNEL_SOURCE_PYTHON,
         };
+        let is_js = matches!(
+            runtime.kind,
+            crate::config::ReplRuntimeKindToml::Node | crate::config::ReplRuntimeKindToml::Deno
+        );
 
-        // Write support files in parallel.  The Node resolver is only
-        // needed for Node kernels but is small; always writing it keeps
-        // the join straightforward.
-        tokio::try_join!(
-            async {
-                tokio::fs::write(&kernel_path, kernel_source)
-                    .await
-                    .map_err(|err| format!("failed to write repl kernel: {err}"))
-            },
-            async {
-                tokio::fs::write(&common_path, KERNEL_COMMON)
-                    .await
-                    .map_err(|err| format!("failed to write repl common: {err}"))
-            },
-            async {
-                tokio::fs::write(&resolver_path, NODE_RESOLVER)
-                    .await
-                    .map_err(|err| format!("failed to write repl resolver: {err}"))
-            },
-            async {
-                tokio::fs::write(&meriyah_path, MERIYAH_UMD)
-                    .await
-                    .map_err(|err| format!("failed to write repl parser: {err}"))
-            },
-        )?;
+        // Write kernel and support files in parallel.  JS kernels need
+        // common/resolver/meriyah support files; Python only needs the kernel.
+        if is_js {
+            tokio::try_join!(
+                async {
+                    tokio::fs::write(&kernel_path, kernel_source)
+                        .await
+                        .map_err(|err| format!("failed to write repl kernel: {err}"))
+                },
+                async {
+                    tokio::fs::write(&common_path, KERNEL_COMMON)
+                        .await
+                        .map_err(|err| format!("failed to write repl common: {err}"))
+                },
+                async {
+                    tokio::fs::write(&resolver_path, NODE_RESOLVER)
+                        .await
+                        .map_err(|err| format!("failed to write repl resolver: {err}"))
+                },
+                async {
+                    tokio::fs::write(&meriyah_path, MERIYAH_UMD)
+                        .await
+                        .map_err(|err| format!("failed to write repl parser: {err}"))
+                },
+            )?;
+        } else {
+            tokio::fs::write(&kernel_path, kernel_source)
+                .await
+                .map_err(|err| format!("failed to write repl kernel: {err}"))?;
+        }
 
         Ok(Arc::new(Self {
             runtime,

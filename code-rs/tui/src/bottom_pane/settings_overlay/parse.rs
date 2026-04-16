@@ -34,7 +34,7 @@ impl SettingsSection {
             #[cfg(all(feature = "browser-automation", not(target_os = "android")))]
             "chrome" | "browser" => Some(SettingsSection::Chrome),
             "mcp" => Some(SettingsSection::Mcp),
-            "js" | "jsrepl" | "repl" | "js-repl" => Some(SettingsSection::Repl),
+            "js" | "jsrepl" | "repl" | "js-repl" | "python" | "py" => Some(SettingsSection::Repl),
             #[cfg(feature = "managed-network-proxy")]
             "network" | "net" | "proxy" => Some(SettingsSection::Network),
             "notification" | "notifications" | "notify" | "notif" => {

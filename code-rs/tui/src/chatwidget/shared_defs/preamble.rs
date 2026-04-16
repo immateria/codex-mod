@@ -921,7 +921,7 @@ pub(crate) struct ChatWidget<'a> {
     // State for the Agents Terminal view
     agents_terminal: AgentsTerminalState,
 
-    /// Last seen JS REPL runtime info (kind, version) from a `ReplExecBegin` event.
+    /// Last seen REPL runtime info (kind, version) from a `ReplExecBegin` event.
     /// Used to populate the `Repl` status line item.
     repl_last_runtime: Option<(String, String)>,
 

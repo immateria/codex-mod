@@ -104,6 +104,10 @@ impl Runner<'_> {
             updated_config.repl_deno_path = spec.path.clone();
             updated_config.repl_deno_args = spec.args.clone();
         }
+        if let Some(spec) = repl_runtimes.get(&crate::config::ReplRuntimeKindToml::Python) {
+            updated_config.repl_python_path = spec.path.clone();
+            updated_config.repl_python_args = spec.args.clone();
+        }
         updated_config.memories = memories;
         updated_config.shell_style_profiles = shell_style_profiles;
 

@@ -99,7 +99,7 @@ impl ReplSettingsView {
                         Err(err) => {
                             self.app_event_tx.send_background_event_with_ticket(
                                 &self.ticket,
-                                format!("JS REPL: {err}"),
+                                format!("REPL: {err}"),
                             );
                             true
                         }
@@ -127,7 +127,7 @@ impl ReplSettingsView {
                         Err(err) => {
                             self.app_event_tx.send_background_event_with_ticket(
                                 &self.ticket,
-                                format!("JS REPL: {err}"),
+                                format!("REPL: {err}"),
                             );
                             true
                         }
