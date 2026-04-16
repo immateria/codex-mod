@@ -127,7 +127,7 @@ impl ChatWidget<'_> {
                 self.clear_reasoning_in_progress();
 
                 let explicit_id = id.clone();
-                let stream_identifier = explicit_id.clone().unwrap_or_else(|| {
+                let stream_identifier = explicit_id.as_deref().map(str::to_owned).unwrap_or_else(|| {
                     self.stream
                         .current_stream_id().map_or_else(|| "stream-preview".to_owned(), ToString::to_string)
                 });

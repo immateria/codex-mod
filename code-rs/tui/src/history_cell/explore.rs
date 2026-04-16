@@ -433,7 +433,7 @@ fn entry_summary_spans(entry: &ExploreEntry) -> Vec<Span<'static>> {
             spans
         }
         ExploreSummary::List { path } => {
-            let target = path.clone().unwrap_or_else(|| "./".to_owned());
+            let target = path.as_deref().unwrap_or("./").to_owned();
             vec![Span::styled(
                 target,
                 s_text_dim,

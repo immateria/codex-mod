@@ -469,7 +469,7 @@ impl ChatWidget<'_> {
                                         if let Ok(mut latest) = latest_screenshot.lock() {
                                             *latest = Some((
                                                 first_path.clone(),
-                                                url.clone().unwrap_or_else(|| result.url.clone()),
+                                                url.as_deref().unwrap_or(&result.url).to_owned(),
                                             ));
                                         }
 

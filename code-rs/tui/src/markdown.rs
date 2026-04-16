@@ -90,7 +90,7 @@ pub(crate) fn append_markdown_with_opener_and_cwd_and_bold(
                 // When fenced and language is known, emit a hidden sentinel line so the
                 // downstream renderer can surface a border + title without losing lang info.
                 if fenced {
-                    let label = _lang.clone().unwrap_or_else(|| "text".to_owned());
+                    let label = _lang.as_deref().unwrap_or("text").to_owned();
                     let sentinel = format!("⟦LANG:{label}⟧");
                     lines.push(Line::from(Span::styled(sentinel, Style::default().fg(code_bg).bg(code_bg))));
                 }

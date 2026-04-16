@@ -171,9 +171,9 @@ impl JsReplHandle {
     /// to `--version`.  Returns `Ok(version_string)` on success or an error
     /// describing why the runtime is unavailable.
     pub(crate) async fn probe_health(&self) -> Result<String, String> {
-        let executable = self.runtime.runtime_path.clone().unwrap_or_else(|| {
-            PathBuf::from(self.runtime.kind.default_executable())
-        });
+        let executable = self.runtime.runtime_path.as_deref()
+            .map(PathBuf::from)
+            .unwrap_or_else(|| PathBuf::from(self.runtime.kind.default_executable()));
         detect_runtime_version(self.runtime.kind, &executable).await
     }
 

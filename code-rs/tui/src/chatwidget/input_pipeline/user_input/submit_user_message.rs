@@ -429,7 +429,7 @@ impl ChatWidget<'_> {
                         // Save the first screenshot path and URL for display in the TUI
                         if let Some(first_path) = screenshot_paths.first()
                             && let Ok(mut latest) = latest_browser_screenshot_clone.lock() {
-                                let url_string = url.clone().unwrap_or_else(|| "Browser".to_owned());
+                                let url_string = url.as_deref().unwrap_or("Browser").to_owned();
                                 *latest = Some((first_path.clone(), url_string));
                             }
 

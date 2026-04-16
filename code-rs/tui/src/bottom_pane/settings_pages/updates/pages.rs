@@ -39,7 +39,7 @@ impl UpdateSettingsView {
     }
 
     fn guided_command_label(&self) -> String {
-        self.command_display.clone().unwrap_or_else(|| {
+        self.command_display.as_deref().map(str::to_owned).unwrap_or_else(|| {
             self.command
                 .as_ref().map_or_else(|| "manual instructions".to_owned(), |command| command.join(" "))
         })

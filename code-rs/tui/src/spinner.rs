@@ -193,7 +193,7 @@ fn humanize(name: &str) -> String {
 }
 
 fn vpush(out: &mut Vec<Spinner>, name: &str, sj: SpinnerJson) {
-    let label = sj.label.clone().unwrap_or_else(|| humanize(name));
+    let label = sj.label.unwrap_or_else(|| humanize(name));
     out.push(Spinner { name: name.to_owned(), label, interval_ms: sj.interval, frames: sj.frames });
 }
 
