@@ -848,17 +848,15 @@ pub fn preview_model_prompt_sync(code_home: &Path) -> io::Result<Option<String>>
             Err(e) if e.kind() == io::ErrorKind::NotFound => return Ok(None),
             Err(e) => return Err(e),
         };
-        let manifest = match serde_json::from_str::<manifest::SnapshotManifest>(&manifest_text) {
-            Ok(m) => m,
-            Err(_) => return Ok(None),
+        let Ok(manifest) = serde_json::from_str::<manifest::SnapshotManifest>(&manifest_text) else {
+            return Ok(None);
         };
-        let selection = match manifest::select_prompt_entries(
+        let Some(selection) = manifest::select_prompt_entries(
             &manifest,
             &context,
             12_000, // MAX_MEMORY_PROMPT_BYTES
-        ) {
-            Some(s) => s,
-            None => return Ok(None),
+        ) else {
+            return Ok(None);
         };
         let base_path = paths.base_dir.display().to_string();
         let template = prompts::MemoryToolDeveloperInstructionsTemplateSyncView {

@@ -99,17 +99,15 @@ static BRANCH_PREFIX_TAGS: &[(&[&str], &str)] = &[
 ];
 
 fn branch_tags(git_branch: Option<&str>, tags: &mut Vec<String>) {
-    let branch = match git_branch {
-        Some(b) => b,
-        None => return,
+    let Some(branch) = git_branch else {
+        return;
     };
     let branch_lower = branch.to_lowercase();
     if branch_lower == "main" || branch_lower == "master" || branch_lower == "develop" {
         return;
     }
-    let prefix = match branch_lower.split('/').next() {
-        Some(p) => p,
-        None => return,
+    let Some(prefix) = branch_lower.split('/').next() else {
+        return;
     };
     for &(prefixes, tag) in BRANCH_PREFIX_TAGS {
         if prefixes.contains(&prefix) {

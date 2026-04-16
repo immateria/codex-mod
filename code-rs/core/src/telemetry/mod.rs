@@ -42,6 +42,7 @@ pub struct RetentionTelemetry {
     total_snapshot_dedup_hits: AtomicUsize,
 }
 
+#[allow(dead_code)] // accessors kept for future telemetry export/dashboards
 impl RetentionTelemetry {
     /// Creates a new telemetry instance.
     pub fn new() -> Self {

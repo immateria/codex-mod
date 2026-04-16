@@ -18,6 +18,7 @@ const {
   collectDeclarationBindings,
   collectBindings,
   keywordForBindingKind,
+  buildModulePrelude,
   makeTimerSystem,
 } = require("./kernel_common.js");
 
@@ -514,37 +515,8 @@ async function buildModuleSource(code) {
     loc: false,
     disableWebCompat: true,
   });
-  const currentBindings = collectBindings(ast);
-  const priorBindings = previousSnapshot ? previousBindings : [];
-
-  // Names declared in the current cell should NOT be injected from the
-  // snapshot — the user's new declaration takes precedence.
-  const currentNames = new Set(currentBindings.map((b) => b.name));
-
-  let prelude = "";
-  if (previousSnapshot && priorBindings.length) {
-    const injected = priorBindings.filter((b) => !currentNames.has(b.name));
-    if (injected.length) {
-      prelude = injected
-        .map((b) => {
-          return `${keywordForBindingKind(b.kind)} ${b.name} = __replBindings.${b.name};`;
-        })
-        .join("\n");
-      prelude += "\n";
-    }
-  }
-
-  const mergedBindings = new Map();
-  for (const binding of priorBindings) {
-    mergedBindings.set(binding.name, binding.kind);
-  }
-  for (const binding of currentBindings) {
-    mergedBindings.set(binding.name, binding.kind);
-  }
-  const exportNames = Array.from(mergedBindings.keys());
-  const exportStmt = exportNames.length ? `\nexport { ${exportNames.join(", ")} };` : "";
-
-  const nextBindings = Array.from(mergedBindings, ([name, kind]) => ({ name, kind }));
+  const { prelude, exportStmt, nextBindings } =
+    buildModulePrelude(ast, previousSnapshot, previousBindings, "__replBindings");
   return { source: `${prelude}${code}${exportStmt}`, nextBindings };
 }
 

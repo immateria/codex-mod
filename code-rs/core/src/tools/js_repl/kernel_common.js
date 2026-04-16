@@ -94,6 +94,39 @@ function keywordForBindingKind(kind) {
   return "let";
 }
 
+// ── Module source builder ───────────────────────────────────────────
+// Shared logic for building a module source string from user code.
+// `bindingsPrefix` is the accessor for __replBindings (e.g. "__replBindings"
+// for Node's vm context, "globalThis.__replBindings" for Deno's global).
+
+function buildModulePrelude(ast, previousSnapshot, previousBindings, bindingsPrefix) {
+  const currentBindings = collectBindings(ast);
+  const priorBindings = previousSnapshot ? previousBindings : [];
+
+  const currentNames = new Set(currentBindings.map((b) => b.name));
+
+  let prelude = "";
+  if (previousSnapshot && priorBindings.length) {
+    const injected = priorBindings.filter((b) => !currentNames.has(b.name));
+    if (injected.length) {
+      prelude = injected
+        .map((b) => `${keywordForBindingKind(b.kind)} ${b.name} = ${bindingsPrefix}.${b.name};`)
+        .join("\n");
+      prelude += "\n";
+    }
+  }
+
+  const mergedBindings = new Map();
+  for (const binding of priorBindings) mergedBindings.set(binding.name, binding.kind);
+  for (const binding of currentBindings) mergedBindings.set(binding.name, binding.kind);
+
+  const exportNames = Array.from(mergedBindings.keys());
+  const exportStmt = exportNames.length ? `\nexport { ${exportNames.join(", ")} };` : "";
+  const nextBindings = Array.from(mergedBindings, ([name, kind]) => ({ name, kind }));
+
+  return { currentBindings, prelude, exportStmt, nextBindings };
+}
+
 // ── Generation-scoped timer wrappers ────────────────────────────────
 
 function makeTimerSystem(execGenerationFn) {
@@ -143,6 +176,7 @@ if (typeof module !== "undefined" && module.exports) {
     collectDeclarationBindings,
     collectBindings,
     keywordForBindingKind,
+    buildModulePrelude,
     makeTimerSystem,
   };
 }
@@ -154,6 +188,7 @@ if (typeof globalThis !== "undefined") {
     collectDeclarationBindings,
     collectBindings,
     keywordForBindingKind,
+    buildModulePrelude,
     makeTimerSystem,
   };
 }

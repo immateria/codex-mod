@@ -57,8 +57,7 @@ impl<'v> UnpackValue<'v> for Opt {
     type Error = starlark::Error;
 
     fn unpack_value_impl(value: Value<'v>) -> starlark::Result<Option<Self>> {
-        // TODO(mbolin): It fels like this should be doable without cloning?
-        // Cannot simply consume the value?
+        // Clone is required: Starlark heap owns the value, we can't consume it.
         Ok(value.downcast_ref::<Opt>().cloned())
     }
 }
