@@ -109,13 +109,11 @@ pub use sources::{
     set_custom_spinner,
     set_custom_theme,
     set_github_actionlint_on_patch,
-    set_github_check_on_push,
     set_mcp_server_enabled,
     set_mcp_server_scheduling,
     set_mcp_server_tool_enabled,
     set_mcp_tool_scheduling_override,
     set_global_memories_settings,
-    set_memories_settings,
     set_network_proxy_settings,
     set_exec_limits_settings,
     set_js_repl_settings,
@@ -128,13 +126,11 @@ pub use sources::{
     set_review_resolve_model,
     set_tui_alternate_screen,
     set_tui_auto_review_enabled,
-    set_tui_header_show_bottom_line,
     set_tui_hotkeys,
     set_tui_limits_layout_mode,
     set_tui_icon_mode,
     set_tui_notifications,
     set_tui_settings_menu,
-    set_tui_status_line,
     set_tui_status_line_layout,
     set_tui_review_auto_resolve,
     set_tui_spinner_name,
@@ -145,9 +141,6 @@ pub use sources::{
     write_global_mcp_servers,
 };
 pub use sources::ShellStyleSkillMode;
-
-#[allow(deprecated)]
-pub use sources::set_tui_auto_drive_settings;
 
 pub(crate) use crate::config_constraint::Constrained;
 pub(crate) use crate::config_constraint::ConstraintError;

@@ -4,7 +4,6 @@ use crate::config_types::{
     AutoDriveSettings,
     CachedTerminalBackground,
     LimitsLayoutMode,
-    MemoriesConfig,
     MemoriesToml,
     McpDispatchMode,
     McpServerConfig,
@@ -1534,22 +1533,6 @@ pub fn set_tui_icon_mode(code_home: &Path, mode: crate::config_types::IconMode) 
     Ok(())
 }
 
-/// Persist the lower header-line visibility flag into
-/// `CODEX_HOME/config.toml` at `[tui.header].show_bottom_line`.
-pub fn set_tui_header_show_bottom_line(code_home: &Path, enabled: bool) -> anyhow::Result<()> {
-    let config_path = code_home.join(CONFIG_TOML_FILE);
-    let read_path = resolve_code_path_for_read(code_home, Path::new(CONFIG_TOML_FILE));
-    let mut doc = read_config_doc(&read_path)?;
-
-    doc["tui"]["header"]["show_bottom_line"] = toml_edit::value(enabled);
-
-    std::fs::create_dir_all(code_home)?;
-    let tmp_file = NamedTempFile::new_in(code_home)?;
-    std::fs::write(tmp_file.path(), doc.to_string())?;
-    tmp_file.persist(config_path)?;
-    Ok(())
-}
-
 /// Persist the limits layout mode into `CODEX_HOME/config.toml` at `[tui.limits].layout_mode`.
 pub fn set_tui_limits_layout_mode(
     code_home: &Path,
@@ -1774,16 +1757,6 @@ pub fn set_tui_notifications(
     tmp_file.persist(config_path)?;
 
     Ok(())
-}
-
-/// Persist top status-line item ids into `CODEX_HOME/config.toml` at
-/// `[tui].status_line_top`.
-///
-/// Item order is preserved. Empty or whitespace-only ids are dropped.
-/// Passing an empty list removes `[tui].status_line_top`, reverting to the
-/// built-in dynamic top-line layout.
-pub fn set_tui_status_line(code_home: &Path, item_ids: &[String]) -> anyhow::Result<()> {
-    set_tui_status_line_layout(code_home, item_ids, &[], StatusLineLane::Top)
 }
 
 /// Persist split status-line layout into `CODEX_HOME/config.toml`.
@@ -2200,41 +2173,6 @@ pub fn set_auto_drive_settings(
     std::fs::create_dir_all(code_home)?;
     let tmp_file = NamedTempFile::new_in(code_home)?;
     std::fs::write(tmp_file.path(), doc.to_string())?;
-    tmp_file.persist(config_path)?;
-
-    Ok(())
-}
-
-/// Legacy helper: persist Auto Drive defaults under `[auto_drive]` while
-/// accepting the former API surface.
-#[deprecated(note = "use set_auto_drive_settings instead")]
-pub fn set_tui_auto_drive_settings(
-    code_home: &Path,
-    settings: &AutoDriveSettings,
-    use_chat_model: bool,
-) -> anyhow::Result<()> {
-    set_auto_drive_settings(code_home, settings, use_chat_model)
-}
-
-/// Persist the GitHub workflow check preference under `[github].check_workflows_on_push`.
-pub fn set_github_check_on_push(code_home: &Path, enabled: bool) -> anyhow::Result<()> {
-    let config_path = code_home.join(CONFIG_TOML_FILE);
-
-    // Parse existing config if present; otherwise start a new document.
-    let read_path = resolve_code_path_for_read(code_home, Path::new(CONFIG_TOML_FILE));
-    let mut doc = read_config_doc(&read_path)?;
-
-    // Write `[github].check_workflows_on_push = <enabled>`
-    doc["github"]["check_workflows_on_push"] = toml_edit::value(enabled);
-
-    // ensure code_home exists
-    std::fs::create_dir_all(code_home)?;
-
-    // create a tmp_file
-    let tmp_file = NamedTempFile::new_in(code_home)?;
-    std::fs::write(tmp_file.path(), doc.to_string())?;
-
-    // atomically move the tmp file into config.toml
     tmp_file.persist(config_path)?;
 
     Ok(())
@@ -3680,11 +3618,6 @@ pub fn set_network_proxy_settings(
     std::fs::write(tmp_file.path(), doc.to_string())?;
     tmp_file.persist(config_path)?;
     Ok(())
-}
-
-/// Persist memories settings into `CODEX_HOME/config.toml` at `[memories]`.
-pub fn set_memories_settings(code_home: &Path, settings: &MemoriesConfig) -> anyhow::Result<()> {
-    set_global_memories_settings(code_home, Some(&settings.to_toml()))
 }
 
 fn load_config_doc(code_home: &Path) -> anyhow::Result<(DocumentMut, PathBuf)> {

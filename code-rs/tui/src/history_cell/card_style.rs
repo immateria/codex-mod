@@ -28,7 +28,7 @@ pub(crate) struct CardSegment {
 }
 
 impl CardSegment {
-    pub fn new(text: impl Into<Cow<'static, str>>, style: Style) -> Self {
+    pub(crate) fn new(text: impl Into<Cow<'static, str>>, style: Style) -> Self {
         Self {
             text: text.into(),
             style,
@@ -46,7 +46,7 @@ pub(crate) struct CardRow {
 }
 
 impl CardRow {
-    pub fn new(
+    pub(crate) fn new(
         accent: impl Into<Cow<'static, str>>,
         accent_style: Style,
         segments: Vec<CardSegment>,
