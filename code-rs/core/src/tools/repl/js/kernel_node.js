@@ -27,6 +27,7 @@ const resolver = require("./node_resolver.js");
 
 const { SourceTextModule } = vm;
 const meriyahPromise = import("./meriyah.umd.min.js").then((m) => m.default ?? m);
+let _meriyah = null;
 
 // vm contexts start with very few globals. Populate common Node/web globals
 // so snippets and dependencies behave like a normal modern JS runtime.
@@ -100,7 +101,7 @@ let previousSnapshot = null;
 let previousBindings = [];
 let cellCounter = 0;
 let activeExecId = null;
-let fatalExitScheduled = false;
+let _fatalExitScheduled = false;
 // Generation counter: incremented on every exec and exposed to the vm context
 // so user code can guard long-lived callbacks against stale generations.
 let execGeneration = 0;
@@ -124,8 +125,8 @@ const runtimeVersion =
 const state = {};
 
 async function buildModuleSource(code) {
-  const meriyah = await meriyahPromise;
-  const ast = meriyah.parseModule(code, {
+  if (!_meriyah) _meriyah = await meriyahPromise;
+  const ast = _meriyah.parseModule(code, {
     next: true,
     module: true,
     ranges: false,
@@ -167,7 +168,7 @@ function sendFatalExecResultSync(kind, error) {
 }
 
 function scheduleFatalExit(kind, error) {
-  if (fatalExitScheduled) {
+  if (_fatalExitScheduled) {
     // Already exiting — log the second error to stderr so it isn't lost.
     try {
       fs.writeSync(
@@ -178,7 +179,7 @@ function scheduleFatalExit(kind, error) {
     process.exitCode = 1;
     return;
   }
-  fatalExitScheduled = true;
+  _fatalExitScheduled = true;
   sendFatalExecResultSync(kind, error);
 
   try {
@@ -209,16 +210,16 @@ function formatLog(args) {
 let _capturedLogs = [];
 let _captureGeneration = 0;
 
-const capturedConsole = {};
+const _capturedConsole = {};
 for (const method of ["log", "info", "warn", "error", "debug"]) {
-  capturedConsole[method] = (...args) => {
+  _capturedConsole[method] = (...args) => {
     if (execGeneration === _captureGeneration) {
       _capturedLogs.push(formatLog(args));
     }
   };
 }
 // Install captured console permanently on the vm context.
-context.console = capturedConsole;
+context.console = _capturedConsole;
 
 async function handleExec(message) {
   activeExecId = message.id;
@@ -276,7 +277,7 @@ async function handleExec(message) {
       send(payload);
       pendingTool.set(id, (res) => {
         if (!res.ok) {
-          reject(new Error(res.error || "tool failed"));
+          reject(new Error(`tool ${toolName} failed: ${res.error || "unknown error"}`));
           return;
         }
         resolve(res.response);
@@ -312,7 +313,6 @@ async function handleExec(message) {
     const { ast, currentBindings, source, nextBindings } = await buildModuleSource(code);
     cellAst = ast;
     cellNextBindings = nextBindings;
-    const meriyahParser = await meriyahPromise;
 
     // Classify binding changes — redeclared bindings provide richer
     // error context when a prior const/let is re-declared.
@@ -391,7 +391,7 @@ async function handleExec(message) {
       // Analyze code for its top-level bindings without executing it.
       analyze: (snippet) => {
         try {
-          const a = meriyahParser.parseModule(snippet, {
+          const a = _meriyah.parseModule(snippet, {
             next: true, module: true, ranges: false, loc: false, disableWebCompat: true,
           });
           return collectBindings(a).map((b) => ({

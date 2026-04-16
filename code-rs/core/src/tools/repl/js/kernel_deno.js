@@ -183,7 +183,7 @@ async function handleExec(message) {
       });
       pendingTool.set(id, (res) => {
         if (!res.ok) {
-          reject(new Error(res.error || "tool failed"));
+          reject(new Error(`tool ${toolName} failed: ${res.error || "unknown error"}`));
           return;
         }
         resolve(res.response);
