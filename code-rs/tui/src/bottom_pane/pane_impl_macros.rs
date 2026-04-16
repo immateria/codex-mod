@@ -3,7 +3,7 @@
 ///
 /// # Height variants
 ///
-/// - `height = { <expr> }` — inline expression (may reference `Self::*`)
+/// - `height = { <expr> }` — inline expression (may reference `self`)
 /// - `height_fn = <method>` — delegates to `self.<method>(width)`
 ///
 /// # Complete variants

@@ -1232,9 +1232,8 @@ fn format_stderr_tail(lines: &VecDeque<String>) -> String {
     if lines.is_empty() {
         return "<empty>".to_string();
     }
-    let mut iter = lines.iter();
-    let mut out = iter.next().unwrap().clone();
-    for line in iter {
+    let mut out = lines[0].clone();
+    for line in lines.iter().skip(1) {
         out.push_str(STDERR_TAIL_SEPARATOR);
         out.push_str(line);
     }

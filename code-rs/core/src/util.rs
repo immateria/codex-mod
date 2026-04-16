@@ -17,10 +17,10 @@ pub const MIME_IMAGE_PNG: &str = "image/png";
 /// Write a serializable value as pretty-printed JSON with restricted
 /// permissions (0o600 on Unix) so credentials stay private.
 pub(crate) fn write_json_file_secure<T: Serialize>(path: &Path, data: &T) -> io::Result<()> {
-    if let Some(parent) = path.parent() {
-        if !parent.exists() {
-            std::fs::create_dir_all(parent)?;
-        }
+    if let Some(parent) = path.parent()
+        && !parent.exists()
+    {
+        std::fs::create_dir_all(parent)?;
     }
     let json = serde_json::to_string_pretty(data)?;
     let mut options = OpenOptions::new();

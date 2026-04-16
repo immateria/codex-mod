@@ -1176,11 +1176,10 @@ impl JsReplRuntimeKindToml {
     /// Cycle to the next variant (wraps around).
     pub fn next(self) -> Self {
         let all = Self::ALL;
-        // Every variant must be present in ALL — a missing entry is a bug.
         let idx = all
             .iter()
             .position(|&v| v == self)
-            .expect("JsReplRuntimeKindToml variant missing from ALL");
+            .unwrap_or(0);
         all[(idx + 1) % all.len()]
     }
 

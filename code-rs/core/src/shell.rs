@@ -205,7 +205,7 @@ fn encode_powershell_command(exe: &str, script: &str) -> Vec<String> {
     use base64::Engine as _;
     let utf16le: Vec<u8> = script
         .encode_utf16()
-        .flat_map(|u| u.to_le_bytes())
+        .flat_map(u16::to_le_bytes)
         .collect();
     let encoded = base64::engine::general_purpose::STANDARD.encode(&utf16le);
     vec![
