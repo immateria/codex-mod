@@ -36,7 +36,7 @@ use tracing::warn;
 
 pub(crate) const JS_REPL_PRAGMA_PREFIX: &str = "// codex-js-repl:";
 
-const KERNEL_SOURCE_NODE: &str = include_str!("kernel.js");
+const KERNEL_SOURCE_NODE: &str = include_str!("kernel_node.js");
 const KERNEL_SOURCE_DENO: &str = include_str!("kernel_deno.js");
 const MERIYAH_UMD: &str = include_str!("meriyah.umd.min.js");
 
@@ -218,7 +218,11 @@ impl JsReplManager {
         let tmp_dir = tempfile::tempdir()
             .map_err(|err| format!("failed to create js_repl temp dir: {err}"))?;
 
-        let kernel_path = tmp_dir.path().join("kernel.js");
+        let kernel_filename = match runtime.kind {
+            crate::config::JsReplRuntimeKindToml::Node => "kernel_node.js",
+            crate::config::JsReplRuntimeKindToml::Deno => "kernel_deno.js",
+        };
+        let kernel_path = tmp_dir.path().join(kernel_filename);
         let meriyah_path = tmp_dir.path().join("meriyah.umd.min.js");
         let kernel_source = match runtime.kind {
             crate::config::JsReplRuntimeKindToml::Node => KERNEL_SOURCE_NODE,
@@ -742,7 +746,13 @@ impl JsReplManager {
                     "response": JsonValue::Null,
                     "error": "js_repl tool call cancelled (exec reset or timeout)",
                 });
-                let _ = send_json_line(stdin, &response).await;
+                if let Err(err) = send_json_line(stdin, &response).await {
+                    warn!(
+                        tool_call_id = %tool_req.id,
+                        error = %err,
+                        "failed to send cancel reply to kernel"
+                    );
+                }
                 return;
             }
         };
@@ -774,7 +784,13 @@ impl JsReplManager {
             "response": response,
             "error": error,
         });
-        let _ = send_json_line(stdin, &response).await;
+        if let Err(err) = send_json_line(stdin, &response).await {
+            warn!(
+                tool_call_id = %tool_req.id,
+                error = %err,
+                "failed to send tool result to kernel"
+            );
+        }
     }
 
     // ── Per-exec tool-call tracking ─────────────────────────────────────
@@ -1034,7 +1050,13 @@ impl JsReplManager {
                             "response": JsonValue::Null,
                             "error": "js_repl exec context not found",
                         });
-                        let _ = send_json_line(&stdin, &response).await;
+                        if let Err(err) = send_json_line(&stdin, &response).await {
+                            warn!(
+                                tool_call_id = %id,
+                                error = %err,
+                                "failed to send context-not-found reply to kernel"
+                            );
+                        }
                         continue;
                     };
 
@@ -1083,7 +1105,13 @@ impl JsReplManager {
                             "response": JsonValue::Null,
                             "error": format!("failed to enqueue tool request: {err}"),
                         });
-                        let _ = send_json_line(&stdin, &response).await;
+                        if let Err(err) = send_json_line(&stdin, &response).await {
+                            warn!(
+                                tool_call_id = %id,
+                                error = %err,
+                                "failed to send enqueue-error reply to kernel"
+                            );
+                        }
                         JsReplManager::finish_exec_tool_call(&exec_tool_calls, &exec_id).await;
                     }
                 }

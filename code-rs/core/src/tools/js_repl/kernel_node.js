@@ -618,6 +618,12 @@ function collectBindings(ast) {
   return Array.from(map.entries()).map(([name, kind]) => ({ name, kind }));
 }
 
+function keywordForBindingKind(kind) {
+  if (kind === "var") return "var";
+  if (kind === "const") return "const";
+  return "let";
+}
+
 async function buildModuleSource(code) {
   const meriyah = await meriyahPromise;
   const ast = meriyah.parseModule(code, {
@@ -640,8 +646,7 @@ async function buildModuleSource(code) {
     if (injected.length) {
       prelude = injected
         .map((b) => {
-          const keyword = b.kind === "var" ? "var" : b.kind === "const" ? "const" : "let";
-          return `${keyword} ${b.name} = __replBindings.${b.name};`;
+          return `${keywordForBindingKind(b.kind)} ${b.name} = __replBindings.${b.name};`;
         })
         .join("\n");
       prelude += "\n";
@@ -734,33 +739,14 @@ function formatLog(args) {
 let _capturedLogs = [];
 let _captureGeneration = 0;
 
-const capturedConsole = {
-  log: (...args) => {
+const capturedConsole = {};
+for (const method of ["log", "info", "warn", "error", "debug"]) {
+  capturedConsole[method] = (...args) => {
     if (execGeneration === _captureGeneration) {
       _capturedLogs.push(formatLog(args));
     }
-  },
-  info: (...args) => {
-    if (execGeneration === _captureGeneration) {
-      _capturedLogs.push(formatLog(args));
-    }
-  },
-  warn: (...args) => {
-    if (execGeneration === _captureGeneration) {
-      _capturedLogs.push(formatLog(args));
-    }
-  },
-  error: (...args) => {
-    if (execGeneration === _captureGeneration) {
-      _capturedLogs.push(formatLog(args));
-    }
-  },
-  debug: (...args) => {
-    if (execGeneration === _captureGeneration) {
-      _capturedLogs.push(formatLog(args));
-    }
-  },
-};
+  };
+}
 // Install captured console permanently on the vm context.
 context.console = capturedConsole;
 

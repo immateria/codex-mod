@@ -26,24 +26,13 @@ let _capturedLogs = [];
 let _captureGeneration = 0;
 
 const _originalConsole = globalThis.console;
-globalThis.console = {
-  ..._originalConsole,
-  log: (...args) => {
+const _capturedConsole = { ..._originalConsole };
+for (const method of ["log", "info", "warn", "error", "debug"]) {
+  _capturedConsole[method] = (...args) => {
     if (execGeneration === _captureGeneration) _capturedLogs.push(formatLog(args));
-  },
-  info: (...args) => {
-    if (execGeneration === _captureGeneration) _capturedLogs.push(formatLog(args));
-  },
-  warn: (...args) => {
-    if (execGeneration === _captureGeneration) _capturedLogs.push(formatLog(args));
-  },
-  error: (...args) => {
-    if (execGeneration === _captureGeneration) _capturedLogs.push(formatLog(args));
-  },
-  debug: (...args) => {
-    if (execGeneration === _captureGeneration) _capturedLogs.push(formatLog(args));
-  },
-};
+  };
+}
+globalThis.console = _capturedConsole;
 
 // ── Generation-scoped timer wrappers ────────────────────────────────
 const _activeTimers = new Map();
@@ -113,6 +102,7 @@ let previousSnapshot = null;
 /** @type {Binding[]} */
 let previousBindings = [];
 let cellCounter = 0;
+let activeExecId = null;
 let execGeneration = 0;
 
 /** @type {Map<string, (msg: any) => void>} */
@@ -258,6 +248,7 @@ function toDataUrl(source) {
 }
 
 async function handleExec(message) {
+  activeExecId = message.id;
   const gen = ++execGeneration;
 
   // Reset capture state for this generation.
@@ -354,6 +345,9 @@ async function handleExec(message) {
   } finally {
     // End the generation immediately so background timers/callbacks are dead.
     _cancelStaleTimers();
+    if (activeExecId === message.id) {
+      activeExecId = null;
+    }
   }
 }
 
@@ -363,9 +357,11 @@ function handleToolResult(message) {
     pendingTool.delete(message.id);
     resolver(message);
   } else {
-    console.error(
-      `[kernel_deno] unexpected run_tool_result for unknown call id: ${message.id}`
-    );
+    try {
+      Deno.stderr.writeSync(encoder.encode(
+        `[kernel_deno] unexpected run_tool_result for unknown call id: ${message.id}\n`
+      ));
+    } catch { /* best effort */ }
   }
 }
 
@@ -389,7 +385,7 @@ function _scheduleFatalExit(reason, error) {
   try {
     send({
       type: "exec_result",
-      id: "__fatal__",
+      id: activeExecId ?? "__fatal__",
       ok: false,
       output: "",
       error: `kernel fatal: ${reason}: ${msg}`,
