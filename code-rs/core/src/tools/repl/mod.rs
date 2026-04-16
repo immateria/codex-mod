@@ -1,10 +1,30 @@
+//! REPL tool — manages JavaScript kernel processes (Node / Deno) and
+//! dispatches exec requests over a line-delimited JSON protocol.
+//!
+//! ## Module layout
+//!
+//! | Module        | Responsibility                                         |
+//! |---------------|--------------------------------------------------------|
+//! | `types`       | Shared data types (configs, results, protocol structs) |
+//! | `runtime`     | Runtime resolution, version probing, command building  |
+//! | `diagnostics` | Stderr tail ring-buffer, model failure formatting      |
+//! | `js/`         | JavaScript kernel sources (Node, Deno, shared common)  |
+
+mod diagnostics;
+mod runtime;
+pub(crate) mod types;
+
+// Re-export public interface so callers don't need to reach into submodules.
+pub(crate) use types::{ReplArgs, ReplExecError, ReplExecResult, ReplRuntimeConfig};
+
 use crate::codex::Session;
 use crate::codex::ToolCallCtx;
 use crate::openai_tools::OpenAiTool;
 use crate::tools::router::ToolDispatchMeta;
 use crate::tools::router::ToolRouter;
 use crate::turn_diff_tracker::TurnDiffTracker;
-use serde::Deserialize;
+use diagnostics::*;
+use runtime::{build_runtime_command, detect_runtime_version, resolve_runtime};
 use serde_json::Value as JsonValue;
 use serde_json::json;
 use std::collections::HashMap;
@@ -12,7 +32,6 @@ use std::collections::HashSet;
 use std::collections::VecDeque;
 use std::path::Path;
 use std::path::PathBuf;
-use std::process::Stdio;
 use std::sync::Arc;
 use std::sync::atomic::AtomicU64;
 use std::sync::atomic::Ordering;
@@ -24,136 +43,28 @@ use tokio::process::Child;
 use tokio::process::ChildStderr;
 use tokio::process::ChildStdin;
 use tokio::process::ChildStdout;
-use tokio::process::Command;
 use tokio::sync::Mutex;
-use tokio::sync::Notify;
 use tokio::sync::OnceCell;
 use tokio::sync::Semaphore;
 use tokio::sync::oneshot;
 use tokio_util::sync::CancellationToken;
 use tracing::debug;
 use tracing::warn;
+use types::{ExecResultMessage, ExecToolCalls, KernelDebugSnapshot, KernelStreamEnd, ResolvedRuntime, ToolRequest};
 
 pub(crate) const REPL_PRAGMA_PREFIX: &str = "// codex-repl:";
 
-const KERNEL_SOURCE_NODE: &str = include_str!("kernel_node.js");
-const KERNEL_SOURCE_DENO: &str = include_str!("kernel_deno.js");
-const KERNEL_COMMON: &str = include_str!("kernel_common.js");
-const MERIYAH_UMD: &str = include_str!("meriyah.umd.min.js");
+const KERNEL_SOURCE_NODE: &str = include_str!("js/kernel_node.js");
+const KERNEL_SOURCE_DENO: &str = include_str!("js/kernel_deno.js");
+const KERNEL_COMMON: &str = include_str!("js/kernel_common.js");
+const MERIYAH_UMD: &str = include_str!("js/meriyah.umd.min.js");
 
-/// Default per-exec timeout (15 s).  Keeps interactive feedback snappy
-/// while giving non-trivial computations time to finish.
+/// Default per-exec timeout (15 s).
 pub(crate) const DEFAULT_TIMEOUT_MS: u64 = 15_000;
-/// Hard ceiling on per-exec timeout (2 min).  Prevents the model from
-/// requesting unbounded execution time.
+/// Hard ceiling on per-exec timeout (2 min).
 pub(crate) const MAX_TIMEOUT_MS: u64 = 120_000;
-/// Minimum Node.js version required for `--experimental-vm-modules`.
-const MIN_NODE_VERSION: (u64, u64, u64) = (18, 0, 0);
 
-/// Maximum recent-stderr lines kept for diagnostics on kernel failure.
-const STDERR_TAIL_LINE_LIMIT: usize = 20;
-/// Per-line byte cap in the stderr tail ring buffer.
-const STDERR_TAIL_LINE_MAX_BYTES: usize = 512;
-/// Total byte cap across all lines in the stderr tail.
-const STDERR_TAIL_MAX_BYTES: usize = 4_096;
-const STDERR_TAIL_SEPARATOR: &str = " | ";
-/// Max exec IDs to include in unexpected-close log messages.
-const EXEC_ID_LOG_LIMIT: usize = 8;
-/// Byte budget for stderr context sent to the model in error diagnostics.
-const MODEL_DIAG_STDERR_MAX_BYTES: usize = 1_024;
-/// Byte budget for the error string sent to the model in error diagnostics.
-const MODEL_DIAG_ERROR_MAX_BYTES: usize = 256;
-
-#[derive(Clone, Debug)]
-pub struct ReplRuntimeConfig {
-    pub kind: crate::config::ReplRuntimeKindToml,
-    pub runtime_path: Option<PathBuf>,
-    pub runtime_args: Vec<String>,
-    pub node_module_dirs: Vec<PathBuf>,
-}
-
-#[derive(Clone, Debug)]
-struct ResolvedRuntime {
-    kind: crate::config::ReplRuntimeKindToml,
-    executable: PathBuf,
-    args: Vec<String>,
-    version: String,
-    node_module_dirs: Vec<PathBuf>,
-}
-
-#[derive(Clone, Debug)]
-struct ToolRequest {
-    id: String,
-    exec_id: String,
-    tool_name: String,
-    arguments: String,
-    cancel: CancellationToken,
-}
-
-#[derive(Clone, Debug)]
-pub(crate) struct ReplExecResult {
-    pub output: String,
-}
-
-#[derive(Clone, Debug)]
-pub(crate) struct ReplExecError {
-    pub output: String,
-    pub error: String,
-}
-
-#[derive(Debug)]
-enum ExecResultMessage {
-    Ok { output: String },
-    Err { output: String, message: String },
-}
-
-/// Per-exec nested tool-call tracking with cancellation + settlement.
-#[derive(Default)]
-struct ExecToolCalls {
-    in_flight: usize,
-    cancel: CancellationToken,
-    notify: Arc<Notify>,
-}
-
-/// Reason the kernel stdout loop ended.
-enum KernelStreamEnd {
-    Shutdown,
-    StdoutEof,
-    StdoutReadError(String),
-}
-
-impl KernelStreamEnd {
-    fn reason(&self) -> &'static str {
-        match self {
-            Self::Shutdown => "shutdown",
-            Self::StdoutEof => "stdout_eof",
-            Self::StdoutReadError(_) => "stdout_read_error",
-        }
-    }
-
-    fn error(&self) -> Option<&str> {
-        match self {
-            Self::StdoutReadError(err) => Some(err),
-            _ => None,
-        }
-    }
-}
-
-struct KernelDebugSnapshot {
-    pid: Option<u32>,
-    status: String,
-    stderr_tail: String,
-}
-
-#[derive(Clone, Debug, Deserialize)]
-#[serde(deny_unknown_fields)]
-pub(crate) struct ReplArgs {
-    pub code: String,
-    #[serde(default)]
-    pub timeout_ms: Option<u64>,
-    #[serde(default)]
-    pub runtime: Option<crate::config::ReplRuntimeKindToml>,
-}
+// ── ReplHandle ──────────────────────────────────────────────────────────
 
 pub(crate) struct ReplHandle {
     runtime: ReplRuntimeConfig,
@@ -169,8 +80,7 @@ impl ReplHandle {
     }
 
     /// Quick check whether the configured runtime binary exists and responds
-    /// to `--version`.  Returns `Ok(version_string)` on success or an error
-    /// describing why the runtime is unavailable.
+    /// to `--version`.  Returns `Ok(version_string)` on success.
     pub(crate) async fn probe_health(&self) -> Result<String, String> {
         let executable = self.runtime.runtime_path.as_deref()
             .map(PathBuf::from)
@@ -192,6 +102,8 @@ impl ReplHandle {
     }
 }
 
+// ── ReplManager ─────────────────────────────────────────────────────────
+
 pub(crate) struct ReplManager {
     runtime: ResolvedRuntime,
     tmp_dir: tempfile::TempDir,
@@ -209,9 +121,7 @@ struct Kernel {
     stdin: Arc<Mutex<ChildStdin>>,
     pending_execs: Arc<Mutex<HashMap<String, oneshot::Sender<ExecResultMessage>>>>,
     /// Uses tokio::sync::Mutex (not std) because the lock is intentionally
-    /// held across awaits for the entire duration of `execute()`.  This is
-    /// correct — there is a single consumer — but would deadlock with
-    /// std::sync::Mutex.
+    /// held across awaits for the entire duration of `execute()`.
     tool_rx: Arc<Mutex<tokio::sync::mpsc::UnboundedReceiver<ToolRequest>>>,
     shutdown: CancellationToken,
 }
@@ -272,6 +182,8 @@ impl ReplManager {
         &self.runtime.version
     }
 
+    // ── Execute ─────────────────────────────────────────────────────────
+
     pub(crate) async fn execute(
         &self,
         sess: &Session,
@@ -294,14 +206,11 @@ impl ReplManager {
             .min(MAX_TIMEOUT_MS);
         let timeout = Duration::from_millis(timeout_ms);
 
-        let exec_id = self
-            .next_id
-            .fetch_add(1, Ordering::Relaxed);
-        let id = format!("jsrepl-{exec_id}");
+        let exec_id = self.next_id.fetch_add(1, Ordering::Relaxed);
+        let id = format!("repl-{exec_id}");
 
         let (tx, rx) = oneshot::channel();
 
-        // Register per-exec tool-call tracking before starting.
         self.register_exec_tool_calls(&id).await;
 
         let (stdin, pending, child, recent_stderr, tool_rx) = {
@@ -402,7 +311,6 @@ impl ReplManager {
                         &tool_req,
                     )
                     .await;
-                    // Mark this nested tool call as finished.
                     Self::finish_exec_tool_call(&self.exec_tool_calls, &tool_req.exec_id).await;
                 }
                 msg = &mut rx => {
@@ -427,7 +335,6 @@ impl ReplManager {
         };
         drop(tool_rx_guard);
 
-        // Exec finished — wait for any nested tool calls to settle, then clean up.
         self.settle_exec(&id).await;
 
         match result {
@@ -439,16 +346,13 @@ impl ReplManager {
         }
     }
 
-    /// Wait for nested tool calls to settle and clear tracking state.
-    /// Every error/completion path in [`execute`] calls this to avoid
-    /// leaking exec-tool-call bookkeeping.
+    // ── Lifecycle helpers ───────────────────────────────────────────────
+
     async fn settle_exec(&self, exec_id: &str) {
         self.wait_for_exec_tool_calls(exec_id).await;
         self.clear_exec_tool_calls(exec_id).await;
     }
 
-    /// [`settle_exec`] followed by a kernel reset.  Logs a warning if the
-    /// reset itself fails.
     async fn settle_and_reset(&self, exec_id: &str) {
         self.settle_exec(exec_id).await;
         if let Err(e) = self.reset().await {
@@ -466,7 +370,6 @@ impl ReplManager {
     }
 
     async fn kill_kernel(&self) {
-        // Clear all outstanding exec tool calls first.
         Self::clear_all_exec_tool_calls(&self.exec_tool_calls).await;
 
         let mut guard = self.kernel.lock().await;
@@ -474,7 +377,6 @@ impl ReplManager {
             return;
         };
 
-        // Signal shutdown to the read loops.
         kernel.shutdown.cancel();
 
         let pending = Arc::clone(&kernel.pending_execs);
@@ -511,12 +413,20 @@ impl ReplManager {
         let _ = guard.wait().await;
     }
 
+    // ── Kernel spawning ─────────────────────────────────────────────────
+
     async fn start_kernel(
         &self,
         sess: &Session,
         cwd: &Path,
     ) -> Result<Kernel, String> {
-        let mut command = self.build_runtime_command(sess, cwd)?;
+        let mut command = build_runtime_command(
+            &self.runtime,
+            &self.kernel_path,
+            self.tmp_dir.path(),
+            sess,
+            cwd,
+        )?;
         let mut child = command
             .spawn()
             .map_err(|err| {
@@ -535,9 +445,7 @@ impl ReplManager {
             .stdout
             .take()
             .ok_or_else(|| "repl kernel missing stdout".to_owned())?;
-        let stderr = child
-            .stderr
-            .take();
+        let stderr = child.stderr.take();
 
         let shutdown = CancellationToken::new();
         let stdin = Arc::new(Mutex::new(stdin));
@@ -582,122 +490,7 @@ impl ReplManager {
         })
     }
 
-    fn build_runtime_command(
-        &self,
-        sess: &Session,
-        cwd: &Path,
-    ) -> Result<Command, String> {
-        let sandbox_policy = sess.get_sandbox_policy();
-        let sandbox_policy_cwd = sess.get_cwd();
-        let enforce_managed_network = sess.managed_network_proxy().is_some();
-        let caps = self.runtime.kind.capabilities();
-
-        let mut env_overrides = HashMap::<String, String>::new();
-        if let Some(proxy) = sess.managed_network_proxy() {
-            proxy.apply_to_env(&mut env_overrides);
-        }
-
-        // Seatbelt is available only when: the runtime supports it, we're on
-        // macOS, and the sandbox policy isn't DangerFullAccess.
-        let seatbelt_enabled = cfg!(target_os = "macos")
-            && caps.supports_seatbelt
-            && !matches!(
-                sandbox_policy,
-                crate::protocol::SandboxPolicy::DangerFullAccess
-            );
-
-        // If managed network is required but this runtime can't enforce it
-        // (neither via its own sandbox nor via seatbelt), reject early.
-        if enforce_managed_network
-            && !caps.can_enforce_network_without_seatbelt
-            && !seatbelt_enabled
-            && !matches!(
-                sandbox_policy,
-                crate::protocol::SandboxPolicy::DangerFullAccess
-            )
-        {
-            return Err(format!(
-                "repl {} runtime cannot enforce network mediation on this platform. \
-                 Set `[tools].repl_runtime = \"deno\"` (recommended) or disable \
-                 network mediation.",
-                self.runtime.kind
-            ));
-        }
-
-        let mut command = if seatbelt_enabled {
-            // Wrap the runtime invocation inside macOS seatbelt.
-            if enforce_managed_network
-                && !crate::seatbelt::has_loopback_proxy_endpoints(&env_overrides)
-            {
-                return Err(
-                    "managed network enforcement active but no usable proxy endpoints".to_owned(),
-                );
-            }
-
-            let mut child_command: Vec<String> = Vec::with_capacity(2 + self.runtime.args.len());
-            child_command.push(self.runtime.executable.to_string_lossy().into_owned());
-            child_command.extend(self.runtime.args.iter().cloned());
-            child_command.push(self.kernel_path.to_string_lossy().into_owned());
-
-            let seatbelt_args = crate::seatbelt::build_seatbelt_args(
-                child_command,
-                sandbox_policy,
-                sandbox_policy_cwd,
-                enforce_managed_network,
-                &env_overrides,
-            );
-            let mut cmd = Command::new(crate::seatbelt::seatbelt_exec_path());
-            cmd.args(seatbelt_args);
-            cmd.env(crate::spawn::CODEX_SANDBOX_ENV_VAR, "seatbelt");
-            cmd
-        } else if matches!(caps.sandbox, crate::config::RuntimeSandboxKind::BuiltinPermissions) {
-            // Runtime has its own permission sandbox (Deno).
-            let mut cmd = Command::new(&self.runtime.executable);
-            let allow_env = caps.sandbox_env_passthrough.join(",");
-            let tmp_dir = self.tmp_dir.path().display();
-            cmd.arg("run");
-            cmd.arg("--quiet");
-            cmd.arg("--no-prompt");
-            cmd.arg(format!("--allow-env={allow_env}"));
-            cmd.arg(format!("--allow-read={tmp_dir}"));
-            cmd.args(&self.runtime.args);
-            cmd.arg(&self.kernel_path);
-            cmd
-        } else {
-            // No sandbox available — run directly.
-            let mut cmd = Command::new(&self.runtime.executable);
-            cmd.args(&self.runtime.args);
-            cmd.arg(&self.kernel_path);
-            cmd
-        };
-
-        command.current_dir(cwd);
-        command.kill_on_drop(true);
-
-        command.env("CODEX_REPL_TMP_DIR", self.tmp_dir.path());
-        command.env("CODEX_REPL_RUNTIME", self.runtime.kind.label());
-        command.env("CODEX_REPL_RUNTIME_VERSION", self.runtime.version.clone());
-
-        if caps.uses_node_module_dirs && !self.runtime.node_module_dirs.is_empty() {
-            let joined = std::env::join_paths(
-                self.runtime
-                    .node_module_dirs
-                    .iter()
-                    .map(|p| p.as_os_str()),
-            )
-            .map_err(|err| format!("failed to join repl_node_module_dirs: {err}"))?;
-            command.env("CODEX_REPL_NODE_MODULE_DIRS", joined);
-        }
-
-        for (key, value) in env_overrides {
-            command.env(key, value);
-        }
-
-        command.stdin(Stdio::piped());
-        command.stdout(Stdio::piped());
-        command.stderr(Stdio::piped());
-        Ok(command)
-    }
+    // ── Tool request dispatch ───────────────────────────────────────────
 
     #[allow(clippy::too_many_arguments)]
     async fn handle_tool_request(
@@ -971,9 +764,6 @@ impl ReplManager {
                         continue;
                     };
 
-                    // Deno sends __fatal__ when an unhandled error crashes the
-                    // kernel.  Route it to whatever exec is currently pending so
-                    // the user sees the error instead of silently dropping it.
                     let resolved_id = if id == "__fatal__" {
                         let lock = pending_execs.lock().await;
                         match lock.len() {
@@ -996,7 +786,6 @@ impl ReplManager {
                         continue;
                     };
 
-                    // Wait for any nested tool calls to settle before delivering result.
                     ReplManager::wait_for_exec_tool_calls_map(&exec_tool_calls, &resolved_id).await;
 
                     let ok = message.get("ok").and_then(JsonValue::as_bool).unwrap_or(false);
@@ -1040,7 +829,6 @@ impl ReplManager {
                         .and_then(JsonValue::as_str)
                         .unwrap_or_default().to_owned();
 
-                    // Check if the exec is still active via exec_tool_calls registration.
                     let Some(exec_cancel) =
                         ReplManager::begin_exec_tool_call(&exec_tool_calls, &exec_id).await
                     else {
@@ -1071,8 +859,6 @@ impl ReplManager {
                         continue;
                     };
 
-                    // Self-invocation guard (checked in read_stdout to avoid
-                    // dispatching the tool call at all).
                     if is_repl_internal_tool(&tool_name) {
                         let response = json!({
                             "type": "run_tool_result",
@@ -1098,9 +884,6 @@ impl ReplManager {
                         continue;
                     }
 
-                    // Pipe the tool request to the executor via the channel.
-                    // The executor dispatches tools synchronously (it has &mut
-                    // TurnDiffTracker) and calls finish_exec_tool_call.
                     let tool_req = ToolRequest {
                         id: id.to_owned(),
                         exec_id: exec_id.clone(),
@@ -1132,8 +915,7 @@ impl ReplManager {
             }
         };
 
-        // ── Kernel stream ended ────────────────────────────────────────
-        // Wait for outstanding tool calls to settle before notifying pending execs.
+        // Kernel stream ended — settle tool calls, notify pending execs.
         let exec_ids = {
             let calls = exec_tool_calls.lock().await;
             calls.keys().cloned().collect::<Vec<_>>()
@@ -1160,7 +942,6 @@ impl ReplManager {
             .clone()
             .unwrap_or_else(|| "repl kernel exited unexpectedly".to_string());
 
-        // Clear the kernel from the manager so a new one will be started.
         {
             let mut kernel = manager_kernel.lock().await;
             let should_clear = kernel
@@ -1255,125 +1036,6 @@ fn is_repl_internal_tool(name: &str) -> bool {
         || name.eq_ignore_ascii_case(crate::openai_tools::REPL_RESET_TOOL_NAME)
 }
 
-fn format_exit_status(status: std::process::ExitStatus) -> String {
-    if let Some(code) = status.code() {
-        return format!("code={code}");
-    }
-    #[cfg(unix)]
-    {
-        use std::os::unix::process::ExitStatusExt;
-        if let Some(signal) = status.signal() {
-            return format!("signal={signal}");
-        }
-    }
-    "unknown".to_string()
-}
-
-fn format_stderr_tail(lines: &VecDeque<String>) -> String {
-    if lines.is_empty() {
-        return "<empty>".to_string();
-    }
-    let mut out = lines[0].clone();
-    for line in lines.iter().skip(1) {
-        out.push_str(STDERR_TAIL_SEPARATOR);
-        out.push_str(line);
-    }
-    out
-}
-
-fn truncate_utf8_prefix_by_bytes(input: &str, max_bytes: usize) -> String {
-    if input.len() <= max_bytes {
-        return input.to_string();
-    }
-    if max_bytes == 0 {
-        return String::new();
-    }
-    let mut end = max_bytes;
-    while end > 0 && !input.is_char_boundary(end) {
-        end -= 1;
-    }
-    input[..end].to_string()
-}
-
-fn stderr_tail_formatted_bytes(lines: &VecDeque<String>) -> usize {
-    if lines.is_empty() {
-        return 0;
-    }
-    let payload_bytes: usize = lines.iter().map(String::len).sum();
-    let separator_bytes = STDERR_TAIL_SEPARATOR.len() * (lines.len() - 1);
-    payload_bytes + separator_bytes
-}
-
-fn stderr_tail_bytes_with_candidate(lines: &VecDeque<String>, line: &str) -> usize {
-    if lines.is_empty() {
-        return line.len();
-    }
-    stderr_tail_formatted_bytes(lines) + STDERR_TAIL_SEPARATOR.len() + line.len()
-}
-
-fn push_stderr_tail_line(lines: &mut VecDeque<String>, line: &str) -> String {
-    let max_line_bytes = STDERR_TAIL_LINE_MAX_BYTES.min(STDERR_TAIL_MAX_BYTES);
-    let bounded_line = truncate_utf8_prefix_by_bytes(line, max_line_bytes);
-    if bounded_line.is_empty() {
-        return bounded_line;
-    }
-
-    while !lines.is_empty()
-        && (lines.len() >= STDERR_TAIL_LINE_LIMIT
-            || stderr_tail_bytes_with_candidate(lines, &bounded_line) > STDERR_TAIL_MAX_BYTES)
-    {
-        lines.pop_front();
-    }
-
-    lines.push_back(bounded_line.clone());
-    bounded_line
-}
-
-fn is_kernel_status_exited(status: &str) -> bool {
-    status.starts_with("exited(")
-}
-
-fn should_include_diagnostics_for_write_error(
-    err_message: &str,
-    snapshot: &KernelDebugSnapshot,
-) -> bool {
-    is_kernel_status_exited(&snapshot.status)
-        || err_message.to_ascii_lowercase().contains("broken pipe")
-}
-
-fn format_model_kernel_failure_details(
-    reason: &str,
-    stream_error: Option<&str>,
-    snapshot: &KernelDebugSnapshot,
-) -> String {
-    let payload = serde_json::json!({
-        "reason": reason,
-        "stream_error": stream_error
-            .map(|err| truncate_utf8_prefix_by_bytes(err, MODEL_DIAG_ERROR_MAX_BYTES)),
-        "kernel_pid": snapshot.pid,
-        "kernel_status": snapshot.status,
-        "kernel_stderr_tail": truncate_utf8_prefix_by_bytes(
-            &snapshot.stderr_tail,
-            MODEL_DIAG_STDERR_MAX_BYTES,
-        ),
-    });
-    let encoded = serde_json::to_string(&payload)
-        .unwrap_or_else(|err| format!(r#"{{"reason":"serialization_error","error":"{err}"}}"#));
-    format!("repl diagnostics: {encoded}")
-}
-
-fn with_model_failure_message(
-    base_message: &str,
-    reason: &str,
-    stream_error: Option<&str>,
-    snapshot: &KernelDebugSnapshot,
-) -> String {
-    format!(
-        "{base_message}\n\n{}",
-        format_model_kernel_failure_details(reason, stream_error, snapshot)
-    )
-}
-
 fn freeform_tool_name_snapshot(sess: &Session) -> HashSet<String> {
     crate::openai_tools::get_openai_tools(
         &sess.tools_config_snapshot(),
@@ -1390,126 +1052,10 @@ fn freeform_tool_name_snapshot(sess: &Session) -> HashSet<String> {
     .collect()
 }
 
-async fn resolve_runtime(cfg: ReplRuntimeConfig) -> Result<ResolvedRuntime, String> {
-    let executable = cfg.runtime_path.unwrap_or_else(|| {
-        PathBuf::from(cfg.kind.default_executable())
-    });
-
-    let version = detect_runtime_version(cfg.kind, &executable).await?;
-    if matches!(cfg.kind, crate::config::ReplRuntimeKindToml::Node) {
-        let parsed = parse_version_triplet(&version).ok_or_else(|| {
-            format!("failed to parse Node version `{version}` (expected like `18.0.0`)")
-        })?;
-        if !version_at_least(parsed, MIN_NODE_VERSION) {
-            return Err(format!(
-                "Node version {version} is too old for repl (need >= {min_major}.{min_minor}.{min_patch}). Consider setting `[tools].repl_runtime = \"deno\"`.",
-                min_major = MIN_NODE_VERSION.0,
-                min_minor = MIN_NODE_VERSION.1,
-                min_patch = MIN_NODE_VERSION.2,
-            ));
-        }
-    }
-
-    let mut args = Vec::with_capacity(cfg.runtime_args.len() + 1);
-    if matches!(cfg.kind, crate::config::ReplRuntimeKindToml::Node)
-        && !cfg.runtime_args.iter().any(|arg| arg == "--experimental-vm-modules")
-    {
-        args.push("--experimental-vm-modules".to_owned());
-    }
-    args.extend(cfg.runtime_args);
-
-    Ok(ResolvedRuntime {
-        kind: cfg.kind,
-        executable,
-        args,
-        version,
-        node_module_dirs: cfg.node_module_dirs,
-    })
-}
-
-async fn detect_runtime_version(
-    kind: crate::config::ReplRuntimeKindToml,
-    executable: &Path,
-) -> Result<String, String> {
-    let output = Command::new(executable)
-        .arg("--version")
-        .output()
-        .await
-        .map_err(|err| format!("failed to run `{executable}`: {err}", executable = executable.display()))?;
-    let stdout = String::from_utf8_lossy(&output.stdout).trim().to_owned();
-    let stderr = String::from_utf8_lossy(&output.stderr).trim().to_owned();
-    let text = if stdout.is_empty() { stderr } else { stdout };
-    if text.is_empty() {
-        return Err(format!("`{executable}` produced no version output", executable = executable.display()));
-    }
-
-    match kind {
-        crate::config::ReplRuntimeKindToml::Node => Ok(text.trim().trim_start_matches('v').to_owned()),
-        crate::config::ReplRuntimeKindToml::Deno => {
-            for line in text.lines() {
-                let l = line.trim();
-                if let Some(rest) = l.strip_prefix("deno ") {
-                    let version = rest
-                        .split_whitespace()
-                        .next()
-                        .unwrap_or_default()
-                        .trim();
-                    if !version.is_empty() {
-                        return Ok(version.to_owned());
-                    }
-                }
-            }
-            // Fallback to first token of the first line.
-            Ok(text
-                .lines()
-                .next()
-                .unwrap_or_default()
-                .trim().to_owned())
-        }
-    }
-}
-
-fn parse_version_triplet(version: &str) -> Option<(u64, u64, u64)> {
-    let cleaned = version.trim().trim_start_matches('v');
-    let mut parts = cleaned.split('.');
-    let major = take_leading_u64(parts.next()?)?;
-    let minor = take_leading_u64(parts.next()?)?;
-    let patch = take_leading_u64(parts.next()?)?;
-    Some((major, minor, patch))
-}
-
-fn take_leading_u64(input: &str) -> Option<u64> {
-    let mut end = 0;
-    for (idx, ch) in input.char_indices() {
-        if ch.is_ascii_digit() {
-            end = idx + ch.len_utf8();
-        } else {
-            break;
-        }
-    }
-    if end == 0 {
-        return None;
-    }
-    input[..end].parse().ok()
-}
-
-fn version_at_least(found: (u64, u64, u64), min: (u64, u64, u64)) -> bool {
-    if found.0 != min.0 {
-        return found.0 > min.0;
-    }
-    if found.1 != min.1 {
-        return found.1 > min.1;
-    }
-    found.2 >= min.2
-}
-
 #[cfg(test)]
 mod tests {
-    use super::parse_version_triplet;
-    use super::version_at_least;
-    use super::ExecResultMessage;
-    use super::ReplRuntimeConfig;
-    use super::ToolRequest;
+    use super::runtime::{parse_version_triplet, version_at_least};
+    use super::types::{ExecResultMessage, ReplRuntimeConfig, ToolRequest};
 
     #[test]
     fn parses_node_versions_with_prefix_and_suffix() {
