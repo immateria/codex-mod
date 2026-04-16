@@ -23,6 +23,17 @@ pub(crate) struct HarnessFinding {
     pub message: String,
 }
 
+impl HarnessFinding {
+    /// Shorthand for a workspace-staging failure with no specific file.
+    fn stage_error(tool: &str, err: impl std::fmt::Display) -> Self {
+        Self {
+            tool: tool.to_owned(),
+            file: None,
+            message: format!("failed to stage workspace for {tool}: {err}"),
+        }
+    }
+}
+
 /// Run fast validations on the files touched by a patch. Returns `None` when the
 /// harness is disabled and no checks were executed.
 pub(crate) fn run_patch_harness(
@@ -309,11 +320,7 @@ pub(crate) fn run_patch_harness(
                         }),
                     }
                 }
-                Err(err) => findings.push(HarnessFinding {
-                    tool: "tsc".to_owned(),
-                    file: None,
-                    message: format!("failed to stage workspace for tsc: {err}"),
-                }),
+                Err(err) => findings.push(HarnessFinding::stage_error("tsc", err)),
             }
         }
 
@@ -357,11 +364,7 @@ pub(crate) fn run_patch_harness(
                         }),
                     }
                 }
-                Err(err) => findings.push(HarnessFinding {
-                    tool: "eslint".to_owned(),
-                    file: None,
-                    message: format!("failed to stage workspace for eslint: {err}"),
-                }),
+                Err(err) => findings.push(HarnessFinding::stage_error("eslint", err)),
             }
         }
 
@@ -405,11 +408,7 @@ pub(crate) fn run_patch_harness(
                         }),
                     }
                 }
-                Err(err) => findings.push(HarnessFinding {
-                    tool: "phpstan".to_owned(),
-                    file: None,
-                    message: format!("failed to stage workspace for phpstan: {err}"),
-                }),
+                Err(err) => findings.push(HarnessFinding::stage_error("phpstan", err)),
             }
         }
 
@@ -448,11 +447,7 @@ pub(crate) fn run_patch_harness(
                         }),
                     }
                 }
-                Err(err) => findings.push(HarnessFinding {
-                    tool: "psalm".to_owned(),
-                    file: None,
-                    message: format!("failed to stage workspace for psalm: {err}"),
-                }),
+                Err(err) => findings.push(HarnessFinding::stage_error("psalm", err)),
             }
         }
 
@@ -492,11 +487,7 @@ pub(crate) fn run_patch_harness(
                         }),
                     }
                 }
-                Err(err) => findings.push(HarnessFinding {
-                    tool: "mypy".to_owned(),
-                    file: None,
-                    message: format!("failed to stage workspace for mypy: {err}"),
-                }),
+                Err(err) => findings.push(HarnessFinding::stage_error("mypy", err)),
             }
         }
 
@@ -531,11 +522,7 @@ pub(crate) fn run_patch_harness(
                         }),
                     }
                 }
-                Err(err) => findings.push(HarnessFinding {
-                    tool: "pyright".to_owned(),
-                    file: None,
-                    message: format!("failed to stage workspace for pyright: {err}"),
-                }),
+                Err(err) => findings.push(HarnessFinding::stage_error("pyright", err)),
             }
         }
 
@@ -574,11 +561,7 @@ pub(crate) fn run_patch_harness(
                         }),
                     }
                 }
-                Err(err) => findings.push(HarnessFinding {
-                    tool: "golangci-lint".to_owned(),
-                    file: None,
-                    message: format!("failed to stage workspace for golangci-lint: {err}"),
-                }),
+                Err(err) => findings.push(HarnessFinding::stage_error("golangci-lint", err)),
             }
         }
 
@@ -652,11 +635,7 @@ pub(crate) fn run_patch_harness(
                 drop(overlay);
             }
             Err(err) => {
-                findings.push(HarnessFinding {
-                    tool: "cargo-check".to_owned(),
-                    file: None,
-                    message: format!("failed to stage workspace for cargo check: {err}"),
-                });
+                findings.push(HarnessFinding::stage_error("cargo-check", err));
             }
         }
         }

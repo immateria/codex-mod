@@ -102,17 +102,11 @@ struct SubscriptionOverride {
 impl SubscriptionOverride {
     fn fingerprint(&self) -> u64 {
         let mut hasher = DefaultHasher::new();
-        let mut lvls = self.levels.clone();
-        for l in &mut lvls {
-            *l = l.to_lowercase();
-        }
+        let mut lvls: Vec<String> = self.levels.iter().map(|l| l.to_lowercase()).collect();
         lvls.sort();
         lvls.hash(&mut hasher);
 
-        let mut caps = self.capabilities.clone();
-        for c in &mut caps {
-            *c = c.to_lowercase();
-        }
+        let mut caps: Vec<String> = self.capabilities.iter().map(|c| c.to_lowercase()).collect();
         caps.sort();
         caps.hash(&mut hasher);
 
@@ -344,19 +338,20 @@ pub(crate) fn spawn_bridge_listener(session: std::sync::Arc<Session>) {
                     Ok(sub) => {
                         let fp = sub.fingerprint();
                         if Some(fp) != last_override_seen {
+                            let msg = format!(
+                                "Code Bridge subscription updated from {} (levels: [{}], capabilities: [{}], filter: {})",
+                                path.display(),
+                                sub.levels.join(", "),
+                                sub.capabilities.join(", "),
+                                sub.llm_filter
+                            );
                             set_workspace_subscription(Some(Subscription {
-                                levels: sub.levels.clone(),
-                                capabilities: sub.capabilities.clone(),
-                                llm_filter: sub.llm_filter.clone(),
+                                levels: sub.levels,
+                                capabilities: sub.capabilities,
+                                llm_filter: sub.llm_filter,
                             }));
                             session
-                                .record_bridge_event(format!(
-                                    "Code Bridge subscription updated from {} (levels: [{}], capabilities: [{}], filter: {})",
-                                    path.display(),
-                                    sub.levels.join(", "),
-                                    sub.capabilities.join(", "),
-                                    sub.llm_filter
-                                ))
+                                .record_bridge_event(msg)
                                 .await;
                             *LAST_OVERRIDE_FINGERPRINT.lock().unwrap_or_else(std::sync::PoisonError::into_inner) = Some(fp);
                             last_override_seen = Some(fp);

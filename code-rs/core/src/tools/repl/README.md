@@ -98,27 +98,27 @@ added in the future must implement the same behaviors.
 
 ### Required capabilities (all runtimes)
 
-| Capability | Description |
-|------------|-------------|
-| **JSON-lines protocol** | `exec` → `exec_result` on stdin/stdout; `run_tool` / `run_tool_result` for nested tool calls; `emit_image` / `emit_image_result` for image emission |
-| **Generation-scoped async** | Timer/interval/microtask callbacks tagged with exec generation; stale callbacks dropped |
-| **Timer cleanup** | All tracked timers cancelled on exec completion (success or error) |
-| **Persistent console** | `console.*` output captured per-exec; late-generation output dropped |
-| **Snapshot persistence** | Bindings carried between cells via `__replBindings` on the global scope |
-| **Background task awaiting** | Un-awaited `codex.tool()` / `codex.emitImage()` calls tracked and awaited before result delivery |
-| **Fatal error reporting** | `uncaughtException` / `unhandledRejection` → `exec_result` with error before exit |
-| **Graceful reset** | Kernel process can be killed and restarted; state is lost on reset |
+| Capability                   | Description                                                                                                                                         |
+| ---------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **JSON-lines protocol**      | `exec` → `exec_result` on stdin/stdout; `run_tool` / `run_tool_result` for nested tool calls; `emit_image` / `emit_image_result` for image emission |
+| **Generation-scoped async**  | Timer/interval/microtask callbacks tagged with exec generation; stale callbacks dropped                                                             |
+| **Timer cleanup**            | All tracked timers cancelled on exec completion (success or error)                                                                                  |
+| **Persistent console**       | `console.*` output captured per-exec; late-generation output dropped                                                                                |
+| **Snapshot persistence**     | Bindings carried between cells via `__replBindings` on the global scope                                                                             |
+| **Background task awaiting** | Un-awaited `codex.tool()` / `codex.emitImage()` calls tracked and awaited before result delivery                                                    |
+| **Fatal error reporting**    | `uncaughtException` / `unhandledRejection` → `exec_result` with error before exit                                                                   |
+| **Graceful reset**           | Kernel process can be killed and restarted; state is lost on reset                                                                                  |
 
 ### Per-runtime differences
 
-| Aspect | Node | Deno |
-|--------|------|------|
-| **Import model** | VM-linked local files + host-loaded packages (see below) | Data-URL evaluation via Deno runtime |
-| **Containment** | Convenience/dev mode (not a sandbox) | Real permission-based sandbox |
-| **Package imports** | Bare specifiers via `createRequire()` from `node_module_dirs` | Handled by Deno's native resolver |
-| **Local file imports** | `SourceTextModule` in VM context, canonical path caching | Not supported |
-| **Builtin imports** | `node:*` with deny list | Deno builtins via native runtime |
-| **Platform sandbox** | macOS seatbelt only; no sandbox on other platforms | Deno `--allow-*` flags on all platforms |
+| Aspect                 | Node                                                          | Deno                                    |
+| ---------------------- | ------------------------------------------------------------- | --------------------------------------- |
+| **Import model**       | VM-linked local files + host-loaded packages (see below)      | Data-URL evaluation via Deno runtime    |
+| **Containment**        | Convenience/dev mode (not a sandbox)                          | Real permission-based sandbox           |
+| **Package imports**    | Bare specifiers via `createRequire()` from `node_module_dirs` | Handled by Deno's native resolver       |
+| **Local file imports** | `SourceTextModule` in VM context, canonical path caching      | Not supported                           |
+| **Builtin imports**    | `node:*` with deny list                                       | Deno builtins via native runtime        |
+| **Platform sandbox**   | macOS seatbelt only; no sandbox on other platforms            | Deno `--allow-*` flags on all platforms |
 
 ### Node Import Boundary (Known Limitation)
 
@@ -158,15 +158,15 @@ Warnings are logged to help diagnose configuration issues.
 
 ## Files
 
-| File | Purpose |
-|------|---------|
-| `mod.rs` | Host-side manager: kernel lifecycle, execute(), read_stdout/stderr, tool dispatch |
-| `types.rs` | Shared data types: configs, results, protocol structs, tool-call tracking |
-| `runtime.rs` | Runtime resolution, version probing, OS command building with sandbox support |
-| `diagnostics.rs` | Stderr tail ring-buffer, truncation helpers, model failure formatting |
-| `kernel_node.js` | Node kernel: VM sandbox, exec handler, timer wrappers, console capture |
-| `node_resolver.js` | Node module resolution: specifier parsing, linking, caching, import pipeline |
-| `kernel_deno.js` | Deno kernel: permission-based sandbox, data-URL evaluation |
-| `kernel_common.js` | Shared JS utilities: AST binding collection, timer system, image helpers |
-| `meriyah.umd.min.js` | Parser for binding collection (shared by both kernels) |
-| `handlers/repl.rs` | Pragma parsing, runtime dispatch, tool handler registration |
+| File                 | Purpose                                                                           |
+| -------------------- | --------------------------------------------------------------------------------- |
+| `mod.rs`             | Host-side manager: kernel lifecycle, execute(), read_stdout/stderr, tool dispatch |
+| `types.rs`           | Shared data types: configs, results, protocol structs, tool-call tracking         |
+| `runtime.rs`         | Runtime resolution, version probing, OS command building with sandbox support     |
+| `diagnostics.rs`     | Stderr tail ring-buffer, truncation helpers, model failure formatting             |
+| `kernel_node.js`     | Node kernel: VM sandbox, exec handler, timer wrappers, console capture            |
+| `node_resolver.js`   | Node module resolution: specifier parsing, linking, caching, import pipeline      |
+| `kernel_deno.js`     | Deno kernel: permission-based sandbox, data-URL evaluation                        |
+| `kernel_common.js`   | Shared JS utilities: AST binding collection, timer system, image helpers          |
+| `meriyah.umd.min.js` | Parser for binding collection (shared by both kernels)                            |
+| `handlers/repl.rs`   | Pragma parsing, runtime dispatch, tool handler registration                       |
