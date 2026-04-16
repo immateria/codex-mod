@@ -1806,7 +1806,7 @@ pub struct TuiHotkeysOverrides {
     #[serde(default)]
     pub exec_output_fold: Option<TuiHotkey>,
 
-    /// Keyboard shortcut for toggling JS REPL code folding (history shortcut).
+    /// Keyboard shortcut for toggling REPL code folding (history shortcut).
     #[serde(default)]
     pub repl_code_fold: Option<TuiHotkey>,
 
@@ -1844,7 +1844,7 @@ pub struct TuiHotkeysConfig {
     #[serde(default = "default_hotkey_exec_output_fold")]
     pub exec_output_fold: TuiHotkey,
 
-    /// Keyboard shortcut for toggling code folding on the latest JS REPL cell.
+    /// Keyboard shortcut for toggling code folding on the latest REPL cell.
     ///
     /// Defaults to the legacy mapping (`\\` while the composer is empty).
     #[serde(default = "default_hotkey_repl_code_fold")]
@@ -1856,7 +1856,7 @@ pub struct TuiHotkeysConfig {
     #[serde(default = "default_hotkey_jump_to_parent_call")]
     pub jump_to_parent_call: TuiHotkey,
 
-    /// Keyboard shortcut for jumping to the latest tool call spawned by the latest JS REPL cell.
+    /// Keyboard shortcut for jumping to the latest tool call spawned by the latest REPL cell.
     ///
     /// Defaults to the legacy mapping (`}` while the composer is empty).
     #[serde(default = "default_hotkey_jump_to_latest_child_call")]

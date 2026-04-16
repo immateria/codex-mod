@@ -42,7 +42,7 @@ fn join_outputs(stdout: &str, stderr: &str) -> String {
 fn parse_freeform_args(input: &str) -> Result<crate::tools::repl::ReplArgs, String> {
     if input.trim().is_empty() {
         return Err(
-            "repl expects raw JavaScript tool input (non-empty). Provide JS source text, optionally with first-line `// codex-repl: ...`.".to_owned(),
+            "repl expects raw source code as tool input (non-empty). Provide source text, optionally with first-line `// codex-repl: ...`.".to_owned(),
         );
     }
 
@@ -110,7 +110,7 @@ fn parse_freeform_args(input: &str) -> Result<crate::tools::repl::ReplArgs, Stri
     }
 
     if rest.trim().is_empty() {
-        return Err("repl pragma must be followed by JavaScript source on subsequent lines".to_owned());
+        return Err("repl pragma must be followed by source code on subsequent lines".to_owned());
     }
 
     reject_json_or_quoted_source(rest)?;
@@ -124,7 +124,7 @@ fn reject_json_or_quoted_source(code: &str) -> Result<(), String> {
     let trimmed = code.trim();
     if trimmed.starts_with("```") {
         return Err(
-            "repl expects raw JavaScript source, not markdown code fences. Resend plain JS only (optional first line `// codex-repl: ...`).".to_owned(),
+            "repl expects raw source code, not markdown code fences. Resend plain code only (optional first line `// codex-repl: ...`).".to_owned(),
         );
     }
     let Ok(value) = serde_json::from_str::<JsonValue>(trimmed) else {
@@ -132,7 +132,7 @@ fn reject_json_or_quoted_source(code: &str) -> Result<(), String> {
     };
     match value {
         JsonValue::Object(_) | JsonValue::String(_) => Err(
-            "repl is a freeform tool and expects raw JavaScript source. Resend plain JS only (optional first line `// codex-repl: ...`); do not send JSON (`{\"code\":...}`), quoted code, or markdown fences.".to_owned(),
+            "repl is a freeform tool and expects raw source code. Resend plain code only (optional first line `// codex-repl: ...`); do not send JSON (`{\"code\":...}`), quoted code, or markdown fences.".to_owned(),
         ),
         _ => Ok(()),
     }
@@ -472,5 +472,13 @@ mod tests {
         let input = "// codex-repl: runtime=NODE\nconsole.log('ok');";
         let args = parse_freeform_args(input).expect("parse args");
         assert_eq!(args.runtime, Some(crate::config::ReplRuntimeKindToml::Node));
+    }
+
+    #[test]
+    fn parse_freeform_args_with_python_runtime() {
+        let input = "// codex-repl: runtime=python\nprint('hello')";
+        let args = parse_freeform_args(input).expect("parse args");
+        assert_eq!(args.runtime, Some(crate::config::ReplRuntimeKindToml::Python));
+        assert_eq!(args.code, "print('hello')");
     }
 }

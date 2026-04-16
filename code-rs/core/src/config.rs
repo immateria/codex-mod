@@ -1207,7 +1207,7 @@ impl ReplRuntimeKindToml {
                 supports_seatbelt: false,
                 can_enforce_network_without_seatbelt: true,
                 sandbox_env_passthrough: &[
-                    "CODEX_JS_TMP_DIR",
+                    "CODEX_REPL_TMP_DIR",
                     "CODEX_REPL_RUNTIME",
                     "CODEX_REPL_RUNTIME_VERSION",
                 ],
@@ -5221,15 +5221,17 @@ mod repl_runtime_kind_tests {
 
     #[test]
     fn all_contains_every_variant() {
-        assert_eq!(ReplRuntimeKindToml::ALL.len(), 2);
+        assert_eq!(ReplRuntimeKindToml::ALL.len(), 3);
         assert!(ReplRuntimeKindToml::ALL.contains(&ReplRuntimeKindToml::Node));
         assert!(ReplRuntimeKindToml::ALL.contains(&ReplRuntimeKindToml::Deno));
+        assert!(ReplRuntimeKindToml::ALL.contains(&ReplRuntimeKindToml::Python));
     }
 
     #[test]
     fn label_returns_lowercase_string() {
         assert_eq!(ReplRuntimeKindToml::Node.label(), "node");
         assert_eq!(ReplRuntimeKindToml::Deno.label(), "deno");
+        assert_eq!(ReplRuntimeKindToml::Python.label(), "python");
     }
 
     #[test]
@@ -5301,7 +5303,7 @@ mod repl_runtime_kind_tests {
     #[test]
     fn deno_env_passthrough_includes_codex_vars() {
         let caps = ReplRuntimeKindToml::Deno.capabilities();
-        assert!(caps.sandbox_env_passthrough.contains(&"CODEX_JS_TMP_DIR"));
+        assert!(caps.sandbox_env_passthrough.contains(&"CODEX_REPL_TMP_DIR"));
         assert!(caps.sandbox_env_passthrough.contains(&"CODEX_REPL_RUNTIME"));
         assert!(caps.sandbox_env_passthrough.contains(&"CODEX_REPL_RUNTIME_VERSION"));
     }
@@ -5335,5 +5337,8 @@ mod repl_runtime_kind_tests {
 
         let w: Wrapper = toml::from_str("rt = \"deno\"").expect("deserialize deno");
         assert_eq!(w.rt, ReplRuntimeKindToml::Deno);
+
+        let w: Wrapper = toml::from_str("rt = \"python\"").expect("deserialize python");
+        assert_eq!(w.rt, ReplRuntimeKindToml::Python);
     }
 }

@@ -1,4 +1,4 @@
-//! REPL tool — manages JavaScript kernel processes (Node / Deno) and
+//! REPL tool — manages kernel processes (Node / Deno / Python) and
 //! dispatches exec requests over a line-delimited JSON protocol.
 //!
 //! ## Module layout

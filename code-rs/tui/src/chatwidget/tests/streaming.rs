@@ -3,7 +3,7 @@
         let _guard = enter_test_runtime_guard();
         let mut harness = ChatWidgetHarness::new();
 
-        // Seed a parent JS REPL begin, then enough filler content to force scroll,
+        // Seed a parent REPL begin, then enough filler content to force scroll,
         // then a child exec begin that references the parent via parent_call_id.
         let parent_call_id = "js-parent".to_string();
         harness.handle_event(Event {

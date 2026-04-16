@@ -56,15 +56,14 @@ fn use_linux_sandbox_bwrap_is_removed_and_disabled_by_default() {
 fn repl_is_experimental_and_user_toggleable() {
     let spec = Feature::Repl.info();
     let stage = spec.stage;
-    let expected_node_version = include_str!("../../node-version.txt").trim_end();
 
     assert!(matches!(stage, Stage::Experimental { .. }));
-    assert_eq!(stage.experimental_menu_name(), Some("JavaScript REPL"));
+    assert_eq!(stage.experimental_menu_name(), Some("REPL"));
     assert_eq!(
         stage.experimental_menu_description().map(str::to_owned),
-        Some(format!(
-            "Enable a persistent Node-backed JavaScript REPL for interactive website debugging and other inline JavaScript execution capabilities. Requires Node >= v{expected_node_version} installed."
-        ))
+        Some(
+            "Enable a persistent REPL for interactive code execution (Node, Deno, or Python). Requires Node >= v22.22.0, Deno, or Python 3 installed.".to_owned()
+        )
     );
     assert_eq!(Feature::Repl.default_enabled(), false);
 }

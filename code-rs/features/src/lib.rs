@@ -77,7 +77,7 @@ pub enum Feature {
     ShellTool,
 
     // Experimental
-    /// Enable JavaScript REPL tools backed by a persistent Node kernel.
+    /// Enable REPL tools backed by persistent runtime kernels.
     Repl,
     /// Enable a minimal JavaScript mode backed by Node's built-in vm runtime.
     CodeMode,
@@ -548,9 +548,9 @@ pub const FEATURES: &[FeatureSpec] = &[
         id: Feature::Repl,
         key: "repl",
         stage: Stage::Experimental {
-            name: "JavaScript REPL",
-            menu_description: "Enable a persistent Node-backed JavaScript REPL for interactive website debugging and other inline JavaScript execution capabilities. Requires Node >= v22.22.0 installed.",
-            announcement: "NEW: JavaScript REPL is now available in /experimental. Enable it, then start a new chat or restart Codex to use it.",
+            name: "REPL",
+            menu_description: "Enable a persistent REPL for interactive code execution (Node, Deno, or Python). Requires Node >= v22.22.0, Deno, or Python 3 installed.",
+            announcement: "NEW: REPL is now available in /experimental. Enable it, then start a new chat or restart Codex to use it.",
         },
         default_enabled: false,
     },

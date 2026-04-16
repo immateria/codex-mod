@@ -970,8 +970,8 @@ pub enum EventMsg {
     CustomToolCallUpdate(CustomToolCallUpdateEvent),
     CustomToolCallEnd(CustomToolCallEndEvent),
 
-    /// A JavaScript REPL execution is beginning. Carries source code and runtime
-    /// metadata so the TUI can render a dedicated JS history cell instead of a
+    /// A REPL execution is beginning. Carries source code and runtime
+    /// metadata so the TUI can render a dedicated REPL history cell instead of a
     /// generic exec cell.
     ReplExecBegin(ReplExecBeginEvent),
 
@@ -1326,7 +1326,7 @@ pub struct McpInvocation {
 pub struct McpToolCallBeginEvent {
     /// Identifier so this can be paired with the `McpToolCallEnd` event.
     pub call_id: String,
-    /// When set, this tool call was dispatched by a parent tool (e.g. JS REPL's
+    /// When set, this tool call was dispatched by a parent tool (e.g. REPL's
     /// `codex.tool("mcp", …)`). The value is the parent tool's `call_id`.
     #[serde(default)]
     pub parent_call_id: Option<String>,
@@ -1337,7 +1337,7 @@ pub struct McpToolCallBeginEvent {
 pub struct McpToolCallEndEvent {
     /// Identifier for the corresponding `McpToolCallBegin` that finished.
     pub call_id: String,
-    /// When set, this tool call was dispatched by a parent tool (e.g. JS REPL's
+    /// When set, this tool call was dispatched by a parent tool (e.g. REPL's
     /// `codex.tool("mcp", …)`). The value is the parent tool's `call_id`.
     #[serde(default)]
     pub parent_call_id: Option<String>,
@@ -1360,7 +1360,7 @@ impl McpToolCallEndEvent {
 pub struct CustomToolCallBeginEvent {
     /// Identifier so this can be paired with the `CustomToolCallEnd` event.
     pub call_id: String,
-    /// When set, this tool call was dispatched by a parent tool (e.g. JS REPL's
+    /// When set, this tool call was dispatched by a parent tool (e.g. REPL's
     /// `codex.tool("shell", …)`). The value is the parent tool's `call_id`.
     #[serde(default)]
     pub parent_call_id: Option<String>,
@@ -1374,7 +1374,7 @@ pub struct CustomToolCallBeginEvent {
 pub struct CustomToolCallUpdateEvent {
     /// Identifier for the corresponding `CustomToolCallBegin` that is still running.
     pub call_id: String,
-    /// When set, this tool call was dispatched by a parent tool (e.g. JS REPL's
+    /// When set, this tool call was dispatched by a parent tool (e.g. REPL's
     /// `codex.tool("shell", …)`). The value is the parent tool's `call_id`.
     #[serde(default)]
     pub parent_call_id: Option<String>,
@@ -1388,7 +1388,7 @@ pub struct CustomToolCallUpdateEvent {
 pub struct CustomToolCallEndEvent {
     /// Identifier for the corresponding `CustomToolCallBegin` that finished.
     pub call_id: String,
-    /// When set, this tool call was dispatched by a parent tool (e.g. JS REPL's
+    /// When set, this tool call was dispatched by a parent tool (e.g. REPL's
     /// `codex.tool("shell", …)`). The value is the parent tool's `call_id`.
     #[serde(default)]
     pub parent_call_id: Option<String>,
@@ -1402,14 +1402,14 @@ pub struct CustomToolCallEndEvent {
     pub result: Result<String, String>,
 }
 
-/// Metadata emitted at the start of a JavaScript REPL tool call.
+/// Metadata emitted at the start of a REPL tool call.
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct ReplExecBeginEvent {
     /// Matches the `call_id` in the paired `ExecCommandEnd` event.
     pub call_id: String,
-    /// JavaScript source code being executed.
+    /// Source code being executed.
     pub code: String,
-    /// Runtime kind: "node" or "deno".
+    /// Runtime kind: "node", "deno", or "python".
     pub runtime_kind: String,
     /// Resolved runtime version string, e.g. "v20.11.0".
     pub runtime_version: String,
@@ -1428,7 +1428,7 @@ pub struct ExecCommandBeginEvent {
     /// The command's working directory if not the default cwd for the agent.
     pub cwd: PathBuf,
     pub parsed_cmd: Vec<ParsedCommand>,
-    /// When set, this exec was dispatched by a parent tool (e.g. JS REPL's
+    /// When set, this exec was dispatched by a parent tool (e.g. REPL's
     /// `codex.tool("shell", …)`). The value is the parent tool's `call_id`.
     #[serde(default)]
     pub parent_call_id: Option<String>,
@@ -1541,7 +1541,7 @@ pub struct BackgroundEventEvent {
 pub struct PatchApplyBeginEvent {
     /// Identifier so this can be paired with the `PatchApplyEnd` event.
     pub call_id: String,
-    /// When set, this patch was dispatched by a parent tool (e.g. JS REPL's
+    /// When set, this patch was dispatched by a parent tool (e.g. REPL's
     /// `codex.tool("apply_patch", …)`). The value is the parent tool's `call_id`.
     #[serde(default)]
     pub parent_call_id: Option<String>,
@@ -1555,7 +1555,7 @@ pub struct PatchApplyBeginEvent {
 pub struct PatchApplyEndEvent {
     /// Identifier for the `PatchApplyBegin` that finished.
     pub call_id: String,
-    /// When set, this patch was dispatched by a parent tool (e.g. JS REPL's
+    /// When set, this patch was dispatched by a parent tool (e.g. REPL's
     /// `codex.tool("apply_patch", …)`). The value is the parent tool's `call_id`.
     #[serde(default)]
     pub parent_call_id: Option<String>,

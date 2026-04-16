@@ -2241,7 +2241,7 @@ pub struct ExecCommandBeginEvent {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub interaction_input: Option<String>,
-    /// When set, this exec was dispatched by a parent tool (e.g. JS REPL's
+    /// When set, this exec was dispatched by a parent tool (e.g. REPL's
     /// `codex.tool("shell", …)`). The value is the parent tool's `call_id`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]

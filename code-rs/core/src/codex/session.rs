@@ -461,7 +461,7 @@ pub(crate) struct ToolCallCtx {
     pub call_id: String,
     pub seq_hint: Option<u64>,
     pub output_index: Option<u32>,
-    /// The `call_id` of the parent tool that dispatched this one (e.g. JS REPL).
+    /// The `call_id` of the parent tool that dispatched this one (e.g. REPL).
     pub parent_call_id: Option<String>,
 }
 

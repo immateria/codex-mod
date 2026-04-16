@@ -30,14 +30,14 @@ struct ReplRenderLayout {
 }
 
 
-/// A history cell that represents a JavaScript REPL execution.
-/// Unlike the generic `ExecCell`, this stores the JS source code and
+/// A history cell that represents a REPL execution.
+/// Unlike the generic `ExecCell`, this stores the source code and
 /// runtime metadata, making it possible to render the code in history.
 pub(crate) struct ReplCell {
     pub(crate) record: ExecRecord,
-    /// JS source code that was executed.
+    /// Source code that was executed.
     pub(crate) code: String,
-    /// Runtime kind string: "node" or "deno".
+    /// Runtime kind string: "node", "deno", or "python".
     pub(crate) runtime_kind: String,
     /// Resolved runtime version string, e.g. "v20.11.0".
     pub(crate) runtime_version: String,
@@ -210,8 +210,13 @@ impl ReplCell {
         let dim_style = Style::default()
             .fg(crate::colors::text_dim())
             .add_modifier(Modifier::DIM);
+        let lang_label = match self.runtime_kind.as_str() {
+            "python" => "py",
+            "deno" => "deno",
+            _ => "js",
+        };
         let mut spans = vec![
-            Span::styled("js", dim_style),
+            Span::styled(lang_label.to_owned(), dim_style),
             Span::styled(format!(" {runtime_str}"), dim_style),
         ];
 

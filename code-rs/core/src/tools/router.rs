@@ -24,7 +24,7 @@ pub(crate) struct ToolDispatchMeta<'a> {
     pub(crate) output_index: Option<u32>,
     pub(crate) attempt_req: u64,
     /// When set, indicates this tool call was dispatched by a parent tool
-    /// (e.g. JS REPL calling `codex.tool("shell", …)`).
+    /// (e.g. REPL calling `codex.tool("shell", …)`).
     pub(crate) parent_call_id: Option<&'a str>,
 }
 

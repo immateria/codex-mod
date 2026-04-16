@@ -107,7 +107,7 @@ pub(crate) struct ExecCommandContext {
     pub(crate) command_for_display: Vec<String>,
     pub(crate) cwd: PathBuf,
     pub(crate) apply_patch: Option<ApplyPatchCommandContext>,
-    /// The `call_id` of the parent tool that dispatched this one (e.g. JS REPL).
+    /// The `call_id` of the parent tool that dispatched this one (e.g. REPL).
     pub(crate) parent_call_id: Option<String>,
 }
 
