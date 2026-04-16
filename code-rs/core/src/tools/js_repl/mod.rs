@@ -1230,11 +1230,10 @@ fn format_stderr_tail(lines: &VecDeque<String>) -> String {
     if lines.is_empty() {
         return "<empty>".to_string();
     }
-    let mut out = String::new();
-    for (i, line) in lines.iter().enumerate() {
-        if i > 0 {
-            out.push_str(STDERR_TAIL_SEPARATOR);
-        }
+    let mut iter = lines.iter();
+    let mut out = iter.next().unwrap().clone();
+    for line in iter {
+        out.push_str(STDERR_TAIL_SEPARATOR);
         out.push_str(line);
     }
     out

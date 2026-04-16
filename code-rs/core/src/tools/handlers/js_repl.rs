@@ -161,8 +161,8 @@ async fn emit_js_repl_exec_begin(
 async fn emit_js_repl_exec_end(
     sess: &Session,
     ctx: &crate::codex::ToolCallCtx,
-    stdout: String,
-    stderr: String,
+    stdout: &str,
+    stderr: &str,
     exit_code: i32,
     duration: std::time::Duration,
 ) {
@@ -170,8 +170,8 @@ async fn emit_js_repl_exec_end(
         ctx,
         EventMsg::ExecCommandEnd(ExecCommandEndEvent {
             call_id: ctx.call_id.clone(),
-            stdout,
-            stderr,
+            stdout: stdout.to_owned(),
+            stderr: stderr.to_owned(),
             exit_code,
             duration,
         }),
@@ -263,8 +263,8 @@ impl ToolHandler for JsReplToolHandler {
                 emit_js_repl_exec_end(
                     sess,
                     &ctx,
-                    result.output.clone(),
-                    String::new(),
+                    &result.output,
+                    "",
                     0,
                     started_at.elapsed(),
                 )
@@ -284,8 +284,8 @@ impl ToolHandler for JsReplToolHandler {
                 emit_js_repl_exec_end(
                     sess,
                     &ctx,
-                    err.output.clone(),
-                    err.error.clone(),
+                    &err.output,
+                    &err.error,
                     1,
                     started_at.elapsed(),
                 )

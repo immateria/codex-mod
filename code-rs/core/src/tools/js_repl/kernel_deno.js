@@ -376,9 +376,16 @@ let queue = Promise.resolve();
 let _fatalExitScheduled = false;
 
 function _scheduleFatalExit(reason, error) {
-  if (_fatalExitScheduled) return;
-  _fatalExitScheduled = true;
   const msg = error && error.message ? error.message : String(error ?? "unknown");
+  if (_fatalExitScheduled) {
+    // Already exiting — log the second error to stderr so it isn't lost.
+    try {
+      const detail = `js_repl kernel (additional) ${reason}: ${msg}\n`;
+      Deno.stderr.writeSync(encoder.encode(detail));
+    } catch { /* best effort */ }
+    return;
+  }
+  _fatalExitScheduled = true;
   try {
     send({
       type: "exec_result",

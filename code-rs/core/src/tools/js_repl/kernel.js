@@ -693,6 +693,13 @@ function sendFatalExecResultSync(kind, error) {
 
 function scheduleFatalExit(kind, error) {
   if (fatalExitScheduled) {
+    // Already exiting — log the second error to stderr so it isn't lost.
+    try {
+      fs.writeSync(
+        process.stderr.fd,
+        `js_repl kernel (additional) ${kind}: ${formatErrorMessage(error)}\n`,
+      );
+    } catch { /* best effort */ }
     process.exitCode = 1;
     return;
   }
