@@ -624,6 +624,11 @@ async function handleExec(message) {
   // for errors involving prior-cell bindings.
   let redeclared = [];
 
+  // Background tasks (un-awaited tool calls, etc.) tracked per exec so
+  // we can await them before finalising the result.  Unobserved failures
+  // are surfaced as the cell error.
+  const pendingBackgroundTasks = new Set();
+
   const tool = (toolName, args) => {
     if (typeof toolName !== "string" || !toolName) {
       return Promise.reject(new Error("codex.tool expects a tool name string"));
@@ -642,7 +647,7 @@ async function handleExec(message) {
       argumentsJson = JSON.stringify(args);
     }
 
-    return new Promise((resolve, reject) => {
+    const operation = new Promise((resolve, reject) => {
       const payload = {
         type: "run_tool",
         id,
@@ -659,6 +664,29 @@ async function handleExec(message) {
         resolve(res.response);
       });
     });
+
+    // Track as a background task so un-awaited calls are caught.
+    const observation = { observed: false };
+    const tracked = operation.then(
+      () => ({ ok: true, error: null, observation }),
+      (error) => ({ ok: false, error, observation }),
+    );
+    pendingBackgroundTasks.add(tracked);
+
+    // Return a thenable that marks itself as observed when the caller
+    // interacts with it (via await, .then, .catch, or .finally).
+    return {
+      then(onFulfilled, onRejected) {
+        observation.observed = true;
+        const p = operation.then(onFulfilled, onRejected);
+        // Prevent unhandled-rejection crashes when no error handler is
+        // provided (e.g. `.then(f)` without `.catch()`).
+        if (!onRejected) p.catch(() => {});
+        return p;
+      },
+      catch(onRejected) { observation.observed = true; return operation.catch(onRejected); },
+      finally(onFinally) { observation.observed = true; return operation.finally(onFinally); },
+    };
   };
 
   try {
@@ -730,6 +758,20 @@ async function handleExec(message) {
     });
 
     await module.evaluate();
+
+    // Await any un-awaited background tasks (tool calls, etc.) before
+    // snapshotting.  Surface the first unobserved failure as a cell error.
+    if (pendingBackgroundTasks.size > 0) {
+      const bgResults = await Promise.all([...pendingBackgroundTasks]);
+      const unhandled = bgResults.filter((r) => !r.ok && !r.observation.observed);
+      if (unhandled.length === 1) {
+        throw unhandled[0].error;
+      }
+      if (unhandled.length > 1) {
+        const combined = unhandled.map((r) => r.error.message).join("; ");
+        throw new Error(`${unhandled.length} un-awaited tool calls failed: ${combined}`);
+      }
+    }
 
     // Snapshot the namespace values so the next cell can access them
     // without retaining a reference to this module.
@@ -811,11 +853,13 @@ async function handleExec(message) {
   } finally {
     // End the generation immediately so background timers/callbacks are dead.
     _cancelStaleTimers();
-    // Prune any un-awaited tool call resolvers from this exec to prevent
-    // unbounded growth of pendingTool if codex.tool() is called without await.
-    for (const [callId] of pendingTool) {
+    // Prune any un-awaited tool call resolvers from this exec.  Fire
+    // each with a synthetic error so that captured promises settle
+    // instead of hanging indefinitely.
+    for (const [callId, resolver] of pendingTool) {
       if (callId.startsWith(`${message.id}-tool-`)) {
         pendingTool.delete(callId);
+        resolver({ ok: false, error: "cell terminated before tool call completed" });
       }
     }
     if (activeExecId === message.id) {
