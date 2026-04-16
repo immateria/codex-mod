@@ -497,9 +497,9 @@ impl ChatWidget<'_> {
             HistoryCellType::Context => "Context".to_owned(),
             HistoryCellType::AnimatedWelcome => "AnimatedWelcome".to_owned(),
             HistoryCellType::Loading => "Loading".to_owned(),
-            HistoryCellType::JsRepl { status } => {
+            HistoryCellType::Repl { status } => {
                 let s = exec_status_label(status);
-                format!("JsRepl:{s}")
+                format!("Repl:{s}")
             }
         }
     }

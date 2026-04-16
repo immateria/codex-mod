@@ -1,4 +1,4 @@
-// Shared logic for js_repl kernels (Node and Deno).
+// Shared logic for REPL kernels (Node and Deno).
 // Pure functions with no runtime-specific dependencies.
 //
 // Node loads this via require(), Deno via import().  Both runtimes write

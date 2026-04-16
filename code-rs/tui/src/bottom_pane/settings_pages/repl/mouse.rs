@@ -13,7 +13,7 @@ use crate::ui_interaction::{
     SETTINGS_LIST_MOUSE_CONFIG,
 };
 
-impl JsReplSettingsView {
+impl ReplSettingsView {
     fn handle_mouse_event_direct_impl(
         &mut self,
         mouse_event: MouseEvent,

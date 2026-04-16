@@ -1776,7 +1776,7 @@ fn default_hotkey_exec_output_fold() -> TuiHotkey {
     TuiHotkey::legacy()
 }
 
-fn default_hotkey_js_repl_code_fold() -> TuiHotkey {
+fn default_hotkey_repl_code_fold() -> TuiHotkey {
     TuiHotkey::legacy()
 }
 
@@ -1808,7 +1808,7 @@ pub struct TuiHotkeysOverrides {
 
     /// Keyboard shortcut for toggling JS REPL code folding (history shortcut).
     #[serde(default)]
-    pub js_repl_code_fold: Option<TuiHotkey>,
+    pub repl_code_fold: Option<TuiHotkey>,
 
     /// Keyboard shortcut for jumping to the parent tool call (history shortcut).
     #[serde(default)]
@@ -1847,8 +1847,8 @@ pub struct TuiHotkeysConfig {
     /// Keyboard shortcut for toggling code folding on the latest JS REPL cell.
     ///
     /// Defaults to the legacy mapping (`\\` while the composer is empty).
-    #[serde(default = "default_hotkey_js_repl_code_fold")]
-    pub js_repl_code_fold: TuiHotkey,
+    #[serde(default = "default_hotkey_repl_code_fold")]
+    pub repl_code_fold: TuiHotkey,
 
     /// Keyboard shortcut for jumping to the parent of the latest nested tool call.
     ///
@@ -1907,7 +1907,7 @@ impl Default for TuiHotkeysConfig {
             shell_selector: default_hotkey_shell_selector(),
             network_settings: default_hotkey_network_settings(),
             exec_output_fold: default_hotkey_exec_output_fold(),
-            js_repl_code_fold: default_hotkey_js_repl_code_fold(),
+            repl_code_fold: default_hotkey_repl_code_fold(),
             jump_to_parent_call: default_hotkey_jump_to_parent_call(),
             jump_to_latest_child_call: default_hotkey_jump_to_latest_child_call(),
             macos: None,
@@ -1984,7 +1984,7 @@ pub struct ResolvedTuiHotkeys {
     pub shell_selector: TuiHotkey,
     pub network_settings: TuiHotkey,
     pub exec_output_fold: TuiHotkey,
-    pub js_repl_code_fold: TuiHotkey,
+    pub repl_code_fold: TuiHotkey,
     pub jump_to_parent_call: TuiHotkey,
     pub jump_to_latest_child_call: TuiHotkey,
 }
@@ -2028,7 +2028,7 @@ impl TuiHotkeysConfig {
             shell_selector: self.shell_selector,
             network_settings: self.network_settings,
             exec_output_fold: self.exec_output_fold,
-            js_repl_code_fold: self.js_repl_code_fold,
+            repl_code_fold: self.repl_code_fold,
             jump_to_parent_call: self.jump_to_parent_call,
             jump_to_latest_child_call: self.jump_to_latest_child_call,
         };
@@ -2077,8 +2077,8 @@ fn apply_tui_hotkey_overrides(out: &mut ResolvedTuiHotkeys, overrides: &TuiHotke
     if let Some(value) = overrides.exec_output_fold {
         out.exec_output_fold = value;
     }
-    if let Some(value) = overrides.js_repl_code_fold {
-        out.js_repl_code_fold = value;
+    if let Some(value) = overrides.repl_code_fold {
+        out.repl_code_fold = value;
     }
     if let Some(value) = overrides.jump_to_parent_call {
         out.jump_to_parent_call = value;
@@ -2128,7 +2128,7 @@ fn sanitize_resolved_hotkeys(out: &mut ResolvedTuiHotkeys, env: TuiHotkeysEnv) {
 
     let history = [
         &mut out.exec_output_fold,
-        &mut out.js_repl_code_fold,
+        &mut out.repl_code_fold,
         &mut out.jump_to_parent_call,
         &mut out.jump_to_latest_child_call,
     ];
@@ -2161,7 +2161,7 @@ fn sanitize_resolved_hotkeys(out: &mut ResolvedTuiHotkeys, env: TuiHotkeysEnv) {
         &mut out.shell_selector,
         &mut out.network_settings,
         &mut out.exec_output_fold,
-        &mut out.js_repl_code_fold,
+        &mut out.repl_code_fold,
         &mut out.jump_to_parent_call,
         &mut out.jump_to_latest_child_call,
     ];

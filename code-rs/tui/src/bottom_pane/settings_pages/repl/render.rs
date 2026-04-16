@@ -5,7 +5,7 @@ use ratatui::layout::Rect;
 
 use crate::bottom_pane::chrome::ChromeMode;
 
-impl JsReplSettingsView {
+impl ReplSettingsView {
     fn render_main_impl(&self, area: Rect, buf: &mut Buffer, chrome: ChromeMode) {
         let rows = self.build_rows();
         let total = rows.len();

@@ -87,8 +87,8 @@ impl ToolRouter {
         let read_file: Arc<dyn ToolHandler> = Arc::new(handlers::read_file::ReadFileToolHandler);
         let list_dir: Arc<dyn ToolHandler> = Arc::new(handlers::list_dir::ListDirToolHandler);
         let grep_files: Arc<dyn ToolHandler> = Arc::new(handlers::grep_files::GrepFilesToolHandler);
-        let js_repl: Arc<dyn ToolHandler> = Arc::new(handlers::js_repl::JsReplToolHandler);
-        let js_repl_reset: Arc<dyn ToolHandler> = Arc::new(handlers::js_repl::JsReplResetToolHandler);
+        let repl_handler: Arc<dyn ToolHandler> = Arc::new(handlers::repl::ReplToolHandler);
+        let repl_reset_handler: Arc<dyn ToolHandler> = Arc::new(handlers::repl::ReplResetToolHandler);
         let agent: Arc<dyn ToolHandler> = Arc::new(handlers::agent::AgentToolHandler);
         let browser: Arc<dyn ToolHandler> = Arc::new(handlers::browser::BrowserToolHandler);
         let web_fetch: Arc<dyn ToolHandler> = Arc::new(handlers::web_fetch::WebFetchToolHandler);
@@ -117,8 +117,8 @@ impl ToolRouter {
         handlers.insert(crate::openai_tools::READ_FILE_TOOL_NAME, read_file);
         handlers.insert(crate::openai_tools::LIST_DIR_TOOL_NAME, list_dir);
         handlers.insert(crate::openai_tools::GREP_FILES_TOOL_NAME, grep_files);
-        handlers.insert(crate::openai_tools::JS_REPL_TOOL_NAME, js_repl);
-        handlers.insert(crate::openai_tools::JS_REPL_RESET_TOOL_NAME, js_repl_reset);
+        handlers.insert(crate::openai_tools::REPL_TOOL_NAME, repl_handler);
+        handlers.insert(crate::openai_tools::REPL_RESET_TOOL_NAME, repl_reset_handler);
         handlers.insert("agent", agent);
         handlers.insert("browser", browser);
         handlers.insert("web_fetch", web_fetch);
@@ -459,8 +459,8 @@ mod tests {
             use_streamable_shell_tool: true,
             include_view_image_tool: true,
         });
-        let mut js_repl_config = default_config.clone();
-        js_repl_config.js_repl = true;
+        let mut repl_config = default_config.clone();
+        repl_config.repl = true;
 
         let router = ToolRouter::global();
         let cases: Vec<(&'static str, ToolsConfig)> = vec![
@@ -468,7 +468,7 @@ mod tests {
             ("search_tool_enabled", search_tool_config),
             ("apply_patch_enabled", apply_patch_config),
             ("streamable_shell_enabled", streamable_shell_config),
-            ("js_repl_enabled", js_repl_config),
+            ("repl_enabled", repl_config),
         ];
 
         for (label, config) in cases {

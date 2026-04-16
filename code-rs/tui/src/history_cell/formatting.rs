@@ -678,7 +678,7 @@ pub(crate) fn should_auto_collapse_output(output: Option<&CommandOutput>) -> boo
         > OUTPUT_FOLD_THRESHOLD
 }
 
-/// Shared output/streaming state sync used by `ExecCell` and `JsReplCell`.
+/// Shared output/streaming state sync used by `ExecCell` and `ReplCell`.
 ///
 /// Callers are responsible for capturing `was_running` before overwriting their
 /// stored record so we only auto-collapse on the running -> completed
@@ -742,7 +742,7 @@ pub(crate) struct FoldSectionLimits {
 }
 
 impl FoldConfig {
-    /// Standard output fold (`ExecCell`, `JsReplCell`, `WebFetchToolCell`).
+    /// Standard output fold (`ExecCell`, `ReplCell`, `WebFetchToolCell`).
     pub(crate) fn output() -> Self {
         Self { threshold: OUTPUT_FOLD_THRESHOLD }
     }

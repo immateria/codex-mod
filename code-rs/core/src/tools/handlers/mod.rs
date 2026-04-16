@@ -7,7 +7,7 @@ pub(crate) mod exec_command;
 pub(crate) mod gh_run_wait;
 pub(crate) mod grep_files;
 pub(crate) mod image_view;
-pub(crate) mod js_repl;
+pub(crate) mod repl;
 pub(crate) mod list_dir;
 pub(crate) mod kill;
 pub(crate) mod mcp;

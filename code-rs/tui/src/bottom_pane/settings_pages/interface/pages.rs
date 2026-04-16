@@ -170,7 +170,7 @@ impl InterfaceSettingsView {
             RowKind::ExecOutputFoldHotkey => {
                 format!("Hotkey for folding/unfolding the latest exec output (function key or {ca}+letter). Defaults to legacy `[`, while composer is empty.")
             }
-            RowKind::JsReplCodeFoldHotkey => {
+            RowKind::ReplCodeFoldHotkey => {
                 format!("Hotkey for folding/unfolding the latest JS REPL code (function key or {ca}+letter). Defaults to legacy `\\`, while composer is empty.")
             }
             RowKind::JumpToParentCallHotkey => {

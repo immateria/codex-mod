@@ -1,7 +1,7 @@
 use crate::codex::Session;
 use crate::protocol::EventMsg;
 use crate::protocol::ExecCommandEndEvent;
-use crate::protocol::JsReplExecBeginEvent;
+use crate::protocol::ReplExecBeginEvent;
 use crate::tools::context::ToolInvocation;
 use crate::tools::context::ToolPayload;
 use crate::tools::registry::ToolHandler;
@@ -15,17 +15,17 @@ use serde::Deserialize;
 use serde_json::Value as JsonValue;
 use std::time::Instant;
 
-pub(crate) struct JsReplToolHandler;
-pub(crate) struct JsReplResetToolHandler;
+pub(crate) struct ReplToolHandler;
+pub(crate) struct ReplResetToolHandler;
 
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
-struct JsReplFunctionArgs {
+struct ReplFunctionArgs {
     code: String,
     #[serde(default)]
     timeout_ms: Option<u64>,
     #[serde(default)]
-    runtime: Option<crate::config::JsReplRuntimeKindToml>,
+    runtime: Option<crate::config::ReplRuntimeKindToml>,
 }
 
 fn join_outputs(stdout: &str, stderr: &str) -> String {
@@ -38,14 +38,14 @@ fn join_outputs(stdout: &str, stderr: &str) -> String {
     }
 }
 
-fn parse_freeform_args(input: &str) -> Result<crate::tools::js_repl::JsReplArgs, String> {
+fn parse_freeform_args(input: &str) -> Result<crate::tools::repl::ReplArgs, String> {
     if input.trim().is_empty() {
         return Err(
-            "js_repl expects raw JavaScript tool input (non-empty). Provide JS source text, optionally with first-line `// codex-js-repl: ...`.".to_owned(),
+            "repl expects raw JavaScript tool input (non-empty). Provide JS source text, optionally with first-line `// codex-repl: ...`.".to_owned(),
         );
     }
 
-    let mut args = crate::tools::js_repl::JsReplArgs {
+    let mut args = crate::tools::repl::ReplArgs {
         code: input.to_owned(),
         timeout_ms: None,
         runtime: None,
@@ -55,53 +55,53 @@ fn parse_freeform_args(input: &str) -> Result<crate::tools::js_repl::JsReplArgs,
     let first_line = lines.next().unwrap_or_default();
     let rest = lines.next().unwrap_or_default();
     let trimmed = first_line.trim_start();
-    let Some(pragma) = trimmed.strip_prefix(crate::tools::js_repl::JS_REPL_PRAGMA_PREFIX) else {
+    let Some(pragma) = trimmed.strip_prefix(crate::tools::repl::REPL_PRAGMA_PREFIX) else {
         reject_json_or_quoted_source(&args.code)?;
         return Ok(args);
     };
 
     let mut timeout_ms: Option<u64> = None;
-    let mut runtime: Option<crate::config::JsReplRuntimeKindToml> = None;
+    let mut runtime: Option<crate::config::ReplRuntimeKindToml> = None;
     let directive = pragma.trim();
     if !directive.is_empty() {
         for token in directive.split_whitespace() {
             let (key, value) = token.split_once('=').ok_or_else(|| {
                 format!(
-                    "js_repl pragma expects space-separated key=value pairs (supported keys: timeout_ms, runtime); got `{token}`"
+                    "repl pragma expects space-separated key=value pairs (supported keys: timeout_ms, runtime); got `{token}`"
                 )
             })?;
             match key {
                 "timeout_ms" => {
                     if timeout_ms.is_some() {
-                        return Err("js_repl pragma specifies timeout_ms more than once".to_owned());
+                        return Err("repl pragma specifies timeout_ms more than once".to_owned());
                     }
                     let parsed = value.parse::<u64>().map_err(|_| {
-                        format!("js_repl pragma timeout_ms must be an integer; got `{value}`")
+                        format!("repl pragma timeout_ms must be an integer; got `{value}`")
                     })?;
                     timeout_ms = Some(parsed);
                 }
                 "runtime" => {
                     if runtime.is_some() {
-                        return Err("js_repl pragma specifies runtime more than once".to_owned());
+                        return Err("repl pragma specifies runtime more than once".to_owned());
                     }
                     let normalized = value.trim().to_ascii_lowercase();
-                    runtime = crate::config::JsReplRuntimeKindToml::ALL
+                    runtime = crate::config::ReplRuntimeKindToml::ALL
                         .iter()
                         .find(|k| k.label() == normalized)
                         .copied();
                     if runtime.is_none() {
-                        let valid: Vec<_> = crate::config::JsReplRuntimeKindToml::ALL
+                        let valid: Vec<_> = crate::config::ReplRuntimeKindToml::ALL
                             .iter()
                             .map(|k| k.label())
                             .collect();
                         return Err(format!(
-                            "js_repl pragma runtime must be one of {valid:?}; got `{value}`"
+                            "repl pragma runtime must be one of {valid:?}; got `{value}`"
                         ));
                     }
                 }
                 _ => {
                     return Err(format!(
-                        "js_repl pragma only supports timeout_ms and runtime; got `{key}`"
+                        "repl pragma only supports timeout_ms and runtime; got `{key}`"
                     ));
                 }
             }
@@ -109,7 +109,7 @@ fn parse_freeform_args(input: &str) -> Result<crate::tools::js_repl::JsReplArgs,
     }
 
     if rest.trim().is_empty() {
-        return Err("js_repl pragma must be followed by JavaScript source on subsequent lines".to_owned());
+        return Err("repl pragma must be followed by JavaScript source on subsequent lines".to_owned());
     }
 
     reject_json_or_quoted_source(rest)?;
@@ -123,7 +123,7 @@ fn reject_json_or_quoted_source(code: &str) -> Result<(), String> {
     let trimmed = code.trim();
     if trimmed.starts_with("```") {
         return Err(
-            "js_repl expects raw JavaScript source, not markdown code fences. Resend plain JS only (optional first line `// codex-js-repl: ...`).".to_owned(),
+            "repl expects raw JavaScript source, not markdown code fences. Resend plain JS only (optional first line `// codex-repl: ...`).".to_owned(),
         );
     }
     let Ok(value) = serde_json::from_str::<JsonValue>(trimmed) else {
@@ -131,22 +131,22 @@ fn reject_json_or_quoted_source(code: &str) -> Result<(), String> {
     };
     match value {
         JsonValue::Object(_) | JsonValue::String(_) => Err(
-            "js_repl is a freeform tool and expects raw JavaScript source. Resend plain JS only (optional first line `// codex-js-repl: ...`); do not send JSON (`{\"code\":...}`), quoted code, or markdown fences.".to_owned(),
+            "repl is a freeform tool and expects raw JavaScript source. Resend plain JS only (optional first line `// codex-repl: ...`); do not send JSON (`{\"code\":...}`), quoted code, or markdown fences.".to_owned(),
         ),
         _ => Ok(()),
     }
 }
 
-async fn emit_js_repl_exec_begin(
+async fn emit_repl_exec_begin(
     sess: &Session,
     ctx: &crate::codex::ToolCallCtx,
     code: &str,
-    manager: &crate::tools::js_repl::JsReplManager,
+    manager: &crate::tools::repl::ReplManager,
     timeout_ms: u64,
 ) {
     sess.send_ordered_from_ctx(
         ctx,
-        EventMsg::JsReplExecBegin(JsReplExecBeginEvent {
+        EventMsg::ReplExecBegin(ReplExecBeginEvent {
             call_id: ctx.call_id.clone(),
             code: code.to_owned(),
             runtime_kind: manager.runtime_kind_str().to_owned(),
@@ -158,7 +158,7 @@ async fn emit_js_repl_exec_begin(
     .await;
 }
 
-async fn emit_js_repl_exec_end(
+async fn emit_repl_exec_end(
     sess: &Session,
     ctx: &crate::codex::ToolCallCtx,
     stdout: &str,
@@ -180,7 +180,7 @@ async fn emit_js_repl_exec_end(
 }
 
 #[async_trait]
-impl ToolHandler for JsReplToolHandler {
+impl ToolHandler for ReplToolHandler {
     async fn handle(
         &self,
         sess: &Session,
@@ -195,11 +195,11 @@ impl ToolHandler for JsReplToolHandler {
         } = inv;
         let outputs_custom = payload.outputs_custom();
 
-        if !sess.js_repl_enabled() {
+        if !sess.repl_enabled() {
             return unsupported_tool_call_output(
                 &ctx.call_id,
                 outputs_custom,
-                "js_repl is disabled (set `[tools].js_repl=true`)".to_owned(),
+                "repl is disabled (set `[tools].repl=true`)".to_owned(),
             );
         }
 
@@ -210,8 +210,8 @@ impl ToolHandler for JsReplToolHandler {
                     return unsupported_tool_call_output(&ctx.call_id, true, err);
                 }
             },
-            ToolPayload::Function { arguments } => match serde_json::from_str::<JsReplFunctionArgs>(&arguments) {
-                Ok(args) => crate::tools::js_repl::JsReplArgs {
+            ToolPayload::Function { arguments } => match serde_json::from_str::<ReplFunctionArgs>(&arguments) {
+                Ok(args) => crate::tools::repl::ReplArgs {
                     code: args.code,
                     timeout_ms: args.timeout_ms,
                     runtime: args.runtime,
@@ -220,7 +220,7 @@ impl ToolHandler for JsReplToolHandler {
                     return unsupported_tool_call_output(
                         &ctx.call_id,
                         outputs_custom,
-                        format!("invalid js_repl arguments: {err}"),
+                        format!("invalid repl arguments: {err}"),
                     );
                 }
             },
@@ -228,13 +228,13 @@ impl ToolHandler for JsReplToolHandler {
                 return unsupported_tool_call_output(
                     &ctx.call_id,
                     outputs_custom,
-                    format!("js_repl received unsupported payload: {other:?}"),
+                    format!("repl received unsupported payload: {other:?}"),
                 );
             }
         };
 
-        let runtime_kind = args.runtime.unwrap_or_else(|| sess.js_repl_default_runtime());
-        let manager = match sess.js_repl_manager_for_runtime(runtime_kind).await {
+        let runtime_kind = args.runtime.unwrap_or_else(|| sess.repl_default_runtime());
+        let manager = match sess.repl_manager_for_runtime(runtime_kind).await {
             Ok(manager) => manager,
             Err(err) => {
                 return unsupported_tool_call_output(&ctx.call_id, outputs_custom, err);
@@ -244,9 +244,9 @@ impl ToolHandler for JsReplToolHandler {
         let started_at = Instant::now();
         let timeout_ms = args
             .timeout_ms
-            .unwrap_or(crate::tools::js_repl::DEFAULT_TIMEOUT_MS)
-            .min(crate::tools::js_repl::MAX_TIMEOUT_MS);
-        emit_js_repl_exec_begin(sess, &ctx, &args.code, &manager, timeout_ms).await;
+            .unwrap_or(crate::tools::repl::DEFAULT_TIMEOUT_MS)
+            .min(crate::tools::repl::MAX_TIMEOUT_MS);
+        emit_repl_exec_begin(sess, &ctx, &args.code, &manager, timeout_ms).await;
 
         match manager
             .execute(
@@ -260,7 +260,7 @@ impl ToolHandler for JsReplToolHandler {
             .await
         {
             Ok(result) => {
-                emit_js_repl_exec_end(
+                emit_repl_exec_end(
                     sess,
                     &ctx,
                     &result.output,
@@ -281,7 +281,7 @@ impl ToolHandler for JsReplToolHandler {
             }
             Err(err) => {
                 let combined = join_outputs(&err.output, &err.error);
-                emit_js_repl_exec_end(
+                emit_repl_exec_end(
                     sess,
                     &ctx,
                     &err.output,
@@ -305,7 +305,7 @@ impl ToolHandler for JsReplToolHandler {
 }
 
 #[async_trait]
-impl ToolHandler for JsReplResetToolHandler {
+impl ToolHandler for ReplResetToolHandler {
     async fn handle(
         &self,
         sess: &Session,
@@ -314,17 +314,17 @@ impl ToolHandler for JsReplResetToolHandler {
     ) -> ResponseInputItem {
         let outputs_custom = inv.payload.outputs_custom();
 
-        if !sess.js_repl_enabled() {
+        if !sess.repl_enabled() {
             return unsupported_tool_call_output(
                 &inv.ctx.call_id,
                 outputs_custom,
-                "js_repl is disabled (set `[tools].js_repl=true`)".to_owned(),
+                "repl is disabled (set `[tools].repl=true`)".to_owned(),
             );
         }
 
         let mut first_err: Option<String> = None;
-        for &runtime in crate::config::JsReplRuntimeKindToml::ALL {
-            if let Some(manager) = sess.js_repl_manager_if_started_for_runtime(runtime)
+        for &runtime in crate::config::ReplRuntimeKindToml::ALL {
+            if let Some(manager) = sess.repl_manager_if_started_for_runtime(runtime)
                 && let Err(err) = manager.reset().await
                 && first_err.is_none()
             {
@@ -335,7 +335,7 @@ impl ToolHandler for JsReplResetToolHandler {
             return unsupported_tool_call_output(&inv.ctx.call_id, outputs_custom, err);
         }
 
-        tool_output(inv.ctx.call_id, "js_repl kernel reset")
+        tool_output(inv.ctx.call_id, "repl kernel reset")
     }
 }
 
@@ -353,7 +353,7 @@ mod tests {
 
     #[test]
     fn parse_freeform_args_with_pragma() {
-        let input = "// codex-js-repl: timeout_ms=15000\nconsole.log('ok');";
+        let input = "// codex-repl: timeout_ms=15000\nconsole.log('ok');";
         let args = parse_freeform_args(input).expect("parse args");
         assert_eq!(args.code, "console.log('ok');");
         assert_eq!(args.timeout_ms, Some(15_000));
@@ -362,33 +362,33 @@ mod tests {
 
     #[test]
     fn parse_freeform_args_with_runtime() {
-        let input = "// codex-js-repl: runtime=deno timeout_ms=15000\nconsole.log('ok');";
+        let input = "// codex-repl: runtime=deno timeout_ms=15000\nconsole.log('ok');";
         let args = parse_freeform_args(input).expect("parse args");
         assert_eq!(args.code, "console.log('ok');");
         assert_eq!(args.timeout_ms, Some(15_000));
-        assert_eq!(args.runtime, Some(crate::config::JsReplRuntimeKindToml::Deno));
+        assert_eq!(args.runtime, Some(crate::config::ReplRuntimeKindToml::Deno));
     }
 
     #[test]
     fn parse_freeform_args_rejects_unknown_key() {
         let err =
-            parse_freeform_args("// codex-js-repl: nope=1\nconsole.log('ok');").expect_err("err");
+            parse_freeform_args("// codex-repl: nope=1\nconsole.log('ok');").expect_err("err");
         assert_eq!(
             err,
-            "js_repl pragma only supports timeout_ms and runtime; got `nope`"
+            "repl pragma only supports timeout_ms and runtime; got `nope`"
         );
     }
 
     #[test]
     fn parse_freeform_args_with_node_runtime() {
-        let input = "// codex-js-repl: runtime=node\nconsole.log('ok');";
+        let input = "// codex-repl: runtime=node\nconsole.log('ok');";
         let args = parse_freeform_args(input).expect("parse args");
-        assert_eq!(args.runtime, Some(crate::config::JsReplRuntimeKindToml::Node));
+        assert_eq!(args.runtime, Some(crate::config::ReplRuntimeKindToml::Node));
     }
 
     #[test]
     fn parse_freeform_args_rejects_unknown_runtime() {
-        let err = parse_freeform_args("// codex-js-repl: runtime=bun\nconsole.log('ok');")
+        let err = parse_freeform_args("// codex-repl: runtime=bun\nconsole.log('ok');")
             .expect_err("err");
         assert!(
             err.contains("bun"),
@@ -407,7 +407,7 @@ mod tests {
 
     #[test]
     fn parse_freeform_args_rejects_reset_key() {
-        let err = parse_freeform_args("// codex-js-repl: reset=true\nconsole.log('ok');")
+        let err = parse_freeform_args("// codex-repl: reset=true\nconsole.log('ok');")
             .expect_err("err");
         assert!(
             err.contains("reset"),
@@ -418,7 +418,7 @@ mod tests {
     #[test]
     fn parse_freeform_args_rejects_duplicate_runtime() {
         let err = parse_freeform_args(
-            "// codex-js-repl: runtime=node runtime=deno\nconsole.log('ok');",
+            "// codex-repl: runtime=node runtime=deno\nconsole.log('ok');",
         )
         .expect_err("err");
         assert!(
@@ -429,8 +429,8 @@ mod tests {
 
     #[test]
     fn parse_freeform_args_runtime_case_insensitive() {
-        let input = "// codex-js-repl: runtime=NODE\nconsole.log('ok');";
+        let input = "// codex-repl: runtime=NODE\nconsole.log('ok');";
         let args = parse_freeform_args(input).expect("parse args");
-        assert_eq!(args.runtime, Some(crate::config::JsReplRuntimeKindToml::Node));
+        assert_eq!(args.runtime, Some(crate::config::ReplRuntimeKindToml::Node));
     }
 }

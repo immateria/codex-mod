@@ -125,8 +125,8 @@ impl ChatWidget<'_> {
         })
     }
 
-    fn open_js_repl_settings_section(&mut self) -> bool {
-        let view = self.build_js_repl_settings_view();
+    fn open_repl_settings_section(&mut self) -> bool {
+        let view = self.build_repl_settings_view();
         self.open_bottom_pane_settings(move |this| {
             this.bottom_pane.show_settings_view(view);
         })
@@ -224,7 +224,7 @@ impl ChatWidget<'_> {
             SettingsSection::Validation                         => self.open_validation_settings_section(),
             SettingsSection::Notifications                      => self.open_notifications_settings_section(),
             SettingsSection::Mcp                                => self.open_mcp_settings_section(),
-            SettingsSection::JsRepl                             => self.open_js_repl_settings_section(),
+            SettingsSection::Repl                             => self.open_repl_settings_section(),
             #[cfg(feature = "managed-network-proxy")]
             SettingsSection::Network                            => self.open_network_settings_section(),
 
@@ -290,7 +290,7 @@ impl ChatWidget<'_> {
             | SettingsSection::Validation
             | SettingsSection::AutoDrive
             | SettingsSection::Mcp
-            | SettingsSection::JsRepl
+            | SettingsSection::Repl
             | SettingsSection::Notifications
             | SettingsSection::Prompts
             | SettingsSection::Accounts

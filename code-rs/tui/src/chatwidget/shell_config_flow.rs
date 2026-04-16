@@ -268,8 +268,8 @@ impl ChatWidget<'_> {
         self.request_redraw();
     }
 
-    pub(crate) fn apply_js_repl_settings(&mut self, settings: code_core::config::JsReplSettingsToml) {
-        self.config.apply_js_repl_settings(&settings);
+    pub(crate) fn apply_repl_settings(&mut self, settings: code_core::config::ReplSettingsToml) {
+        self.config.apply_repl_settings(&settings);
         self.submit_configure_session_for_current_settings();
         self.refresh_settings_overview_rows();
         self.request_redraw();

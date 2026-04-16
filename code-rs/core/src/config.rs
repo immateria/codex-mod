@@ -116,7 +116,7 @@ pub use sources::{
     set_global_memories_settings,
     set_network_proxy_settings,
     set_exec_limits_settings,
-    set_js_repl_settings,
+    set_repl_settings,
     set_planning_model,
     set_project_access_mode,
     set_project_memories_settings,
@@ -561,24 +561,24 @@ pub struct Config {
     pub tools_web_search_external: bool,
     /// Enable MCP tool discovery helper (`search_tool_bm25`).
     pub tools_search_tool: bool,
-    /// Enable the optional `js_repl` tool (off by default).
-    pub tools_js_repl: bool,
-    /// Select the default runtime used by `js_repl` (default: `node`).
-    pub js_repl_default_runtime: JsReplRuntimeKindToml,
-    /// Optional explicit path to the Node runtime executable used by `js_repl`.
-    pub js_repl_node_path: Option<PathBuf>,
-    /// Additional arguments passed to the Node `js_repl` runtime process.
-    pub js_repl_node_args: Vec<String>,
-    /// Optional explicit path to the Deno runtime executable used by `js_repl`.
-    pub js_repl_deno_path: Option<PathBuf>,
-    /// Additional arguments passed to the Deno `js_repl` runtime process.
-    pub js_repl_deno_args: Vec<String>,
+    /// Enable the optional `repl` tool (off by default).
+    pub tools_repl: bool,
+    /// Select the default runtime used by `repl` (default: `node`).
+    pub repl_default_runtime: ReplRuntimeKindToml,
+    /// Optional explicit path to the Node runtime executable used by `repl`.
+    pub repl_node_path: Option<PathBuf>,
+    /// Additional arguments passed to the Node `repl` runtime process.
+    pub repl_node_args: Vec<String>,
+    /// Optional explicit path to the Deno runtime executable used by `repl`.
+    pub repl_deno_path: Option<PathBuf>,
+    /// Additional arguments passed to the Deno `repl` runtime process.
+    pub repl_deno_args: Vec<String>,
     /// Extra directories to search for packages when using the Node runtime.
     ///
-    /// These paths are passed to the `js_repl` kernel via `CODEX_JS_REPL_NODE_MODULE_DIRS`.
+    /// These paths are passed to the `repl` kernel via `CODEX_REPL_NODE_MODULE_DIRS`.
     /// Only packages-only (bare) imports are allowed (for example `"lodash"` or `"@scope/pkg"`).
     /// Relative/absolute/file/url imports are rejected by the kernel.
-    pub js_repl_node_module_dirs: Vec<PathBuf>,
+    pub repl_node_module_dirs: Vec<PathBuf>,
     /// Optional allow-list of domains for `web_search` `filters.allowed_domains`
     pub tools_web_search_allowed_domains: Option<Vec<String>>,
     /// Experimental: enable streamable shell tool selection (off by default).
@@ -695,29 +695,29 @@ impl Config {
         Config::load_from_base_config_with_overrides(cfg, overrides, code_home)
     }
 
-    /// Build a [`JsReplRuntimeConfig`](crate::tools::js_repl::JsReplRuntimeConfig) for the
+    /// Build a [`ReplRuntimeConfig`](crate::tools::repl::ReplRuntimeConfig) for the
     /// given runtime kind from the merged config fields.
     ///
     /// This is the single access point for per-runtime path, args, and
     /// module-dirs — callers should use this instead of matching on the
     /// runtime kind and picking flat fields by hand.
-    pub fn js_repl_runtime_config(
+    pub fn repl_runtime_config(
         &self,
-        kind: JsReplRuntimeKindToml,
-    ) -> crate::tools::js_repl::JsReplRuntimeConfig {
+        kind: ReplRuntimeKindToml,
+    ) -> crate::tools::repl::ReplRuntimeConfig {
         let (runtime_path, runtime_args, node_module_dirs) = match kind {
-            JsReplRuntimeKindToml::Node => (
-                self.js_repl_node_path.clone(),
-                self.js_repl_node_args.clone(),
-                self.js_repl_node_module_dirs.clone(),
+            ReplRuntimeKindToml::Node => (
+                self.repl_node_path.clone(),
+                self.repl_node_args.clone(),
+                self.repl_node_module_dirs.clone(),
             ),
-            JsReplRuntimeKindToml::Deno => (
-                self.js_repl_deno_path.clone(),
-                self.js_repl_deno_args.clone(),
+            ReplRuntimeKindToml::Deno => (
+                self.repl_deno_path.clone(),
+                self.repl_deno_args.clone(),
                 Vec::new(),
             ),
         };
-        crate::tools::js_repl::JsReplRuntimeConfig {
+        crate::tools::repl::ReplRuntimeConfig {
             kind,
             runtime_path,
             runtime_args,
@@ -725,24 +725,24 @@ impl Config {
         }
     }
 
-    /// Apply a [`JsReplSettingsToml`] to the config, updating per-runtime
+    /// Apply a [`ReplSettingsToml`] to the config, updating per-runtime
     /// flat fields based on the selected runtime kind.
     ///
-    /// This is the write counterpart to [`Config::js_repl_runtime_config`].
-    pub fn apply_js_repl_settings(&mut self, settings: &JsReplSettingsToml) {
-        self.tools_js_repl = settings.enabled;
-        self.js_repl_default_runtime = settings.runtime;
+    /// This is the write counterpart to [`Config::repl_runtime_config`].
+    pub fn apply_repl_settings(&mut self, settings: &ReplSettingsToml) {
+        self.tools_repl = settings.enabled;
+        self.repl_default_runtime = settings.runtime;
         match settings.runtime {
-            JsReplRuntimeKindToml::Node => {
-                self.js_repl_node_path.clone_from(&settings.runtime_path);
-                self.js_repl_node_args.clone_from(&settings.runtime_args);
+            ReplRuntimeKindToml::Node => {
+                self.repl_node_path.clone_from(&settings.runtime_path);
+                self.repl_node_args.clone_from(&settings.runtime_args);
             }
-            JsReplRuntimeKindToml::Deno => {
-                self.js_repl_deno_path.clone_from(&settings.runtime_path);
-                self.js_repl_deno_args.clone_from(&settings.runtime_args);
+            ReplRuntimeKindToml::Deno => {
+                self.repl_deno_path.clone_from(&settings.runtime_path);
+                self.repl_deno_args.clone_from(&settings.runtime_args);
             }
         }
-        self.js_repl_node_module_dirs.clone_from(&settings.node_module_dirs);
+        self.repl_node_module_dirs.clone_from(&settings.node_module_dirs);
     }
 }
 
@@ -1143,13 +1143,13 @@ pub struct ProjectConfig {
 
 #[derive(Debug, Clone, Copy, Deserialize, Serialize, PartialEq, Eq, Hash, JsonSchema, Default)]
 #[serde(rename_all = "lowercase")]
-pub enum JsReplRuntimeKindToml {
+pub enum ReplRuntimeKindToml {
     #[default]
     Node,
     Deno,
 }
 
-impl JsReplRuntimeKindToml {
+impl ReplRuntimeKindToml {
     /// All known runtime variants, in definition order.
     pub const ALL: &[Self] = &[Self::Node, Self::Deno];
 
@@ -1192,8 +1192,8 @@ impl JsReplRuntimeKindToml {
                 can_enforce_network_without_seatbelt: true,
                 sandbox_env_passthrough: &[
                     "CODEX_JS_TMP_DIR",
-                    "CODEX_JS_REPL_RUNTIME",
-                    "CODEX_JS_REPL_RUNTIME_VERSION",
+                    "CODEX_REPL_RUNTIME",
+                    "CODEX_REPL_RUNTIME_VERSION",
                 ],
                 uses_node_module_dirs: false,
             },
@@ -1201,7 +1201,7 @@ impl JsReplRuntimeKindToml {
     }
 }
 
-impl std::fmt::Display for JsReplRuntimeKindToml {
+impl std::fmt::Display for ReplRuntimeKindToml {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str(self.label())
     }
@@ -1218,7 +1218,7 @@ pub enum RuntimeSandboxKind {
 }
 
 /// Capability descriptor for a JS REPL runtime.  Returned by
-/// [`JsReplRuntimeKindToml::capabilities`] and consumed by the command
+/// [`ReplRuntimeKindToml::capabilities`] and consumed by the command
 /// builder to make sandbox/network/module decisions data-driven.
 #[derive(Debug, Clone)]
 pub struct RuntimeCapabilities {
@@ -1237,18 +1237,18 @@ pub struct RuntimeCapabilities {
     pub uses_node_module_dirs: bool,
 }
 
-/// Settings for configuring the optional `js_repl` tool.
+/// Settings for configuring the optional `repl` tool.
 ///
 /// These values are persisted under `[tools]` in `config.toml`.
 #[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq, JsonSchema, Default)]
 #[schemars(deny_unknown_fields)]
 #[serde(default)]
-pub struct JsReplSettingsToml {
-    /// Enable the `js_repl` tool.
+pub struct ReplSettingsToml {
+    /// Enable the `repl` tool.
     pub enabled: bool,
 
-    /// Runtime kind used for `js_repl` (default: `node`).
-    pub runtime: JsReplRuntimeKindToml,
+    /// Runtime kind used for `repl` (default: `node`).
+    pub runtime: ReplRuntimeKindToml,
 
     /// Optional explicit path to the runtime executable (otherwise resolved from PATH).
     pub runtime_path: Option<PathBuf>,
@@ -1275,39 +1275,39 @@ pub struct ToolsToml {
     #[serde(default)]
     pub search_tool: Option<bool>,
 
-    /// Enable the optional `js_repl` tool (off by default).
+    /// Enable the optional `repl` tool (off by default).
     #[serde(default)]
-    pub js_repl: Option<bool>,
+    pub repl: Option<bool>,
 
-    /// Select the default runtime used by `js_repl` (default: `node`).
+    /// Select the default runtime used by `repl` (default: `node`).
     #[serde(default)]
-    pub js_repl_runtime: Option<JsReplRuntimeKindToml>,
+    pub repl_runtime: Option<ReplRuntimeKindToml>,
 
     /// Legacy: path to the default runtime executable. Prefer per-runtime
-    /// fields (`js_repl_node_path`, `js_repl_deno_path`) instead.
+    /// fields (`repl_node_path`, `repl_deno_path`) instead.
     #[serde(default)]
-    pub js_repl_runtime_path: Option<PathBuf>,
+    pub repl_runtime_path: Option<PathBuf>,
 
     /// Legacy: arguments for the default runtime. Prefer per-runtime
-    /// fields (`js_repl_node_args`, `js_repl_deno_args`) instead.
+    /// fields (`repl_node_args`, `repl_deno_args`) instead.
     #[serde(default)]
-    pub js_repl_runtime_args: Option<Vec<String>>,
+    pub repl_runtime_args: Option<Vec<String>>,
 
-    /// Explicit path to the Node runtime executable for `js_repl`.
+    /// Explicit path to the Node runtime executable for `repl`.
     #[serde(default)]
-    pub js_repl_node_path: Option<PathBuf>,
+    pub repl_node_path: Option<PathBuf>,
 
-    /// Additional arguments passed to the Node `js_repl` runtime process.
+    /// Additional arguments passed to the Node `repl` runtime process.
     #[serde(default)]
-    pub js_repl_node_args: Option<Vec<String>>,
+    pub repl_node_args: Option<Vec<String>>,
 
-    /// Explicit path to the Deno runtime executable for `js_repl`.
+    /// Explicit path to the Deno runtime executable for `repl`.
     #[serde(default)]
-    pub js_repl_deno_path: Option<PathBuf>,
+    pub repl_deno_path: Option<PathBuf>,
 
-    /// Additional arguments passed to the Deno `js_repl` runtime process.
+    /// Additional arguments passed to the Deno `repl` runtime process.
     #[serde(default)]
-    pub js_repl_deno_args: Option<Vec<String>>,
+    pub repl_deno_args: Option<Vec<String>>,
 
     /// Extra directories to search for packages when using the Node runtime.
     ///
@@ -1315,10 +1315,10 @@ pub struct ToolsToml {
     /// - a `node_modules` directory, or
     /// - a project root containing a `node_modules` directory.
     ///
-    /// These paths are passed to the `js_repl` kernel via `CODEX_JS_REPL_NODE_MODULE_DIRS` and are
+    /// These paths are passed to the `repl` kernel via `CODEX_REPL_NODE_MODULE_DIRS` and are
     /// used only for packages-only (bare) imports.
     #[serde(default)]
-    pub js_repl_node_module_dirs: Option<Vec<PathBuf>>,
+    pub repl_node_module_dirs: Option<Vec<PathBuf>>,
 
     /// Optional allow-list of domains used by the Responses API `web_search` tool.
     /// Example:
@@ -1937,57 +1937,57 @@ impl Config {
             .as_ref()
             .and_then(|t| t.search_tool)
             .unwrap_or(false);
-        let tools_js_repl = cfg.tools.as_ref().and_then(|t| t.js_repl).unwrap_or(false);
-        let js_repl_default_runtime = cfg
+        let tools_repl = cfg.tools.as_ref().and_then(|t| t.repl).unwrap_or(false);
+        let repl_default_runtime = cfg
             .tools
             .as_ref()
-            .and_then(|t| t.js_repl_runtime)
+            .and_then(|t| t.repl_runtime)
             .unwrap_or_default();
         // Per-runtime path/args: prefer explicit per-runtime fields, fall back
         // to the legacy flat fields when they match the default runtime.
         let tools_ref = cfg.tools.as_ref();
-        let legacy_path = tools_ref.and_then(|t| t.js_repl_runtime_path.clone());
+        let legacy_path = tools_ref.and_then(|t| t.repl_runtime_path.clone());
         let legacy_args = tools_ref
-            .and_then(|t| t.js_repl_runtime_args.clone())
+            .and_then(|t| t.repl_runtime_args.clone())
             .unwrap_or_default();
-        let js_repl_node_path = tools_ref
-            .and_then(|t| t.js_repl_node_path.clone())
+        let repl_node_path = tools_ref
+            .and_then(|t| t.repl_node_path.clone())
             .or_else(|| {
-                if js_repl_default_runtime == JsReplRuntimeKindToml::Node {
+                if repl_default_runtime == ReplRuntimeKindToml::Node {
                     legacy_path.clone()
                 } else {
                     None
                 }
             });
-        let js_repl_node_args = tools_ref
-            .and_then(|t| t.js_repl_node_args.clone())
+        let repl_node_args = tools_ref
+            .and_then(|t| t.repl_node_args.clone())
             .unwrap_or_else(|| {
-                if js_repl_default_runtime == JsReplRuntimeKindToml::Node {
+                if repl_default_runtime == ReplRuntimeKindToml::Node {
                     legacy_args.clone()
                 } else {
                     Vec::new()
                 }
             });
-        let js_repl_deno_path = tools_ref
-            .and_then(|t| t.js_repl_deno_path.clone())
+        let repl_deno_path = tools_ref
+            .and_then(|t| t.repl_deno_path.clone())
             .or_else(|| {
-                if js_repl_default_runtime == JsReplRuntimeKindToml::Deno {
+                if repl_default_runtime == ReplRuntimeKindToml::Deno {
                     legacy_path
                 } else {
                     None
                 }
             });
-        let js_repl_deno_args = tools_ref
-            .and_then(|t| t.js_repl_deno_args.clone())
+        let repl_deno_args = tools_ref
+            .and_then(|t| t.repl_deno_args.clone())
             .unwrap_or_else(|| {
-                if js_repl_default_runtime == JsReplRuntimeKindToml::Deno {
+                if repl_default_runtime == ReplRuntimeKindToml::Deno {
                     legacy_args
                 } else {
                     Vec::new()
                 }
             });
-        let js_repl_node_module_dirs = tools_ref
-            .and_then(|t| t.js_repl_node_module_dirs.clone())
+        let repl_node_module_dirs = tools_ref
+            .and_then(|t| t.repl_node_module_dirs.clone())
             .unwrap_or_default();
         let tools_web_search_allowed_domains = cfg
             .tools
@@ -2515,13 +2515,13 @@ impl Config {
             tools_web_search_request,
             tools_web_search_external,
             tools_search_tool,
-            tools_js_repl,
-            js_repl_default_runtime,
-            js_repl_node_path,
-            js_repl_node_args,
-            js_repl_deno_path,
-            js_repl_deno_args,
-            js_repl_node_module_dirs,
+            tools_repl,
+            repl_default_runtime,
+            repl_node_path,
+            repl_node_args,
+            repl_deno_path,
+            repl_deno_args,
+            repl_node_module_dirs,
             tools_web_search_allowed_domains,
             // Honor upstream opt-in switch name for our experimental streamable shell tool.
             use_experimental_streamable_shell_tool: cfg
@@ -5132,49 +5132,49 @@ mod upgrade_command_tests {
 }
 
 #[cfg(test)]
-mod js_repl_runtime_kind_tests {
-    use super::{JsReplRuntimeKindToml, RuntimeSandboxKind};
+mod repl_runtime_kind_tests {
+    use super::{ReplRuntimeKindToml, RuntimeSandboxKind};
 
     #[test]
     fn all_contains_every_variant() {
-        assert_eq!(JsReplRuntimeKindToml::ALL.len(), 2);
-        assert!(JsReplRuntimeKindToml::ALL.contains(&JsReplRuntimeKindToml::Node));
-        assert!(JsReplRuntimeKindToml::ALL.contains(&JsReplRuntimeKindToml::Deno));
+        assert_eq!(ReplRuntimeKindToml::ALL.len(), 2);
+        assert!(ReplRuntimeKindToml::ALL.contains(&ReplRuntimeKindToml::Node));
+        assert!(ReplRuntimeKindToml::ALL.contains(&ReplRuntimeKindToml::Deno));
     }
 
     #[test]
     fn label_returns_lowercase_string() {
-        assert_eq!(JsReplRuntimeKindToml::Node.label(), "node");
-        assert_eq!(JsReplRuntimeKindToml::Deno.label(), "deno");
+        assert_eq!(ReplRuntimeKindToml::Node.label(), "node");
+        assert_eq!(ReplRuntimeKindToml::Deno.label(), "deno");
     }
 
     #[test]
     fn display_matches_label() {
-        assert_eq!(format!("{}", JsReplRuntimeKindToml::Node), "node");
-        assert_eq!(format!("{}", JsReplRuntimeKindToml::Deno), "deno");
+        assert_eq!(format!("{}", ReplRuntimeKindToml::Node), "node");
+        assert_eq!(format!("{}", ReplRuntimeKindToml::Deno), "deno");
     }
 
     #[test]
     fn default_executable_matches_label() {
-        for &kind in JsReplRuntimeKindToml::ALL {
+        for &kind in ReplRuntimeKindToml::ALL {
             assert_eq!(kind.default_executable(), kind.label());
         }
     }
 
     #[test]
     fn next_cycles_through_all_variants() {
-        let start = JsReplRuntimeKindToml::Node;
+        let start = ReplRuntimeKindToml::Node;
         let second = start.next();
-        assert_eq!(second, JsReplRuntimeKindToml::Deno);
+        assert_eq!(second, ReplRuntimeKindToml::Deno);
         let back = second.next();
-        assert_eq!(back, JsReplRuntimeKindToml::Node);
+        assert_eq!(back, ReplRuntimeKindToml::Node);
     }
 
     #[test]
     fn next_wraps_around_for_all_variants() {
-        for &kind in JsReplRuntimeKindToml::ALL {
+        for &kind in ReplRuntimeKindToml::ALL {
             let mut current = kind;
-            for _ in 0..JsReplRuntimeKindToml::ALL.len() {
+            for _ in 0..ReplRuntimeKindToml::ALL.len() {
                 current = current.next();
             }
             assert_eq!(current, kind, "cycling through ALL should return to start");
@@ -5183,7 +5183,7 @@ mod js_repl_runtime_kind_tests {
 
     #[test]
     fn node_capabilities_are_external_sandbox() {
-        let caps = JsReplRuntimeKindToml::Node.capabilities();
+        let caps = ReplRuntimeKindToml::Node.capabilities();
         assert_eq!(caps.sandbox, RuntimeSandboxKind::ExternalOnly);
         assert!(caps.supports_seatbelt);
         assert!(!caps.can_enforce_network_without_seatbelt);
@@ -5193,7 +5193,7 @@ mod js_repl_runtime_kind_tests {
 
     #[test]
     fn deno_capabilities_are_builtin_permissions() {
-        let caps = JsReplRuntimeKindToml::Deno.capabilities();
+        let caps = ReplRuntimeKindToml::Deno.capabilities();
         assert_eq!(caps.sandbox, RuntimeSandboxKind::BuiltinPermissions);
         assert!(!caps.supports_seatbelt);
         assert!(caps.can_enforce_network_without_seatbelt);
@@ -5203,15 +5203,15 @@ mod js_repl_runtime_kind_tests {
 
     #[test]
     fn deno_env_passthrough_includes_codex_vars() {
-        let caps = JsReplRuntimeKindToml::Deno.capabilities();
+        let caps = ReplRuntimeKindToml::Deno.capabilities();
         assert!(caps.sandbox_env_passthrough.contains(&"CODEX_JS_TMP_DIR"));
-        assert!(caps.sandbox_env_passthrough.contains(&"CODEX_JS_REPL_RUNTIME"));
-        assert!(caps.sandbox_env_passthrough.contains(&"CODEX_JS_REPL_RUNTIME_VERSION"));
+        assert!(caps.sandbox_env_passthrough.contains(&"CODEX_REPL_RUNTIME"));
+        assert!(caps.sandbox_env_passthrough.contains(&"CODEX_REPL_RUNTIME_VERSION"));
     }
 
     #[test]
     fn every_variant_has_capabilities() {
-        for &kind in JsReplRuntimeKindToml::ALL {
+        for &kind in ReplRuntimeKindToml::ALL {
             let caps = kind.capabilities();
             let _ = caps.sandbox;
         }
@@ -5219,9 +5219,9 @@ mod js_repl_runtime_kind_tests {
 
     #[test]
     fn serde_round_trip() {
-        for &kind in JsReplRuntimeKindToml::ALL {
+        for &kind in ReplRuntimeKindToml::ALL {
             let json = serde_json::to_string(&kind).expect("serialize");
-            let back: JsReplRuntimeKindToml =
+            let back: ReplRuntimeKindToml =
                 serde_json::from_str(&json).expect("deserialize");
             assert_eq!(back, kind);
         }
@@ -5231,12 +5231,12 @@ mod js_repl_runtime_kind_tests {
     fn toml_deserialization() {
         #[derive(serde::Deserialize)]
         struct Wrapper {
-            rt: JsReplRuntimeKindToml,
+            rt: ReplRuntimeKindToml,
         }
         let w: Wrapper = toml::from_str("rt = \"node\"").expect("deserialize node");
-        assert_eq!(w.rt, JsReplRuntimeKindToml::Node);
+        assert_eq!(w.rt, ReplRuntimeKindToml::Node);
 
         let w: Wrapper = toml::from_str("rt = \"deno\"").expect("deserialize deno");
-        assert_eq!(w.rt, JsReplRuntimeKindToml::Deno);
+        assert_eq!(w.rt, ReplRuntimeKindToml::Deno);
     }
 }

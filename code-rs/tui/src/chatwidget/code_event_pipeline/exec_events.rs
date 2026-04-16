@@ -1,6 +1,6 @@
 use super::*;
 use code_core::protocol::ExecCommandOutputDeltaEvent;
-use code_core::protocol::JsReplExecBeginEvent;
+use code_core::protocol::ReplExecBeginEvent;
 use code_core::protocol::McpToolCallBeginEvent;
 use code_core::protocol::McpToolCallEndEvent;
 use code_core::protocol::OrderMeta;
@@ -107,7 +107,7 @@ impl ChatWidget<'_> {
             changes,
         } = event;
         if let Some(parent_call_id) = parent_call_id.as_deref() {
-            self.record_js_repl_child_call(parent_call_id, &call_id);
+            self.record_repl_child_call(parent_call_id, &call_id);
         }
         let exec_call_id = ExecCallId(call_id);
         self.exec.suppress_exec_end(exec_call_id);
@@ -230,14 +230,14 @@ impl ChatWidget<'_> {
         );
     }
 
-    pub(super) fn handle_js_repl_exec_begin_event(
+    pub(super) fn handle_repl_exec_begin_event(
         &mut self,
-        ev: JsReplExecBeginEvent,
+        ev: ReplExecBeginEvent,
         order: Option<OrderMeta>,
         seq: u64,
     ) {
         let om = order.unwrap_or_else(|| {
-            tracing::warn!("missing OrderMeta for JsReplExecBegin; using synthetic order");
+            tracing::warn!("missing OrderMeta for ReplExecBegin; using synthetic order");
             code_core::protocol::OrderMeta {
                 request_ordinal: self.last_seen_request_index,
                 output_index: Some(i32::MAX as u32),
@@ -246,9 +246,9 @@ impl ChatWidget<'_> {
         });
         self.finalize_active_stream();
         let call_id = ev.call_id.clone();
-        tracing::info!("[order] JsReplExecBegin call_id={call_id} seq={seq}");
-        self.js_repl_last_runtime = Some((ev.runtime_kind.clone(), ev.runtime_version.clone()));
-        exec_tools::handle_js_repl_begin_now(self, ev, &om);
+        tracing::info!("[order] ReplExecBegin call_id={call_id} seq={seq}");
+        self.repl_last_runtime = Some((ev.runtime_kind.clone(), ev.runtime_version.clone()));
+        exec_tools::handle_repl_begin_now(self, ev, &om);
         self.ensure_spinner_for_activity("js-repl-begin");
         if let Some((pending_end, order2, _ts)) =
             self.exec.pending_exec_ends.remove(&ExecCallId(call_id))

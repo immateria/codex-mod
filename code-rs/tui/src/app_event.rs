@@ -874,7 +874,7 @@ pub(crate) enum AppEvent {
     #[cfg(feature = "managed-network-proxy")]
     SetNetworkProxySettings(NetworkProxySettingsToml),
     SetExecLimitsSettings(code_core::config::ExecLimitsToml),
-    SetJsReplSettings(code_core::config::JsReplSettingsToml),
+    SetReplSettings(code_core::config::ReplSettingsToml),
     SetTuiSettingsMenuConfig(SettingsMenuConfig),
     SetTuiHotkeysConfig(TuiHotkeysConfig),
     SetIconMode(code_core::config_types::IconMode),

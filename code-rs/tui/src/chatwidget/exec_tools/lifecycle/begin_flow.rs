@@ -249,9 +249,9 @@ fn apply_exec_begin_metadata_to_finished_call(
     }
 }
 
-pub(in super::super::super) fn handle_js_repl_begin_now(
+pub(in super::super::super) fn handle_repl_begin_now(
     chat: &mut ChatWidget<'_>,
-    ev: code_core::protocol::JsReplExecBeginEvent,
+    ev: code_core::protocol::ReplExecBeginEvent,
     order: &OrderMeta,
 ) {
     use crate::history::state::{ExecAction, ExecRecord, ExecStatus};
@@ -268,7 +268,7 @@ pub(in super::super::super) fn handle_js_repl_begin_now(
     let exec_record = ExecRecord {
         id: HistoryId::ZERO,
         call_id: Some(call_id.clone()),
-        command: vec!["js_repl".to_owned()],
+        command: vec!["repl".to_owned()],
         parsed: Vec::new(),
         action: ExecAction::Run,
         status: ExecStatus::Running,
@@ -285,7 +285,7 @@ pub(in super::super::super) fn handle_js_repl_begin_now(
         tags: Vec::new(),
     };
 
-    let cell = history_cell::JsReplCell::new_active(exec_record.clone(), ev.code, ev.runtime_kind, ev.runtime_version);
+    let cell = history_cell::ReplCell::new_active(exec_record.clone(), ev.code, ev.runtime_kind, ev.runtime_version);
     let key = chat.provider_order_key_from_order_meta(order);
     let history_idx = chat.history_insert_with_key_global_tagged(
         Box::new(cell),
@@ -302,7 +302,7 @@ pub(in super::super::super) fn handle_js_repl_begin_now(
     chat.exec.running_commands.insert(
         super::ExecCallId(call_id),
         super::RunningCommand {
-            command: vec!["js_repl".to_owned()],
+            command: vec!["repl".to_owned()],
             parsed: Vec::new(),
             history_index: Some(history_idx),
             history_id,
@@ -503,7 +503,7 @@ pub(in super::super::super) fn handle_exec_begin_now(
         },
     );
     if let Some(parent_call_id) = ev.parent_call_id.as_deref() {
-        chat.record_js_repl_child_call(parent_call_id, &ev.call_id);
+        chat.record_repl_child_call(parent_call_id, &ev.call_id);
     }
     if let Some(running) = chat
         .exec

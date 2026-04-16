@@ -177,7 +177,7 @@ impl ChatWidget<'_> {
             };
             let fold_exec_hotkey = history_label(hotkeys.exec_output_fold, "[");
             lines.push(kv(&fold_exec_hotkey, "Fold latest exec output/tool details (composer empty)"));
-            let fold_js_hotkey = history_label(hotkeys.js_repl_code_fold, "\\");
+            let fold_js_hotkey = history_label(hotkeys.repl_code_fold, "\\");
             lines.push(kv(&fold_js_hotkey, "Fold latest JS REPL code (composer empty)"));
             let jump_parent_hotkey = history_label(hotkeys.jump_to_parent_call, "]");
             lines.push(kv(&jump_parent_hotkey, "Jump to parent tool call (composer empty)"));
@@ -659,13 +659,13 @@ impl ChatWidget<'_> {
             shell: self.config.shell.clone(),
             shell_style_profiles: self.config.shell_style_profiles.clone(),
             network: self.config.network.clone(),
-            tools_js_repl: self.config.tools_js_repl,
-            js_repl_default_runtime: self.config.js_repl_default_runtime,
-            js_repl_node_path: self.config.js_repl_node_path.clone(),
-            js_repl_node_args: self.config.js_repl_node_args.clone(),
-            js_repl_deno_path: self.config.js_repl_deno_path.clone(),
-            js_repl_deno_args: self.config.js_repl_deno_args.clone(),
-            js_repl_node_module_dirs: self.config.js_repl_node_module_dirs.clone(),
+            tools_repl: self.config.tools_repl,
+            repl_default_runtime: self.config.repl_default_runtime,
+            repl_node_path: self.config.repl_node_path.clone(),
+            repl_node_args: self.config.repl_node_args.clone(),
+            repl_deno_path: self.config.repl_deno_path.clone(),
+            repl_deno_args: self.config.repl_deno_args.clone(),
+            repl_node_module_dirs: self.config.repl_node_module_dirs.clone(),
             memories: self.config.memories.clone(),
             collaboration_mode: self.current_collaboration_mode(),
         })

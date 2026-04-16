@@ -1,5 +1,5 @@
     #[test]
-    fn exec_child_gutter_click_jumps_to_parent_js_repl_cell() {
+    fn exec_child_gutter_click_jumps_to_parent_repl_cell() {
         let _guard = enter_test_runtime_guard();
         let mut harness = ChatWidgetHarness::new();
 
@@ -9,7 +9,7 @@
         harness.handle_event(Event {
             id: "js-begin".to_string(),
             event_seq: 0,
-            msg: EventMsg::JsReplExecBegin(code_core::protocol::JsReplExecBeginEvent {
+            msg: EventMsg::ReplExecBegin(code_core::protocol::ReplExecBeginEvent {
                 call_id: parent_call_id.clone(),
                 code: "console.log('hi')".to_string(),
                 runtime_kind: "node".to_string(),
@@ -94,7 +94,7 @@
     }
 
     #[test]
-    fn js_repl_spawned_child_keyboard_jump() {
+    fn repl_spawned_child_keyboard_jump() {
         let _guard = enter_test_runtime_guard();
         let mut harness = ChatWidgetHarness::new();
 
@@ -102,7 +102,7 @@
         harness.handle_event(Event {
             id: "js-begin".to_string(),
             event_seq: 0,
-            msg: EventMsg::JsReplExecBegin(code_core::protocol::JsReplExecBeginEvent {
+            msg: EventMsg::ReplExecBegin(code_core::protocol::ReplExecBeginEvent {
                 call_id: parent_call_id.clone(),
                 code: "console.log('hi')".to_string(),
                 runtime_kind: "node".to_string(),
@@ -427,7 +427,7 @@
     }
 
     #[test]
-    fn history_js_repl_code_fold_targets_visible_js_cell_when_scrolled() {
+    fn history_repl_code_fold_targets_visible_js_cell_when_scrolled() {
         let _guard = enter_test_runtime_guard();
         let mut harness = ChatWidgetHarness::new();
         let cwd = std::env::temp_dir();
@@ -437,7 +437,7 @@
         harness.handle_event(Event {
             id: "js-a-begin".to_string(),
             event_seq: 0,
-            msg: EventMsg::JsReplExecBegin(code_core::protocol::JsReplExecBeginEvent {
+            msg: EventMsg::ReplExecBegin(code_core::protocol::ReplExecBeginEvent {
                 call_id: "js-a".to_string(),
                 code: "console.log('a')".to_string(),
                 runtime_kind: "node".to_string(),
@@ -459,7 +459,7 @@
         harness.handle_event(Event {
             id: "js-b-begin".to_string(),
             event_seq: 0,
-            msg: EventMsg::JsReplExecBegin(code_core::protocol::JsReplExecBeginEvent {
+            msg: EventMsg::ReplExecBegin(code_core::protocol::ReplExecBeginEvent {
                 call_id: "js-b".to_string(),
                 code: "console.log('b')".to_string(),
                 runtime_kind: "node".to_string(),
@@ -487,15 +487,15 @@
         }
 
         let (a_before, b_before) = harness.with_chat(|chat| {
-            use crate::history_cell::JsReplCell;
+            use crate::history_cell::ReplCell;
 
             let a = chat.history_cells.iter().find_map(|cell| {
-                cell.as_any().downcast_ref::<JsReplCell>().and_then(|js| {
+                cell.as_any().downcast_ref::<ReplCell>().and_then(|js| {
                     (js.call_id() == Some("js-a")).then_some(js.code_collapsed.get())
                 })
             });
             let b = chat.history_cells.iter().find_map(|cell| {
-                cell.as_any().downcast_ref::<JsReplCell>().and_then(|js| {
+                cell.as_any().downcast_ref::<ReplCell>().and_then(|js| {
                     (js.call_id() == Some("js-b")).then_some(js.code_collapsed.get())
                 })
             });
@@ -509,15 +509,15 @@
         });
 
         let (a_after, b_after) = harness.with_chat(|chat| {
-            use crate::history_cell::JsReplCell;
+            use crate::history_cell::ReplCell;
 
             let a = chat.history_cells.iter().find_map(|cell| {
-                cell.as_any().downcast_ref::<JsReplCell>().and_then(|js| {
+                cell.as_any().downcast_ref::<ReplCell>().and_then(|js| {
                     (js.call_id() == Some("js-a")).then_some(js.code_collapsed.get())
                 })
             });
             let b = chat.history_cells.iter().find_map(|cell| {
-                cell.as_any().downcast_ref::<JsReplCell>().and_then(|js| {
+                cell.as_any().downcast_ref::<ReplCell>().and_then(|js| {
                     (js.call_id() == Some("js-b")).then_some(js.code_collapsed.get())
                 })
             });

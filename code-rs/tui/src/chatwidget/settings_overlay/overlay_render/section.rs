@@ -152,7 +152,7 @@ impl SettingsOverlayView {
             #[cfg(feature = "browser-automation")]
             SettingsSection::Chrome => "Chrome Launch Options",
             SettingsSection::Notifications => "Notifications",
-            SettingsSection::JsRepl => "JS REPL",
+            SettingsSection::Repl => "REPL",
             #[cfg(feature = "managed-network-proxy")]
             SettingsSection::Network => "Network Mediation",
             SettingsSection::Mcp => "MCP Servers",

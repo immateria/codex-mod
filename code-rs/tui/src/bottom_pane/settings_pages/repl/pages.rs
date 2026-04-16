@@ -7,14 +7,14 @@ use crate::bottom_pane::settings_ui::editor_page::SettingsEditorPage;
 use crate::bottom_pane::settings_ui::panel::SettingsPanelStyle;
 use crate::bottom_pane::settings_ui::row_page::SettingsRowPage;
 
-impl JsReplSettingsView {
+impl ReplSettingsView {
     pub(super) fn main_page(&self) -> SettingsRowPage<'static> {
         SettingsRowPage::new(" JS REPL ", self.render_header_lines(), self.render_footer_lines())
     }
 
     pub(super) fn render_footer_lines(&self) -> Vec<Line<'static>> {
         let node_blocked = self.network_enabled
-            && matches!(self.settings.runtime, JsReplRuntimeKindToml::Node)
+            && matches!(self.settings.runtime, ReplRuntimeKindToml::Node)
             && !cfg!(target_os = "macos");
         if node_blocked {
             vec![Line::from(vec![Span::styled(
@@ -59,7 +59,7 @@ impl JsReplSettingsView {
         let enabled_word = if enabled { "ON " } else { "OFF " };
         let mut lines = vec![Line::from(vec![
             Span::styled(enabled_word, status_style),
-            Span::styled("js_repl", crate::colors::style_text_mid()),
+            Span::styled("repl", crate::colors::style_text_mid()),
             Span::styled("  |  runtime: ", crate::colors::style_text_dim()),
             Span::styled(runtime, runtime_style),
             Span::styled("  |  mediation: ", crate::colors::style_text_dim()),

@@ -78,13 +78,13 @@ pub enum Feature {
 
     // Experimental
     /// Enable JavaScript REPL tools backed by a persistent Node kernel.
-    JsRepl,
+    Repl,
     /// Enable a minimal JavaScript mode backed by Node's built-in vm runtime.
     CodeMode,
     /// Restrict model-visible tools to code mode entrypoints (`exec`, `wait`).
     CodeModeOnly,
-    /// Only expose `js_repl` tools directly to the model.
-    JsReplToolsOnly,
+    /// Only expose `repl` tools directly to the model.
+    ReplToolsOnly,
     /// Use the single unified PTY-backed exec tool.
     UnifiedExec,
     /// Route shell tool execution through the zsh exec bridge.
@@ -426,9 +426,9 @@ impl Features {
         if self.enabled(Feature::CodeModeOnly) && !self.enabled(Feature::CodeMode) {
             self.enable(Feature::CodeMode);
         }
-        if self.enabled(Feature::JsReplToolsOnly) && !self.enabled(Feature::JsRepl) {
-            tracing::warn!("js_repl_tools_only requires js_repl; disabling js_repl_tools_only");
-            self.disable(Feature::JsReplToolsOnly);
+        if self.enabled(Feature::ReplToolsOnly) && !self.enabled(Feature::Repl) {
+            tracing::warn!("repl_tools_only requires repl; disabling repl_tools_only");
+            self.disable(Feature::ReplToolsOnly);
         }
     }
 }
@@ -545,8 +545,8 @@ pub const FEATURES: &[FeatureSpec] = &[
         default_enabled: true,
     },
     FeatureSpec {
-        id: Feature::JsRepl,
-        key: "js_repl",
+        id: Feature::Repl,
+        key: "repl",
         stage: Stage::Experimental {
             name: "JavaScript REPL",
             menu_description: "Enable a persistent Node-backed JavaScript REPL for interactive website debugging and other inline JavaScript execution capabilities. Requires Node >= v22.22.0 installed.",
@@ -567,8 +567,8 @@ pub const FEATURES: &[FeatureSpec] = &[
         default_enabled: false,
     },
     FeatureSpec {
-        id: Feature::JsReplToolsOnly,
-        key: "js_repl_tools_only",
+        id: Feature::ReplToolsOnly,
+        key: "repl_tools_only",
         stage: Stage::UnderDevelopment,
         default_enabled: false,
     },

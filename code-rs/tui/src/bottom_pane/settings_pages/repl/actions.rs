@@ -5,7 +5,7 @@ use std::collections::HashSet;
 use crate::app_event::AppEvent;
 use crate::native_picker::{pick_path, NativePickerKind};
 
-impl JsReplSettingsView {
+impl ReplSettingsView {
     fn toggle_enabled(&mut self) {
         self.settings.enabled = !self.settings.enabled;
         self.dirty = true;
@@ -113,7 +113,7 @@ impl JsReplSettingsView {
             );
             return;
         }
-        let result = pick_path(NativePickerKind::File, "Select js_repl runtime executable");
+        let result = pick_path(NativePickerKind::File, "Select repl runtime executable");
         match result {
             Ok(Some(path)) => {
                 self.settings.runtime_path = Some(path);
@@ -168,7 +168,7 @@ impl JsReplSettingsView {
 
     fn apply_settings(&mut self) {
         self.app_event_tx
-            .send(AppEvent::SetJsReplSettings(self.settings.clone()));
+            .send(AppEvent::SetReplSettings(self.settings.clone()));
         self.app_event_tx.send_background_event_with_ticket(
             &self.ticket,
             "JS REPL: applying…".to_owned(),

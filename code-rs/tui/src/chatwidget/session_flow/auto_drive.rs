@@ -33,7 +33,7 @@ impl ChatWidget<'_> {
             | HistoryCellType::Diff
             | HistoryCellType::Plain
             | HistoryCellType::Image
-            | HistoryCellType::JsRepl { .. } => Some(User),
+            | HistoryCellType::Repl { .. } => Some(User),
             HistoryCellType::Tool { status } => match status {
                 crate::history_cell::ToolCellStatus::Running => None,
                 crate::history_cell::ToolCellStatus::Success

@@ -4,7 +4,7 @@ use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
 use crate::components::mode_guard::ModeGuard;
 
-impl JsReplSettingsView {
+impl ReplSettingsView {
     fn visible_budget(&self, total: usize) -> usize {
         ScrollState::visible_budget(self.viewport_rows.get(), Self::DEFAULT_VISIBLE_ROWS, total)
     }

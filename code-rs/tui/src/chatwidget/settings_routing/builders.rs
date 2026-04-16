@@ -162,12 +162,12 @@ impl ChatWidget<'_> {
         ExecLimitsSettingsContent::new(self.build_exec_limits_settings_view())
     }
 
-    pub(super) fn build_js_repl_settings_view(&mut self) -> JsReplSettingsView {
+    pub(super) fn build_repl_settings_view(&mut self) -> ReplSettingsView {
         let ticket = self.make_background_tail_ticket();
-        let rt = self.config.js_repl_default_runtime;
-        let rt_cfg = self.config.js_repl_runtime_config(rt);
-        let settings = code_core::config::JsReplSettingsToml {
-            enabled: self.config.tools_js_repl,
+        let rt = self.config.repl_default_runtime;
+        let rt_cfg = self.config.repl_runtime_config(rt);
+        let settings = code_core::config::ReplSettingsToml {
+            enabled: self.config.tools_repl,
             runtime: rt,
             runtime_path: rt_cfg.runtime_path,
             runtime_args: rt_cfg.runtime_args,
@@ -175,11 +175,11 @@ impl ChatWidget<'_> {
         };
         let network_enabled = cfg!(feature = "managed-network-proxy")
             && self.config.network.as_ref().is_some_and(|net| net.enabled);
-        JsReplSettingsView::new(settings, network_enabled, self.app_event_tx.clone(), ticket)
+        ReplSettingsView::new(settings, network_enabled, self.app_event_tx.clone(), ticket)
     }
 
-    pub(super) fn build_js_repl_settings_content(&mut self) -> JsReplSettingsContent {
-        JsReplSettingsContent::new(self.build_js_repl_settings_view())
+    pub(super) fn build_repl_settings_content(&mut self) -> ReplSettingsContent {
+        ReplSettingsContent::new(self.build_repl_settings_view())
     }
 
     pub(super) fn build_prompts_settings_view(&self) -> PromptsSettingsView {

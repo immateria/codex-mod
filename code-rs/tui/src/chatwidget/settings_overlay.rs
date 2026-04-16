@@ -25,7 +25,7 @@ pub(crate) use self::contents::{
     ExecLimitsSettingsContent,
     ExperimentalFeaturesSettingsContent,
     InterfaceSettingsContent,
-    JsReplSettingsContent,
+    ReplSettingsContent,
     MemoriesSettingsContent,
     McpSettingsContent,
     ModelSettingsContent,
@@ -81,7 +81,7 @@ pub(crate) struct SettingsOverlayView {
     skills_content: Option<SkillsSettingsContent>,
     plugins_content: Option<PluginsSettingsContent>,
     mcp_content: Option<McpSettingsContent>,
-    js_repl_content: Option<JsReplSettingsContent>,
+    repl_content: Option<ReplSettingsContent>,
     #[cfg(feature = "managed-network-proxy")]
     network_content: Option<NetworkSettingsContent>,
     agents_content: Option<AgentsSettingsContent>,
@@ -151,7 +151,7 @@ impl SettingsOverlayView {
             skills_content: None,
             plugins_content: None,
             mcp_content: None,
-            js_repl_content: None,
+            repl_content: None,
             #[cfg(feature = "managed-network-proxy")]
             network_content: None,
             agents_content: None,
@@ -363,8 +363,8 @@ impl SettingsOverlayView {
         self.mcp_content.as_ref()
     }
 
-    pub(crate) fn set_js_repl_content(&mut self, content: JsReplSettingsContent) {
-        self.js_repl_content = Some(content);
+    pub(crate) fn set_repl_content(&mut self, content: ReplSettingsContent) {
+        self.repl_content = Some(content);
     }
 
     #[cfg(feature = "managed-network-proxy")]
@@ -599,8 +599,8 @@ impl SettingsOverlayView {
                 .mcp_content
                 .as_ref()
                 .map(|content| content as &dyn SettingsContent),
-            SettingsSection::JsRepl => self
-                .js_repl_content
+            SettingsSection::Repl => self
+                .repl_content
                 .as_ref()
                 .map(|content| content as &dyn SettingsContent),
             #[cfg(feature = "managed-network-proxy")]
@@ -718,8 +718,8 @@ impl SettingsOverlayView {
                 .mcp_content
                 .as_mut()
                 .map(|content| content as &mut dyn SettingsContent),
-            SettingsSection::JsRepl => self
-                .js_repl_content
+            SettingsSection::Repl => self
+                .repl_content
                 .as_mut()
                 .map(|content| content as &mut dyn SettingsContent),
             #[cfg(feature = "managed-network-proxy")]

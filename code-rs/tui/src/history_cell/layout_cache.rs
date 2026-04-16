@@ -52,7 +52,7 @@ macro_rules! layout_build_counter {
 /// for. When the width changes the layout is recomputed via a caller-supplied
 /// closure. This eliminates the identical `invalidate` / `ensure_layout` /
 /// `layout_for_width` boilerplate that was duplicated across `ExecCell`,
-/// `JsReplCell`, `MergedExecCell`, and `WebFetchToolCell`.
+/// `ReplCell`, `MergedExecCell`, and `WebFetchToolCell`.
 pub(crate) struct LayoutCache<L: Default> {
     inner: RefCell<CacheEntry<L>>,
 }

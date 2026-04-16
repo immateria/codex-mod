@@ -1,17 +1,17 @@
 # JS REPL Subsystem
 
-The `js_repl` tool provides an in-process JavaScript REPL backed by either
+The `repl` tool provides an in-process JavaScript REPL backed by either
 Node.js (with `--experimental-vm-modules`) or Deno. Each runtime is managed by
-a separate `JsReplManager` accessed through a `HashMap<JsReplRuntimeKindToml, JsReplHandle>`
+a separate `ReplManager` accessed through a `HashMap<ReplRuntimeKindToml, ReplHandle>`
 on the session.
 
 ## Architecture
 
 ```
 Session
-  └─ js_repl_handles: HashMap<RuntimeKind, JsReplHandle>
-       └─ JsReplHandle (lazy init via tokio::OnceCell)
-            └─ JsReplManager
+  └─ repl_handles: HashMap<RuntimeKind, ReplHandle>
+       └─ ReplHandle (lazy init via tokio::OnceCell)
+            └─ ReplManager
                  ├─ kernel: Arc<Mutex<Option<Kernel>>>
                  ├─ exec_tool_calls: Arc<Mutex<HashMap<String, ExecToolCalls>>>
                  └─ Kernel
@@ -117,7 +117,7 @@ a convenience runtime, not a containment boundary.
 ### Runtime Health Preflight
 
 At session build time, the host probes the default runtime binary with
-`--version`. If the runtime is missing, too old, or broken, the `js_repl` tool
+`--version`. If the runtime is missing, too old, or broken, the `repl` tool
 is automatically disabled so the model doesn't repeatedly invoke a dead REPL.
 Warnings are logged to help diagnose configuration issues.
 
@@ -136,4 +136,4 @@ Warnings are logged to help diagnose configuration issues.
 | `kernel.js` | Node kernel: VM sandbox, module linker, timer wrappers, console capture |
 | `kernel_deno.js` | Deno kernel: permission-based sandbox, data-URL evaluation |
 | `meriyah.umd.min.js` | Parser for binding collection (shared by both kernels) |
-| `handlers/js_repl.rs` | Pragma parsing, runtime dispatch, tool handler registration |
+| `handlers/repl.rs` | Pragma parsing, runtime dispatch, tool handler registration |

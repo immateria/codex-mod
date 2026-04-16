@@ -213,30 +213,30 @@ impl Runner<'_> {
         tools_config.web_search_allowed_domains = config.tools_web_search_allowed_domains.clone();
         tools_config.web_search_external = config.tools_web_search_external;
         tools_config.search_tool = config.tools_search_tool;
-        tools_config.js_repl = config.tools_js_repl;
+        tools_config.repl = config.tools_repl;
 
         // Probe runtime health early: if the default JS runtime is unavailable,
         // disable the tool so the model doesn't repeatedly try a broken REPL.
-        if tools_config.js_repl {
-            let default_rt = config.js_repl_default_runtime;
-            let probe_handle = crate::tools::js_repl::JsReplHandle::new(
-                config.js_repl_runtime_config(default_rt),
+        if tools_config.repl {
+            let default_rt = config.repl_default_runtime;
+            let probe_handle = crate::tools::repl::ReplHandle::new(
+                config.repl_runtime_config(default_rt),
             );
             match probe_handle.probe_health().await {
                 Ok(version) => {
                     tracing::info!(
                         runtime = %default_rt,
                         version = %version,
-                        "js_repl runtime available"
+                        "repl runtime available"
                     );
                 }
                 Err(err) => {
                     tracing::warn!(
                         runtime = %default_rt,
                         error = %err,
-                        "js_repl runtime unavailable — disabling tool"
+                        "repl runtime unavailable — disabling tool"
                     );
-                    tools_config.js_repl = false;
+                    tools_config.repl = false;
                 }
             }
         }
@@ -336,7 +336,7 @@ impl Runner<'_> {
             }
         };
 
-        let js_repl_default_runtime = config.js_repl_default_runtime;
+        let repl_default_runtime = config.repl_default_runtime;
 
         if let Err(err) = crate::memories::open_memories_state(config.code_home.as_path()).await {
             warn!("failed to initialize memories sqlite state: {err}");
@@ -427,14 +427,14 @@ impl Runner<'_> {
             }),
             dynamic_tools,
             exec_command_manager: Arc::new(crate::exec_command::SessionManager::default()),
-            js_repl_default_runtime,
-            js_repl_handles: {
+            repl_default_runtime,
+            repl_handles: {
                 let mut handles = std::collections::HashMap::new();
-                for &kind in crate::config::JsReplRuntimeKindToml::ALL {
+                for &kind in crate::config::ReplRuntimeKindToml::ALL {
                     handles.insert(
                         kind,
-                        crate::tools::js_repl::JsReplHandle::new(
-                            config.js_repl_runtime_config(kind),
+                        crate::tools::repl::ReplHandle::new(
+                            config.repl_runtime_config(kind),
                         ),
                     );
                 }

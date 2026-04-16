@@ -1,7 +1,7 @@
 use super::*;
 
 impl ChatWidget<'_> {
-    pub(in crate::chatwidget) fn record_js_repl_child_call(
+    pub(in crate::chatwidget) fn record_repl_child_call(
         &mut self,
         parent_call_id: &str,
         child_call_id: &str,
@@ -9,7 +9,7 @@ impl ChatWidget<'_> {
         for cell in self.history_cells.iter_mut().rev() {
             if let Some(js_cell) = cell
                 .as_any_mut()
-                .downcast_mut::<crate::history_cell::JsReplCell>()
+                .downcast_mut::<crate::history_cell::ReplCell>()
                 && js_cell.record.call_id.as_deref() == Some(parent_call_id)
             {
                 if js_cell.record_child_call_id(child_call_id) {

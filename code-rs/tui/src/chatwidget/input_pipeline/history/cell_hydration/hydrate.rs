@@ -77,7 +77,7 @@ impl ChatWidget<'_> {
                 }
                 if let Some(js_cell) = cell
                     .as_any_mut()
-                    .downcast_mut::<crate::history_cell::JsReplCell>()
+                    .downcast_mut::<crate::history_cell::ReplCell>()
                 {
                     js_cell.sync_from_exec_record(state);
                     return true;

@@ -34,7 +34,7 @@ pub(crate) enum StatusLineItem {
     TotalInputTokens,
     TotalOutputTokens,
     SessionId,
-    JsRepl,
+    Repl,
     ActiveProfile,
 }
 

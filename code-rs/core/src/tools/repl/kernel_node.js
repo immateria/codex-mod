@@ -1,4 +1,4 @@
-// Node-based kernel for js_repl.
+// Node-based kernel for the REPL tool.
 // Communicates over JSON lines on stdin/stdout.
 // Requires Node started with --experimental-vm-modules.
 
@@ -149,16 +149,16 @@ function isDeniedBuiltin(specifier) {
 /** @type {Map<string, (msg: any) => void>} */
 const pendingTool = new Map();
 let toolCounter = 0;
-const tmpDir = process.env.CODEX_JS_TMP_DIR || process.cwd();
-const runtimeName = process.env.CODEX_JS_REPL_RUNTIME || "node";
+const tmpDir = process.env.CODEX_REPL_TMP_DIR || process.cwd();
+const runtimeName = process.env.CODEX_REPL_RUNTIME || "node";
 const runtimeVersion =
-  process.env.CODEX_JS_REPL_RUNTIME_VERSION ||
+  process.env.CODEX_REPL_RUNTIME_VERSION ||
   (process.version ? process.version.replace(/^v/, "") : "");
 // Explicit long-lived mutable store exposed as `codex.state`. This is useful
 // when callers want shared state without relying on lexical binding carry-over.
 const state = {};
 
-const nodeModuleDirEnv = process.env.CODEX_JS_REPL_NODE_MODULE_DIRS ?? "";
+const nodeModuleDirEnv = process.env.CODEX_REPL_NODE_MODULE_DIRS ?? "";
 const moduleSearchBases = (() => {
   const bases = [];
   const seen = new Set();
@@ -229,7 +229,7 @@ function setImportMeta(meta, mod, isMain = false) {
 function getRequireForBase(base) {
   let req = requireByBase.get(base);
   if (!req) {
-    req = createRequire(path.join(base, "__codex_js_repl__.cjs"));
+    req = createRequire(path.join(base, "__codex_repl__.cjs"));
     requireByBase.set(base, req);
   }
   return req;
@@ -352,14 +352,14 @@ function resolvePathSpecifier(specifier, referrerIdentifier = null) {
 
   if (!stats.isFile()) {
     throw new Error(
-      `Unsupported import specifier "${specifier}" in js_repl. Directory imports are not supported.`,
+      `Unsupported import specifier "${specifier}" in the REPL. Directory imports are not supported.`,
     );
   }
 
   const extension = path.extname(resolvedPath).toLowerCase();
   if (extension !== ".js" && extension !== ".mjs") {
     throw new Error(
-      `Unsupported import specifier "${specifier}" in js_repl. Only .js and .mjs files are supported.`,
+      `Unsupported import specifier "${specifier}" in the REPL. Only .js and .mjs files are supported.`,
     );
   }
 
@@ -397,7 +397,7 @@ function resolveBareSpecifier(specifier) {
 function resolveSpecifier(specifier, referrerIdentifier = null) {
   if (specifier.startsWith("node:") || builtinModuleSet.has(specifier)) {
     if (isDeniedBuiltin(specifier)) {
-      throw new Error(`Importing module "${specifier}" is not allowed in js_repl`);
+      throw new Error(`Importing module "${specifier}" is not allowed in the REPL`);
     }
     return { kind: "builtin", specifier: toNodeBuiltinSpecifier(specifier) };
   }
@@ -408,7 +408,7 @@ function resolveSpecifier(specifier, referrerIdentifier = null) {
 
   if (!isBarePackageSpecifier(specifier)) {
     throw new Error(
-      `Unsupported import specifier "${specifier}" in js_repl. Use a package name like "lodash" or "@scope/pkg", or a relative/absolute/file:// .js/.mjs path.`,
+      `Unsupported import specifier "${specifier}" in the REPL. Use a package name like "lodash" or "@scope/pkg", or a relative/absolute/file:// .js/.mjs path.`,
     );
   }
 
@@ -540,7 +540,7 @@ function sendFatalExecResultSync(kind, error) {
     id: activeExecId,
     ok: false,
     output: "",
-    error: `js_repl kernel ${kind}: ${formatErrorMessage(error)}; kernel reset. Catch or handle async errors (including Promise rejections and EventEmitter 'error' events) to avoid kernel termination.`,
+    error: `REPL kernel ${kind}: ${formatErrorMessage(error)}; kernel reset. Catch or handle async errors (including Promise rejections and EventEmitter 'error' events) to avoid kernel termination.`,
   };
   try {
     fs.writeSync(process.stdout.fd, `${JSON.stringify(payload)}\n`);
@@ -555,7 +555,7 @@ function scheduleFatalExit(kind, error) {
     try {
       fs.writeSync(
         process.stderr.fd,
-        `js_repl kernel (additional) ${kind}: ${formatErrorMessage(error)}\n`,
+        `REPL kernel (additional) ${kind}: ${formatErrorMessage(error)}\n`,
       );
     } catch { /* best effort */ }
     process.exitCode = 1;
@@ -567,7 +567,7 @@ function scheduleFatalExit(kind, error) {
   try {
     fs.writeSync(
       process.stderr.fd,
-      `js_repl kernel ${kind}: ${formatErrorMessage(error)}\n`,
+      `REPL kernel ${kind}: ${formatErrorMessage(error)}\n`,
     );
   } catch {
     // ignore

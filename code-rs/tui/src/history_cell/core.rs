@@ -52,7 +52,7 @@ pub(crate) enum HistoryCellType {
     Context,
     AnimatedWelcome,
     Loading,
-    JsRepl { status: ExecStatus },
+    Repl { status: ExecStatus },
 }
 
 pub(crate) fn gutter_symbol_for_kind(kind: HistoryCellType) -> Option<&'static str> {
@@ -85,7 +85,7 @@ pub(crate) fn gutter_symbol_for_kind(kind: HistoryCellType) -> Option<&'static s
         HistoryCellType::Notice => Some(icons::gutter_notice()),
         HistoryCellType::CompactionSummary => Some(icons::gutter_compaction()),
         HistoryCellType::Context => Some(icons::gutter_context()),
-        HistoryCellType::JsRepl { status } => match status {
+        HistoryCellType::Repl { status } => match status {
             ExecStatus::Error => Some(icons::gutter_error()),
             _ => Some(icons::gutter_exec()),
         },

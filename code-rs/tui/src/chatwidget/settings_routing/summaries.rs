@@ -31,7 +31,7 @@ impl ChatWidget<'_> {
                     #[cfg(feature = "browser-automation")]
                     SettingsSection::Chrome        => self.settings_summary_chrome(),
                     SettingsSection::Mcp           => self.settings_summary_mcp(),
-                    SettingsSection::JsRepl        => self.settings_summary_js_repl(),
+                    SettingsSection::Repl        => self.settings_summary_repl(),
                     #[cfg(feature = "managed-network-proxy")]
                     SettingsSection::Network       => self.settings_summary_network(),
                     SettingsSection::Notifications => self.settings_summary_notifications(),
@@ -163,10 +163,10 @@ impl ChatWidget<'_> {
         }
     }
 
-    pub(super) fn settings_summary_js_repl(&self) -> Option<String> {
-        let enabled = if self.config.tools_js_repl { "Enabled" } else { "Disabled" };
-        let runtime = self.config.js_repl_default_runtime.label();
-        let rt_cfg = self.config.js_repl_runtime_config(self.config.js_repl_default_runtime);
+    pub(super) fn settings_summary_repl(&self) -> Option<String> {
+        let enabled = if self.config.tools_repl { "Enabled" } else { "Disabled" };
+        let runtime = self.config.repl_default_runtime.label();
+        let rt_cfg = self.config.repl_runtime_config(self.config.repl_default_runtime);
         let path_str = rt_cfg
             .runtime_path
             .as_ref().map_or_else(|| "auto".to_owned(), |path| path.to_string_lossy().into_owned());

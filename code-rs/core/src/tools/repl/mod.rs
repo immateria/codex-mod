@@ -34,7 +34,7 @@ use tokio_util::sync::CancellationToken;
 use tracing::debug;
 use tracing::warn;
 
-pub(crate) const JS_REPL_PRAGMA_PREFIX: &str = "// codex-js-repl:";
+pub(crate) const REPL_PRAGMA_PREFIX: &str = "// codex-repl:";
 
 const KERNEL_SOURCE_NODE: &str = include_str!("kernel_node.js");
 const KERNEL_SOURCE_DENO: &str = include_str!("kernel_deno.js");
@@ -65,8 +65,8 @@ const MODEL_DIAG_STDERR_MAX_BYTES: usize = 1_024;
 const MODEL_DIAG_ERROR_MAX_BYTES: usize = 256;
 
 #[derive(Clone, Debug)]
-pub struct JsReplRuntimeConfig {
-    pub kind: crate::config::JsReplRuntimeKindToml,
+pub struct ReplRuntimeConfig {
+    pub kind: crate::config::ReplRuntimeKindToml,
     pub runtime_path: Option<PathBuf>,
     pub runtime_args: Vec<String>,
     pub node_module_dirs: Vec<PathBuf>,
@@ -74,7 +74,7 @@ pub struct JsReplRuntimeConfig {
 
 #[derive(Clone, Debug)]
 struct ResolvedRuntime {
-    kind: crate::config::JsReplRuntimeKindToml,
+    kind: crate::config::ReplRuntimeKindToml,
     executable: PathBuf,
     args: Vec<String>,
     version: String,
@@ -91,12 +91,12 @@ struct ToolRequest {
 }
 
 #[derive(Clone, Debug)]
-pub(crate) struct JsExecResult {
+pub(crate) struct ReplExecResult {
     pub output: String,
 }
 
 #[derive(Clone, Debug)]
-pub(crate) struct JsExecError {
+pub(crate) struct ReplExecError {
     pub output: String,
     pub error: String,
 }
@@ -147,21 +147,21 @@ struct KernelDebugSnapshot {
 
 #[derive(Clone, Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub(crate) struct JsReplArgs {
+pub(crate) struct ReplArgs {
     pub code: String,
     #[serde(default)]
     pub timeout_ms: Option<u64>,
     #[serde(default)]
-    pub runtime: Option<crate::config::JsReplRuntimeKindToml>,
+    pub runtime: Option<crate::config::ReplRuntimeKindToml>,
 }
 
-pub(crate) struct JsReplHandle {
-    runtime: JsReplRuntimeConfig,
-    cell: OnceCell<Arc<JsReplManager>>,
+pub(crate) struct ReplHandle {
+    runtime: ReplRuntimeConfig,
+    cell: OnceCell<Arc<ReplManager>>,
 }
 
-impl JsReplHandle {
-    pub(crate) fn new(runtime: JsReplRuntimeConfig) -> Self {
+impl ReplHandle {
+    pub(crate) fn new(runtime: ReplRuntimeConfig) -> Self {
         Self {
             runtime,
             cell: OnceCell::new(),
@@ -178,21 +178,21 @@ impl JsReplHandle {
         detect_runtime_version(self.runtime.kind, &executable).await
     }
 
-    pub(crate) async fn manager(&self) -> Result<Arc<JsReplManager>, String> {
+    pub(crate) async fn manager(&self) -> Result<Arc<ReplManager>, String> {
         self.cell
             .get_or_try_init(|| async {
-                JsReplManager::new(self.runtime.clone()).await
+                ReplManager::new(self.runtime.clone()).await
             })
             .await
             .cloned()
     }
 
-    pub(crate) fn manager_if_started(&self) -> Option<Arc<JsReplManager>> {
+    pub(crate) fn manager_if_started(&self) -> Option<Arc<ReplManager>> {
         self.cell.get().cloned()
     }
 }
 
-pub(crate) struct JsReplManager {
+pub(crate) struct ReplManager {
     runtime: ResolvedRuntime,
     tmp_dir: tempfile::TempDir,
     kernel_path: PathBuf,
@@ -216,39 +216,39 @@ struct Kernel {
     shutdown: CancellationToken,
 }
 
-impl JsReplManager {
-    pub(crate) async fn new(runtime: JsReplRuntimeConfig) -> Result<Arc<Self>, String> {
+impl ReplManager {
+    pub(crate) async fn new(runtime: ReplRuntimeConfig) -> Result<Arc<Self>, String> {
         let runtime = resolve_runtime(runtime).await?;
 
         let tmp_dir = tempfile::tempdir()
-            .map_err(|err| format!("failed to create js_repl temp dir: {err}"))?;
+            .map_err(|err| format!("failed to create repl temp dir: {err}"))?;
 
         let kernel_filename = match runtime.kind {
-            crate::config::JsReplRuntimeKindToml::Node => "kernel_node.js",
-            crate::config::JsReplRuntimeKindToml::Deno => "kernel_deno.js",
+            crate::config::ReplRuntimeKindToml::Node => "kernel_node.js",
+            crate::config::ReplRuntimeKindToml::Deno => "kernel_deno.js",
         };
         let kernel_path = tmp_dir.path().join(kernel_filename);
         let common_path = tmp_dir.path().join("kernel_common.js");
         let meriyah_path = tmp_dir.path().join("meriyah.umd.min.js");
         let kernel_source = match runtime.kind {
-            crate::config::JsReplRuntimeKindToml::Node => KERNEL_SOURCE_NODE,
-            crate::config::JsReplRuntimeKindToml::Deno => KERNEL_SOURCE_DENO,
+            crate::config::ReplRuntimeKindToml::Node => KERNEL_SOURCE_NODE,
+            crate::config::ReplRuntimeKindToml::Deno => KERNEL_SOURCE_DENO,
         };
         tokio::try_join!(
             async {
                 tokio::fs::write(&kernel_path, kernel_source)
                     .await
-                    .map_err(|err| format!("failed to write js_repl kernel: {err}"))
+                    .map_err(|err| format!("failed to write repl kernel: {err}"))
             },
             async {
                 tokio::fs::write(&common_path, KERNEL_COMMON)
                     .await
-                    .map_err(|err| format!("failed to write js_repl common: {err}"))
+                    .map_err(|err| format!("failed to write repl common: {err}"))
             },
             async {
                 tokio::fs::write(&meriyah_path, MERIYAH_UMD)
                     .await
-                    .map_err(|err| format!("failed to write js_repl parser: {err}"))
+                    .map_err(|err| format!("failed to write repl parser: {err}"))
             },
         )?;
 
@@ -279,12 +279,12 @@ impl JsReplManager {
         parent_ctx: &ToolCallCtx,
         attempt_req: u64,
         cwd: &Path,
-        args: JsReplArgs,
-    ) -> Result<JsExecResult, JsExecError> {
+        args: ReplArgs,
+    ) -> Result<ReplExecResult, ReplExecError> {
         let Ok(_permit) = self.exec_lock.acquire().await else {
-            return Err(JsExecError {
+            return Err(ReplExecError {
                 output: String::new(),
-                error: "js_repl kernel is unavailable".to_owned(),
+                error: "repl kernel is unavailable".to_owned(),
             });
         };
 
@@ -310,7 +310,7 @@ impl JsReplManager {
                 *guard = Some(
                     self.start_kernel(sess, cwd)
                         .await
-                        .map_err(|error| JsExecError {
+                        .map_err(|error| ReplExecError {
                     output: String::new(),
                     error,
                 })?,
@@ -318,9 +318,9 @@ impl JsReplManager {
             }
             let Some(kernel) = guard.as_ref() else {
                 self.clear_exec_tool_calls(&id).await;
-                return Err(JsExecError {
+                return Err(ReplExecError {
                     output: String::new(),
-                    error: "js_repl kernel failed to start".to_owned(),
+                    error: "repl kernel failed to start".to_owned(),
                 });
             };
             (
@@ -348,16 +348,16 @@ impl JsReplManager {
             let snapshot = Self::kernel_debug_snapshot(&child, &recent_stderr).await;
             let error = if should_include_diagnostics_for_write_error(&err, &snapshot) {
                 with_model_failure_message(
-                    "failed to send js_repl request",
+                    "failed to send repl request",
                     "write_error",
                     Some(&err),
                     &snapshot,
                 )
             } else {
-                format!("failed to send js_repl request: {err}")
+                format!("failed to send repl request: {err}")
             };
-            if let Err(e) = self.reset().await { warn!("js_repl reset failed: {e}"); }
-            return Err(JsExecError { output: String::new(), error });
+            if let Err(e) = self.reset().await { warn!("repl reset failed: {e}"); }
+            return Err(ReplExecError { output: String::new(), error });
         }
 
         let mut tool_rx_guard = tool_rx.lock().await;
@@ -371,9 +371,9 @@ impl JsReplManager {
                     pending.lock().await.remove(&id);
                     drop(tool_rx_guard);
                     self.settle_and_reset(&id).await;
-                    return Err(JsExecError {
+                    return Err(ReplExecError {
                         output: String::new(),
-                        error: format!("js_repl timed out after {timeout_ms}ms"),
+                        error: format!("repl timed out after {timeout_ms}ms"),
                     });
                 }
                 tool_req = tool_rx_guard.recv() => {
@@ -383,13 +383,13 @@ impl JsReplManager {
                         self.settle_exec(&id).await;
                         let snapshot = Self::kernel_debug_snapshot(&child, &recent_stderr).await;
                         let msg = with_model_failure_message(
-                            "js_repl kernel terminated while waiting for tool requests",
+                            "repl kernel terminated while waiting for tool requests",
                             "tool_channel_closed",
                             None,
                             &snapshot,
                         );
-                        if let Err(e) = self.reset().await { warn!("js_repl reset failed: {e}"); }
-                        return Err(JsExecError { output: String::new(), error: msg });
+                        if let Err(e) = self.reset().await { warn!("repl reset failed: {e}"); }
+                        return Err(ReplExecError { output: String::new(), error: msg });
                     };
                     Self::handle_tool_request(
                         sess,
@@ -413,13 +413,13 @@ impl JsReplManager {
                             self.settle_exec(&id).await;
                             let snapshot = Self::kernel_debug_snapshot(&child, &recent_stderr).await;
                             let msg = with_model_failure_message(
-                                "js_repl kernel stopped before returning a result",
+                                "repl kernel stopped before returning a result",
                                 "response_channel_closed",
                                 None,
                                 &snapshot,
                             );
-                            if let Err(e) = self.reset().await { warn!("js_repl reset failed: {e}"); }
-                            return Err(JsExecError { output: String::new(), error: msg });
+                            if let Err(e) = self.reset().await { warn!("repl reset failed: {e}"); }
+                            return Err(ReplExecError { output: String::new(), error: msg });
                         }
                     }
                 }
@@ -431,8 +431,8 @@ impl JsReplManager {
         self.settle_exec(&id).await;
 
         match result {
-            ExecResultMessage::Ok { output } => Ok(JsExecResult { output }),
-            ExecResultMessage::Err { output, message } => Err(JsExecError {
+            ExecResultMessage::Ok { output } => Ok(ReplExecResult { output }),
+            ExecResultMessage::Err { output, message } => Err(ReplExecError {
                 output,
                 error: message,
             }),
@@ -452,7 +452,7 @@ impl JsReplManager {
     async fn settle_and_reset(&self, exec_id: &str) {
         self.settle_exec(exec_id).await;
         if let Err(e) = self.reset().await {
-            warn!("js_repl reset failed: {e}");
+            warn!("repl reset failed: {e}");
         }
     }
 
@@ -482,7 +482,7 @@ impl JsReplManager {
         for (_, tx) in pending.drain() {
             let _ = tx.send(ExecResultMessage::Err {
                 output: String::new(),
-                message: "js_repl kernel was reset".to_owned(),
+                message: "repl kernel was reset".to_owned(),
             });
         }
         drop(pending);
@@ -501,12 +501,12 @@ impl JsReplManager {
                     kernel_pid = ?pid,
                     kill_reason = reason,
                     error = %err,
-                    "failed to inspect js_repl kernel before kill"
+                    "failed to inspect repl kernel before kill"
                 );
             }
         }
         if let Err(err) = guard.kill().await {
-            debug!("failed to kill js_repl kernel (reason={reason}): {err}");
+            debug!("failed to kill repl kernel (reason={reason}): {err}");
         }
         let _ = guard.wait().await;
     }
@@ -521,7 +521,7 @@ impl JsReplManager {
             .spawn()
             .map_err(|err| {
                 format!(
-                    "failed to spawn js_repl kernel (runtime={runtime:?} exe={exe}): {err}",
+                    "failed to spawn repl kernel (runtime={runtime:?} exe={exe}): {err}",
                     runtime = self.runtime.kind,
                     exe = self.runtime.executable.display(),
                 )
@@ -530,11 +530,11 @@ impl JsReplManager {
         let stdin = child
             .stdin
             .take()
-            .ok_or_else(|| "js_repl kernel missing stdin".to_owned())?;
+            .ok_or_else(|| "repl kernel missing stdin".to_owned())?;
         let stdout = child
             .stdout
             .take()
-            .ok_or_else(|| "js_repl kernel missing stdout".to_owned())?;
+            .ok_or_else(|| "repl kernel missing stdout".to_owned())?;
         let stderr = child
             .stderr
             .take();
@@ -569,7 +569,7 @@ impl JsReplManager {
                 shutdown.clone(),
             ));
         } else {
-            warn!("js_repl kernel missing stderr");
+            warn!("repl kernel missing stderr");
         }
 
         Ok(Kernel {
@@ -617,8 +617,8 @@ impl JsReplManager {
             )
         {
             return Err(format!(
-                "js_repl {} runtime cannot enforce network mediation on this platform. \
-                 Set `[tools].js_repl_runtime = \"deno\"` (recommended) or disable \
+                "repl {} runtime cannot enforce network mediation on this platform. \
+                 Set `[tools].repl_runtime = \"deno\"` (recommended) or disable \
                  network mediation.",
                 self.runtime.kind
             ));
@@ -674,9 +674,9 @@ impl JsReplManager {
         command.current_dir(cwd);
         command.kill_on_drop(true);
 
-        command.env("CODEX_JS_TMP_DIR", self.tmp_dir.path());
-        command.env("CODEX_JS_REPL_RUNTIME", self.runtime.kind.label());
-        command.env("CODEX_JS_REPL_RUNTIME_VERSION", self.runtime.version.clone());
+        command.env("CODEX_REPL_TMP_DIR", self.tmp_dir.path());
+        command.env("CODEX_REPL_RUNTIME", self.runtime.kind.label());
+        command.env("CODEX_REPL_RUNTIME_VERSION", self.runtime.version.clone());
 
         if caps.uses_node_module_dirs && !self.runtime.node_module_dirs.is_empty() {
             let joined = std::env::join_paths(
@@ -685,8 +685,8 @@ impl JsReplManager {
                     .iter()
                     .map(|p| p.as_os_str()),
             )
-            .map_err(|err| format!("failed to join js_repl_node_module_dirs: {err}"))?;
-            command.env("CODEX_JS_REPL_NODE_MODULE_DIRS", joined);
+            .map_err(|err| format!("failed to join repl_node_module_dirs: {err}"))?;
+            command.env("CODEX_REPL_NODE_MODULE_DIRS", joined);
         }
 
         for (key, value) in env_overrides {
@@ -755,7 +755,7 @@ impl JsReplManager {
                     "id": tool_req.id,
                     "ok": false,
                     "response": JsonValue::Null,
-                    "error": "js_repl tool call cancelled (exec reset or timeout)",
+                    "error": "repl tool call cancelled (exec reset or timeout)",
                 });
                 if let Err(err) = send_json_line(stdin, &response).await {
                     warn!(
@@ -957,7 +957,7 @@ impl JsReplManager {
             };
 
             let Ok(message) = serde_json::from_str::<JsonValue>(&line) else {
-                warn!("js_repl kernel sent invalid json: {line}");
+                warn!("repl kernel sent invalid json: {line}");
                 continue;
             };
 
@@ -982,7 +982,7 @@ impl JsReplManager {
                             n => {
                                 warn!(
                                     count = n,
-                                    "js_repl kernel sent __fatal__ but multiple execs pending; \
+                                    "repl kernel sent __fatal__ but multiple execs pending; \
                                      this should not happen — routing to none"
                                 );
                                 None
@@ -992,12 +992,12 @@ impl JsReplManager {
                         Some(id.to_owned())
                     };
                     let Some(resolved_id) = resolved_id else {
-                        warn!("js_repl kernel sent __fatal__ with no pending exec");
+                        warn!("repl kernel sent __fatal__ with no pending exec");
                         continue;
                     };
 
                     // Wait for any nested tool calls to settle before delivering result.
-                    JsReplManager::wait_for_exec_tool_calls_map(&exec_tool_calls, &resolved_id).await;
+                    ReplManager::wait_for_exec_tool_calls_map(&exec_tool_calls, &resolved_id).await;
 
                     let ok = message.get("ok").and_then(JsonValue::as_bool).unwrap_or(false);
                     let output = message
@@ -1016,12 +1016,12 @@ impl JsReplManager {
                             ExecResultMessage::Err {
                                 output,
                                 message: error
-                                    .unwrap_or_else(|| "js_repl execution failed".to_string()),
+                                    .unwrap_or_else(|| "repl execution failed".to_string()),
                             }
                         };
                         let _ = sender.send(payload);
                     }
-                    JsReplManager::clear_exec_tool_calls_map(&exec_tool_calls, &resolved_id).await;
+                    ReplManager::clear_exec_tool_calls_map(&exec_tool_calls, &resolved_id).await;
                 }
                 "run_tool" => {
                     let Some(id) = message.get("id").and_then(JsonValue::as_str) else {
@@ -1042,24 +1042,24 @@ impl JsReplManager {
 
                     // Check if the exec is still active via exec_tool_calls registration.
                     let Some(exec_cancel) =
-                        JsReplManager::begin_exec_tool_call(&exec_tool_calls, &exec_id).await
+                        ReplManager::begin_exec_tool_call(&exec_tool_calls, &exec_id).await
                     else {
                         let snapshot =
-                            JsReplManager::kernel_debug_snapshot(&child, &recent_stderr).await;
+                            ReplManager::kernel_debug_snapshot(&child, &recent_stderr).await;
                         warn!(
                             exec_id = %exec_id,
                             tool_call_id = %id,
                             tool_name = %tool_name,
                             kernel_pid = ?snapshot.pid,
                             kernel_status = %snapshot.status,
-                            "js_repl tool request for unknown/finished exec"
+                            "repl tool request for unknown/finished exec"
                         );
                         let response = json!({
                             "type": "run_tool_result",
                             "id": id,
                             "ok": false,
                             "response": JsonValue::Null,
-                            "error": "js_repl exec context not found",
+                            "error": "repl exec context not found",
                         });
                         if let Err(err) = send_json_line(&stdin, &response).await {
                             warn!(
@@ -1073,17 +1073,17 @@ impl JsReplManager {
 
                     // Self-invocation guard (checked in read_stdout to avoid
                     // dispatching the tool call at all).
-                    if is_js_repl_internal_tool(&tool_name) {
+                    if is_repl_internal_tool(&tool_name) {
                         let response = json!({
                             "type": "run_tool_result",
                             "id": id,
                             "ok": false,
                             "response": JsonValue::Null,
-                            "error": "js_repl cannot invoke itself",
+                            "error": "repl cannot invoke itself",
                         });
                         if let Err(err) = send_json_line(&stdin, &response).await {
                             let snapshot =
-                                JsReplManager::kernel_debug_snapshot(&child, &recent_stderr).await;
+                                ReplManager::kernel_debug_snapshot(&child, &recent_stderr).await;
                             warn!(
                                 exec_id = %exec_id,
                                 tool_call_id = %id,
@@ -1094,7 +1094,7 @@ impl JsReplManager {
                                 "failed to reply to kernel run_tool request"
                             );
                         }
-                        JsReplManager::finish_exec_tool_call(&exec_tool_calls, &exec_id).await;
+                        ReplManager::finish_exec_tool_call(&exec_tool_calls, &exec_id).await;
                         continue;
                     }
 
@@ -1123,11 +1123,11 @@ impl JsReplManager {
                                 "failed to send enqueue-error reply to kernel"
                             );
                         }
-                        JsReplManager::finish_exec_tool_call(&exec_tool_calls, &exec_id).await;
+                        ReplManager::finish_exec_tool_call(&exec_tool_calls, &exec_id).await;
                     }
                 }
                 other => {
-                    warn!(message_type = ?other, "js_repl kernel sent unrecognized message type");
+                    warn!(message_type = ?other, "repl kernel sent unrecognized message type");
                 }
             }
         };
@@ -1139,8 +1139,8 @@ impl JsReplManager {
             calls.keys().cloned().collect::<Vec<_>>()
         };
         for exec_id in &exec_ids {
-            JsReplManager::wait_for_exec_tool_calls_map(&exec_tool_calls, exec_id).await;
-            JsReplManager::clear_exec_tool_calls_map(&exec_tool_calls, exec_id).await;
+            ReplManager::wait_for_exec_tool_calls_map(&exec_tool_calls, exec_id).await;
+            ReplManager::clear_exec_tool_calls_map(&exec_tool_calls, exec_id).await;
         }
 
         let unexpected_snapshot = if matches!(end_reason, KernelStreamEnd::Shutdown) {
@@ -1150,7 +1150,7 @@ impl JsReplManager {
         };
         let kernel_failure_message = unexpected_snapshot.as_ref().map(|snapshot| {
             with_model_failure_message(
-                "js_repl kernel exited unexpectedly",
+                "repl kernel exited unexpectedly",
                 end_reason.reason(),
                 end_reason.error(),
                 snapshot,
@@ -1158,7 +1158,7 @@ impl JsReplManager {
         });
         let kernel_exit_message = kernel_failure_message
             .clone()
-            .unwrap_or_else(|| "js_repl kernel exited unexpectedly".to_string());
+            .unwrap_or_else(|| "repl kernel exited unexpectedly".to_string());
 
         // Clear the kernel from the manager so a new one will be started.
         {
@@ -1193,7 +1193,7 @@ impl JsReplManager {
                 pending_exec_count = sorted_ids.len(),
                 pending_exec_ids = ?Self::truncate_id_list(&sorted_ids),
                 kernel_stderr_tail = %snapshot.stderr_tail,
-                "js_repl kernel terminated unexpectedly"
+                "repl kernel terminated unexpectedly"
             );
         }
     }
@@ -1212,7 +1212,7 @@ impl JsReplManager {
                     Ok(Some(line)) => line,
                     Ok(None) => break,
                     Err(err) => {
-                        warn!("js_repl kernel stderr ended: {err}");
+                        warn!("repl kernel stderr ended: {err}");
                         break;
                     }
                 },
@@ -1226,7 +1226,7 @@ impl JsReplManager {
                 if bounded_line.is_empty() {
                     continue;
                 }
-                warn!("js_repl stderr: {bounded_line}");
+                warn!("repl stderr: {bounded_line}");
             }
         }
     }
@@ -1250,9 +1250,9 @@ async fn send_json_line(stdin: &Arc<Mutex<ChildStdin>>, message: &JsonValue) -> 
     Ok(())
 }
 
-fn is_js_repl_internal_tool(name: &str) -> bool {
-    name.eq_ignore_ascii_case(crate::openai_tools::JS_REPL_TOOL_NAME)
-        || name.eq_ignore_ascii_case(crate::openai_tools::JS_REPL_RESET_TOOL_NAME)
+fn is_repl_internal_tool(name: &str) -> bool {
+    name.eq_ignore_ascii_case(crate::openai_tools::REPL_TOOL_NAME)
+        || name.eq_ignore_ascii_case(crate::openai_tools::REPL_RESET_TOOL_NAME)
 }
 
 fn format_exit_status(status: std::process::ExitStatus) -> String {
@@ -1359,7 +1359,7 @@ fn format_model_kernel_failure_details(
     });
     let encoded = serde_json::to_string(&payload)
         .unwrap_or_else(|err| format!(r#"{{"reason":"serialization_error","error":"{err}"}}"#));
-    format!("js_repl diagnostics: {encoded}")
+    format!("repl diagnostics: {encoded}")
 }
 
 fn with_model_failure_message(
@@ -1390,19 +1390,19 @@ fn freeform_tool_name_snapshot(sess: &Session) -> HashSet<String> {
     .collect()
 }
 
-async fn resolve_runtime(cfg: JsReplRuntimeConfig) -> Result<ResolvedRuntime, String> {
+async fn resolve_runtime(cfg: ReplRuntimeConfig) -> Result<ResolvedRuntime, String> {
     let executable = cfg.runtime_path.unwrap_or_else(|| {
         PathBuf::from(cfg.kind.default_executable())
     });
 
     let version = detect_runtime_version(cfg.kind, &executable).await?;
-    if matches!(cfg.kind, crate::config::JsReplRuntimeKindToml::Node) {
+    if matches!(cfg.kind, crate::config::ReplRuntimeKindToml::Node) {
         let parsed = parse_version_triplet(&version).ok_or_else(|| {
             format!("failed to parse Node version `{version}` (expected like `18.0.0`)")
         })?;
         if !version_at_least(parsed, MIN_NODE_VERSION) {
             return Err(format!(
-                "Node version {version} is too old for js_repl (need >= {min_major}.{min_minor}.{min_patch}). Consider setting `[tools].js_repl_runtime = \"deno\"`.",
+                "Node version {version} is too old for repl (need >= {min_major}.{min_minor}.{min_patch}). Consider setting `[tools].repl_runtime = \"deno\"`.",
                 min_major = MIN_NODE_VERSION.0,
                 min_minor = MIN_NODE_VERSION.1,
                 min_patch = MIN_NODE_VERSION.2,
@@ -1411,7 +1411,7 @@ async fn resolve_runtime(cfg: JsReplRuntimeConfig) -> Result<ResolvedRuntime, St
     }
 
     let mut args = Vec::with_capacity(cfg.runtime_args.len() + 1);
-    if matches!(cfg.kind, crate::config::JsReplRuntimeKindToml::Node)
+    if matches!(cfg.kind, crate::config::ReplRuntimeKindToml::Node)
         && !cfg.runtime_args.iter().any(|arg| arg == "--experimental-vm-modules")
     {
         args.push("--experimental-vm-modules".to_owned());
@@ -1428,7 +1428,7 @@ async fn resolve_runtime(cfg: JsReplRuntimeConfig) -> Result<ResolvedRuntime, St
 }
 
 async fn detect_runtime_version(
-    kind: crate::config::JsReplRuntimeKindToml,
+    kind: crate::config::ReplRuntimeKindToml,
     executable: &Path,
 ) -> Result<String, String> {
     let output = Command::new(executable)
@@ -1444,8 +1444,8 @@ async fn detect_runtime_version(
     }
 
     match kind {
-        crate::config::JsReplRuntimeKindToml::Node => Ok(text.trim().trim_start_matches('v').to_owned()),
-        crate::config::JsReplRuntimeKindToml::Deno => {
+        crate::config::ReplRuntimeKindToml::Node => Ok(text.trim().trim_start_matches('v').to_owned()),
+        crate::config::ReplRuntimeKindToml::Deno => {
             for line in text.lines() {
                 let l = line.trim();
                 if let Some(rest) = l.strip_prefix("deno ") {
@@ -1508,7 +1508,7 @@ mod tests {
     use super::parse_version_triplet;
     use super::version_at_least;
     use super::ExecResultMessage;
-    use super::JsReplRuntimeConfig;
+    use super::ReplRuntimeConfig;
     use super::ToolRequest;
 
     #[test]
@@ -1557,8 +1557,8 @@ mod tests {
 
     #[test]
     fn runtime_config_clone_preserves_fields() {
-        let cfg = JsReplRuntimeConfig {
-            kind: crate::config::JsReplRuntimeKindToml::Node,
+        let cfg = ReplRuntimeConfig {
+            kind: crate::config::ReplRuntimeKindToml::Node,
             runtime_path: Some(std::path::PathBuf::from("/usr/bin/node")),
             runtime_args: vec!["--max-old-space-size=512".to_owned()],
             node_module_dirs: vec![std::path::PathBuf::from("/app/node_modules")],

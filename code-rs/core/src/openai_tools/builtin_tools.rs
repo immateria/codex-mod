@@ -7,8 +7,8 @@ use super::types::{FreeformTool, FreeformToolFormat, OpenAiTool, ResponsesApiToo
 use super::{
     create_additional_permissions_schema,
     GREP_FILES_TOOL_NAME,
-    JS_REPL_RESET_TOOL_NAME,
-    JS_REPL_TOOL_NAME,
+    REPL_RESET_TOOL_NAME,
+    REPL_TOOL_NAME,
     LIST_DIR_TOOL_NAME,
     READ_FILE_TOOL_NAME,
     SEARCH_TOOL_BM25_TOOL_NAME,
@@ -588,25 +588,25 @@ pub(super) fn create_list_dir_tool() -> OpenAiTool {
     })
 }
 
-pub(super) fn create_js_repl_tool() -> OpenAiTool {
-    const JS_REPL_FREEFORM_GRAMMAR: &str = r"start: /[\s\S]*/";
+pub(super) fn create_repl_tool() -> OpenAiTool {
+    const REPL_FREEFORM_GRAMMAR: &str = r"start: /[\s\S]*/";
 
     OpenAiTool::Freeform(FreeformTool {
-        name: JS_REPL_TOOL_NAME.to_owned(),
-        description: "Runs JavaScript in a persistent JS runtime with top-level await (Node >= 18 by default; configurable to use Deno). This is a freeform tool: send raw JavaScript source text, optionally with a first-line pragma like `// codex-js-repl: timeout_ms=15000 runtime=deno`; do not send JSON/quotes/markdown fences.".to_owned(),
+        name: REPL_TOOL_NAME.to_owned(),
+        description: "Runs JavaScript in a persistent JS runtime with top-level await (Node >= 18 by default; configurable to use Deno). This is a freeform tool: send raw JavaScript source text, optionally with a first-line pragma like `// codex-repl: timeout_ms=15000 runtime=deno`; do not send JSON/quotes/markdown fences.".to_owned(),
         format: FreeformToolFormat {
             r#type: "grammar".to_owned(),
             syntax: "lark".to_owned(),
-            definition: JS_REPL_FREEFORM_GRAMMAR.to_owned(),
+            definition: REPL_FREEFORM_GRAMMAR.to_owned(),
         },
     })
 }
 
-pub(super) fn create_js_repl_reset_tool() -> OpenAiTool {
+pub(super) fn create_repl_reset_tool() -> OpenAiTool {
     OpenAiTool::Function(ResponsesApiTool {
-        name: JS_REPL_RESET_TOOL_NAME.to_owned(),
+        name: REPL_RESET_TOOL_NAME.to_owned(),
         description:
-            "Restarts the js_repl kernel process, clearing all state including top-level bindings, imported modules, and in-flight timers.".to_owned(),
+            "Restarts the repl kernel process, clearing all state including top-level bindings, imported modules, and in-flight timers.".to_owned(),
         strict: false,
         parameters: JsonSchema::Object {
             properties: BTreeMap::new(),

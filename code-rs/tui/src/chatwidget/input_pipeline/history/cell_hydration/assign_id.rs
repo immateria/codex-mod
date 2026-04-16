@@ -36,7 +36,7 @@ impl ChatWidget<'_> {
             exec.record.id = id;
         } else if let Some(js_cell) = cell
             .as_any_mut()
-            .downcast_mut::<crate::history_cell::JsReplCell>()
+            .downcast_mut::<crate::history_cell::ReplCell>()
         {
             js_cell.set_history_id(id);
         } else if let Some(merged) = cell

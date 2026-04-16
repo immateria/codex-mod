@@ -558,7 +558,7 @@ These are present in upstream `codex-rs`, but not fully integrated in this fork 
 **Completed (Phase 4)**
 
 - Structured file helpers: `read_file`, `list_dir`, `grep_files` (schema + handlers + parallel-safe classification).
-- Optional JS REPL tooling: `js_repl` + `js_repl_reset` (behind `[tools].js_repl=true`, default off).
+- Optional JS REPL tooling: `repl` + `repl_reset` (behind `[tools].repl=true`, default off).
 
 **Completed (Phase 5)**
 
@@ -573,7 +573,7 @@ These are present in upstream `codex-rs`, but not fully integrated in this fork 
   - `search_tool_bm25`
   - `apply_patch` (function/freeform)
   - `exec_command` / `write_stdin`
-  - `js_repl` / `js_repl_reset` (when enabled)
+  - `repl` / `repl_reset` (when enabled)
 - Remaining candidate tests:
   - selection merge/dedupe semantics
   - MCP gating when search-tool is enabled (tool not selected => rejected with guidance)
@@ -620,8 +620,8 @@ This fork's tool runtime handlers live in `code-rs/core/src/tools/handlers/`.
   - `list_dir`
   - `grep_files`
 - Optional runtime tools (behind config flags):
-  - `js_repl`
-  - `js_repl_reset`
+  - `repl`
+  - `repl_reset`
 
 **Upstream handlers not yet ported (or not exposed)**
 

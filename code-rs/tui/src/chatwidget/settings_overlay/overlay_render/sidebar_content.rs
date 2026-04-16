@@ -295,12 +295,12 @@ impl SettingsOverlayView {
                 }
                 self.render_placeholder(area, buf, SettingsSection::Notifications.placeholder());
             }
-            SettingsSection::JsRepl => {
-                if let Some(content) = self.js_repl_content.as_ref() {
+            SettingsSection::Repl => {
+                if let Some(content) = self.repl_content.as_ref() {
                     content.render(area, buf);
                     return;
                 }
-                self.render_placeholder(area, buf, SettingsSection::JsRepl.placeholder());
+                self.render_placeholder(area, buf, SettingsSection::Repl.placeholder());
             }
             #[cfg(feature = "managed-network-proxy")]
             SettingsSection::Network => {

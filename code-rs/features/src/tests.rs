@@ -53,8 +53,8 @@ fn use_linux_sandbox_bwrap_is_removed_and_disabled_by_default() {
 }
 
 #[test]
-fn js_repl_is_experimental_and_user_toggleable() {
-    let spec = Feature::JsRepl.info();
+fn repl_is_experimental_and_user_toggleable() {
+    let spec = Feature::Repl.info();
     let stage = spec.stage;
     let expected_node_version = include_str!("../../node-version.txt").trim_end();
 
@@ -66,7 +66,7 @@ fn js_repl_is_experimental_and_user_toggleable() {
             "Enable a persistent Node-backed JavaScript REPL for interactive website debugging and other inline JavaScript execution capabilities. Requires Node >= v{expected_node_version} installed."
         ))
     );
-    assert_eq!(Feature::JsRepl.default_enabled(), false);
+    assert_eq!(Feature::Repl.default_enabled(), false);
 }
 
 #[test]

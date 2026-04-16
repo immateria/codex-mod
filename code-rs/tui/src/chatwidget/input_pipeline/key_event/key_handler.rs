@@ -402,8 +402,8 @@ impl ChatWidget<'_> {
                 return;
             }
 
-            if matches_binding(hotkeys.js_repl_code_fold, '\\', false) {
-                self.toggle_bottommost_js_repl_code_fold();
+            if matches_binding(hotkeys.repl_code_fold, '\\', false) {
+                self.toggle_bottommost_repl_code_fold();
                 return;
             }
 
@@ -432,12 +432,12 @@ impl ChatWidget<'_> {
             }
 
             if matches_binding(hotkeys.jump_to_latest_child_call, '}', true) {
-                use crate::history_cell::JsReplCell;
+                use crate::history_cell::ReplCell;
                 let visible_child = self
                     .visible_history_cell_range_for_shortcuts()
                     .and_then(|(start, end)| {
                         self.history_cells[start..end].iter().rev().find_map(|cell| {
-                            cell.as_any().downcast_ref::<JsReplCell>().and_then(|js_cell| {
+                            cell.as_any().downcast_ref::<ReplCell>().and_then(|js_cell| {
                                 js_cell.latest_child_call_id().map(str::to_owned)
                             })
                         })
@@ -445,7 +445,7 @@ impl ChatWidget<'_> {
                 let Some(child_call_id) = visible_child.or_else(|| {
                     self.history_cells.iter().rev().find_map(|cell| {
                         cell.as_any()
-                            .downcast_ref::<JsReplCell>()
+                            .downcast_ref::<ReplCell>()
                             .and_then(|js_cell| js_cell.latest_child_call_id().map(str::to_owned))
                     })
                 }) else {

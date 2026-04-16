@@ -2,7 +2,7 @@ use super::*;
 use crate::bottom_pane::settings_pages::exec_limits::ExecLimitsSettingsView;
 use crate::bottom_pane::settings_pages::experimental_features::ExperimentalFeaturesSettingsView;
 use crate::bottom_pane::settings_pages::interface::InterfaceSettingsView;
-use crate::bottom_pane::settings_pages::js_repl::JsReplSettingsView;
+use crate::bottom_pane::settings_pages::repl::ReplSettingsView;
 use crate::bottom_pane::settings_pages::memories::MemoriesSettingsView;
 use crate::bottom_pane::settings_pages::model::ModelSelectionViewParams;
 #[cfg(feature = "managed-network-proxy")]
@@ -19,7 +19,7 @@ use crate::chatwidget::settings_overlay::{
     ExecLimitsSettingsContent,
     ExperimentalFeaturesSettingsContent,
     InterfaceSettingsContent,
-    JsReplSettingsContent,
+    ReplSettingsContent,
     MemoriesSettingsContent,
     PluginsSettingsContent,
     SecretsSettingsContent,

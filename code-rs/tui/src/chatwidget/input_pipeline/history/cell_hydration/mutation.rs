@@ -13,7 +13,7 @@ impl ChatWidget<'_> {
                 // rebuilding from the record.
                 let existing_prefers_hydrate = cell
                     .as_any()
-                    .is::<crate::history_cell::JsReplCell>()
+                    .is::<crate::history_cell::ReplCell>()
                     || cell.as_any().is::<crate::history_cell::ExecCell>()
                     || cell.as_any().is::<crate::history_cell::PatchSummaryCell>()
                     || cell.as_any().is::<crate::history_cell::ToolCallCell>()
@@ -55,7 +55,7 @@ impl ChatWidget<'_> {
                     .history_cells
                     .get(idx)
                     .is_some_and(|cell_slot| {
-                        cell_slot.as_any().is::<crate::history_cell::JsReplCell>()
+                        cell_slot.as_any().is::<crate::history_cell::ReplCell>()
                             || cell_slot.as_any().is::<crate::history_cell::ExecCell>()
                             || cell_slot.as_any().is::<crate::history_cell::PatchSummaryCell>()
                             || cell_slot.as_any().is::<crate::history_cell::ToolCallCell>()
@@ -119,7 +119,7 @@ impl ChatWidget<'_> {
         self.history_render.invalidate_history_id(id);
 
         if let Some(idx) = self.cell_index_for_history_id(id) {
-            // JsReplCell stores JS-specific metadata (code, runtime) that would be
+            // ReplCell stores JS-specific metadata (code, runtime) that would be
             // lost if we rebuilt it from a plain ExecRecord. Additionally, some
             // cells carry transient metadata (like `parent_call_id`) that is not
             // stored in the history domain record. For these cells, hydrate
@@ -128,7 +128,7 @@ impl ChatWidget<'_> {
                 .history_cells
                 .get(idx)
                 .is_some_and(|c| {
-                    c.as_any().is::<crate::history_cell::JsReplCell>()
+                    c.as_any().is::<crate::history_cell::ReplCell>()
                         || c.as_any().is::<crate::history_cell::ExecCell>()
                         || c.as_any().is::<crate::history_cell::PatchSummaryCell>()
                         || c.as_any().is::<crate::history_cell::ToolCallCell>()

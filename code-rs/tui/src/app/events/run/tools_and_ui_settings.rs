@@ -51,13 +51,13 @@
                     }
                     self.schedule_redraw();
                 }
-                AppEvent::SetJsReplSettings(settings) => {
-                    match code_core::config::set_js_repl_settings(&self.config.code_home, &settings) {
+                AppEvent::SetReplSettings(settings) => {
+                    match code_core::config::set_repl_settings(&self.config.code_home, &settings) {
                         Ok(()) => {
-                            self.config.apply_js_repl_settings(&settings);
+                            self.config.apply_repl_settings(&settings);
                             if let AppState::Chat { widget } = &mut self.app_state {
-                                widget.apply_js_repl_settings(settings);
-                                let status = if self.config.tools_js_repl { "Enabled" } else { "Disabled" };
+                                widget.apply_repl_settings(settings);
+                                let status = if self.config.tools_repl { "Enabled" } else { "Disabled" };
                                 widget.flash_footer_notice(format!("JS REPL: {status}"));
                             }
                         }

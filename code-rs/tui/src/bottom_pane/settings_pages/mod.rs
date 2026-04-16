@@ -11,7 +11,7 @@ pub(crate) mod auto_drive;
 pub(crate) mod experimental_features;
 pub(crate) mod exec_limits;
 pub(crate) mod interface;
-pub(crate) mod js_repl;
+pub(crate) mod repl;
 pub(crate) mod mcp;
 pub(crate) mod memories;
 pub(crate) mod model;

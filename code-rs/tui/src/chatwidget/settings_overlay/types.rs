@@ -145,7 +145,7 @@ impl SettingsHelpOverlay {
             section,
             SettingsSection::Agents
                 | SettingsSection::Mcp
-                | SettingsSection::JsRepl
+                | SettingsSection::Repl
                 | SettingsSection::ExecLimits
                 | SettingsSection::Accounts
                 | SettingsSection::Apps

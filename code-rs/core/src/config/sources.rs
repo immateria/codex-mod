@@ -1614,8 +1614,8 @@ pub fn set_tui_hotkeys(
         toml_edit::value(hotkeys.network_settings.toml_value().as_ref());
     hotkeys_table["exec_output_fold"] =
         toml_edit::value(hotkeys.exec_output_fold.toml_value().as_ref());
-    hotkeys_table["js_repl_code_fold"] =
-        toml_edit::value(hotkeys.js_repl_code_fold.toml_value().as_ref());
+    hotkeys_table["repl_code_fold"] =
+        toml_edit::value(hotkeys.repl_code_fold.toml_value().as_ref());
     hotkeys_table["jump_to_parent_call"] =
         toml_edit::value(hotkeys.jump_to_parent_call.toml_value().as_ref());
     hotkeys_table["jump_to_latest_child_call"] =
@@ -1668,8 +1668,8 @@ pub fn set_tui_hotkeys(
             );
             write_hotkey_override_field(
                 platform_table,
-                "js_repl_code_fold",
-                overrides.js_repl_code_fold,
+                "repl_code_fold",
+                overrides.repl_code_fold,
             );
             write_hotkey_override_field(
                 platform_table,
@@ -1698,7 +1698,7 @@ pub fn set_tui_hotkeys(
             platform_table.remove("shell_selector");
             platform_table.remove("network_settings");
             platform_table.remove("exec_output_fold");
-            platform_table.remove("js_repl_code_fold");
+            platform_table.remove("repl_code_fold");
             platform_table.remove("jump_to_parent_call");
             platform_table.remove("jump_to_latest_child_call");
 
@@ -3891,10 +3891,10 @@ pub fn set_exec_limits_settings(
     Ok(())
 }
 
-/// Persist `js_repl` runtime settings into `CODEX_HOME/config.toml` at `[tools]`.
-pub fn set_js_repl_settings(
+/// Persist `repl` runtime settings into `CODEX_HOME/config.toml` at `[tools]`.
+pub fn set_repl_settings(
     code_home: &Path,
-    settings: &super::JsReplSettingsToml,
+    settings: &super::ReplSettingsToml,
 ) -> anyhow::Result<()> {
     let config_path = code_home.join(CONFIG_TOML_FILE);
     let read_path = resolve_code_path_for_read(code_home, Path::new(CONFIG_TOML_FILE));
@@ -3905,15 +3905,15 @@ pub fn set_js_repl_settings(
         .as_table_mut()
         .ok_or_else(|| anyhow::anyhow!("`tools` must be a TOML table"))?;
 
-    tools_table["js_repl"] = toml_edit::value(settings.enabled);
+    tools_table["repl"] = toml_edit::value(settings.enabled);
 
     let runtime = settings.runtime.label();
-    tools_table["js_repl_runtime"] = toml_edit::value(runtime);
+    tools_table["repl_runtime"] = toml_edit::value(runtime);
 
     // Write path/args to the per-runtime TOML keys based on selected runtime.
     let rt_label = settings.runtime.label();
-    let path_key = format!("js_repl_{rt_label}_path");
-    let args_key = format!("js_repl_{rt_label}_args");
+    let path_key = format!("repl_{rt_label}_path");
+    let args_key = format!("repl_{rt_label}_args");
     match settings.runtime_path.as_ref() {
         Some(path) => {
             tools_table[&path_key] =
@@ -3931,11 +3931,11 @@ pub fn set_js_repl_settings(
     )?;
 
     // Clean up legacy flat fields if present.
-    tools_table.remove("js_repl_runtime_path");
-    tools_table.remove("js_repl_runtime_args");
+    tools_table.remove("repl_runtime_path");
+    tools_table.remove("repl_runtime_args");
     let _ = write_path_array(
         tools_table,
-        "js_repl_node_module_dirs",
+        "repl_node_module_dirs",
         &settings.node_module_dirs,
     )?;
 

@@ -47,15 +47,15 @@
     }
 
     #[test]
-    fn js_repl_settings_emits_apply_event_with_expected_fields() {
+    fn repl_settings_emits_apply_event_with_expected_fields() {
     let _guard = enter_test_runtime_guard();
     let mut harness = ChatWidgetHarness::new();
     use crate::bottom_pane::SettingsSection;
 
     {
         let chat = harness.chat();
-        chat.ensure_settings_overlay_section(SettingsSection::JsRepl);
-        chat.show_settings_overlay(Some(SettingsSection::JsRepl));
+        chat.ensure_settings_overlay_section(SettingsSection::Repl);
+        chat.show_settings_overlay(Some(SettingsSection::Repl));
     }
     harness.flush_into_widget();
 
@@ -73,13 +73,13 @@
 
     let mut applied = None;
     for event in harness.drain_events() {
-        if let AppEvent::SetJsReplSettings(settings) = event {
+        if let AppEvent::SetReplSettings(settings) = event {
             applied = Some(settings);
             break;
         }
     }
 
-    let applied = applied.expect("expected SetJsReplSettings event");
+    let applied = applied.expect("expected SetReplSettings event");
     assert!(applied.enabled, "expected Enabled to be true after toggle");
     }
 

@@ -1,7 +1,7 @@
 use std::cell::Cell;
 use std::path::PathBuf;
 
-use code_core::config::{JsReplRuntimeKindToml, JsReplSettingsToml};
+use code_core::config::{ReplRuntimeKindToml, ReplSettingsToml};
 
 use crate::app_event_sender::AppEventSender;
 use crate::chatwidget::BackgroundOrderTicket;
@@ -52,8 +52,8 @@ enum RowKind {
     Close,
 }
 
-pub(crate) struct JsReplSettingsView {
-    settings: JsReplSettingsToml,
+pub(crate) struct ReplSettingsView {
+    settings: ReplSettingsToml,
     network_enabled: bool,
     app_event_tx: AppEventSender,
     ticket: BackgroundOrderTicket,
@@ -64,9 +64,9 @@ pub(crate) struct JsReplSettingsView {
     viewport_rows: Cell<usize>,
 }
 
-crate::bottom_pane::chrome_view::impl_chrome_view!(JsReplSettingsView);
+crate::bottom_pane::chrome_view::impl_chrome_view!(ReplSettingsView);
 
-impl JsReplSettingsView {
+impl ReplSettingsView {
     const DEFAULT_VISIBLE_ROWS: usize = crate::timing::DEFAULT_VISIBLE_ROWS;
     const HEADER_ROWS: u16 = 2;
 
@@ -87,7 +87,7 @@ impl JsReplSettingsView {
     }
 
     pub(crate) fn new(
-        settings: JsReplSettingsToml,
+        settings: ReplSettingsToml,
         network_enabled: bool,
         app_event_tx: AppEventSender,
         ticket: BackgroundOrderTicket,

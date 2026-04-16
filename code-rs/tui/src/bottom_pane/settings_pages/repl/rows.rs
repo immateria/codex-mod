@@ -5,7 +5,7 @@ use ratatui::style::Modifier;
 use crate::bottom_pane::settings_ui::rows::{KeyValueRow, StyledText};
 use crate::bottom_pane::settings_ui::toggle;
 
-impl JsReplSettingsView {
+impl ReplSettingsView {
     pub(super) fn row_count(&self) -> usize {
         // Enabled, runtime kind, runtime path.
         let mut count = 3;
@@ -20,7 +20,7 @@ impl JsReplSettingsView {
         // Runtime args.
         count += 1;
         // Node-only: module dirs.
-        if matches!(self.settings.runtime, JsReplRuntimeKindToml::Node) {
+        if matches!(self.settings.runtime, ReplRuntimeKindToml::Node) {
             count += 1;
             // Optional: add module dir picker.
             if crate::platform_caps::supports_native_picker() {
@@ -32,7 +32,7 @@ impl JsReplSettingsView {
         count
     }
 
-    pub(super) fn runtime_label(kind: JsReplRuntimeKindToml) -> &'static str {
+    pub(super) fn runtime_label(kind: ReplRuntimeKindToml) -> &'static str {
         kind.label()
     }
 
@@ -53,7 +53,7 @@ impl JsReplSettingsView {
         }
 
         rows.push(RowKind::RuntimeArgs);
-        if matches!(self.settings.runtime, JsReplRuntimeKindToml::Node) {
+        if matches!(self.settings.runtime, ReplRuntimeKindToml::Node) {
             rows.push(RowKind::NodeModuleDirs);
             if crate::platform_caps::supports_native_picker() {
                 rows.push(RowKind::AddNodeModuleDir);

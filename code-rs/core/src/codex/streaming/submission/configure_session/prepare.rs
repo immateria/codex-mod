@@ -33,13 +33,13 @@ impl Runner<'_> {
             shell_override,
             shell_style_profiles,
             network,
-            tools_js_repl,
-            js_repl_default_runtime,
-            js_repl_node_path,
-            js_repl_node_args,
-            js_repl_deno_path,
-            js_repl_deno_args,
-            js_repl_node_module_dirs,
+            tools_repl,
+            repl_default_runtime,
+            repl_node_path,
+            repl_node_args,
+            repl_deno_path,
+            repl_deno_args,
+            repl_node_module_dirs,
             memories,
             collaboration_mode,
         } = req;
@@ -95,13 +95,13 @@ impl Runner<'_> {
         updated_config.cwd = cwd.clone();
         updated_config.dynamic_tools = dynamic_tools.clone();
         updated_config.network = network.clone();
-        updated_config.tools_js_repl = tools_js_repl;
-        updated_config.js_repl_default_runtime = js_repl_default_runtime;
-        updated_config.js_repl_node_path = js_repl_node_path;
-        updated_config.js_repl_node_args = js_repl_node_args;
-        updated_config.js_repl_deno_path = js_repl_deno_path;
-        updated_config.js_repl_deno_args = js_repl_deno_args;
-        updated_config.js_repl_node_module_dirs = js_repl_node_module_dirs;
+        updated_config.tools_repl = tools_repl;
+        updated_config.repl_default_runtime = repl_default_runtime;
+        updated_config.repl_node_path = repl_node_path;
+        updated_config.repl_node_args = repl_node_args;
+        updated_config.repl_deno_path = repl_deno_path;
+        updated_config.repl_deno_args = repl_deno_args;
+        updated_config.repl_node_module_dirs = repl_node_module_dirs;
         updated_config.memories = memories;
         updated_config.shell_style_profiles = shell_style_profiles;
 

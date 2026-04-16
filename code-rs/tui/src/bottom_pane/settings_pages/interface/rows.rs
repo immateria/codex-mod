@@ -18,7 +18,7 @@ const MAIN_ROWS: [RowKind; 16] = [
     RowKind::ShellSelectorHotkey,
     RowKind::NetworkSettingsHotkey,
     RowKind::ExecOutputFoldHotkey,
-    RowKind::JsReplCodeFoldHotkey,
+    RowKind::ReplCodeFoldHotkey,
     RowKind::JumpToParentCallHotkey,
     RowKind::JumpToLatestChildCallHotkey,
     RowKind::ShowConfigToml,
@@ -54,7 +54,7 @@ impl InterfaceSettingsView {
         RowKind::ShellSelectorHotkey,
         RowKind::NetworkSettingsHotkey,
         RowKind::ExecOutputFoldHotkey,
-        RowKind::JsReplCodeFoldHotkey,
+        RowKind::ReplCodeFoldHotkey,
         RowKind::JumpToParentCallHotkey,
         RowKind::JumpToLatestChildCallHotkey,
         RowKind::Apply,
@@ -94,7 +94,7 @@ impl InterfaceSettingsView {
                 | RowKind::ShellSelectorHotkey
                 | RowKind::NetworkSettingsHotkey
                 | RowKind::ExecOutputFoldHotkey
-                | RowKind::JsReplCodeFoldHotkey
+                | RowKind::ReplCodeFoldHotkey
                 | RowKind::JumpToParentCallHotkey
                 | RowKind::JumpToLatestChildCallHotkey => unreachable!(
                     "hotkey label handled above for row {kind:?}"
@@ -164,7 +164,7 @@ impl InterfaceSettingsView {
                         | RowKind::ShellSelectorHotkey
                         | RowKind::NetworkSettingsHotkey
                         | RowKind::ExecOutputFoldHotkey
-                        | RowKind::JsReplCodeFoldHotkey
+                        | RowKind::ReplCodeFoldHotkey
                         | RowKind::JumpToParentCallHotkey
                         | RowKind::JumpToLatestChildCallHotkey => {
                             unreachable!("hotkey rows handled above for row {kind:?}")

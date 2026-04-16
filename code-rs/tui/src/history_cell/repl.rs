@@ -24,7 +24,7 @@ use super::formatting::{
 use code_common::elapsed::format_duration;
 
 #[derive(Default)]
-struct JsReplRenderLayout {
+struct ReplRenderLayout {
     lines: Vec<Line<'static>>,
     total: u16,
 }
@@ -33,7 +33,7 @@ struct JsReplRenderLayout {
 /// A history cell that represents a JavaScript REPL execution.
 /// Unlike the generic `ExecCell`, this stores the JS source code and
 /// runtime metadata, making it possible to render the code in history.
-pub(crate) struct JsReplCell {
+pub(crate) struct ReplCell {
     pub(crate) record: ExecRecord,
     /// JS source code that was executed.
     pub(crate) code: String,
@@ -53,10 +53,10 @@ pub(crate) struct JsReplCell {
     pub(crate) collapsed_output: Cell<bool>,
     child_call_ids: HashSet<String>,
     last_child_call_id: Option<String>,
-    layout_cache: super::layout_cache::LayoutCache<JsReplRenderLayout>,
+    layout_cache: super::layout_cache::LayoutCache<ReplRenderLayout>,
 }
 
-impl JsReplCell {
+impl ReplCell {
     pub(crate) fn new_active(
         record: ExecRecord,
         code: String,
@@ -157,19 +157,19 @@ impl JsReplCell {
         None
     }
 
-    fn layout_for_width(&self, width: u16) -> std::cell::Ref<'_, JsReplRenderLayout> {
+    fn layout_for_width(&self, width: u16) -> std::cell::Ref<'_, ReplRenderLayout> {
         self.layout_cache.get_or_compute(width, |w| self.compute_layout_for_width(w))
     }
 
-    fn compute_layout_for_width(&self, width: u16) -> JsReplRenderLayout {
+    fn compute_layout_for_width(&self, width: u16) -> ReplRenderLayout {
         let raw_lines = self.build_display_lines();
         let trimmed = trim_empty_lines(raw_lines);
         if width == 0 {
-            return JsReplRenderLayout::default();
+            return ReplRenderLayout::default();
         }
         let wrapped = word_wrap_lines(&trimmed, width);
         let total = clamp_u16(wrapped.len());
-        JsReplRenderLayout {
+        ReplRenderLayout {
             lines: wrapped,
             total,
         }
@@ -372,11 +372,11 @@ impl JsReplCell {
 
 }
 
-impl HistoryCell for JsReplCell {
+impl HistoryCell for ReplCell {
     impl_as_any!();
 
     fn kind(&self) -> HistoryCellType {
-        HistoryCellType::JsRepl {
+        HistoryCellType::Repl {
             status: self.record.status,
         }
     }

@@ -71,9 +71,9 @@ pub fn get_openai_tools(
     if config.search_tool {
         tools.push(builtin_tools::create_search_tool_bm25_tool());
     }
-    if config.js_repl {
-        tools.push(builtin_tools::create_js_repl_tool());
-        tools.push(builtin_tools::create_js_repl_reset_tool());
+    if config.repl {
+        tools.push(builtin_tools::create_repl_tool());
+        tools.push(builtin_tools::create_repl_reset_tool());
     }
 
     tools.push(browser_tool::create_browser_tool(browser_enabled));

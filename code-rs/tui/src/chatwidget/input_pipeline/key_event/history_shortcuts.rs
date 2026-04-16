@@ -60,7 +60,7 @@ impl ChatWidget<'_> {
     fn toggle_bottommost_exec_fold(&self) {
         use crate::history_cell::{
             ExecCell,
-            JsReplCell,
+            ReplCell,
             RunningToolCallCell,
             ToolCallCell,
             WebFetchToolCell,
@@ -84,7 +84,7 @@ impl ChatWidget<'_> {
                 self.request_redraw();
                 return;
             }
-            if let Some(js_cell) = cell.as_any().downcast_ref::<JsReplCell>()
+            if let Some(js_cell) = cell.as_any().downcast_ref::<ReplCell>()
                 && js_cell.output.is_some()
             {
                 #[cfg(feature = "test-helpers")]
@@ -134,7 +134,7 @@ impl ChatWidget<'_> {
         use crate::history_cell::{
             AssistantMarkdownCell,
             ExecCell,
-            JsReplCell,
+            ReplCell,
             PlainHistoryCell,
             RunningToolCallCell,
             ToolCallCell,
@@ -145,7 +145,7 @@ impl ChatWidget<'_> {
         let cell = cell_box.as_ref();
         if let Some(exec_cell) = cell.as_any().downcast_ref::<ExecCell>() {
             exec_cell.toggle_output_collapsed();
-        } else if let Some(js_cell) = cell.as_any().downcast_ref::<JsReplCell>() {
+        } else if let Some(js_cell) = cell.as_any().downcast_ref::<ReplCell>() {
             js_cell.toggle_output_collapsed();
         } else if let Some(tool_cell) = cell.as_any().downcast_ref::<ToolCallCell>() {
             tool_cell.toggle_details_collapsed();
@@ -164,14 +164,14 @@ impl ChatWidget<'_> {
         self.request_redraw();
     }
 
-    fn toggle_bottommost_js_repl_code_fold(&self) {
-        use crate::history_cell::JsReplCell;
+    fn toggle_bottommost_repl_code_fold(&self) {
+        use crate::history_cell::ReplCell;
         let (start, end) = self
             .visible_history_cell_range_for_shortcuts()
             .unwrap_or((0, self.history_cells.len()));
         for cell_box in self.history_cells[start..end].iter().rev() {
             let cell = cell_box.as_ref();
-            if let Some(js_cell) = cell.as_any().downcast_ref::<JsReplCell>() {
+            if let Some(js_cell) = cell.as_any().downcast_ref::<ReplCell>() {
                 js_cell.toggle_code_collapsed();
                 self.invalidate_height_cache();
                 self.request_redraw();

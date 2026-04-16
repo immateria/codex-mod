@@ -120,11 +120,11 @@ pub(crate) fn record_from_cell(cell: &dyn HistoryCell) -> Option<HistoryRecord> 
     if let Some(exec) = cell.as_any().downcast_ref::<ExecCell>() {
         return Some(HistoryRecord::Exec(exec.record.clone()));
     }
-    if let Some(js_cell) = cell.as_any().downcast_ref::<super::js_repl::JsReplCell>() {
+    if let Some(repl_cell) = cell.as_any().downcast_ref::<super::repl::ReplCell>() {
         // Expose the backing ExecRecord so history_state can look up this cell
-        // by call_id. The JsReplCell-specific metadata (code, runtime) is kept
+        // by call_id. The ReplCell-specific metadata (code, runtime) is kept
         // on the cell itself and is not round-tripped through the record.
-        return Some(HistoryRecord::Exec(js_cell.record.clone()));
+        return Some(HistoryRecord::Exec(repl_cell.record.clone()));
     }
     if let Some(stream) = cell
         .as_any()

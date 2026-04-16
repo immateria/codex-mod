@@ -35,7 +35,7 @@ enum RowKind {
     ShellSelectorHotkey,
     NetworkSettingsHotkey,
     ExecOutputFoldHotkey,
-    JsReplCodeFoldHotkey,
+    ReplCodeFoldHotkey,
     JumpToParentCallHotkey,
     JumpToLatestChildCallHotkey,
     ShowConfigToml,

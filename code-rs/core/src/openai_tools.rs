@@ -20,8 +20,8 @@ pub(crate) const SEARCH_TOOL_BM25_TOOL_NAME: &str = "search_tool_bm25";
 pub(crate) const READ_FILE_TOOL_NAME: &str = "read_file";
 pub(crate) const LIST_DIR_TOOL_NAME: &str = "list_dir";
 pub(crate) const GREP_FILES_TOOL_NAME: &str = "grep_files";
-pub(crate) const JS_REPL_TOOL_NAME: &str = "js_repl";
-pub(crate) const JS_REPL_RESET_TOOL_NAME: &str = "js_repl_reset";
+pub(crate) const REPL_TOOL_NAME: &str = "repl";
+pub(crate) const REPL_RESET_TOOL_NAME: &str = "repl_reset";
 
 pub use registry::get_openai_tools;
 pub use tools_json::create_tools_json_for_responses_api;

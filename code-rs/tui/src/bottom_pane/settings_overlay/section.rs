@@ -25,7 +25,7 @@ pub(crate) enum SettingsSection {
     #[cfg(feature = "browser-automation")]
     Chrome,
     Mcp,
-    JsRepl,
+    Repl,
     #[cfg(feature = "managed-network-proxy")]
     Network,
     Notifications,
@@ -58,7 +58,7 @@ impl SettingsSection {
         #[cfg(feature = "browser-automation")]
         SettingsSection::Chrome,
         SettingsSection::Mcp,
-        SettingsSection::JsRepl,
+        SettingsSection::Repl,
         #[cfg(feature = "managed-network-proxy")]
         SettingsSection::Network,
         SettingsSection::Notifications,
@@ -89,7 +89,7 @@ impl SettingsSection {
         SettingsSection::Planning,
         SettingsSection::Validation,
         SettingsSection::Mcp,
-        SettingsSection::JsRepl,
+        SettingsSection::Repl,
         #[cfg(feature = "managed-network-proxy")]
         SettingsSection::Network,
         SettingsSection::Notifications,
@@ -102,7 +102,7 @@ impl SettingsSection {
     /// Experimental settings page, after which the section appears.
     pub(crate) fn is_visible(self, features: &code_core::config_types::FeaturesToml) -> bool {
         match self {
-            SettingsSection::JsRepl => features.enabled("js_repl"),
+            SettingsSection::Repl => features.enabled("repl"),
             SettingsSection::Apps => features.enabled("apps"),
             _ => true,
         }

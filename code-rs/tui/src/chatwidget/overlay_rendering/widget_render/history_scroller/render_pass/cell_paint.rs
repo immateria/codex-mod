@@ -500,7 +500,7 @@ impl ChatWidget<'_> {
 
                 if let Some(js_cell) = item
                     .as_any()
-                    .downcast_ref::<crate::history_cell::JsReplCell>()
+                    .downcast_ref::<crate::history_cell::ReplCell>()
                     && let Some((call_id, line_idx, start_col, width)) =
                         js_cell.spawned_click_target(item_area.width)
                 {

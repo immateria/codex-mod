@@ -394,11 +394,11 @@ impl EventProcessor for EventProcessorWithHumanOutput {
                     cwd.to_string_lossy(),
                 );
             }
-            EventMsg::JsReplExecBegin(ev) => {
+            EventMsg::ReplExecBegin(ev) => {
                 self.call_id_to_command.insert(
                     ev.call_id.clone(),
                     ExecCommandBegin {
-                        command: vec!["js_repl".to_owned()],
+                        command: vec!["repl".to_owned()],
                     },
                 );
 

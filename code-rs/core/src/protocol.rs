@@ -157,21 +157,21 @@ pub struct ConfigureSessionOp {
     #[serde(default)]
     pub network: Option<crate::config::NetworkProxySettingsToml>,
     #[serde(default)]
-    pub tools_js_repl: bool,
+    pub tools_repl: bool,
     #[serde(default)]
-    pub js_repl_default_runtime: crate::config::JsReplRuntimeKindToml,
+    pub repl_default_runtime: crate::config::ReplRuntimeKindToml,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[serde(default)]
-    pub js_repl_node_path: Option<std::path::PathBuf>,
+    pub repl_node_path: Option<std::path::PathBuf>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub js_repl_node_args: Vec<String>,
+    pub repl_node_args: Vec<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[serde(default)]
-    pub js_repl_deno_path: Option<std::path::PathBuf>,
+    pub repl_deno_path: Option<std::path::PathBuf>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub js_repl_deno_args: Vec<String>,
+    pub repl_deno_args: Vec<String>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub js_repl_node_module_dirs: Vec<std::path::PathBuf>,
+    pub repl_node_module_dirs: Vec<std::path::PathBuf>,
     #[serde(default, skip_serializing_if = "MemoriesConfig::is_default")]
     pub memories: MemoriesConfig,
     #[serde(default)]
@@ -983,7 +983,7 @@ pub enum EventMsg {
     /// A JavaScript REPL execution is beginning. Carries source code and runtime
     /// metadata so the TUI can render a dedicated JS history cell instead of a
     /// generic exec cell.
-    JsReplExecBegin(JsReplExecBeginEvent),
+    ReplExecBegin(ReplExecBeginEvent),
 
     /// Notification that the server is about to execute a command.
     ExecCommandBegin(ExecCommandBeginEvent),
@@ -1414,7 +1414,7 @@ pub struct CustomToolCallEndEvent {
 
 /// Metadata emitted at the start of a JavaScript REPL tool call.
 #[derive(Debug, Clone, Deserialize, Serialize)]
-pub struct JsReplExecBeginEvent {
+pub struct ReplExecBeginEvent {
     /// Matches the `call_id` in the paired `ExecCommandEnd` event.
     pub call_id: String,
     /// JavaScript source code being executed.
@@ -1836,13 +1836,13 @@ mod tests {
             shell: None,
             shell_style_profiles: HashMap::new(),
             network: None,
-            tools_js_repl: true,
-            js_repl_default_runtime: crate::config::JsReplRuntimeKindToml::Node,
-            js_repl_node_path: None,
-            js_repl_node_args: Vec::new(),
-            js_repl_deno_path: None,
-            js_repl_deno_args: Vec::new(),
-            js_repl_node_module_dirs: Vec::new(),
+            tools_repl: true,
+            repl_default_runtime: crate::config::ReplRuntimeKindToml::Node,
+            repl_node_path: None,
+            repl_node_args: Vec::new(),
+            repl_deno_path: None,
+            repl_deno_args: Vec::new(),
+            repl_node_module_dirs: Vec::new(),
             memories: crate::config_types::MemoriesConfig::default(),
             collaboration_mode: CollaborationModeKind::Default,
         });

@@ -1,4 +1,4 @@
-// Deno-based kernel for js_repl.
+// Deno-based kernel for the REPL tool.
 // Communicates over JSON lines on stdin/stdout.
 //
 // We intentionally keep this kernel self-contained: it doesn't import remote
@@ -96,9 +96,9 @@ let execGeneration = 0;
 const pendingTool = new Map();
 let toolCounter = 0;
 
-const runtimeName = Deno.env.get("CODEX_JS_REPL_RUNTIME") || "deno";
-const runtimeVersion = Deno.env.get("CODEX_JS_REPL_RUNTIME_VERSION") || "";
-const tmpDir = Deno.env.get("CODEX_JS_TMP_DIR") || Deno.cwd();
+const runtimeName = Deno.env.get("CODEX_REPL_RUNTIME") || "deno";
+const runtimeVersion = Deno.env.get("CODEX_REPL_RUNTIME_VERSION") || "";
+const tmpDir = Deno.env.get("CODEX_REPL_TMP_DIR") || Deno.cwd();
 
 // Explicit long-lived mutable store exposed as `codex.state`.
 const state = {};
@@ -264,7 +264,7 @@ function _scheduleFatalExit(reason, error) {
   if (_fatalExitScheduled) {
     // Already exiting — log the second error to stderr so it isn't lost.
     try {
-      const detail = `js_repl kernel (additional) ${reason}: ${msg}\n`;
+      const detail = `REPL kernel (additional) ${reason}: ${msg}\n`;
       Deno.stderr.writeSync(encoder.encode(detail));
     } catch { /* best effort */ }
     return;

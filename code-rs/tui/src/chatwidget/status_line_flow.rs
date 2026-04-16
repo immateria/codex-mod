@@ -291,15 +291,15 @@ impl ChatWidget<'_> {
                 format_si_suffix(self.total_token_usage.output_tokens.min(i64::MAX as u64) as i64)
             )),
             StatusLineItem::SessionId => self.session_id.map(|id| id.to_string()),
-            StatusLineItem::JsRepl => {
-                if !self.config.tools_js_repl {
+            StatusLineItem::Repl => {
+                if !self.config.tools_repl {
                     return None;
                 }
                 let is_executing = self.exec.running_commands.values().any(|rc| {
-                    rc.command.first().is_some_and(|c| c == "js_repl")
+                    rc.command.first().is_some_and(|c| c == "repl")
                 });
                 let suffix = if is_executing { " …" } else { "" };
-                if let Some((kind, version)) = &self.js_repl_last_runtime {
+                if let Some((kind, version)) = &self.repl_last_runtime {
                     let v = if version.is_empty() {
                         String::new()
                     } else {

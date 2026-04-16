@@ -14,7 +14,7 @@ enum HotkeyRow {
     ShellSelector,
     NetworkSettings,
     ExecOutputFold,
-    JsReplCodeFold,
+    ReplCodeFold,
     JumpToParentCall,
     JumpToLatestChildCall,
 }
@@ -25,7 +25,7 @@ const HOTKEY_ROWS: [HotkeyRow; 8] = [
     HotkeyRow::ShellSelector,
     HotkeyRow::NetworkSettings,
     HotkeyRow::ExecOutputFold,
-    HotkeyRow::JsReplCodeFold,
+    HotkeyRow::ReplCodeFold,
     HotkeyRow::JumpToParentCall,
     HotkeyRow::JumpToLatestChildCall,
 ];
@@ -38,7 +38,7 @@ impl HotkeyRow {
             Self::ShellSelector => "shell_selector",
             Self::NetworkSettings => "network_settings",
             Self::ExecOutputFold => "exec_output_fold",
-            Self::JsReplCodeFold => "js_repl_code_fold",
+            Self::ReplCodeFold => "repl_code_fold",
             Self::JumpToParentCall => "jump_to_parent_call",
             Self::JumpToLatestChildCall => "jump_to_latest_child_call",
         }
@@ -48,7 +48,7 @@ impl HotkeyRow {
         matches!(
             self,
             Self::ExecOutputFold
-                | Self::JsReplCodeFold
+                | Self::ReplCodeFold
                 | Self::JumpToParentCall
                 | Self::JumpToLatestChildCall
         )
@@ -61,7 +61,7 @@ impl HotkeyRow {
             Self::ShellSelector => hotkeys.shell_selector,
             Self::NetworkSettings => hotkeys.network_settings,
             Self::ExecOutputFold => hotkeys.exec_output_fold,
-            Self::JsReplCodeFold => hotkeys.js_repl_code_fold,
+            Self::ReplCodeFold => hotkeys.repl_code_fold,
             Self::JumpToParentCall => hotkeys.jump_to_parent_call,
             Self::JumpToLatestChildCall => hotkeys.jump_to_latest_child_call,
         }
@@ -74,7 +74,7 @@ impl HotkeyRow {
             Self::ShellSelector => &mut hotkeys.shell_selector,
             Self::NetworkSettings => &mut hotkeys.network_settings,
             Self::ExecOutputFold => &mut hotkeys.exec_output_fold,
-            Self::JsReplCodeFold => &mut hotkeys.js_repl_code_fold,
+            Self::ReplCodeFold => &mut hotkeys.repl_code_fold,
             Self::JumpToParentCall => &mut hotkeys.jump_to_parent_call,
             Self::JumpToLatestChildCall => &mut hotkeys.jump_to_latest_child_call,
         }
@@ -87,7 +87,7 @@ impl HotkeyRow {
             Self::ShellSelector => overrides.shell_selector,
             Self::NetworkSettings => overrides.network_settings,
             Self::ExecOutputFold => overrides.exec_output_fold,
-            Self::JsReplCodeFold => overrides.js_repl_code_fold,
+            Self::ReplCodeFold => overrides.repl_code_fold,
             Self::JumpToParentCall => overrides.jump_to_parent_call,
             Self::JumpToLatestChildCall => overrides.jump_to_latest_child_call,
         }
@@ -103,7 +103,7 @@ impl HotkeyRow {
             Self::ShellSelector => &mut overrides.shell_selector,
             Self::NetworkSettings => &mut overrides.network_settings,
             Self::ExecOutputFold => &mut overrides.exec_output_fold,
-            Self::JsReplCodeFold => &mut overrides.js_repl_code_fold,
+            Self::ReplCodeFold => &mut overrides.repl_code_fold,
             Self::JumpToParentCall => &mut overrides.jump_to_parent_call,
             Self::JumpToLatestChildCall => &mut overrides.jump_to_latest_child_call,
         }
@@ -116,7 +116,7 @@ impl HotkeyRow {
             Self::ShellSelector => resolved.shell_selector,
             Self::NetworkSettings => resolved.network_settings,
             Self::ExecOutputFold => resolved.exec_output_fold,
-            Self::JsReplCodeFold => resolved.js_repl_code_fold,
+            Self::ReplCodeFold => resolved.repl_code_fold,
             Self::JumpToParentCall => resolved.jump_to_parent_call,
             Self::JumpToLatestChildCall => resolved.jump_to_latest_child_call,
         }
@@ -131,7 +131,7 @@ impl RowKind {
             Self::ShellSelectorHotkey => Some(HotkeyRow::ShellSelector),
             Self::NetworkSettingsHotkey => Some(HotkeyRow::NetworkSettings),
             Self::ExecOutputFoldHotkey => Some(HotkeyRow::ExecOutputFold),
-            Self::JsReplCodeFoldHotkey => Some(HotkeyRow::JsReplCodeFold),
+            Self::ReplCodeFoldHotkey => Some(HotkeyRow::ReplCodeFold),
             Self::JumpToParentCallHotkey => Some(HotkeyRow::JumpToParentCall),
             Self::JumpToLatestChildCallHotkey => Some(HotkeyRow::JumpToLatestChildCall),
             _ => None,
@@ -154,7 +154,7 @@ impl RowKind {
             Self::ShellSelectorHotkey => Some("Hotkey: shell selector"),
             Self::NetworkSettingsHotkey => Some("Hotkey: network settings"),
             Self::ExecOutputFoldHotkey => Some("Hotkey: fold output/details"),
-            Self::JsReplCodeFoldHotkey => Some("Hotkey: fold JS REPL code"),
+            Self::ReplCodeFoldHotkey => Some("Hotkey: fold JS REPL code"),
             Self::JumpToParentCallHotkey => Some("Hotkey: jump to parent call"),
             Self::JumpToLatestChildCallHotkey => Some("Hotkey: jump to child call"),
             _ => None,
@@ -164,7 +164,7 @@ impl RowKind {
     pub(super) fn legacy_hotkey_label(self) -> Option<&'static str> {
         match self.as_hotkey_row()? {
             HotkeyRow::ExecOutputFold => Some("["),
-            HotkeyRow::JsReplCodeFold => Some("\\"),
+            HotkeyRow::ReplCodeFold => Some("\\"),
             HotkeyRow::JumpToParentCall => Some("]"),
             HotkeyRow::JumpToLatestChildCall => Some("}"),
             _ => None,
@@ -233,7 +233,7 @@ impl InterfaceSettingsView {
             && value.shell_selector.is_none()
             && value.network_settings.is_none()
             && value.exec_output_fold.is_none()
-            && value.js_repl_code_fold.is_none()
+            && value.repl_code_fold.is_none()
             && value.jump_to_parent_call.is_none()
             && value.jump_to_latest_child_call.is_none()
         {
