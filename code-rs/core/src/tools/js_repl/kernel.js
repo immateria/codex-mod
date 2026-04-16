@@ -773,6 +773,9 @@ async function handleExec(message) {
   _captureGeneration = gen;
   // Cancel stale timers from previous generations.
   _cancelStaleTimers();
+  // Clear local file module caches so edits between execs are picked up.
+  // Native (npm) module caches are intentionally preserved.
+  clearLocalFileModuleCaches();
 
   const tool = (toolName, args) => {
     if (typeof toolName !== "string" || !toolName) {
