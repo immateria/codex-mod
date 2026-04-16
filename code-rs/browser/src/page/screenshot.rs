@@ -12,6 +12,9 @@ use tracing::debug;
 use tracing::info;
 use tracing::warn;
 
+/// Brief delay before retrying a screenshot with different surface settings.
+const SCREENSHOT_RETRY_DELAY: Duration = Duration::from_millis(120);
+
 impl Page {
     /// Helper function to capture screenshot with retry logic.
     /// Strategy summary (critical to UX and reliability):
@@ -135,7 +138,7 @@ impl Page {
                     }
                 } else {
                     // Visible: avoid from_surface(true) if at all possible. Brief wait and retry once with false.
-                    tokio::time::sleep(tokio::time::Duration::from_millis(120)).await;
+                    tokio::time::sleep(SCREENSHOT_RETRY_DELAY).await;
                     let retry_params = params_builder.clone().from_surface(false).build();
                     let retry_attempt = tokio::time::timeout(
                         tokio::time::Duration::from_secs(4),

@@ -36,7 +36,7 @@ impl BrowserManager {
         let browser = browser_guard.as_mut().ok_or(BrowserError::NotInitialized)?;
 
         let fetch =
-            tokio::time::timeout(Duration::from_millis(1200), browser.fetch_targets()).await;
+            tokio::time::timeout(super::FETCH_TARGETS_TIMEOUT, browser.fetch_targets()).await;
         let targets = match fetch {
             Ok(Ok(targets)) => targets,
             Ok(Err(err)) => return Err(BrowserError::CdpError(err.to_string())),

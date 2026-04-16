@@ -156,7 +156,7 @@ impl BrowserManager {
     async fn collect_target_snapshot(&self) -> Option<TargetSnapshot> {
         let mut browser_guard = self.browser.lock().await;
         let browser = browser_guard.as_mut()?;
-        let fetch = tokio::time::timeout(Duration::from_millis(1200), browser.fetch_targets()).await;
+        let fetch = tokio::time::timeout(super::FETCH_TARGETS_TIMEOUT, browser.fetch_targets()).await;
         let targets = match fetch {
             Ok(Ok(targets)) => targets,
             Ok(Err(err)) => {

@@ -302,7 +302,13 @@ fn parse_host_port_fallback(input: &str, default_port: u16) -> Result<SocketAddr
         }
         return Ok(SocketAddressParts {
             host: host.to_owned(),
-            port: port.parse::<u16>().ok().unwrap_or(default_port),
+            port: match port.parse::<u16>() {
+                Ok(p) => p,
+                Err(_) => {
+                    tracing::warn!("invalid port {port:?} in proxy address {input:?}, using default {default_port}");
+                    default_port
+                }
+            },
         });
     }
 

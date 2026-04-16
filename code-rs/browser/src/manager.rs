@@ -4,7 +4,7 @@ use chromiumoxide::Browser;
 use serde::Serialize;
 use std::sync::Arc;
 use tokio::sync::{Mutex, RwLock};
-use tokio::time::Instant;
+use tokio::time::{Duration, Instant};
 
 mod cdp;
 mod connection;
@@ -17,6 +17,9 @@ mod page_ops;
 mod screenshot;
 mod status;
 mod targets;
+
+/// Timeout for `browser.fetch_targets()` CDP calls.
+const FETCH_TARGETS_TIMEOUT: Duration = Duration::from_millis(1200);
 
 type NavigationCallback = Box<dyn Fn(String) + Send + Sync>;
 type NavigationCallbackSlot = Arc<RwLock<Option<NavigationCallback>>>;

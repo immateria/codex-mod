@@ -708,16 +708,24 @@ fn run_with_timeout(mut cmd: std::process::Command, timeout_secs: u64) -> Option
 
     let start = std::time::Instant::now();
     loop {
-        if let Some(status) = child.try_wait().ok().flatten() {
-            let mut stdout = Vec::new();
-            let mut stderr = Vec::new();
-            if let Some(mut out) = child.stdout.take() {
-                let _ = std::io::Read::read_to_end(&mut out, &mut stdout);
+        match child.try_wait() {
+            Ok(Some(status)) => {
+                let mut stdout = Vec::new();
+                let mut stderr = Vec::new();
+                if let Some(mut out) = child.stdout.take()
+                    && let Err(e) = std::io::Read::read_to_end(&mut out, &mut stdout) {
+                        tracing::debug!("run_with_timeout: failed to read stdout: {e}");
+                }
+                if let Some(mut err) = child.stderr.take()
+                    && let Err(e) = std::io::Read::read_to_end(&mut err, &mut stderr) {
+                        tracing::debug!("run_with_timeout: failed to read stderr: {e}");
+                }
+                return Some(CommandCapture { status: Some(status), stdout, stderr });
             }
-            if let Some(mut err) = child.stderr.take() {
-                let _ = std::io::Read::read_to_end(&mut err, &mut stderr);
+            Ok(None) => {} // still running
+            Err(e) => {
+                tracing::debug!("run_with_timeout: try_wait failed: {e}");
             }
-            return Some(CommandCapture { status: Some(status), stdout, stderr });
         }
 
         if start.elapsed().as_secs() >= timeout_secs {
@@ -1066,18 +1074,24 @@ impl Drop for WorkspaceOverlay {
         for (path, original) in self.backups.iter().rev() {
             match original {
                 Some(bytes) => {
-                    if let Some(parent) = path.parent() {
-                        let _ = fs::create_dir_all(parent);
+                    if let Some(parent) = path.parent()
+                        && let Err(e) = fs::create_dir_all(parent) {
+                            tracing::warn!("WorkspaceOverlay: failed to recreate parent dir {}: {e}", parent.display());
                     }
-                    let _ = fs::File::create(path).and_then(|mut file| file.write_all(bytes));
+                    if let Err(e) = fs::File::create(path).and_then(|mut file| file.write_all(bytes)) {
+                        tracing::warn!("WorkspaceOverlay: failed to restore backup for {}: {e}", path.display());
+                    }
                 }
                 None => {
-                    let _ = fs::remove_file(path);
+                    if let Err(e) = fs::remove_file(path) {
+                        tracing::debug!("WorkspaceOverlay: could not remove added file {}: {e}", path.display());
+                    }
                 }
             }
         }
 
         for dir in self.created_dirs.iter().rev() {
+            // Best-effort cleanup; dir may be non-empty if a restore above failed.
             let _ = fs::remove_dir(dir);
         }
     }

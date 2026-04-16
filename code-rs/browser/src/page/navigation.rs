@@ -11,6 +11,9 @@ use tracing::debug;
 use tracing::info;
 use tracing::warn;
 
+/// Poll interval for CDP ready-state checks during navigation waits.
+const READY_STATE_POLL_INTERVAL: Duration = Duration::from_millis(120);
+
 impl Page {
     /// Returns the current page title, if available.
     pub async fn get_title(&self) -> Option<String> {
@@ -192,7 +195,7 @@ impl Page {
                             &self.cdp_page,
                             ReadyStateTarget::Complete,
                             Duration::from_secs(4),
-                            Duration::from_millis(120),
+                            READY_STATE_POLL_INTERVAL,
                         )
                         .await;
                         // Small cushion after load
@@ -213,7 +216,7 @@ impl Page {
                                     &self.cdp_page,
                                     ReadyStateTarget::Complete,
                                     Duration::from_secs(4),
-                                    Duration::from_millis(120),
+                                    READY_STATE_POLL_INTERVAL,
                                 )
                                 .await;
                                 if !url_looks_loaded(&self.cdp_page, Duration::from_millis(400)).await
@@ -227,7 +230,7 @@ impl Page {
                                     &self.cdp_page,
                                     ReadyStateTarget::Complete,
                                     Duration::from_secs(4),
-                                    Duration::from_millis(120),
+                                    READY_STATE_POLL_INTERVAL,
                                 )
                                 .await;
                                 if !url_looks_loaded(&self.cdp_page, Duration::from_millis(400)).await
