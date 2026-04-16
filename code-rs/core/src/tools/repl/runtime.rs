@@ -191,7 +191,7 @@ pub(super) fn build_runtime_command(
 
     command.env("CODEX_REPL_TMP_DIR", tmp_dir);
     command.env("CODEX_REPL_RUNTIME", runtime.kind.label());
-    command.env("CODEX_REPL_RUNTIME_VERSION", runtime.version.clone());
+    command.env("CODEX_REPL_RUNTIME_VERSION", &runtime.version);
 
     if caps.uses_node_module_dirs && !runtime.node_module_dirs.is_empty() {
         let joined = std::env::join_paths(runtime.node_module_dirs.iter().map(|p| p.as_os_str()))

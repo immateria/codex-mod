@@ -29,6 +29,8 @@ Communication is JSON-lines over stdin/stdout:
 - **Kernel → Host:** `{"type":"exec_result","id":"...","ok":true/false,"output":"...","error":null/string}`
 - **Kernel → Host:** `{"type":"run_tool","id":"...","exec_id":"...","tool_name":"...","arguments":"..."}`
 - **Host → Kernel:** `{"type":"run_tool_result","id":"...","ok":true/false,...}`
+- **Kernel → Host:** `{"type":"emit_image","id":"...","exec_id":"...","image_url":"data:...","detail":"auto"}`
+- **Host → Kernel:** `{"type":"emit_image_result","id":"...","ok":true/false,...}`
 
 ## Key Behaviors
 
@@ -62,6 +64,31 @@ REPL state is carried between cells via `__replBindings` on the global/context.
 Each cell's bindings are snapshot-ed after evaluation; the next cell's prelude
 reads values from the snapshot (not from a module import chain).
 
+### Background Task Awaiting
+Un-awaited `codex.tool()` and `codex.emitImage()` calls are tracked per-exec via
+`pendingBackgroundTasks`. After module evaluation, `Promise.all` awaits all pending
+tasks. Unobserved failures (where the caller never awaited) are surfaced as the
+cell's error output.
+
+### Image Emission (`codex.emitImage()`)
+Kernels expose `codex.emitImage(imageOrUrl, detail?)` to emit images back to the
+model. Accepts data URLs or binary buffers (Uint8Array, ArrayBuffer, Buffer).
+The host validates format (data: URLs only), enforces a 20 MB size cap, and
+accumulates content items per-exec. Images are preserved on both success and
+error paths so the model can see completed work.
+
+### Partial Binding Recovery (Node only)
+When a cell errors after partially evaluating, the Node kernel uses V8's TDZ
+semantics to read initialized bindings from the errored module's namespace.
+Successfully initialized `let`/`const` bindings are merged into the snapshot;
+uninitialized ones are skipped. Deno cannot do this because `import()` rejects
+without exposing the module namespace.
+
+### Kernel Hardening
+- `Object.freeze(codex)` prevents user code from replacing kernel methods
+- `__replBindings` is deleted in the `finally` block after module evaluation
+- Self-invocation guard blocks the kernel from calling `repl` or `repl_reset`
+
 ---
 
 ## Runtime Contract
@@ -73,11 +100,12 @@ added in the future must implement the same behaviors.
 
 | Capability | Description |
 |------------|-------------|
-| **JSON-lines protocol** | `exec` → `exec_result` on stdin/stdout; `run_tool` / `run_tool_result` for nested tool calls |
+| **JSON-lines protocol** | `exec` → `exec_result` on stdin/stdout; `run_tool` / `run_tool_result` for nested tool calls; `emit_image` / `emit_image_result` for image emission |
 | **Generation-scoped async** | Timer/interval/microtask callbacks tagged with exec generation; stale callbacks dropped |
 | **Timer cleanup** | All tracked timers cancelled on exec completion (success or error) |
 | **Persistent console** | `console.*` output captured per-exec; late-generation output dropped |
 | **Snapshot persistence** | Bindings carried between cells via `__replBindings` on the global scope |
+| **Background task awaiting** | Un-awaited `codex.tool()` / `codex.emitImage()` calls tracked and awaited before result delivery |
 | **Fatal error reporting** | `uncaughtException` / `unhandledRejection` → `exec_result` with error before exit |
 | **Graceful reset** | Kernel process can be killed and restarted; state is lost on reset |
 
@@ -132,7 +160,10 @@ Warnings are logged to help diagnose configuration issues.
 
 | File | Purpose |
 |------|---------|
-| `mod.rs` | Host-side manager: kernel lifecycle, execute(), read_stdout/stderr, error handling |
+| `mod.rs` | Host-side manager: kernel lifecycle, execute(), read_stdout/stderr, tool dispatch |
+| `types.rs` | Shared data types: configs, results, protocol structs, tool-call tracking |
+| `runtime.rs` | Runtime resolution, version probing, OS command building with sandbox support |
+| `diagnostics.rs` | Stderr tail ring-buffer, truncation helpers, model failure formatting |
 | `kernel_node.js` | Node kernel: VM sandbox, exec handler, timer wrappers, console capture |
 | `node_resolver.js` | Node module resolution: specifier parsing, linking, caching, import pipeline |
 | `kernel_deno.js` | Deno kernel: permission-based sandbox, data-URL evaluation |
