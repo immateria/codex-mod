@@ -882,6 +882,10 @@ function handleToolResult(message) {
   if (resolver) {
     pendingTool.delete(message.id);
     resolver(message);
+  } else {
+    process.stderr.write(
+      `[kernel] unexpected run_tool_result for unknown call id: ${message.id}\n`
+    );
   }
 }
 

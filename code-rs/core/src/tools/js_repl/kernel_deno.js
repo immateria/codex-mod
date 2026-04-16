@@ -18,12 +18,6 @@ function formatLog(args) {
     .join(" ");
 }
 
-function withCapturedConsole(_fn) {
-  // DEPRECATED: Console capture is now persistent. This function is kept
-  // for structural compatibility but the capture is always active.
-  throw new Error("withCapturedConsole is deprecated — console is permanently captured");
-}
-
 // ── Persistent console capture ──────────────────────────────────────
 // Console is always captured — user-visible output is collected per-exec
 // and returned inside exec_result. This prevents late callbacks from
@@ -368,6 +362,10 @@ function handleToolResult(message) {
   if (resolver) {
     pendingTool.delete(message.id);
     resolver(message);
+  } else {
+    console.error(
+      `[kernel_deno] unexpected run_tool_result for unknown call id: ${message.id}`
+    );
   }
 }
 

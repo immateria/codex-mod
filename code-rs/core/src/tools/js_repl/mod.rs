@@ -40,17 +40,27 @@ const KERNEL_SOURCE_NODE: &str = include_str!("kernel.js");
 const KERNEL_SOURCE_DENO: &str = include_str!("kernel_deno.js");
 const MERIYAH_UMD: &str = include_str!("meriyah.umd.min.js");
 
+/// Default per-exec timeout (15 s).  Keeps interactive feedback snappy
+/// while giving non-trivial computations time to finish.
 pub(crate) const DEFAULT_TIMEOUT_MS: u64 = 15_000;
+/// Hard ceiling on per-exec timeout (2 min).  Prevents the model from
+/// requesting unbounded execution time.
 pub(crate) const MAX_TIMEOUT_MS: u64 = 120_000;
+/// Minimum Node.js version required for `--experimental-vm-modules`.
 const MIN_NODE_VERSION: (u64, u64, u64) = (18, 0, 0);
 
-// Stderr tail buffer limits (ported from upstream).
+/// Maximum recent-stderr lines kept for diagnostics on kernel failure.
 const STDERR_TAIL_LINE_LIMIT: usize = 20;
+/// Per-line byte cap in the stderr tail ring buffer.
 const STDERR_TAIL_LINE_MAX_BYTES: usize = 512;
+/// Total byte cap across all lines in the stderr tail.
 const STDERR_TAIL_MAX_BYTES: usize = 4_096;
 const STDERR_TAIL_SEPARATOR: &str = " | ";
+/// Max exec IDs to include in unexpected-close log messages.
 const EXEC_ID_LOG_LIMIT: usize = 8;
+/// Byte budget for stderr context sent to the model in error diagnostics.
 const MODEL_DIAG_STDERR_MAX_BYTES: usize = 1_024;
+/// Byte budget for the error string sent to the model in error diagnostics.
 const MODEL_DIAG_ERROR_MAX_BYTES: usize = 256;
 
 #[derive(Clone, Debug)]
@@ -313,24 +323,20 @@ impl JsReplManager {
 
         if let Err(err) = send_json_line(&stdin, &message).await {
             pending.lock().await.remove(&id);
-            self.wait_for_exec_tool_calls(&id).await;
-            self.clear_exec_tool_calls(&id).await;
+            self.settle_exec(&id).await;
             let snapshot = Self::kernel_debug_snapshot(&child, &recent_stderr).await;
-            if should_include_diagnostics_for_write_error(&err, &snapshot) {
-                let msg = with_model_failure_message(
+            let error = if should_include_diagnostics_for_write_error(&err, &snapshot) {
+                with_model_failure_message(
                     "failed to send js_repl request",
                     "write_error",
                     Some(&err),
                     &snapshot,
-                );
-                if let Err(e) = self.reset().await { warn!("js_repl reset failed: {e}"); }
-                return Err(JsExecError { output: String::new(), error: msg });
-            }
+                )
+            } else {
+                format!("failed to send js_repl request: {err}")
+            };
             if let Err(e) = self.reset().await { warn!("js_repl reset failed: {e}"); }
-            return Err(JsExecError {
-                output: String::new(),
-                error: format!("failed to send js_repl request: {err}"),
-            });
+            return Err(JsExecError { output: String::new(), error });
         }
 
         let mut tool_rx_guard = tool_rx.lock().await;
@@ -343,9 +349,7 @@ impl JsReplManager {
                 _ = &mut timeout_sleep => {
                     pending.lock().await.remove(&id);
                     drop(tool_rx_guard);
-                    self.wait_for_exec_tool_calls(&id).await;
-                    self.clear_exec_tool_calls(&id).await;
-                    if let Err(e) = self.reset().await { warn!("js_repl reset failed: {e}"); }
+                    self.settle_and_reset(&id).await;
                     return Err(JsExecError {
                         output: String::new(),
                         error: format!("js_repl timed out after {timeout_ms}ms"),
@@ -355,8 +359,7 @@ impl JsReplManager {
                     let Some(tool_req) = tool_req else {
                         pending.lock().await.remove(&id);
                         drop(tool_rx_guard);
-                        self.wait_for_exec_tool_calls(&id).await;
-                        self.clear_exec_tool_calls(&id).await;
+                        self.settle_exec(&id).await;
                         let snapshot = Self::kernel_debug_snapshot(&child, &recent_stderr).await;
                         let msg = with_model_failure_message(
                             "js_repl kernel terminated while waiting for tool requests",
@@ -386,8 +389,7 @@ impl JsReplManager {
                         Ok(msg) => break msg,
                         Err(_) => {
                             drop(tool_rx_guard);
-                            self.wait_for_exec_tool_calls(&id).await;
-                            self.clear_exec_tool_calls(&id).await;
+                            self.settle_exec(&id).await;
                             let snapshot = Self::kernel_debug_snapshot(&child, &recent_stderr).await;
                             let msg = with_model_failure_message(
                                 "js_repl kernel stopped before returning a result",
@@ -405,8 +407,7 @@ impl JsReplManager {
         drop(tool_rx_guard);
 
         // Exec finished — wait for any nested tool calls to settle, then clean up.
-        self.wait_for_exec_tool_calls(&id).await;
-        self.clear_exec_tool_calls(&id).await;
+        self.settle_exec(&id).await;
 
         match result {
             ExecResultMessage::Ok { output } => Ok(JsExecResult { output }),
@@ -414,6 +415,23 @@ impl JsReplManager {
                 output,
                 error: message,
             }),
+        }
+    }
+
+    /// Wait for nested tool calls to settle and clear tracking state.
+    /// Every error/completion path in [`execute`] calls this to avoid
+    /// leaking exec-tool-call bookkeeping.
+    async fn settle_exec(&self, exec_id: &str) {
+        self.wait_for_exec_tool_calls(exec_id).await;
+        self.clear_exec_tool_calls(exec_id).await;
+    }
+
+    /// [`settle_exec`] followed by a kernel reset.  Logs a warning if the
+    /// reset itself fails.
+    async fn settle_and_reset(&self, exec_id: &str) {
+        self.settle_exec(exec_id).await;
+        if let Err(e) = self.reset().await {
+            warn!("js_repl reset failed: {e}");
         }
     }
 
@@ -767,26 +785,11 @@ impl JsReplManager {
     }
 
     async fn clear_exec_tool_calls(&self, exec_id: &str) {
-        if let Some(state) = self.exec_tool_calls.lock().await.remove(exec_id) {
-            state.cancel.cancel();
-            state.notify.notify_waiters();
-        }
+        Self::clear_exec_tool_calls_map(&self.exec_tool_calls, exec_id).await;
     }
 
     async fn wait_for_exec_tool_calls(&self, exec_id: &str) {
-        loop {
-            let notified = {
-                let calls = self.exec_tool_calls.lock().await;
-                calls
-                    .get(exec_id)
-                    .filter(|state| state.in_flight > 0)
-                    .map(|state| Arc::clone(&state.notify).notified_owned())
-            };
-            match notified {
-                Some(notified) => notified.await,
-                None => return,
-            }
-        }
+        Self::wait_for_exec_tool_calls_map(&self.exec_tool_calls, exec_id).await;
     }
 
     async fn begin_exec_tool_call(
@@ -1189,14 +1192,12 @@ impl JsReplManager {
 // ── Free helper functions ───────────────────────────────────────────────
 
 async fn send_json_line(stdin: &Arc<Mutex<ChildStdin>>, message: &JsonValue) -> Result<(), String> {
-    let encoded = serde_json::to_vec(message).map_err(|err| format!("failed to encode json: {err}"))?;
+    let mut encoded = serde_json::to_vec(message)
+        .map_err(|err| format!("failed to encode json: {err}"))?;
+    encoded.push(b'\n');
     let mut guard = stdin.lock().await;
     guard
         .write_all(&encoded)
-        .await
-        .map_err(|err| format!("failed to write to kernel: {err}"))?;
-    guard
-        .write_all(b"\n")
         .await
         .map_err(|err| format!("failed to write to kernel: {err}"))?;
     guard
