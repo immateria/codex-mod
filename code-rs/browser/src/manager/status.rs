@@ -144,33 +144,36 @@ impl BrowserManager {
 
     pub fn get_status_sync(&self) -> String {
         // Use try operations to avoid blocking - return cached/default values if locks are held
-        let cfg = self
+        let (enabled, vw, vh, fullpage, is_external) = self
             .config
             .try_read()
             .map(|c| {
-                let enabled = c.enabled;
-                let viewport_width = c.viewport.width;
-                let viewport_height = c.viewport.height;
-                let fullpage = c.fullpage;
-                (enabled, viewport_width, viewport_height, fullpage)
+                let is_ext = c.connect_port.is_some() || c.connect_ws.is_some();
+                (c.enabled, c.viewport.width, c.viewport.height, c.fullpage, is_ext)
             })
-            .unwrap_or((false, 1024, 768, false));
+            .unwrap_or((false, 1024, 768, false, false));
 
         let browser_active = self
             .browser
             .try_lock()
             .is_ok_and(|b| b.is_some());
 
-        let mode = if cfg.0 { "enabled" } else { "disabled" };
-        let fullpage = if cfg.3 { "on" } else { "off" };
+        let mode = if enabled { "enabled" } else { "disabled" };
+        let fp = if fullpage { "on" } else { "off" };
+        let conn_type = if is_external {
+            "external Chrome (CDP via /chrome)"
+        } else {
+            "built-in headless (via /browser)"
+        };
 
         let mut status = format!(
-            "Browser status:\n• Mode: {}\n• Viewport: {}×{}\n• Full-page: {}",
-            mode, cfg.1, cfg.2, fullpage
+            "Browser status:\n• Mode: {mode}\n• Type: {conn_type}\n• Viewport: {vw}×{vh}\n• Full-page: {fp}",
         );
 
         if browser_active {
-            status.push_str("\n• Browser: active");
+            status.push_str("\n• Connection: active");
+        } else {
+            status.push_str("\n• Connection: inactive");
         }
 
         status

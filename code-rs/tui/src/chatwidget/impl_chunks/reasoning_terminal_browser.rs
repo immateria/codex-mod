@@ -193,7 +193,7 @@ impl ChatWidget<'_> {
                         tracing::warn!("[/browser] failed to disable internal browser: {}", e);
                     }
                     app_event_tx
-                        .send_background_event_with_ticket(&ticket, "Browser disabled".to_owned());
+                        .send_background_event_with_ticket(&ticket, "Internal browser disabled".to_owned());
                 } else {
                     // Not in internal mode → enable internal and open about:blank
                     // Reuse existing helper (ensures config + start + global manager + screenshot)
@@ -244,7 +244,7 @@ impl ChatWidget<'_> {
                     app_event_tx
                         .send_background_event_with_ticket(
                             &ticket,
-                            "Browser enabled (about:blank)".to_owned(),
+                            "Internal browser enabled (ready for screenshots & automation)".to_owned(),
                         );
                 }
             });
@@ -610,13 +610,13 @@ impl ChatWidget<'_> {
                     }
                     _ => {
                         format!(
-                            "Unknown browser command: '{first_arg}'\nUsage: /browser <url> | off | status | fullpage | config"
+                            "Unknown browser command: '{first_arg}'\nUsage: /browser [<url> | off | status | fullpage | config]\nFor external Chrome: /chrome [port]"
                         )
                     }
                 }
             }
         } else {
-            "Browser commands:\n• /browser <url> - Open URL in internal browser\n• /browser off - Disable browser mode\n• /browser status - Show current status\n• /browser fullpage [on|off] - Toggle full-page mode\n• /browser config <key> <value> - Update configuration\n\nUse /chrome [port] to connect to external Chrome browser".to_owned()
+            "Browser commands (built-in headless browser):\n• /browser         - Toggle internal browser on/off\n• /browser <url>   - Open URL in headless browser\n• /browser off     - Disable browser mode\n• /browser status  - Show current status\n• /browser fullpage [on|off] - Toggle full-page screenshots\n• /browser config <key> <value> - Update settings (viewport, segments_max)\n\nTo connect to your own Chrome instead, use /chrome [port]".to_owned()
         };
 
         // Add the response to the UI as a ticketed background event so it stays with

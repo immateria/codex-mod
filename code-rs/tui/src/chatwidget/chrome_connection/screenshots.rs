@@ -129,11 +129,11 @@ pub(super) async fn build_cdp_success_message(
     let current_url = browser_manager.get_current_url().await;
     match (port_num, current_url) {
         (Some(p), Some(url)) if !url.is_empty() => {
-            format!("CDP: connected to Chrome (port {p}) to {url}")
+            format!("Connected to Chrome (port {p}), viewing {url}")
         }
-        (Some(p), _) => format!("CDP: connected to Chrome (port {p})"),
-        (None, Some(url)) if !url.is_empty() => format!("CDP: connected to Chrome to {url}"),
-        _ => "CDP: connected to Chrome".to_owned(),
+        (Some(p), _) => format!("Connected to Chrome (port {p})"),
+        (None, Some(url)) if !url.is_empty() => format!("Connected to Chrome, viewing {url}"),
+        _ => "Connected to Chrome".to_owned(),
     }
 }
 

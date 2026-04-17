@@ -133,8 +133,8 @@ impl SlashCommand {
     /// User-visible description shown in the popup.
     pub(crate) fn description(self) -> &'static str {
         match self {
-            SlashCommand::Chrome => "connect to your Chrome browser",
-            SlashCommand::Browser => "open internal browser",
+            SlashCommand::Chrome => "connect to your running Chrome via DevTools (CDP)",
+            SlashCommand::Browser => "launch built-in headless browser for screenshots & automation",
             SlashCommand::Resume => "resume a past session for this folder",
             SlashCommand::Rename => "rename the current session",
             SlashCommand::Plan => "create a comprehensive plan (multiple agents)",

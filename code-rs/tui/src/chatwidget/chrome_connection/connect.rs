@@ -117,10 +117,10 @@ impl ChatWidget<'_> {
                 app_event_tx.send_background_event_with_ticket(
                     &ticket,
                     format!(
-                        "CDP: connect timed out after {}s. Ensure Chrome is running with --remote-debugging-port={} and http://127.0.0.1:{}/json/version is reachable",
+                        "Connection timed out after {}s.\nMake sure Chrome is running with: --remote-debugging-port={}\nVerify at: http://127.0.0.1:{}/json/version",
                         super::CDP_CONNECT_DEADLINE.as_secs(),
-                        port.unwrap_or(0),
-                        port.unwrap_or(0)
+                        port.unwrap_or(9222),
+                        port.unwrap_or(9222)
                     ),
                 );
                 // Offer launch options popup to help recover quickly
@@ -181,7 +181,7 @@ impl ChatWidget<'_> {
                                 app_event_tx.send_background_event_with_ticket(
                                     &ticket,
                                     format!(
-                                        "CDP: failed to connect after WS fallback: {e2} (original: {err_msg})"
+                                        "Failed to connect to Chrome (retry also failed): {e2}"
                                     ),
                                 );
                                 // Also surface the Chrome launch options UI to assist the user
@@ -195,7 +195,7 @@ impl ChatWidget<'_> {
                                 app_event_tx.send_background_event_with_ticket(
                                     &ticket,
                                     format!(
-                                        "CDP: connect timed out after {}s during fallback. Ensure Chrome is running with --remote-debugging-port and /json/version is reachable",
+                                        "Connection timed out after {}s. Make sure Chrome is running with --remote-debugging-port",
                                         super::CDP_CONNECT_DEADLINE.as_secs()
                                     ),
                                 );
@@ -207,7 +207,7 @@ impl ChatWidget<'_> {
                         tracing::error!("[cdp] connect_to_chrome_only failed immediately: {err_msg}",);
                         app_event_tx.send_background_event_with_ticket(
                             &ticket,
-                            format!("CDP: failed to connect to Chrome: {err_msg}"),
+                            format!("Failed to connect to Chrome: {err_msg}"),
                         );
                         // Offer launch options popup to help recover quickly
                         app_event_tx.send(AppEvent::ShowChromeOptions(port));
@@ -236,7 +236,7 @@ impl ChatWidget<'_> {
 
         // Add status message to chat (use BackgroundEvent with header so it renders reliably)
         let status_msg = format!(
-            "CDP: connecting to Chrome DevTools Protocol ({host_display}:{port_display})..."
+            "Connecting to your Chrome ({host_display}:{port_display})..."
         );
         self.push_background_before_next_output(status_msg);
 
