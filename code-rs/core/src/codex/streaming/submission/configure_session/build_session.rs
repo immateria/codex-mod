@@ -109,29 +109,36 @@ impl Runner<'_> {
         };
 
         // Probe REPL runtime health early so the client (and every per-turn
-        // tool rebuild) already knows whether the tool is available.
+        // tool rebuild) already knows which runtimes are available.
         if config.tools_repl {
-            let default_rt = config.repl_default_runtime;
-            let probe_handle = crate::tools::repl::ReplHandle::new(
-                config.repl_runtime_config(default_rt),
-            );
-            match probe_handle.probe_health().await {
-                Ok(version) => {
-                    tracing::info!(
-                        runtime = %default_rt,
-                        version = %version,
-                        "repl runtime available"
-                    );
-                }
-                Err(err) => {
-                    tracing::warn!(
-                        runtime = %default_rt,
-                        error = %err,
-                        "repl runtime unavailable — disabling tool"
-                    );
-                    Arc::make_mut(&mut config).tools_repl = false;
+            let mut available_runtimes = Vec::new();
+            for &kind in crate::config::ReplRuntimeKindToml::ALL {
+                let probe_handle = crate::tools::repl::ReplHandle::new(
+                    config.repl_runtime_config(kind),
+                );
+                match probe_handle.probe_health().await {
+                    Ok(version) => {
+                        tracing::info!(
+                            runtime = %kind,
+                            version = %version,
+                            "repl runtime available"
+                        );
+                        available_runtimes.push(kind);
+                    }
+                    Err(err) => {
+                        tracing::debug!(
+                            runtime = %kind,
+                            error = %err,
+                            "repl runtime not found — skipping"
+                        );
+                    }
                 }
             }
+            if available_runtimes.is_empty() {
+                tracing::warn!("no repl runtimes available — disabling tool");
+                Arc::make_mut(&mut config).tools_repl = false;
+            }
+            Arc::make_mut(&mut config).repl_available_runtimes = available_runtimes;
         }
 
         // Wrap provided auth (if any) in a minimal AuthManager for client usage.

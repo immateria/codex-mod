@@ -190,9 +190,9 @@ impl ToolHandler for ReplToolHandler {
     ) -> ResponseInputItem {
         let ToolInvocation {
             ctx,
+            tool_name,
             payload,
             attempt_req,
-            ..
         } = inv;
         let outputs_custom = payload.outputs_custom();
 
@@ -234,7 +234,11 @@ impl ToolHandler for ReplToolHandler {
             }
         };
 
-        let runtime_kind = args.runtime.unwrap_or_else(|| sess.repl_default_runtime());
+        // If the tool name is per-runtime (e.g. `repl_python`), use that
+        // runtime; otherwise fall back to the pragma or session default.
+        let runtime_kind = crate::openai_tools::runtime_from_repl_tool_name(&tool_name)
+            .or(args.runtime)
+            .unwrap_or_else(|| sess.repl_default_runtime());
         let manager = match sess.repl_manager_for_runtime(runtime_kind).await {
             Ok(manager) => manager,
             Err(err) => {
@@ -362,8 +366,18 @@ impl ToolHandler for ReplResetToolHandler {
             );
         }
 
+        // Per-runtime reset (e.g. `repl_reset_python`) resets only that
+        // runtime; the generic `repl_reset` resets all started kernels.
+        let target_runtime =
+            crate::openai_tools::runtime_from_repl_reset_tool_name(&inv.tool_name);
+
+        let runtimes_to_reset: &[crate::config::ReplRuntimeKindToml] = match target_runtime {
+            Some(kind) => &[kind],
+            None => crate::config::ReplRuntimeKindToml::ALL,
+        };
+
         let mut first_err: Option<String> = None;
-        for &runtime in crate::config::ReplRuntimeKindToml::ALL {
+        for &runtime in runtimes_to_reset {
             if let Some(manager) = sess.repl_manager_if_started_for_runtime(runtime)
                 && let Err(err) = manager.reset().await
                 && first_err.is_none()
@@ -375,7 +389,11 @@ impl ToolHandler for ReplResetToolHandler {
             return unsupported_tool_call_output(&inv.ctx.call_id, outputs_custom, err);
         }
 
-        tool_output(inv.ctx.call_id, "repl kernel reset")
+        let label = match target_runtime {
+            Some(kind) => format!("{} repl kernel reset", kind.label()),
+            None => "all repl kernels reset".to_owned(),
+        };
+        tool_output(inv.ctx.call_id, &label)
     }
 }
 

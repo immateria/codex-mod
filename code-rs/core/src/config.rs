@@ -563,6 +563,10 @@ pub struct Config {
     pub tools_search_tool: bool,
     /// Enable the optional `repl` tool (off by default).
     pub tools_repl: bool,
+    /// Runtimes that passed the health probe at session start.  Populated by
+    /// `build_session` after probing all runtimes.  Each entry gets its own
+    /// `repl_{label}` tool registration.
+    pub repl_available_runtimes: Vec<ReplRuntimeKindToml>,
     /// Select the default runtime used by `repl` (default: `node`).
     pub repl_default_runtime: ReplRuntimeKindToml,
     /// Per-runtime configuration registry.  Each entry maps a runtime kind
@@ -2597,6 +2601,7 @@ impl Config {
             tools_web_search_external,
             tools_search_tool,
             tools_repl,
+            repl_available_runtimes: Vec::new(),
             repl_default_runtime,
             repl_runtimes,
             repl_node_path,

@@ -602,11 +602,56 @@ pub(super) fn create_repl_tool() -> OpenAiTool {
     })
 }
 
+/// Creates a per-runtime REPL tool, e.g. `repl_python`.
+pub(super) fn create_repl_tool_for_runtime(kind: crate::config::ReplRuntimeKindToml) -> OpenAiTool {
+    const REPL_FREEFORM_GRAMMAR: &str = r"start: /[\s\S]*/";
+
+    let label = kind.label();
+    let description = match kind {
+        crate::config::ReplRuntimeKindToml::Node => {
+            "Runs JavaScript/TypeScript in a persistent Node.js REPL with top-level await. Send raw source code (no JSON, quotes, or markdown fences). Supports `// codex-repl: timeout_ms=15000` pragma."
+        }
+        crate::config::ReplRuntimeKindToml::Deno => {
+            "Runs JavaScript/TypeScript in a persistent Deno REPL with top-level await. Send raw source code (no JSON, quotes, or markdown fences). Supports `// codex-repl: timeout_ms=15000` pragma."
+        }
+        crate::config::ReplRuntimeKindToml::Python => {
+            "Runs Python code in a persistent Python REPL. Send raw source code (no JSON, quotes, or markdown fences). Supports `# codex-repl: timeout_ms=15000` pragma."
+        }
+    };
+
+    OpenAiTool::Freeform(FreeformTool {
+        name: super::repl_tool_name_for_runtime(kind),
+        description: format!("{description} Tool name: repl_{label}"),
+        format: FreeformToolFormat {
+            r#type: "grammar".to_owned(),
+            syntax: "lark".to_owned(),
+            definition: REPL_FREEFORM_GRAMMAR.to_owned(),
+        },
+    })
+}
+
 pub(super) fn create_repl_reset_tool() -> OpenAiTool {
     OpenAiTool::Function(ResponsesApiTool {
         name: REPL_RESET_TOOL_NAME.to_owned(),
         description:
             "Restarts the repl kernel process, clearing all state including top-level bindings, imported modules, and in-flight timers.".to_owned(),
+        strict: false,
+        parameters: JsonSchema::Object {
+            properties: BTreeMap::new(),
+            required: None,
+            additional_properties: Some(false.into()),
+        },
+    })
+}
+
+/// Creates a per-runtime reset tool, e.g. `repl_reset_python`.
+pub(super) fn create_repl_reset_tool_for_runtime(kind: crate::config::ReplRuntimeKindToml) -> OpenAiTool {
+    let label = kind.label();
+    OpenAiTool::Function(ResponsesApiTool {
+        name: super::repl_reset_tool_name_for_runtime(kind),
+        description: format!(
+            "Restarts the {label} repl kernel process, clearing all state."
+        ),
         strict: false,
         parameters: JsonSchema::Object {
             properties: BTreeMap::new(),

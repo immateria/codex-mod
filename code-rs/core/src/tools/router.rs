@@ -101,33 +101,46 @@ impl ToolRouter {
         let dynamic_handler: Arc<dyn ToolHandler> = Arc::new(handlers::dynamic::DynamicToolHandler);
         let mcp_handler: Arc<dyn ToolHandler> = Arc::new(handlers::mcp::McpToolHandler);
 
-        let mut handlers = HashMap::<&'static str, Arc<dyn ToolHandler>>::new();
-        handlers.insert("shell", Arc::clone(&shell));
-        handlers.insert("container.exec", Arc::clone(&shell));
-        handlers.insert("update_plan", plan);
-        handlers.insert("request_user_input", request_user_input);
-        handlers.insert("request_permissions", request_permissions);
-        handlers.insert("search_tool_bm25", search_tool_bm25);
-        handlers.insert("apply_patch", apply_patch);
-        handlers.insert(crate::exec_command::EXEC_COMMAND_TOOL_NAME, Arc::clone(&exec_command));
-        handlers.insert(crate::exec_command::WRITE_STDIN_TOOL_NAME, exec_command);
-        handlers.insert("list_mcp_resources", Arc::clone(&mcp_resource));
-        handlers.insert("list_mcp_resource_templates", Arc::clone(&mcp_resource));
-        handlers.insert("read_mcp_resource", mcp_resource);
-        handlers.insert(crate::openai_tools::READ_FILE_TOOL_NAME, read_file);
-        handlers.insert(crate::openai_tools::LIST_DIR_TOOL_NAME, list_dir);
-        handlers.insert(crate::openai_tools::GREP_FILES_TOOL_NAME, grep_files);
-        handlers.insert(crate::openai_tools::REPL_TOOL_NAME, repl_handler);
-        handlers.insert(crate::openai_tools::REPL_RESET_TOOL_NAME, repl_reset_handler);
-        handlers.insert("agent", agent);
-        handlers.insert("browser", browser);
-        handlers.insert("web_fetch", web_fetch);
-        handlers.insert("image_view", image_view);
-        handlers.insert("wait", wait);
-        handlers.insert("kill", kill);
-        handlers.insert("gh_run_wait", gh_run_wait);
-        handlers.insert("code_bridge", Arc::clone(&bridge));
-        handlers.insert("code_bridge_subscription", bridge);
+        let mut handlers = HashMap::<String, Arc<dyn ToolHandler>>::new();
+        handlers.insert("shell".into(), Arc::clone(&shell));
+        handlers.insert("container.exec".into(), Arc::clone(&shell));
+        handlers.insert("update_plan".into(), plan);
+        handlers.insert("request_user_input".into(), request_user_input);
+        handlers.insert("request_permissions".into(), request_permissions);
+        handlers.insert("search_tool_bm25".into(), search_tool_bm25);
+        handlers.insert("apply_patch".into(), apply_patch);
+        handlers.insert(crate::exec_command::EXEC_COMMAND_TOOL_NAME.into(), Arc::clone(&exec_command));
+        handlers.insert(crate::exec_command::WRITE_STDIN_TOOL_NAME.into(), exec_command);
+        handlers.insert("list_mcp_resources".into(), Arc::clone(&mcp_resource));
+        handlers.insert("list_mcp_resource_templates".into(), Arc::clone(&mcp_resource));
+        handlers.insert("read_mcp_resource".into(), mcp_resource);
+        handlers.insert(crate::openai_tools::READ_FILE_TOOL_NAME.into(), read_file);
+        handlers.insert(crate::openai_tools::LIST_DIR_TOOL_NAME.into(), list_dir);
+        handlers.insert(crate::openai_tools::GREP_FILES_TOOL_NAME.into(), grep_files);
+        handlers.insert(crate::openai_tools::REPL_TOOL_NAME.into(), Arc::clone(&repl_handler));
+        handlers.insert(crate::openai_tools::REPL_RESET_TOOL_NAME.into(), Arc::clone(&repl_reset_handler));
+        // Register per-runtime REPL tool entries so the router can dispatch
+        // `repl_python`, `repl_node`, `repl_deno` (and their resets) to the
+        // same handlers that resolve the runtime from the tool name.
+        for &kind in crate::config::ReplRuntimeKindToml::ALL {
+            handlers.insert(
+                crate::openai_tools::repl_tool_name_for_runtime(kind),
+                Arc::clone(&repl_handler),
+            );
+            handlers.insert(
+                crate::openai_tools::repl_reset_tool_name_for_runtime(kind),
+                Arc::clone(&repl_reset_handler),
+            );
+        }
+        handlers.insert("agent".into(), agent);
+        handlers.insert("browser".into(), browser);
+        handlers.insert("web_fetch".into(), web_fetch);
+        handlers.insert("image_view".into(), image_view);
+        handlers.insert("wait".into(), wait);
+        handlers.insert("kill".into(), kill);
+        handlers.insert("gh_run_wait".into(), gh_run_wait);
+        handlers.insert("code_bridge".into(), Arc::clone(&bridge));
+        handlers.insert("code_bridge_subscription".into(), bridge);
 
         Self {
             registry: ToolRegistry::new(handlers),

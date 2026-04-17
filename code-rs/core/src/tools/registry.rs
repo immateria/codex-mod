@@ -67,11 +67,11 @@ pub(crate) trait ToolHandler: Send + Sync {
 }
 
 pub(crate) struct ToolRegistry {
-    handlers: HashMap<&'static str, Arc<dyn ToolHandler>>,
+    handlers: HashMap<String, Arc<dyn ToolHandler>>,
 }
 
 impl ToolRegistry {
-    pub(crate) fn new(handlers: HashMap<&'static str, Arc<dyn ToolHandler>>) -> Self {
+    pub(crate) fn new(handlers: HashMap<String, Arc<dyn ToolHandler>>) -> Self {
         Self { handlers }
     }
 

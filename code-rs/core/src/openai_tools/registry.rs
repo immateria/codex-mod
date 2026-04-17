@@ -74,6 +74,11 @@ pub fn get_openai_tools(
     if config.repl {
         tools.push(builtin_tools::create_repl_tool());
         tools.push(builtin_tools::create_repl_reset_tool());
+        // Register per-runtime tools for each available runtime.
+        for &kind in &config.repl_available_runtimes {
+            tools.push(builtin_tools::create_repl_tool_for_runtime(kind));
+            tools.push(builtin_tools::create_repl_reset_tool_for_runtime(kind));
+        }
     }
 
     tools.push(browser_tool::create_browser_tool(browser_enabled));

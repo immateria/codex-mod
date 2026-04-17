@@ -1,3 +1,4 @@
+use crate::config::ReplRuntimeKindToml;
 use crate::model_family::ModelFamily;
 use crate::protocol::AskForApproval;
 use crate::protocol::SandboxPolicy;
@@ -20,6 +21,9 @@ pub struct ToolsConfig {
     pub web_search_external: bool,
     pub search_tool: bool,
     pub repl: bool,
+    /// Runtimes that passed the health probe and should be exposed as
+    /// individual `repl_{label}` tools. Empty when `repl` is false.
+    pub repl_available_runtimes: Vec<ReplRuntimeKindToml>,
     pub include_view_image_tool: bool,
     pub web_search_allowed_domains: Option<Vec<String>>,
     pub agent_model_allowed_values: Vec<String>,
@@ -86,6 +90,7 @@ impl ToolsConfig {
             web_search_external: true,
             search_tool: false,
             repl: false,
+            repl_available_runtimes: Vec::new(),
             include_view_image_tool,
             web_search_allowed_domains: None,
             agent_model_allowed_values: Vec::new(),

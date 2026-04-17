@@ -1166,6 +1166,8 @@ async fn send_json_line(stdin: &Arc<Mutex<ChildStdin>>, message: &JsonValue) -> 
 fn is_repl_internal_tool(name: &str) -> bool {
     name.eq_ignore_ascii_case(crate::openai_tools::REPL_TOOL_NAME)
         || name.eq_ignore_ascii_case(crate::openai_tools::REPL_RESET_TOOL_NAME)
+        || crate::openai_tools::runtime_from_repl_tool_name(name).is_some()
+        || crate::openai_tools::runtime_from_repl_reset_tool_name(name).is_some()
 }
 
 fn freeform_tool_name_snapshot(sess: &Session) -> HashSet<String> {
