@@ -51,10 +51,11 @@ impl ChatWidget<'_> {
             height: history_area.height,
         };
 
-        // The history scroller renders cells inside `content_area` with a fixed
-        // 2-column gutter. Use the same width here so welcome reservation and
-        // per-cell height caching don't thrash on startup.
-        self.update_welcome_height_hint(content_area.width.saturating_sub(2), content_area.height);
+        // The history scroller renders cells inside `content_area` with a 4-column
+        // gutter (2 icon + 2 gap). Use the same width so welcome reservation and
+        // per-cell height caching don't thrash against the measurement pass.
+        const GUTTER_WIDTH: u16 = 4;
+        self.update_welcome_height_hint(content_area.width.saturating_sub(GUTTER_WIDTH), content_area.height);
 
         let base_style = crate::colors::style_text_on_bg();
         // Clear the full history viewport once so reused rows/gutters do not

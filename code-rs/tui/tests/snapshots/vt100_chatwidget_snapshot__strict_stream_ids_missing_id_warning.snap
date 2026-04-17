@@ -8,7 +8,7 @@ expression: output
  +----------------------------------------------------------------------------+
  •
 
- » Missing stream id for assistant answer delta
+ »   Missing stream id for assistant answer delta                           [x]
 
  +----------------------------------------------------------------------------+
  | What can I code for you today?                                             |

@@ -1,33 +1,34 @@
 ---
 source: tui/tests/vt100_chatwidget_snapshot.rs
+assertion_line: 1869
 expression: output
 ---
  +----------------------------------------------------------------------------+
  |                                    Code                                    |
  +----------------------------------------------------------------------------+
- • Hello! How can I help you today?
+ •   Hello! How can I help you today?                                    ↑Top
+ ▼
+
+     R #2 · gpt-5.3-codex · Xs ago
+ •   I can help with various tasks including:
+ ▼
+     - Writing code
+     - Reading files
+     - Running commands
 
 
+ ›   Handle captcha gracefully
 
- • I can help with various tasks including:
-
-   - Writing code
-   - Reading files
-   - Running commands
-
-
- › Handle captcha gracefully
-
-   +- Browser (headless): example.com
-   |
-   |   Actions
-   |    MM:SS  Opened   https://example.com
-   |    MM:SS  Typed    pizza
-   |    MM:SS  Pressed  Enter
-   |
-   |   Console: Encountering captcha block
-   |
-   +- [Ctrl+B] View · [Esc] Stop
+     +- Browser (headless): example.com
+     |
+     |   Actions
+     |    MM:SS  Opened   https://example.com
+     |    MM:SS  Typed    pizza
+     |    MM:SS  Pressed  Enter
+     |
+     |   Console: Encountering captcha block
+     |
+     +- [Ctrl+B] View · [Esc] Stop
 
  +----------------------------- ✶ Browsing... -----------------------------+
  | What can I code for you today?                                             |

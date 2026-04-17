@@ -1,19 +1,20 @@
 ---
 source: tui/tests/vt100_chatwidget_snapshot.rs
+assertion_line: 585
 expression: output
 ---
  +----------------------------------------------------------------------------+
  |                                    Code                                    |
  +----------------------------------------------------------------------------+
- • I can help with various tasks including:
+ •   I can help with various tasks including:                            ↑Top
+ ▼
+     - Writing code
+     - Reading files
+     - Running commands
 
-   - Writing code
-   - Reading files
-   - Running commands
 
-
- ✶ Dir: /workspace  2 changes
-    main
+ ✶   Dir: /workspace  2 changes
+      main
 
  +----------------------------------------------------------------------------+
  | What can I code for you today?                                             |

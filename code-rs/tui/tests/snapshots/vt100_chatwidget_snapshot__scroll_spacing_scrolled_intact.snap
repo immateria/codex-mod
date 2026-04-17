@@ -6,21 +6,21 @@ expression: scrolled
  +----------------------------------------------------------------------------+
  |                                    Code                                    |
  +----------------------------------------------------------------------------+
-   Assistant reply number two with multiple paragraphs.
+     Assistant reply number two with multiple paragraphs.
  •
-   Here is another paragraph to expand height.
+ ▼   Here is another paragraph to expand height.
 
-   Yet another paragraph for good measure.
+     Yet another paragraph for good measure.
 
- › Third user prompt to push history further.
+ ›   Third user prompt to push history further.
 
-   Assistant reply number three, still going strong.
+     Assistant reply number three, still going strong.
  •
-   - Bullet one
-   - Bullet two
-   - Bullet three
+ ▼   - Bullet one
+     - Bullet two
+     - Bullet three
 
- › Fourth user prompt to guarantee overflow beyond the viewport height.
+ ›   Fourth user prompt to guarantee overflow beyond the viewport height.
 
  +----------------------------------------------------------------------------+
  | What can I code for you today?                                             |

@@ -1,26 +1,26 @@
 ---
 source: tui/tests/vt100_chatwidget_snapshot.rs
-assertion_line: 2912
+assertion_line: 2913
 expression: output
 ---
  +----------------------------------------------------------------------------+
  |                                    Code                                    |
  +----------------------------------------------------------------------------+
- ✓ Finished release profile
-   warning: unused import
-   warning: dead code
+ ✓   Finished release profile                                            ↑Top
+ ▼   warning: unused import
+     warning: dead code
 
- ✓ Complete, duration: Xs
-   + invocation: list_dir({"path":"/src"})
-   + path: /src
+ ✓   Complete, duration: Xs
+ ▼   + invocation: list_dir({"path":"/src"})
+     + path: /src
 
-   main.rs
-   lib.rs
-   api/
-   utils/
-   config/
-   tests/
-   benches/
+     main.rs
+     lib.rs
+     api/
+     utils/
+     config/
+     tests/
+     benches/
 
  +----------------------------------------------------------------------------+
  | What can I code for you today?                                             |

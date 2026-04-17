@@ -6,23 +6,23 @@ expression: section_open
  +------------------------------------------------------------------------------------------------+
  |                                              Code                                              |
  +------------------------------------------------------------------------------------------------+
- +Settings ▸ Model--------------------------------------------------------------------------------+
- |                                                                                                |
- | ›  Model              + Select Model & Reasoning --------------------------------------------+ |
- |    Theme              |                                                                      | |
- |    Interface          | C+-----------------------------------------+                         | |
- |    Experimental       | R|Model Shortcuts                          |                         | |
- |    Shell              |  |                                         |                         | |
- |    Shell profiles     | M|• Esc    Return to overview              |                         | |
- |    Exec limits        | F|• Tab    Focus content                   |vailable on supported mo | |
- |    Updates            | A|• Shift+Tab  Focus sidebar               |checks. Past 272,000 inp | |
- |    Accounts           | ›|• ↑/↓    Change section (sidebar focus)  |                         | |
- |    Secrets            |  |• ?      Toggle this help                |                         | |
- |    Apps               |  |                                         |                         | |
- |    Agents             | ↑|Press Esc twice to close                 |dit   Ctrl+S Save defaul | |
- |    Memories           |  +-----------------------------------------+                         | |
- |  ↓ Prompts            +----------------------------------------------------------------------+ |
- | Tab Content  Shift+Tab Sidebar  Esc Overview  ? Help  Focus: Content                           |
+ +Settings ▸ Model----------------------------------------------------------------------------+---+
+ |                                                                                            | x |
+ |                                                                                            +---+
+ | ◂ hide                + Select Model & Reasoning --------------------------------------------+ |
+ | ›  ⌂ Model            |  +-----------------------------------------+                         | |
+ |    ✶ Theme            | C|Model Shortcuts                          |                         | |
+ |    ⚙ Interface        | R|                                         |                         | |
+ |    ✶ Experimental     |  |• Esc    Return to overview              |                         | |
+ |    ❯ Shell            | M|• Tab    Focus content                   |                         | |
+ |    ▲ Shell escalation | F|• Shift+Tab  Focus sidebar               |vailable on supported mo | |
+ |    ◈ Shell profiles   | A|• ↑ ↓    Change section (sidebar focus)  |checks. Past 272,000 inp | |
+ |    ⊘ Exec limits      | ›|• ?      Toggle this help                |                         | |
+ |    ↓ Updates          |  |                                         |                         | |
+ |    ◉ Accounts         | ↑|Press Esc twice to close                 |/edit                    | |
+ |    ♦ Secrets          | C+-----------------------------------------+                         | |
+ |  ↓ ★ Agents           +----------------------------------------------------------------------+ |
+ | Ctrl+B hide  •  Esc back  •  focus: Content                                                    |
  |                                                                                                |
  +------------------------------------------------------------------------------------------------+
 

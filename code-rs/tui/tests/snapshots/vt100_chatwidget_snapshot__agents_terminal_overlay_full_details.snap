@@ -1,5 +1,6 @@
 ---
 source: tui/tests/vt100_chatwidget_snapshot.rs
+assertion_line: 2255
 expression: "&output"
 ---
  +--------------------------------------------------------------------------------------------+
@@ -10,7 +11,7 @@ expression: "&output"
  | +----------------------++----------------------------------------------------------------+ |
  | |Docs Sweep            || Docs Sweep / CLAUDE-3-Opus                                     | |
  | |› CLAUDE-3-Opus ✓     || Status: ✓ Completed   Model: CLAUDE-3-Opus   ID: #docs-sw      | |
- | |  GPT-4o ✗            ||Batch: Batch batchdoc                                           | |
+ | |  GPT-4o !            ||Batch: Batch batchdoc                                           | |
  | |                      ||                                                                | |
  | |                      ||+ Highlights (h) ▼ --------------------------------------------+| |
  | |                      |||   • Final: ### Highlights - New Auto Drive controls - Faster  | |
@@ -29,5 +30,5 @@ expression: "&output"
  | |                      |||   STATUS                                                      | |
  | |                      |||   MM:SS  Status → Completed                                   | |
  | +----------------------++----------------------------------------------------------------+ |
- | [↑/↓/←/→] Navigate   [1-5] Filter   [S] Sort   [H/A] Toggle Details   [X] Stop   [Ctrl+A]  |
+ | [↑ ↓/◂ ▸] navigate   [1-5] filter   [S] sort   [H/A] toggle details   [X] stop   [Ctrl+A]  |
  +--------------------------------------------------------------------------------------------+

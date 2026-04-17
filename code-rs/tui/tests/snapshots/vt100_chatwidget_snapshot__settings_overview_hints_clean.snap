@@ -1,22 +1,22 @@
 ---
 source: tui/tests/vt100_chatwidget_snapshot.rs
-assertion_line: 2460
+assertion_line: 2461
 expression: output
 ---
  +------------------------------------------------------------------------------------------------+
  |                                              Code                                              |
  +------------------------------------------------------------------------------------------------+
- +Settings ▸ Overview-----------------------------------------------------------------------------+
- |                                                                                                |
- | › Model              Model: GPT-5.3-Codex (Medium)                                             |
+ +Settings ▸ Overview-------------------------------------------------------------------------+---+
+ |                                                                                            | x |
+ |                                                                                            +---+
+ | › ⌂ Model            Model: GPT-5.3-Codex (Medium)                                             |
  |   + Choose the language model used for new completions.                                        |
  |                                                                                                |
- |   Theme              Theme: Light - Photon (16-color) · Spinner: Diamond                       |
+ |   ✶ Theme            Theme: Light - Photon (16-color) · Spinner: Diamond                       |
  |   + Switch between preset color palettes and adjust contrast.                                  |
  |                                                                                                |
- |   Interface          Mode: overlay                                                             |
- |   + Control Settings UI routing and other layout preferences.                                  |
- | ↑ ↓ Move    Enter Open    Esc Close    ? Help                                                  |
+ |   ⚙ Interface        Mode: overlay · Icons: Unicode                                            |
+ | ↑ ↓ navigate   Enter open   Esc close   ? help                                                 |
  |                                                                                                |
  +------------------------------------------------------------------------------------------------+
 

@@ -5,22 +5,22 @@ expression: output
 ---
  |                                    Code                                    |
 
- • - Running commands
+ •   - Running commands                                                  ↑Top
 
+ ▼
 
+ ›   Could you provide a detailed overview of how the anti-clipping spacer
+ ▼   works?
 
- › Could you provide a detailed overview of how the anti-clipping spacer
-   works?
+     Make sure the explanation spans multiple lines so we can exercise
+     wrapping in the viewport.
 
-   Make sure the explanation spans multiple lines so we can exercise wrapping
-   in the viewport.
-
-   Absolutely! The spacer is activated whenever the rendered history height
- • lands directly on or near the viewport boundary.
-
-   This explanation intentionally repeats a few phrases so that the text wraps
-   even on wider terminals, ensuring we cover the regression scenario where the
-   final row historically vanished.
+     Absolutely! The spacer is activated whenever the rendered history height
+ •   lands directly on or near the viewport boundary.
+ ▼
+     This explanation intentionally repeats a few phrases so that the text
+     wraps even on wider terminals, ensuring we cover the regression scenario
+     where the final row historically vanished.
 
  | What can I code for you today?                                             |
 

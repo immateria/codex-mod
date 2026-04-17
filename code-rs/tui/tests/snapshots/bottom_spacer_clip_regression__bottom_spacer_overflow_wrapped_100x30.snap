@@ -5,28 +5,28 @@ expression: output
 ---
  |                                              Code                                              |
 
- › with scroll offsets.
+ ›   interact with scroll offsets.
 
 
-   Assistant reply #6 contains a deliberately verbose paragraph that discusses wrapping,
- • stream padding, viewport math, and the importance of not clipping the final line.
+     Assistant reply #6 contains a deliberately verbose paragraph that discusses wrapping,
+ •   stream padding, viewport math, and the importance of not clipping the final line.
+ ▼
+     We repeat the insight to guarantee the total height exceeds the viewport.
 
-   We repeat the insight to guarantee the total height exceeds the viewport.
+ ›   User follow-up #6: keep adding details about history layout calculations and how they
+     interact with scroll offsets.
 
- › User follow-up #6: keep adding details about history layout calculations and how they interact
-   with scroll offsets.
+     Assistant reply #7 contains a deliberately verbose paragraph that discusses wrapping,
+ •   stream padding, viewport math, and the importance of not clipping the final line.
+ ▼
+     We repeat the insight to guarantee the total height exceeds the viewport.
 
-   Assistant reply #7 contains a deliberately verbose paragraph that discusses wrapping,
- • stream padding, viewport math, and the importance of not clipping the final line.
+ ›   User follow-up #7: keep adding details about history layout calculations and how they
+     interact with scroll offsets.
 
-   We repeat the insight to guarantee the total height exceeds the viewport.
-
- › User follow-up #7: keep adding details about history layout calculations and how they interact
-   with scroll offsets.
-
-   Final assistant response to seal the deal with yet another wrapped explanation.
- • It mentions CODE_TUI_ANTICUTOFF repeatedly to highlight the feature’s role in protecting the
-   last row of history.
+     Final assistant response to seal the deal with yet another wrapped explanation.
+ •   It mentions CODE_TUI_ANTICUTOFF repeatedly to highlight the feature’s role in protecting the
+     last row of history.
 
  | What can I code for you today?                                                                 |
 

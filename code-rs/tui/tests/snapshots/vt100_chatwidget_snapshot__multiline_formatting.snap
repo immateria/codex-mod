@@ -6,20 +6,20 @@ expression: output
  +----------------------------------------------------------------------------+
  |                                    Code                                    |
  +----------------------------------------------------------------------------+
- •
-   - Writing code
-   - Reading files
-   - Running commands
+ •                                                                       ↑Top
+ ▼   - Writing code
+     - Reading files
+     - Running commands
 
 
-
- • Here's a simple function:
-
-   + rust ----------------------------+
-   |  fn hello() {                    |
-   |      println!("Hello, world!");  |
-   |  }                               |
-   +----------------------------------+
+     R #3 · gpt-5.3-codex · Xs ago
+ •   Here's a simple function:
+ ▼
+     + rust ----------------------------+
+     |  fn hello() {                    |
+     |      println!("Hello, world!");  |
+     |  }                               |
+     +----------------------------------+
 
 
  +----------------------------------------------------------------------------+

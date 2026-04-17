@@ -1,20 +1,20 @@
 ---
 source: tui/tests/vt100_chatwidget_snapshot.rs
-assertion_line: 2436
+assertion_line: 2437
 expression: output
 ---
  +--------------------------------------------------------+
  |                          Code                          |
  +--------------------------------------------------------+
- +Settings ▸ Overview-------------------------------------+
- |                                                        |
- | › Model              Model: GPT-5.3-Codex (Medium)     |
+ +Settings ▸ Overview---------------------------------+---+
+ |                                                    | x |
+ |                                                    +---+
+ | › ⌂ Model            Model: GPT-5.3-Codex (Medium)     |
  |   + Choose the language model used for new comp...     |
  |                                                        |
- |   Theme              Theme: Light - Photon (16-colo... |
+ |   ✶ Theme            Theme: Light - Photon (16-colo... |
  |   + Switch between preset color palettes and ad...     |
- |                                                        |
- | ↑ ↓ Move    Enter Open    Esc Close    ? Help          |
+ | ↑ ↓ navigate   Enter open   Esc close   ? help         |
  |                                                        |
  +--------------------------------------------------------+
 

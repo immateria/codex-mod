@@ -2455,7 +2455,7 @@ fn settings_overview_hints_clean() {
     assert!(
         output
             .lines()
-            .any(|line| line.contains("↑ ↓ Move    Enter Open    Esc Close    ? Help")),
+            .any(|line| line.contains("navigate") && line.contains("Enter") && line.contains("Esc")),
         "footer hints should appear on the last row\n{output}"
     );
     insta::assert_snapshot!("settings_overview_hints_clean", output);

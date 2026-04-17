@@ -1,28 +1,28 @@
 ---
 source: tui/tests/vt100_chatwidget_snapshot.rs
-assertion_line: 2495
+assertion_line: 2496
 expression: closed
 ---
  +------------------------------------------------------------------------------------------------+
  |                                              Code                                              |
  +------------------------------------------------------------------------------------------------+
- +Settings ▸ Overview-----------------------------------------------------------------------------+
- |                                                                                                |
- | › Model              Model: GPT-5.3-Codex (Medium)                                             |
+ +Settings ▸ Overview-------------------------------------------------------------------------+---+
+ |                                                                                            | x |
+ |                                                                                            +---+
+ | › ⌂ Model            Model: GPT-5.3-Codex (Medium)                                             |
  |   + Choose the language model used for new completions.                                        |
  |                                                                                                |
- |   Theme              Theme: Light - Photon (16-color) · Spinner: Diamond                       |
+ |   ✶ Theme            Theme: Light - Photon (16-color) · Spinner: Diamond                       |
  |   + Switch between preset color palettes and adjust contrast.                                  |
  |                                                                                                |
- |   Interface          Mode: overlay                                                             |
+ |   ⚙ Interface        Mode: overlay · Icons: Unicode                                            |
  |   + Control Settings UI routing and other layout preferences.                                  |
  |                                                                                                |
- |   Experimental       Enabled: 1/5                                                              |
+ |   ✶ Experimental     Enabled: 0/5                                                              |
  |   + Toggle experimental features (saved to config.toml and applied after session reconf...     |
  |                                                                                                |
- |   Shell              Shell: auto                                                               |
- |   + Select the shell used for tool execution.                                                  |
- | ↑ ↓ Move    Enter Open    Esc Close    ? Help                                                  |
+ |   ❯ Shell            Shell: auto                                                               |
+ | ↑ ↓ navigate   Enter open   Esc close   ? help                                                 |
  |                                                                                                |
  +------------------------------------------------------------------------------------------------+
 

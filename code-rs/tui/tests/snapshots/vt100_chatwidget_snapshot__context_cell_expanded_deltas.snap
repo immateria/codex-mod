@@ -6,15 +6,15 @@ expression: output
  +----------------------------------------------------------------------------+
  |                                    Code                                    |
  +----------------------------------------------------------------------------+
- • - Running commands
+ •   - Running commands                                                  ↑Top
+ ▼
 
-
- ✶ Dir: /workspace/subdir  3 changes
-    main  Reasoning: high
-   Recent changes:
-   • reasoning: medium → high  #3
-   • branch: feature/context-ui → main  #2
-   • cwd: /workspace → /workspace/subdir  #2
+ ✶   Dir: /workspace/subdir  3 changes
+      main  Reasoning: high
+     Recent changes:
+     • reasoning: medium → high  #3
+     • branch: feature/context-ui → main  #2
+     • cwd: /workspace → /workspace/subdir  #2
 
  +----------------------------------------------------------------------------+
  | What can I code for you today?                                             |

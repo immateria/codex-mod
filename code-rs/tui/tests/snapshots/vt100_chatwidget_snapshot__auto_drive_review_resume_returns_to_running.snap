@@ -1,16 +1,17 @@
 ---
 source: tui/tests/vt100_chatwidget_snapshot.rs
+assertion_line: 998
 expression: "frames.join(\"\\n---FRAME---\\n\")"
 ---
  +----------------------------------------------------------------------------+
  |                                    Code                                    |
  +----------------------------------------------------------------------------+
-
- • I can help with various tasks including:
-
-   - Writing code
-   - Reading files
-   - Running commands
+     R #2 · gpt-5.3-codex · Xs ago
+ •   I can help with various tasks including:
+ ▼
+     - Writing code
+     - Reading files
+     - Running commands
 
 
 
@@ -23,12 +24,12 @@ expression: "frames.join(\"\\n---FRAME---\\n\")"
  +----------------------------------------------------------------------------+
  |                                    Code                                    |
  +----------------------------------------------------------------------------+
-
- • I can help with various tasks including:
-
-   - Writing code
-   - Reading files
-   - Running commands
+     R #2 · gpt-5.3-codex · Xs ago
+ •   I can help with various tasks including:
+ ▼
+     - Writing code
+     - Reading files
+     - Running commands
 
 
 
