@@ -741,7 +741,11 @@ async fn process_chat_sse<S>(
                 // Surface parse errors to logs and debug logger for diagnostics, then skip
                 let mut excerpt = sse.data.clone();
                 const MAX: usize = 600;
-                if excerpt.len() > MAX { excerpt.truncate(MAX); }
+                if excerpt.len() > MAX {
+                    let mut end = MAX;
+                    while !excerpt.is_char_boundary(end) { end -= 1; }
+                    excerpt.truncate(end);
+                }
                 tracing::debug!("chat SSE parse error: {} | data: {}", e, excerpt);
                 if let Ok(logger) = debug_logger.lock() {
                     let _ = logger.append_response_event(
@@ -984,7 +988,7 @@ async fn process_chat_sse<S>(
                 // Emit Completed regardless of reason so the agent can advance.
                 let _ = tx_event
                     .send(Ok(ResponseEvent::Completed {
-                        response_id: String::new(),
+                        response_id: current_response_id.clone().unwrap_or_default(),
                         token_usage: None,
                     }))
                     .await;

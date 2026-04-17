@@ -184,7 +184,7 @@ fn try_parse_retry_after(err: &Error, now: DateTime<Utc>) -> Option<RetryAfter> 
     let re = rate_limit_regex();
     let captures = re.captures(message)?;
     let value = captures.get(1)?.as_str().trim().parse::<f64>().ok()?;
-    if value.is_sign_negative() {
+    if value.is_sign_negative() || value.is_nan() || value.is_infinite() {
         return None;
     }
     let unit = captures.get(2)?.as_str().trim().to_ascii_lowercase();
@@ -1065,7 +1065,7 @@ impl ModelClient {
                         None,
                         Some(request_id.clone()),
                     );
-                    if (attempt as u64) < max_retries {
+                    if (attempt as u64) <= max_retries {
                         tokio::time::sleep(backoff(attempt as u64)).await;
                         continue;
                     }
@@ -1081,7 +1081,7 @@ impl ModelClient {
                         None,
                         Some(request_id.clone()),
                     );
-                    if (attempt as u64) < max_retries {
+                    if (attempt as u64) <= max_retries {
                         tokio::time::sleep(backoff(attempt as u64)).await;
                         continue;
                     }
@@ -1745,7 +1745,9 @@ impl ModelClient {
                                 } else {
                                     let mut excerpt = body_text;
                                     if excerpt.len() > MAX_ERROR_EXCERPT_CHARS {
-                                        excerpt.truncate(MAX_ERROR_EXCERPT_CHARS);
+                                        let mut end = MAX_ERROR_EXCERPT_CHARS;
+                                        while !excerpt.is_char_boundary(end) { end -= 1; }
+                                        excerpt.truncate(end);
                                     }
                                     (
                                         "server error".to_owned(),
@@ -2373,6 +2375,7 @@ fn parse_retry_after_header(value: &str, now: DateTime<Utc>) -> Option<RetryAfte
     }
     if let Ok(float_secs) = normalized.parse::<f64>()
         && !float_secs.is_sign_negative()
+        && float_secs.is_finite()
     {
         return Some(RetryAfter::from_duration(Duration::from_secs_f64(float_secs), now));
     }
@@ -2530,7 +2533,9 @@ async fn process_sse<S>(
                 // Log parse error with data excerpt, and record it in the debug logger as well.
                 let mut excerpt = sse.data.clone();
                 if excerpt.len() > MAX_ERROR_EXCERPT_CHARS {
-                    excerpt.truncate(MAX_ERROR_EXCERPT_CHARS);
+                    let mut end = MAX_ERROR_EXCERPT_CHARS;
+                    while !excerpt.is_char_boundary(end) { end -= 1; }
+                    excerpt.truncate(end);
                 }
                 debug!("Failed to parse SSE event: {e}, data: {excerpt}");
                 if let Ok(logger) = debug_logger.lock() {
