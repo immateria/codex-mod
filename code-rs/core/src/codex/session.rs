@@ -728,6 +728,24 @@ impl Session {
         }
     }
 
+    /// Snapshot all running REPL kernels and return the payloads keyed by
+    /// runtime kind.  Used during `ConfigureSession` to preserve REPL state
+    /// when a settings change rebuilds the session (and its `ReplHandle`s).
+    pub(crate) async fn take_repl_snapshots(
+        &self,
+    ) -> std::collections::HashMap<
+        crate::config::ReplRuntimeKindToml,
+        serde_json::Value,
+    > {
+        let mut snapshots = std::collections::HashMap::new();
+        for (&kind, handle) in &self.repl_handles {
+            if let Some(snap) = handle.take_snapshot().await {
+                snapshots.insert(kind, snap);
+            }
+        }
+        snapshots
+    }
+
     pub(crate) fn background_exec_cmd_display(&self, call_id: &str) -> Option<String> {
         let state = crate::codex::lock_or_panic!(self.state);
         state

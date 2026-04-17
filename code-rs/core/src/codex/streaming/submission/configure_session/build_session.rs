@@ -202,6 +202,15 @@ impl Runner<'_> {
             }
         }
 
+        // Capture REPL state from the old session so it can be restored in
+        // the replacement handles after rebuild (e.g. when Deno permissions
+        // change in the TUI settings page).
+        let repl_snapshots = if let Some(sess_arc) = old_session.as_ref() {
+            sess_arc.take_repl_snapshots().await
+        } else {
+            std::collections::HashMap::new()
+        };
+
         if let Some(old_session_arc) = old_session {
             old_session_arc.shutdown_mcp_clients().await;
             drop(old_session_arc);
@@ -572,6 +581,18 @@ impl Runner<'_> {
         } else {
             None
         };
+
+        // Inject REPL snapshots from the old session into the new handles
+        // so the first execute() on each runtime restores the previous state.
+        if !repl_snapshots.is_empty() {
+            if let Some(sess_arc) = self.sess.as_ref() {
+                for (kind, snap) in repl_snapshots {
+                    if let Some(handle) = sess_arc.repl_handles.get(&kind) {
+                        handle.inject_snapshot(snap).await;
+                    }
+                }
+            }
+        }
 
         Built {
             submission_id,

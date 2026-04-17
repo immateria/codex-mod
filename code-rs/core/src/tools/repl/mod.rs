@@ -71,6 +71,10 @@ pub(crate) const MAX_TIMEOUT_MS: u64 = 120_000;
 pub(crate) struct ReplHandle {
     runtime: ReplRuntimeConfig,
     cell: OnceCell<Arc<ReplManager>>,
+    /// Snapshot captured from a previous session's kernel.  Injected into the
+    /// `ReplManager` once it is lazily initialised so the first `execute()`
+    /// restores the old REPL state.
+    initial_snapshot: Mutex<Option<JsonValue>>,
 }
 
 impl ReplHandle {
@@ -78,6 +82,7 @@ impl ReplHandle {
         Self {
             runtime,
             cell: OnceCell::new(),
+            initial_snapshot: Mutex::new(None),
         }
     }
 
@@ -91,16 +96,36 @@ impl ReplHandle {
     }
 
     pub(crate) async fn manager(&self) -> Result<Arc<ReplManager>, String> {
-        self.cell
+        let mgr = self.cell
             .get_or_try_init(|| async {
                 ReplManager::new(self.runtime.clone()).await
             })
             .await
-            .cloned()
+            .cloned()?;
+        // Transfer any snapshot captured from a prior session so the first
+        // execute() will restore the old REPL state.
+        if let Some(snap) = self.initial_snapshot.lock().await.take() {
+            *mgr.saved_snapshot.lock().await = Some(snap);
+        }
+        Ok(mgr)
     }
 
     pub(crate) fn manager_if_started(&self) -> Option<Arc<ReplManager>> {
         self.cell.get().cloned()
+    }
+
+    /// Snapshot the running kernel (if any) and return the payload so it can
+    /// be transferred to a replacement `ReplHandle` after a settings change.
+    pub(crate) async fn take_snapshot(&self) -> Option<JsonValue> {
+        let mgr = self.cell.get()?;
+        mgr.snapshot_kernel().await;
+        mgr.saved_snapshot.lock().await.take()
+    }
+
+    /// Store a snapshot captured from a previous session's handle so it is
+    /// restored when the manager is first initialised.
+    pub(crate) async fn inject_snapshot(&self, snapshot: JsonValue) {
+        *self.initial_snapshot.lock().await = Some(snapshot);
     }
 }
 
@@ -122,7 +147,7 @@ pub(crate) struct ReplManager {
     next_tool_seq: AtomicU64,
     /// Snapshot of kernel REPL state captured before a restart so that
     /// bindings, counters, and `codex.state` survive permission changes.
-    saved_snapshot: Mutex<Option<JsonValue>>,
+    pub(crate) saved_snapshot: Mutex<Option<JsonValue>>,
     /// Pending control-message response channels (snapshot_result, restore_result).
     pending_control: Arc<Mutex<HashMap<String, oneshot::Sender<JsonValue>>>>,
     /// Deno permissions granted with Turn scope that should be revoked
