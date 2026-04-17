@@ -421,10 +421,10 @@ pub fn record_rate_limit_snapshot(
         info.observed_at = Some(observed_at);
         info.primary_next_reset_at = snapshot
             .primary_reset_after_seconds
-            .map(|seconds| observed_at + Duration::seconds(seconds as i64));
+            .map(|seconds| observed_at + Duration::seconds(i64::try_from(seconds).unwrap_or(i64::MAX)));
         info.secondary_next_reset_at = snapshot
             .secondary_reset_after_seconds
-            .map(|seconds| observed_at + Duration::seconds(seconds as i64));
+            .map(|seconds| observed_at + Duration::seconds(i64::try_from(seconds).unwrap_or(i64::MAX)));
         data.rate_limit = Some(info);
     })
 }
@@ -514,7 +514,7 @@ pub fn record_usage_limit_hint(
         let mut info = data.rate_limit.take().unwrap_or_default();
         info.last_usage_limit_hit_at = Some(observed_at);
         if let Some(seconds) = resets_in_seconds {
-            let reset_at = observed_at + Duration::seconds(seconds as i64);
+            let reset_at = observed_at + Duration::seconds(i64::try_from(seconds).unwrap_or(i64::MAX));
             info.primary_next_reset_at = Some(reset_at);
             info.secondary_next_reset_at = Some(reset_at);
         }

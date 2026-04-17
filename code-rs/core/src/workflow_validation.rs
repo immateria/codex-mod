@@ -86,8 +86,8 @@ pub(crate) fn maybe_run_actionlint(
         let path_in_github = is_in_github_dir(path, cwd);
         match change {
             ApplyPatchFileChange::Add { content } => {
-                if path_in_github {
-                    let _ = stage_file_with_contents(temp_root, cwd, path, content);
+                if path_in_github && !stage_file_with_contents(temp_root, cwd, path, content) {
+                    tracing::warn!("workflow validation: failed to stage added file {}", path.display());
                 }
             }
             ApplyPatchFileChange::Update { new_content, move_path, .. } => {
@@ -97,12 +97,12 @@ pub(crate) fn maybe_run_actionlint(
                     continue;
                 }
 
-                if dest_in_github {
-                    let _ = stage_file_with_contents(temp_root, cwd, dest_path, new_content);
+                if dest_in_github && !stage_file_with_contents(temp_root, cwd, dest_path, new_content) {
+                    tracing::warn!("workflow validation: failed to stage updated file {}", dest_path.display());
                 }
 
-                if move_path.is_none() && path_in_github && !dest_in_github {
-                    let _ = stage_file_with_contents(temp_root, cwd, path, new_content);
+                if move_path.is_none() && path_in_github && !dest_in_github && !stage_file_with_contents(temp_root, cwd, path, new_content) {
+                    tracing::warn!("workflow validation: failed to stage file {}", path.display());
                 }
 
                 if path_in_github && move_path.is_some() {

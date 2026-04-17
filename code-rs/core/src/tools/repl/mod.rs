@@ -117,6 +117,23 @@ pub(crate) struct ReplManager {
     next_tool_seq: AtomicU64,
 }
 
+impl Drop for ReplManager {
+    fn drop(&mut self) {
+        // Best-effort synchronous cleanup: cancel the shutdown token and
+        // kill the kernel child process so it doesn't outlive this manager.
+        if let Ok(mut guard) = self.kernel.try_lock() {
+            if let Some(kernel) = guard.take() {
+                kernel.shutdown.cancel();
+                if let Ok(mut child) = kernel.child.try_lock() {
+                    // `start_kill` is the non-async, non-blocking kill method
+                    // on tokio::process::Child — it sends SIGKILL / TerminateProcess.
+                    let _ = child.start_kill();
+                }
+            }
+        }
+    }
+}
+
 struct Kernel {
     child: Arc<Mutex<Child>>,
     recent_stderr: Arc<Mutex<VecDeque<String>>>,

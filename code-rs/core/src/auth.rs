@@ -260,8 +260,7 @@ impl CodexAuth {
     }
 
     fn get_current_auth_json(&self) -> Option<AuthDotJson> {
-        #[expect(clippy::unwrap_used)]
-        self.auth_dot_json.lock().unwrap().clone()
+        self.auth_dot_json.lock().unwrap_or_else(std::sync::PoisonError::into_inner).clone()
     }
 
     fn get_current_token_data(&self) -> Option<TokenData> {

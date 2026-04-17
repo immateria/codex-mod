@@ -844,7 +844,13 @@ pub(crate) fn blend_to_background(color: Color, alpha: f32) -> Color {
 
 fn compute_border(mask: &[Vec<bool>]) -> Vec<Vec<bool>> {
     let h = mask.len();
+    if h == 0 {
+        return Vec::new();
+    }
     let w = mask[0].len();
+    if w == 0 {
+        return vec![Vec::new(); h];
+    }
     let mut out = vec![vec![false; w]; h];
     for y in 0..h {
         for x in 0..w {

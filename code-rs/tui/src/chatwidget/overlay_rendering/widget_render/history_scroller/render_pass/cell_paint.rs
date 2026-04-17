@@ -81,7 +81,7 @@ impl ChatWidget<'_> {
 
         // Running counter for 1-indexed reply numbers. Count assistant
         // cells before the visible window up front, then increment inline.
-        let mut reply_counter: usize = self.history_cells[..start_idx]
+        let mut reply_counter: usize = self.history_cells[..start_idx.min(history_len)]
             .iter()
             .filter(|c| matches!(c.kind(), crate::history_cell::HistoryCellType::Assistant))
             .count();
