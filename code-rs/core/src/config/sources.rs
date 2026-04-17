@@ -3003,36 +3003,35 @@ pub fn set_mcp_server_enabled(
     let mut doc = read_config_doc(&read_path)?;
 
     // Helper to ensure table exists
-    fn ensure_table<'a>(doc: &'a mut DocumentMut, key: &'a str) -> &'a mut toml_edit::Table {
+    fn ensure_table<'a>(doc: &'a mut DocumentMut, key: &'a str) -> anyhow::Result<&'a mut toml_edit::Table> {
         if !doc.as_table().contains_key(key) {
             doc[key] = TomlItem::Table(toml_edit::Table::new());
         }
-        match doc[key].as_table_mut() {
-            Some(table) => table,
-            None => panic!("table key '{key}' should be a table"),
-        }
+        doc[key].as_table_mut().ok_or_else(|| {
+            anyhow::anyhow!("config key '{key}' exists but is not a table")
+        })
     }
 
     let mut changed = false;
     if enabled {
         // Move from disabled -> enabled
         let moved = {
-            let disabled_tbl = ensure_table(&mut doc, "mcp_servers_disabled");
+            let disabled_tbl = ensure_table(&mut doc, "mcp_servers_disabled")?;
             disabled_tbl.remove(name)
         };
         if let Some(item) = moved {
-            let enabled_tbl = ensure_table(&mut doc, "mcp_servers");
+            let enabled_tbl = ensure_table(&mut doc, "mcp_servers")?;
             enabled_tbl.insert(name, item);
             changed = true;
         }
     } else {
         // Move from enabled -> disabled
         let moved = {
-            let enabled_tbl = ensure_table(&mut doc, "mcp_servers");
+            let enabled_tbl = ensure_table(&mut doc, "mcp_servers")?;
             enabled_tbl.remove(name)
         };
         if let Some(item) = moved {
-            let disabled_tbl = ensure_table(&mut doc, "mcp_servers_disabled");
+            let disabled_tbl = ensure_table(&mut doc, "mcp_servers_disabled")?;
             disabled_tbl.insert(name, item);
             changed = true;
         }
