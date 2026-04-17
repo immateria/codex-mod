@@ -29,6 +29,13 @@ struct ReplFunctionArgs {
     runtime: Option<crate::config::ReplRuntimeKindToml>,
 }
 
+/// Fallback wrapper for Chat Completions where freeform tools are exposed
+/// as functions with a single `input` string parameter.
+#[derive(Debug, Deserialize)]
+struct ChatCompletionsFreeformArgs {
+    input: String,
+}
+
 fn join_outputs(stdout: &str, stderr: &str) -> String {
     if stdout.is_empty() {
         stderr.to_owned()
@@ -217,12 +224,24 @@ impl ToolHandler for ReplToolHandler {
                     timeout_ms: args.timeout_ms,
                     runtime: args.runtime,
                 },
-                Err(err) => {
-                    return unsupported_tool_call_output(
-                        &ctx.call_id,
-                        outputs_custom,
-                        format!("invalid repl arguments: {err}"),
-                    );
+                Err(_) => {
+                    // Fallback for Chat Completions: freeform tools are
+                    // exposed as functions with a single `input` param.
+                    match serde_json::from_str::<ChatCompletionsFreeformArgs>(&arguments) {
+                        Ok(wrapper) => match parse_freeform_args(&wrapper.input) {
+                            Ok(args) => args,
+                            Err(err) => {
+                                return unsupported_tool_call_output(&ctx.call_id, outputs_custom, err);
+                            }
+                        },
+                        Err(err) => {
+                            return unsupported_tool_call_output(
+                                &ctx.call_id,
+                                outputs_custom,
+                                format!("invalid repl arguments: {err}"),
+                            );
+                        }
+                    }
                 }
             },
             other => {
@@ -498,5 +517,18 @@ mod tests {
         let args = parse_freeform_args(input).expect("parse args");
         assert_eq!(args.runtime, Some(crate::config::ReplRuntimeKindToml::Python));
         assert_eq!(args.code, "print('hello')");
+    }
+
+    #[test]
+    fn chat_completions_freeform_fallback_parses() {
+        // When a Chat Completions provider receives a freeform tool converted
+        // to a function tool, it sends `{"input": "raw code"}`. Verify the
+        // fallback struct deserializes correctly and feeds through pragma
+        // parsing.
+        let json = r#"{"input": "// codex-repl: timeout_ms=5000\nprint('hi')"}"#;
+        let wrapper: super::ChatCompletionsFreeformArgs =
+            serde_json::from_str(json).expect("deser");
+        let args = parse_freeform_args(&wrapper.input).expect("parse");
+        assert_eq!(args.timeout_ms, Some(5_000));
     }
 }

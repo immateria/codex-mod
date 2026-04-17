@@ -1050,3 +1050,49 @@
         // Deno NOT available, so not registered.
         assert!(!tool_names.contains(&"repl_deno"), "unexpected repl_deno: {tool_names:?}");
     }
+
+    #[test]
+    fn test_chat_completions_converts_freeform_tools() {
+        use crate::config::ReplRuntimeKindToml;
+
+        let model_family = model_family_or_panic("codex-mini-latest");
+        let mut config = ToolsConfig::new(ToolsConfigParams {
+            model_family: &model_family,
+            approval_policy: AskForApproval::Never,
+            sandbox_policy: SandboxPolicy::ReadOnly,
+            include_plan_tool: false,
+            include_apply_patch_tool: false,
+            include_web_search_request: false,
+            use_streamable_shell_tool: false,
+            include_view_image_tool: false,
+        });
+        config.repl = true;
+        config.repl_available_runtimes = vec![ReplRuntimeKindToml::Python];
+
+        let tools = super::get_openai_tools(&config, None, true, false, &[]);
+        let chat_json = super::create_tools_json_for_chat_completions_api(&tools)
+            .expect("serialize for chat completions");
+
+        // All tools should survive (none silently dropped).
+        let names: Vec<&str> = chat_json.iter().filter_map(|t| {
+            t.get("function")?.get("name")?.as_str()
+        }).collect();
+
+        assert!(names.contains(&"repl"), "generic repl missing from chat completions: {names:?}");
+        assert!(names.contains(&"repl_python"), "repl_python missing from chat completions: {names:?}");
+        assert!(names.contains(&"repl_reset"), "repl_reset missing from chat completions: {names:?}");
+        assert!(names.contains(&"repl_reset_python"), "repl_reset_python missing from chat completions: {names:?}");
+
+        // Verify the converted freeform tool has the expected structure.
+        let repl_python_tool = chat_json.iter().find(|t| {
+            t.get("function")
+                .and_then(|f| f.get("name"))
+                .and_then(|n| n.as_str()) == Some("repl_python")
+        }).expect("repl_python tool");
+
+        let func = repl_python_tool.get("function").unwrap();
+        let params = func.get("parameters").unwrap();
+        assert_eq!(params.get("type").unwrap().as_str(), Some("object"));
+        assert!(params.get("properties").unwrap().get("input").is_some(),
+            "converted freeform tool should have 'input' parameter");
+    }
