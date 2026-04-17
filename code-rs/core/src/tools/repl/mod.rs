@@ -75,6 +75,14 @@ pub(crate) struct ReplHandle {
     /// `ReplManager` once it is lazily initialised so the first `execute()`
     /// restores the old REPL state.
     initial_snapshot: Mutex<Option<JsonValue>>,
+    /// Deferred Deno permission grants queued before the manager is lazily
+    /// initialised.  Applied to `ReplRuntimeConfig.deno_permissions` right
+    /// before the manager is created so the kernel spawns with the correct
+    /// flags.
+    pending_deno_grants: Mutex<Vec<String>>,
+    /// Turn-scoped Deno permission grants queued before the manager exists.
+    /// Transferred to `ReplManager.turn_granted_perms` on init.
+    pending_turn_grants: Mutex<Vec<String>>,
 }
 
 impl ReplHandle {
@@ -83,6 +91,8 @@ impl ReplHandle {
             runtime,
             cell: OnceCell::new(),
             initial_snapshot: Mutex::new(None),
+            pending_deno_grants: Mutex::new(Vec::new()),
+            pending_turn_grants: Mutex::new(Vec::new()),
         }
     }
 
@@ -98,7 +108,16 @@ impl ReplHandle {
     pub(crate) async fn manager(&self) -> Result<Arc<ReplManager>, String> {
         let mgr = self.cell
             .get_or_try_init(|| async {
-                ReplManager::new(self.runtime.clone()).await
+                // Apply any deferred Deno permission grants so the kernel
+                // spawns with the correct `--allow-*` flags.
+                let mut cfg = self.runtime.clone();
+                {
+                    let grants = self.pending_deno_grants.lock().await;
+                    for perm in grants.iter() {
+                        apply_deno_perm_flag(perm, &mut cfg.deno_permissions);
+                    }
+                }
+                ReplManager::new(cfg).await
             })
             .await
             .cloned()?;
@@ -107,11 +126,41 @@ impl ReplHandle {
         if let Some(snap) = self.initial_snapshot.lock().await.take() {
             *mgr.saved_snapshot.lock().await = Some(snap);
         }
+        // Transfer any turn-scoped grants queued before the manager existed.
+        {
+            let mut pending = self.pending_turn_grants.lock().await;
+            if !pending.is_empty() {
+                mgr.turn_granted_perms.lock().await.append(&mut *pending);
+            }
+        }
         Ok(mgr)
     }
 
     pub(crate) fn manager_if_started(&self) -> Option<Arc<ReplManager>> {
         self.cell.get().cloned()
+    }
+
+    /// Grant a Deno permission flag.  If the manager is already running,
+    /// delegates to `ReplManager::grant_deno_permission` (which snapshots
+    /// and kills the kernel).  Otherwise queues the grant so the kernel
+    /// spawns with the flag when the manager is lazily initialised.
+    pub(crate) async fn grant_deno_permission(&self, perm: &str) {
+        if let Some(mgr) = self.cell.get() {
+            mgr.grant_deno_permission(perm).await;
+        } else {
+            self.pending_deno_grants.lock().await.push(perm.to_owned());
+        }
+    }
+
+    /// Like `grant_deno_permission` but marks the permission as turn-scoped
+    /// so it can be revoked at turn end.
+    pub(crate) async fn grant_deno_permission_for_turn(&self, perm: &str) {
+        if let Some(mgr) = self.cell.get() {
+            mgr.grant_deno_permission_for_turn(perm).await;
+        } else {
+            self.pending_deno_grants.lock().await.push(perm.to_owned());
+            self.pending_turn_grants.lock().await.push(perm.to_owned());
+        }
     }
 
     /// Snapshot the running kernel (if any) and return the payload so it can
@@ -126,6 +175,28 @@ impl ReplHandle {
     /// restored when the manager is first initialised.
     pub(crate) async fn inject_snapshot(&self, snapshot: JsonValue) {
         *self.initial_snapshot.lock().await = Some(snapshot);
+    }
+}
+
+/// Check whether a permission name is a known Deno `--allow-*` flag.
+fn is_known_deno_perm(perm: &str) -> bool {
+    matches!(perm, "net" | "read" | "write" | "env" | "run" | "sys" | "ffi" | "all")
+}
+
+/// Apply a single Deno permission flag name (e.g. "net", "read") to a
+/// `DenoPermissions` struct.  Used both by `ReplManager::grant_deno_permission`
+/// and by `ReplHandle` to apply deferred grants before manager creation.
+fn apply_deno_perm_flag(perm: &str, perms: &mut crate::config::DenoPermissions) {
+    match perm {
+        "net" => perms.allow_net = true,
+        "read" => perms.allow_read = true,
+        "write" => perms.allow_write = true,
+        "env" => perms.allow_env = true,
+        "run" => perms.allow_run = true,
+        "sys" => perms.allow_sys = true,
+        "ffi" => perms.allow_ffi = true,
+        "all" => perms.allow_all = true,
+        _ => {}
     }
 }
 
@@ -152,7 +223,7 @@ pub(crate) struct ReplManager {
     pending_control: Arc<Mutex<HashMap<String, oneshot::Sender<JsonValue>>>>,
     /// Deno permissions granted with Turn scope that should be revoked
     /// when the turn ends.
-    turn_granted_perms: Mutex<Vec<String>>,
+    pub(crate) turn_granted_perms: Mutex<Vec<String>>,
 }
 
 impl Drop for ReplManager {
@@ -269,22 +340,13 @@ impl ReplManager {
     /// Snapshots kernel state, then kills the kernel so the next execution
     /// restarts with updated `--allow-*` flags and restores the snapshot.
     pub(crate) async fn grant_deno_permission(&self, perm: &str) {
+        if !is_known_deno_perm(perm) {
+            tracing::warn!(perm = %perm, "ignoring unknown Deno permission");
+            return;
+        }
         {
             let mut perms = self.deno_permissions.lock().await;
-            match perm {
-                "net" => perms.allow_net = true,
-                "read" => perms.allow_read = true,
-                "write" => perms.allow_write = true,
-                "env" => perms.allow_env = true,
-                "run" => perms.allow_run = true,
-                "sys" => perms.allow_sys = true,
-                "ffi" => perms.allow_ffi = true,
-                "all" => perms.allow_all = true,
-                unknown => {
-                    tracing::warn!(perm = %unknown, "ignoring unknown Deno permission");
-                    return;
-                }
-            }
+            apply_deno_perm_flag(perm, &mut perms);
         }
         tracing::info!(perm = %perm, "granted Deno permission; snapshotting then killing kernel");
         self.snapshot_kernel().await;
@@ -1510,6 +1572,7 @@ mod tests {
             runtime_path: Some(std::path::PathBuf::from("/usr/bin/node")),
             runtime_args: vec!["--max-old-space-size=512".to_owned()],
             module_dirs: vec![std::path::PathBuf::from("/app/node_modules")],
+            deno_permissions: crate::config::DenoPermissions::default(),
         };
         let cloned = cfg.clone();
         assert_eq!(cloned.kind, cfg.kind);

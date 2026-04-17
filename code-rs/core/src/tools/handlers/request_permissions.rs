@@ -133,10 +133,11 @@ async fn handle_request_permissions(
 }
 
 /// Map granted `request_permissions` capabilities to Deno `--allow-*` flags.
-/// If the Deno REPL manager is running, the corresponding permission is
-/// enabled and the kernel is killed so the next execution restarts with
-/// updated flags.  Turn-scoped grants are tracked so they can be revoked
-/// at turn end.
+/// If the Deno REPL manager is already running, the permission is enabled and
+/// the kernel is killed so the next execution restarts with updated flags.
+/// If the manager hasn't been initialised yet, the permission is queued so the
+/// kernel spawns with the correct flags when first used.
+/// Turn-scoped grants are tracked so they can be revoked at turn end.
 async fn bridge_deno_permissions(
     sess: &Session,
     perms: &code_protocol::request_permissions::RequestPermissionProfile,
@@ -145,7 +146,7 @@ async fn bridge_deno_permissions(
     use crate::config::ReplRuntimeKindToml;
     use code_protocol::request_permissions::PermissionGrantScope;
 
-    let Some(manager) = sess.repl_manager_if_started_for_runtime(ReplRuntimeKindToml::Deno) else {
+    let Some(handle) = sess.repl_handle_for_runtime(ReplRuntimeKindToml::Deno) else {
         return;
     };
 
@@ -159,9 +160,9 @@ async fn bridge_deno_permissions(
         .unwrap_or(false)
     {
         if is_turn {
-            manager.grant_deno_permission_for_turn("net").await;
+            handle.grant_deno_permission_for_turn("net").await;
         } else {
-            manager.grant_deno_permission("net").await;
+            handle.grant_deno_permission("net").await;
         }
     }
 
@@ -169,16 +170,16 @@ async fn bridge_deno_permissions(
     if let Some(ref fs) = perms.file_system {
         if fs.read.as_ref().is_some_and(|v| !v.is_empty()) {
             if is_turn {
-                manager.grant_deno_permission_for_turn("read").await;
+                handle.grant_deno_permission_for_turn("read").await;
             } else {
-                manager.grant_deno_permission("read").await;
+                handle.grant_deno_permission("read").await;
             }
         }
         if fs.write.as_ref().is_some_and(|v| !v.is_empty()) {
             if is_turn {
-                manager.grant_deno_permission_for_turn("write").await;
+                handle.grant_deno_permission_for_turn("write").await;
             } else {
-                manager.grant_deno_permission("write").await;
+                handle.grant_deno_permission("write").await;
             }
         }
     }

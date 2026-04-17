@@ -717,6 +717,15 @@ impl Session {
             .and_then(crate::tools::repl::ReplHandle::manager_if_started)
     }
 
+    /// Get the `ReplHandle` for a runtime kind (regardless of whether the
+    /// manager has been lazily initialised).
+    pub(crate) fn repl_handle_for_runtime(
+        &self,
+        kind: crate::config::ReplRuntimeKindToml,
+    ) -> Option<&crate::tools::repl::ReplHandle> {
+        self.repl_handles.get(&kind)
+    }
+
     /// Revoke any turn-scoped Deno permissions that were granted via
     /// `bridge_deno_permissions()`.  Called at turn end so temporary
     /// grants don't persist beyond the turn.
