@@ -62,7 +62,14 @@ impl ApprovedCommandPattern {
                     return true;
                 }
                 if let Some(pattern) = self.semantic_prefix.as_ref() {
-                    return canonical.starts_with(pattern);
+                    if canonical.starts_with(pattern) {
+                        return true;
+                    }
+                    // Fallback: if the command is a raw shell script (single
+                    // string), split it into tokens and re-check.
+                    if let Some(tokens) = semantic_tokens(command) {
+                        return tokens.starts_with(pattern);
+                    }
                 }
                 false
             }
@@ -72,6 +79,24 @@ impl ApprovedCommandPattern {
     pub fn argv(&self) -> &[String] { &self.argv }
 
     pub fn kind(&self) -> ApprovedCommandMatchKind { self.kind }
+}
+
+/// Extract semantic tokens from a command for prefix matching.
+///
+/// When the model sends a raw shell script as a single string (e.g. from
+/// `shell_script` mode), `canonicalize_command_for_approval` leaves it as a
+/// one-element vec. This helper detects that case and splits via shlex so
+/// prefix approval like `["git", "status"]` can match `["git status --short"]`.
+fn semantic_tokens(command: &[String]) -> Option<Vec<String>> {
+    if command.is_empty() {
+        return None;
+    }
+    if let Some((_, script)) = crate::util::extract_shell_script(command) {
+        return Some(
+            shlex::split(script).unwrap_or_else(|| vec![script.to_string()]),
+        );
+    }
+    Some(command.to_vec())
 }
 
 #[derive(Clone)]

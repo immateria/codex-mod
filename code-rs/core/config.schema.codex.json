@@ -863,6 +863,52 @@
       ],
       "type": "object"
     },
+    "DenoPermissions": {
+      "description": "Deno permission flags for the REPL sandbox.\n\nEach field corresponds to a `--allow-*` flag.  When a field is `true`, the blanket `--allow-X` flag is passed (full access for that category). When `false`, the category is denied unless the base flags in `runtime.rs` already allow it (e.g. the kernel tmp dir always gets `--allow-read`).\n\nFor fine-grained control (e.g. allow only certain paths), users can add explicit flags like `--allow-write=/tmp` in `runtime_args` instead.",
+      "properties": {
+        "allow_all": {
+          "default": false,
+          "description": "Grant all permissions (equivalent to `deno run -A`).",
+          "type": "boolean"
+        },
+        "allow_env": {
+          "default": true,
+          "description": "Allow environment variable access beyond the required CODEX_REPL_* vars.",
+          "type": "boolean"
+        },
+        "allow_ffi": {
+          "default": false,
+          "description": "Allow FFI (foreign function interface).",
+          "type": "boolean"
+        },
+        "allow_net": {
+          "default": false,
+          "description": "Allow network access.",
+          "type": "boolean"
+        },
+        "allow_read": {
+          "default": true,
+          "description": "Allow reading files/dirs beyond the kernel temp dir.",
+          "type": "boolean"
+        },
+        "allow_run": {
+          "default": false,
+          "description": "Allow running subprocesses.",
+          "type": "boolean"
+        },
+        "allow_sys": {
+          "default": false,
+          "description": "Allow system info access (hostname, OS, etc.).",
+          "type": "boolean"
+        },
+        "allow_write": {
+          "default": true,
+          "description": "Allow writing files/dirs.",
+          "type": "boolean"
+        }
+      },
+      "type": "object"
+    },
     "DynamicToolSpec": {
       "properties": {
         "description": {
@@ -1120,13 +1166,6 @@
         }
       ],
       "description": "Per-icon override — either a single string for all tiers, or per-tier strings.\n\n```toml [tui.icons] checkbox_on = \"✅\"             # override all tiers\n\n[tui.icons.gutter_user]        # override individual tiers ascii = \">\" unicode = \"›\" ```"
-    },
-    "JsReplRuntimeKindToml": {
-      "enum": [
-        "node",
-        "deno"
-      ],
-      "type": "string"
     },
     "LifecycleHooksToml": {
       "description": "Settings for the upstream-compatible `hooks.json` lifecycle hooks engine.\n\nThese values are persisted under `[lifecycle_hooks]` in `config.toml`.",
@@ -1868,6 +1907,14 @@
       ],
       "type": "object"
     },
+    "ReplRuntimeKindToml": {
+      "enum": [
+        "node",
+        "deno",
+        "python"
+      ],
+      "type": "string"
+    },
     "SandboxMode": {
       "enum": [
         "read-only",
@@ -2548,39 +2595,100 @@
     "ToolsToml": {
       "additionalProperties": false,
       "properties": {
-        "js_repl": {
+        "repl": {
           "default": null,
-          "description": "Enable the optional `js_repl` tool (off by default).",
+          "description": "Enable the optional `repl` tool (off by default).",
           "type": "boolean"
         },
-        "js_repl_node_module_dirs": {
+        "repl_deno_args": {
           "default": null,
-          "description": "Extra directories to search for packages when using the Node runtime.\n\nEach entry may be either: - a `node_modules` directory, or - a project root containing a `node_modules` directory.\n\nThese paths are passed to the `js_repl` kernel via `CODEX_JS_REPL_NODE_MODULE_DIRS` and are used only for packages-only (bare) imports.",
+          "description": "Additional arguments passed to the Deno `repl` runtime process.",
           "items": {
             "type": "string"
           },
           "type": "array"
         },
-        "js_repl_runtime": {
+        "repl_deno_enabled": {
+          "default": null,
+          "type": "boolean"
+        },
+        "repl_deno_path": {
+          "default": null,
+          "description": "Explicit path to the Deno runtime executable for `repl`.",
+          "type": "string"
+        },
+        "repl_deno_permissions": {
           "allOf": [
             {
-              "$ref": "#/definitions/JsReplRuntimeKindToml"
+              "$ref": "#/definitions/DenoPermissions"
             }
           ],
           "default": null,
-          "description": "Select the runtime used by `js_repl` (default: `node`)."
+          "description": "Deno sandbox permission toggles.  When omitted, defaults apply (read + write + env allowed; net, run, sys, ffi denied)."
         },
-        "js_repl_runtime_args": {
+        "repl_node_args": {
           "default": null,
-          "description": "Additional arguments passed to the `js_repl` runtime process.",
+          "description": "Additional arguments passed to the Node `repl` runtime process.",
           "items": {
             "type": "string"
           },
           "type": "array"
         },
-        "js_repl_runtime_path": {
+        "repl_node_enabled": {
           "default": null,
-          "description": "Optional explicit path to the runtime executable used by `js_repl`. When omitted, the runtime is resolved from PATH (for example `node`).",
+          "description": "Per-runtime enabled flags.  When `None`, the runtime is enabled if it passes the health probe.  Set to `false` to skip a runtime entirely.",
+          "type": "boolean"
+        },
+        "repl_node_module_dirs": {
+          "default": null,
+          "description": "Extra directories to search for packages when using the Node runtime.\n\nEach entry may be either: - a `node_modules` directory, or - a project root containing a `node_modules` directory.\n\nThese paths are passed to the `repl` kernel via `CODEX_REPL_NODE_MODULE_DIRS` and are used only for packages-only (bare) imports.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "repl_node_path": {
+          "default": null,
+          "description": "Explicit path to the Node runtime executable for `repl`.",
+          "type": "string"
+        },
+        "repl_python_args": {
+          "default": null,
+          "description": "Additional arguments passed to the Python `repl` runtime process.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "repl_python_enabled": {
+          "default": null,
+          "type": "boolean"
+        },
+        "repl_python_path": {
+          "default": null,
+          "description": "Explicit path to the Python runtime executable for `repl`.",
+          "type": "string"
+        },
+        "repl_runtime": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/ReplRuntimeKindToml"
+            }
+          ],
+          "default": null,
+          "description": "Select the default runtime used by `repl` (default: `node`)."
+        },
+        "repl_runtime_args": {
+          "default": null,
+          "description": "Legacy: arguments for the default runtime. Prefer per-runtime fields (`repl_node_args`, `repl_deno_args`) instead.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "repl_runtime_path": {
+          "default": null,
+          "description": "Legacy: path to the default runtime executable. Prefer per-runtime fields (`repl_node_path`, `repl_deno_path`) instead.",
           "type": "string"
         },
         "search_tool": {
@@ -2687,7 +2795,6 @@
             "dragonfly": null,
             "exec_output_fold": "legacy",
             "freebsd": null,
-            "js_repl_code_fold": "legacy",
             "jump_to_latest_child_call": "legacy",
             "jump_to_parent_call": "legacy",
             "linux": null,
@@ -2697,6 +2804,7 @@
             "network_settings": "f5",
             "openbsd": null,
             "reasoning_effort": "f3",
+            "repl_code_fold": "legacy",
             "shell_selector": "f4",
             "termux": null,
             "windows": null
@@ -2886,15 +2994,6 @@
           "default": null,
           "description": "Optional overrides under `[tui.hotkeys.freebsd]`."
         },
-        "js_repl_code_fold": {
-          "allOf": [
-            {
-              "$ref": "#/definitions/TuiHotkey"
-            }
-          ],
-          "default": "legacy",
-          "description": "Keyboard shortcut for toggling code folding on the latest JS REPL cell.\n\nDefaults to the legacy mapping (`\\\\` while the composer is empty)."
-        },
         "jump_to_latest_child_call": {
           "allOf": [
             {
@@ -2902,7 +3001,7 @@
             }
           ],
           "default": "legacy",
-          "description": "Keyboard shortcut for jumping to the latest tool call spawned by the latest JS REPL cell.\n\nDefaults to the legacy mapping (`}` while the composer is empty)."
+          "description": "Keyboard shortcut for jumping to the latest tool call spawned by the latest REPL cell.\n\nDefaults to the legacy mapping (`}` while the composer is empty)."
         },
         "jump_to_parent_call": {
           "allOf": [
@@ -2976,6 +3075,15 @@
           "default": "f3",
           "description": "Keyboard shortcut for cycling reasoning effort (mirrors clicking the status line)."
         },
+        "repl_code_fold": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/TuiHotkey"
+            }
+          ],
+          "default": "legacy",
+          "description": "Keyboard shortcut for toggling code folding on the latest REPL cell.\n\nDefaults to the legacy mapping (`\\\\` while the composer is empty)."
+        },
         "shell_selector": {
           "allOf": [
             {
@@ -3018,15 +3126,6 @@
           "default": null,
           "description": "Keyboard shortcut for toggling exec output folding (history shortcut)."
         },
-        "js_repl_code_fold": {
-          "allOf": [
-            {
-              "$ref": "#/definitions/TuiHotkey"
-            }
-          ],
-          "default": null,
-          "description": "Keyboard shortcut for toggling JS REPL code folding (history shortcut)."
-        },
         "jump_to_latest_child_call": {
           "allOf": [
             {
@@ -3068,6 +3167,15 @@
             }
           ],
           "default": null
+        },
+        "repl_code_fold": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/TuiHotkey"
+            }
+          ],
+          "default": null,
+          "description": "Keyboard shortcut for toggling REPL code folding (history shortcut)."
         },
         "shell_selector": {
           "allOf": [
