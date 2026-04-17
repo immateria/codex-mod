@@ -139,6 +139,9 @@ impl Runner<'_> {
                 Arc::make_mut(&mut config).tools_repl = false;
             }
             Arc::make_mut(&mut config).repl_available_runtimes = available_runtimes;
+        } else {
+            // REPL disabled — ensure stale runtimes are cleared.
+            Arc::make_mut(&mut config).repl_available_runtimes = Vec::new();
         }
 
         // Wrap provided auth (if any) in a minimal AuthManager for client usage.

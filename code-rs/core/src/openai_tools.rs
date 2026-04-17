@@ -34,9 +34,10 @@ pub(crate) fn repl_reset_tool_name_for_runtime(kind: crate::config::ReplRuntimeK
 }
 
 /// Returns the runtime kind for a per-runtime tool name, or `None` for the
-/// generic `"repl"` / `"repl_reset"` names.
+/// generic `"repl"` / `"repl_reset"` names. Case-insensitive.
 pub(crate) fn runtime_from_repl_tool_name(name: &str) -> Option<crate::config::ReplRuntimeKindToml> {
-    let suffix = name.strip_prefix("repl_")?;
+    let lower = name.to_ascii_lowercase();
+    let suffix = lower.strip_prefix("repl_")?;
     crate::config::ReplRuntimeKindToml::ALL
         .iter()
         .find(|k| k.label() == suffix)
@@ -45,8 +46,10 @@ pub(crate) fn runtime_from_repl_tool_name(name: &str) -> Option<crate::config::R
 
 /// Returns the runtime kind for a per-runtime reset tool name like
 /// `"repl_reset_python"`, or `None` for the generic `"repl_reset"`.
+/// Case-insensitive.
 pub(crate) fn runtime_from_repl_reset_tool_name(name: &str) -> Option<crate::config::ReplRuntimeKindToml> {
-    let suffix = name.strip_prefix("repl_reset_")?;
+    let lower = name.to_ascii_lowercase();
+    let suffix = lower.strip_prefix("repl_reset_")?;
     crate::config::ReplRuntimeKindToml::ALL
         .iter()
         .find(|k| k.label() == suffix)

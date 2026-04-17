@@ -972,3 +972,81 @@
         assert!(description.starts_with("Runs a shell command and returns its output."));
         assert!(description.contains("Long-running commands may be backgrounded"));
     }
+
+    #[test]
+    fn test_per_runtime_tool_names() {
+        use crate::config::ReplRuntimeKindToml;
+
+        assert_eq!(super::repl_tool_name_for_runtime(ReplRuntimeKindToml::Python), "repl_python");
+        assert_eq!(super::repl_tool_name_for_runtime(ReplRuntimeKindToml::Node), "repl_node");
+        assert_eq!(super::repl_tool_name_for_runtime(ReplRuntimeKindToml::Deno), "repl_deno");
+
+        assert_eq!(super::repl_reset_tool_name_for_runtime(ReplRuntimeKindToml::Python), "repl_reset_python");
+        assert_eq!(super::repl_reset_tool_name_for_runtime(ReplRuntimeKindToml::Node), "repl_reset_node");
+    }
+
+    #[test]
+    fn test_runtime_from_tool_name() {
+        use crate::config::ReplRuntimeKindToml;
+
+        // Per-runtime exec names.
+        assert_eq!(super::runtime_from_repl_tool_name("repl_python"), Some(ReplRuntimeKindToml::Python));
+        assert_eq!(super::runtime_from_repl_tool_name("repl_node"), Some(ReplRuntimeKindToml::Node));
+        assert_eq!(super::runtime_from_repl_tool_name("repl_deno"), Some(ReplRuntimeKindToml::Deno));
+
+        // Case-insensitive.
+        assert_eq!(super::runtime_from_repl_tool_name("REPL_PYTHON"), Some(ReplRuntimeKindToml::Python));
+        assert_eq!(super::runtime_from_repl_tool_name("Repl_Node"), Some(ReplRuntimeKindToml::Node));
+
+        // Generic name returns None.
+        assert_eq!(super::runtime_from_repl_tool_name("repl"), None);
+
+        // Reset names must NOT match the exec helper.
+        assert_eq!(super::runtime_from_repl_tool_name("repl_reset_python"), None);
+
+        // Per-runtime reset names.
+        assert_eq!(super::runtime_from_repl_reset_tool_name("repl_reset_python"), Some(ReplRuntimeKindToml::Python));
+        assert_eq!(super::runtime_from_repl_reset_tool_name("REPL_RESET_DENO"), Some(ReplRuntimeKindToml::Deno));
+
+        // Generic reset returns None.
+        assert_eq!(super::runtime_from_repl_reset_tool_name("repl_reset"), None);
+    }
+
+    #[test]
+    fn test_per_runtime_tools_registered_when_available() {
+        use crate::config::ReplRuntimeKindToml;
+
+        let model_family = model_family_or_panic("codex-mini-latest");
+        let mut config = ToolsConfig::new(ToolsConfigParams {
+            model_family: &model_family,
+            approval_policy: AskForApproval::Never,
+            sandbox_policy: SandboxPolicy::ReadOnly,
+            include_plan_tool: false,
+            include_apply_patch_tool: false,
+            include_web_search_request: false,
+            use_streamable_shell_tool: false,
+            include_view_image_tool: false,
+        });
+        config.repl = true;
+        config.repl_available_runtimes = vec![ReplRuntimeKindToml::Python, ReplRuntimeKindToml::Node];
+
+        let tools = super::get_openai_tools(&config, None, true, false, &[]);
+        let tool_names: Vec<&str> = tools.iter().map(|t| match t {
+            OpenAiTool::Function(f) => f.name.as_str(),
+            OpenAiTool::Freeform(f) => f.name.as_str(),
+            _ => "",
+        }).collect();
+
+        // Generic tools present.
+        assert!(tool_names.contains(&"repl"), "missing generic repl: {tool_names:?}");
+        assert!(tool_names.contains(&"repl_reset"), "missing generic repl_reset: {tool_names:?}");
+
+        // Per-runtime tools present.
+        assert!(tool_names.contains(&"repl_python"), "missing repl_python: {tool_names:?}");
+        assert!(tool_names.contains(&"repl_node"), "missing repl_node: {tool_names:?}");
+        assert!(tool_names.contains(&"repl_reset_python"), "missing repl_reset_python: {tool_names:?}");
+        assert!(tool_names.contains(&"repl_reset_node"), "missing repl_reset_node: {tool_names:?}");
+
+        // Deno NOT available, so not registered.
+        assert!(!tool_names.contains(&"repl_deno"), "unexpected repl_deno: {tool_names:?}");
+    }
