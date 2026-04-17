@@ -108,6 +108,11 @@ impl ReplHandle {
 
 pub(crate) struct ReplManager {
     runtime: ResolvedRuntime,
+    /// Live Deno permissions that may be updated at runtime (e.g. when the
+    /// user grants a `request_permissions` call).  Used instead of
+    /// `runtime.deno_permissions` when spawning a new kernel so permission
+    /// grants take effect on the next restart.
+    deno_permissions: Mutex<crate::config::DenoPermissions>,
     tmp_dir: tempfile::TempDir,
     kernel_path: PathBuf,
     kernel: Arc<Mutex<Option<Kernel>>>,
@@ -148,6 +153,7 @@ struct Kernel {
 impl ReplManager {
     pub(crate) async fn new(runtime: ReplRuntimeConfig) -> Result<Arc<Self>, String> {
         let runtime = resolve_runtime(runtime).await?;
+        let deno_permissions = Mutex::new(runtime.deno_permissions.clone());
 
         let tmp_dir = tempfile::tempdir()
             .map_err(|err| format!("failed to create repl temp dir: {err}"))?;
@@ -204,6 +210,7 @@ impl ReplManager {
 
         Ok(Arc::new(Self {
             runtime,
+            deno_permissions,
             tmp_dir,
             kernel_path,
             kernel: Arc::new(Mutex::new(None)),
@@ -220,6 +227,31 @@ impl ReplManager {
 
     pub(crate) fn runtime_version(&self) -> &str {
         &self.runtime.version
+    }
+
+    /// Grant a Deno permission (e.g. "net", "read", "write") at runtime.
+    /// Kills the current kernel so the next execution restarts with the
+    /// updated `--allow-*` flags.
+    pub(crate) async fn grant_deno_permission(&self, perm: &str) {
+        {
+            let mut perms = self.deno_permissions.lock().await;
+            match perm {
+                "net" => perms.allow_net = true,
+                "read" => perms.allow_read = true,
+                "write" => perms.allow_write = true,
+                "env" => perms.allow_env = true,
+                "run" => perms.allow_run = true,
+                "sys" => perms.allow_sys = true,
+                "ffi" => perms.allow_ffi = true,
+                "all" => perms.allow_all = true,
+                unknown => {
+                    tracing::warn!(perm = %unknown, "ignoring unknown Deno permission");
+                    return;
+                }
+            }
+        }
+        tracing::info!(perm = %perm, "granted Deno permission; killing kernel for restart");
+        self.kill_kernel().await;
     }
 
     // ── Execute ─────────────────────────────────────────────────────────
@@ -471,8 +503,16 @@ impl ReplManager {
         sess: &Session,
         cwd: &Path,
     ) -> Result<Kernel, String> {
+        // Use live deno_permissions (may have been updated by
+        // grant_deno_permission) instead of the snapshot in self.runtime.
+        let runtime_for_spawn = {
+            let perms = self.deno_permissions.lock().await;
+            let mut rt = self.runtime.clone();
+            rt.deno_permissions = perms.clone();
+            rt
+        };
         let mut command = build_runtime_command(
-            &self.runtime,
+            &runtime_for_spawn,
             &self.kernel_path,
             self.tmp_dir.path(),
             sess,

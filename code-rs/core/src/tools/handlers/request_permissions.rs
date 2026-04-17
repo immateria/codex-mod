@@ -112,6 +112,13 @@ async fn handle_request_permissions(
         );
     };
 
+    // Bridge granted permissions to Deno sandbox flags.  When the user
+    // grants network or filesystem access, update the live Deno kernel
+    // permissions so the next execution picks them up.
+    if !response.permissions.is_empty() {
+        bridge_deno_permissions(sess, &response.permissions).await;
+    }
+
     let content = match serde_json::to_string(&response) {
         Ok(content) => content,
         Err(err) => {
@@ -123,6 +130,41 @@ async fn handle_request_permissions(
     };
 
     tool_output(ctx.call_id.clone(), content)
+}
+
+/// Map granted `request_permissions` capabilities to Deno `--allow-*` flags.
+/// If the Deno REPL manager is running, the corresponding permission is
+/// enabled and the kernel is killed so the next execution restarts with
+/// updated flags.
+async fn bridge_deno_permissions(
+    sess: &Session,
+    perms: &code_protocol::request_permissions::RequestPermissionProfile,
+) {
+    use crate::config::ReplRuntimeKindToml;
+
+    let Some(manager) = sess.repl_manager_if_started_for_runtime(ReplRuntimeKindToml::Deno) else {
+        return;
+    };
+
+    // Network permission → --allow-net
+    if perms
+        .network
+        .as_ref()
+        .and_then(|n| n.enabled)
+        .unwrap_or(false)
+    {
+        manager.grant_deno_permission("net").await;
+    }
+
+    // File system read → --allow-read
+    if let Some(ref fs) = perms.file_system {
+        if fs.read.as_ref().is_some_and(|v| !v.is_empty()) {
+            manager.grant_deno_permission("read").await;
+        }
+        if fs.write.as_ref().is_some_and(|v| !v.is_empty()) {
+            manager.grant_deno_permission("write").await;
+        }
+    }
 }
 
 fn parse_request_permissions_args(
