@@ -101,6 +101,7 @@ impl ReplSettingsView {
     }
 
     pub(super) fn main_row_specs(&self, rows: &[RowKind]) -> Vec<KeyValueRow<'static>> {
+        let nf = crate::icons::nerd_fonts_enabled();
         let runtime_label = Self::runtime_label(self.settings.runtime);
         let runtime_path = self
             .settings
@@ -119,21 +120,48 @@ impl ReplSettingsView {
         let apply_suffix = if self.dirty { " *" } else { "" };
         let dp = &self.settings.deno_permissions;
 
+        let node_label = if nf {
+            format!("  {} Node", crate::icons::nodejs_icon())
+        } else {
+            "  Node".to_owned()
+        };
+        let deno_label = if nf {
+            format!("  {} Deno", crate::icons::denojs_icon())
+        } else {
+            "  Deno".to_owned()
+        };
+        let python_label = if nf {
+            format!("  {} Python", crate::icons::python_icon())
+        } else {
+            "  Python".to_owned()
+        };
+
         rows.iter()
             .copied()
             .map(|kind| match kind {
                 RowKind::Enabled => KeyValueRow::new("REPL")
                     .with_value(Self::enabled_value(self.settings.enabled)),
-                RowKind::NodeEnabled => KeyValueRow::new("  Node")
+                RowKind::NodeEnabled => KeyValueRow::new(node_label.clone())
                     .with_value(Self::enabled_value(self.settings.node_enabled)),
-                RowKind::DenoEnabled => KeyValueRow::new("  Deno")
+                RowKind::DenoEnabled => KeyValueRow::new(deno_label.clone())
                     .with_value(Self::enabled_value(self.settings.deno_enabled)),
-                RowKind::PythonEnabled => KeyValueRow::new("  Python")
+                RowKind::PythonEnabled => KeyValueRow::new(python_label.clone())
                     .with_value(Self::enabled_value(self.settings.python_enabled)),
-                RowKind::RuntimeKind => KeyValueRow::new("Configure runtime").with_value(StyledText::new(
-                    runtime_label,
-                    crate::colors::style_info(),
-                )),
+                RowKind::RuntimeKind => {
+                    let rt_icon = if nf {
+                        match self.settings.runtime {
+                            ReplRuntimeKindToml::Node => format!("{} ", crate::icons::nodejs_icon()),
+                            ReplRuntimeKindToml::Deno => format!("{} ", crate::icons::denojs_icon()),
+                            ReplRuntimeKindToml::Python => format!("{} ", crate::icons::python_icon()),
+                        }
+                    } else {
+                        String::new()
+                    };
+                    KeyValueRow::new("Configure runtime").with_value(StyledText::new(
+                        format!("{rt_icon}{runtime_label}"),
+                        crate::colors::style_info(),
+                    ))
+                }
                 RowKind::RuntimePath => KeyValueRow::new("  Path").with_value(
                     StyledText::new(
                         runtime_path.clone(),

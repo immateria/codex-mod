@@ -215,8 +215,17 @@ impl ReplCell {
             "deno" => "deno",
             _ => "js",
         };
+        let icon_prefix = if crate::icons::nerd_fonts_enabled() {
+            match self.runtime_kind.as_str() {
+                "python" => format!("{} ", crate::icons::python_icon()),
+                "deno" => format!("{} ", crate::icons::denojs_icon()),
+                _ => format!("{} ", crate::icons::nodejs_icon()),
+            }
+        } else {
+            String::new()
+        };
         let mut spans = vec![
-            Span::styled(lang_label.to_owned(), dim_style),
+            Span::styled(format!("{icon_prefix}{lang_label}"), dim_style),
             Span::styled(format!(" {runtime_str}"), dim_style),
         ];
 

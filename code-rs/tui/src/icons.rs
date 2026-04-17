@@ -400,6 +400,16 @@ define_icon_functions! {
     javascript_icon           => JAVASCRIPT_ICON             ("\u{f2ee}", "JS", "JS");                   //   nf-fa-js
     /// Python language icon.
     python_icon               => PYTHON_ICON                 ("\u{e606}", "PY", "PY");                   //   nf-seti-python
+
+
+
+    nodejs_icon               => NODEJS_ICON                 ("\u{ed0d}", "Node", "Node");               //  nf-fa-node_js
+    denojs_icon               => DENOJS_ICON                 ("\u{e7c0}", "Deno", "Deno");               //  nf-dev-denojs
+    bunjs_icon                => BUNJS_ICON                  ("\u{e76f}", "Bun", "Bun");                 //  nf-dev-bun
+
+    ruby_icon                 => RUBY_ICON                   ("\u{e23e}", "RB", "RB");                   //  nf-fae-ruby
+
+
     /// TypeScript language icon.
     typescript_icon           => TYPESCRIPT_ICON             ("\u{e628}", "TS", "TS");                   //   nf-seti-typescript
     /// Go language icon.
