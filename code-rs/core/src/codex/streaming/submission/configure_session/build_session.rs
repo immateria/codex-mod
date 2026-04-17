@@ -257,6 +257,7 @@ impl Runner<'_> {
         tools_config.web_search_external = config.tools_web_search_external;
         tools_config.search_tool = config.tools_search_tool;
         tools_config.repl = config.tools_repl;
+        tools_config.repl_available_runtimes = config.repl_available_runtimes.clone();
 
         let mut agent_models: Vec<String> = if config.agents.is_empty() {
             default_agent_configs()

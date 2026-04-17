@@ -257,15 +257,20 @@ impl ReplManager {
         let (stdin, pending, child, recent_stderr, tool_rx) = {
             let mut guard = self.kernel.lock().await;
             if guard.is_none() {
-                *guard = Some(
-                    self.start_kernel(sess, cwd)
-                        .await
-                        .map_err(|error| ReplExecError {
-                    output: String::new(),
-                    error,
-                    content_items: Vec::new(),
-                })?,
-                );
+                match self.start_kernel(sess, cwd).await {
+                    Ok(kernel) => {
+                        *guard = Some(kernel);
+                    }
+                    Err(error) => {
+                        drop(guard);
+                        self.clear_exec_tool_calls(&id).await;
+                        return Err(ReplExecError {
+                            output: String::new(),
+                            error,
+                            content_items: Vec::new(),
+                        });
+                    }
+                }
             }
             let Some(kernel) = guard.as_ref() else {
                 self.clear_exec_tool_calls(&id).await;

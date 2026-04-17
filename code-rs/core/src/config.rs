@@ -762,6 +762,10 @@ impl Config {
         spec.args.clone_from(&settings.runtime_args);
         spec.module_dirs.clone_from(&settings.node_module_dirs);
 
+        // Always sync Deno permissions regardless of active runtime so they
+        // aren't lost when the user switches away from Deno.
+        self.repl_deno_permissions = settings.deno_permissions.clone();
+
         // Keep flat fields in sync for backward compat during transition.
         match settings.runtime {
             ReplRuntimeKindToml::Node => {
@@ -771,7 +775,6 @@ impl Config {
             ReplRuntimeKindToml::Deno => {
                 self.repl_deno_path.clone_from(&settings.runtime_path);
                 self.repl_deno_args.clone_from(&settings.runtime_args);
-                self.repl_deno_permissions = settings.deno_permissions.clone();
             }
             ReplRuntimeKindToml::Python => {
                 self.repl_python_path.clone_from(&settings.runtime_path);

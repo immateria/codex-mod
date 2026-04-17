@@ -13,6 +13,10 @@ impl ReplSettingsView {
 
     fn cycle_runtime(&mut self) {
         self.settings.runtime = self.settings.runtime.next();
+        // Reset runtime-specific fields so the old runtime's path/args
+        // aren't accidentally applied to the new one.
+        self.settings.runtime_path = None;
+        self.settings.runtime_args = Vec::new();
         self.dirty = true;
     }
 
