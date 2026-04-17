@@ -1,4 +1,4 @@
-use crossterm::event::{KeyCode, KeyEvent};
+use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use ratatui::buffer::Buffer;
 use ratatui::layout::{Constraint, Rect};
 use ratatui::style::Modifier;
@@ -121,14 +121,22 @@ impl ResumeSelectionView {
 
 impl BottomPaneView<'_> for ResumeSelectionView {
     fn handle_key_event(&mut self, _pane: &mut BottomPane<'_>, key_event: KeyEvent) {
-        match key_event.code {
-            KeyCode::Up | KeyCode::Char('k') => self.move_up(),
-            KeyCode::Down | KeyCode::Char('j') => self.move_down(),
-            KeyCode::PageUp => self.page_up(),
-            KeyCode::PageDown => self.page_down(),
-            KeyCode::Home => self.go_home(),
-            KeyCode::End => self.go_end(),
-            KeyCode::Enter | KeyCode::Char(' ') => {
+        match key_event {
+            KeyEvent { code: KeyCode::Up, .. }
+            | KeyEvent { code: KeyCode::Char('k'), modifiers: KeyModifiers::NONE, .. }
+            | KeyEvent { code: KeyCode::Char('p'), modifiers: KeyModifiers::CONTROL, .. } => {
+                self.move_up();
+            }
+            KeyEvent { code: KeyCode::Down, .. }
+            | KeyEvent { code: KeyCode::Char('j'), modifiers: KeyModifiers::NONE, .. }
+            | KeyEvent { code: KeyCode::Char('n'), modifiers: KeyModifiers::CONTROL, .. } => {
+                self.move_down();
+            }
+            KeyEvent { code: KeyCode::PageUp, .. } => self.page_up(),
+            KeyEvent { code: KeyCode::PageDown, .. } => self.page_down(),
+            KeyEvent { code: KeyCode::Home, .. } => self.go_home(),
+            KeyEvent { code: KeyCode::End, .. } => self.go_end(),
+            KeyEvent { code: KeyCode::Enter | KeyCode::Char(' '), .. } => {
                 if let Some(row) = self.rows.get(self.selected) {
                     match self.action {
                         SessionPickerAction::Resume => {
@@ -141,7 +149,7 @@ impl BottomPaneView<'_> for ResumeSelectionView {
                     self.complete = true;
                 }
             }
-            KeyCode::Esc => self.complete = true,
+            KeyEvent { code: KeyCode::Esc, .. } => self.complete = true,
             _ => {}
         }
     }
