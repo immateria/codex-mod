@@ -10,6 +10,7 @@ static ENV_MUTEX: Lazy<Mutex<()>> = Lazy::new(|| Mutex::new(()));
 
 struct EnvBackup {
     entries: Vec<(&'static str, Option<String>)>,
+    original_cwd: Option<PathBuf>,
 }
 
 impl EnvBackup {
@@ -22,7 +23,7 @@ impl EnvBackup {
             // unsafety contract for environment updates.
             unsafe { std::env::remove_var(key) };
         }
-        Self { entries }
+        Self { entries, original_cwd: None }
     }
 
     fn set_path(&self, key: &'static str, path: &Path) {
@@ -33,10 +34,22 @@ impl EnvBackup {
     fn remove(&self, key: &'static str) {
         unsafe { std::env::remove_var(key) };
     }
+
+    /// Change CWD to `path` so `find_repo_dev_code_home()` doesn't find the
+    /// repo-root `.code` directory and override our env-based test setup.
+    fn set_cwd(&mut self, path: &Path) {
+        if self.original_cwd.is_none() {
+            self.original_cwd = std::env::current_dir().ok();
+        }
+        let _ = std::env::set_current_dir(path);
+    }
 }
 
 impl Drop for EnvBackup {
     fn drop(&mut self) {
+        if let Some(ref cwd) = self.original_cwd {
+            let _ = std::env::set_current_dir(cwd);
+        }
         for (key, value) in self.entries.drain(..) {
             match value {
                 Some(v) => unsafe { std::env::set_var(key, v) },
@@ -92,7 +105,7 @@ async fn discovers_prompts_from_code_home() -> Result<()> {
 #[tokio::test]
 async fn discovers_prompts_from_legacy_codex_home() -> Result<()> {
     let _env_lock = ENV_MUTEX.lock().await;
-    let env = EnvBackup::new(&["HOME", "CODE_HOME", "CODEX_HOME"]);
+    let mut env = EnvBackup::new(&["HOME", "CODE_HOME", "CODEX_HOME"]);
 
     let fake_home = TempDir::new()?;
     let codex_home = fake_home.path().join(".codex");
@@ -103,6 +116,8 @@ async fn discovers_prompts_from_legacy_codex_home() -> Result<()> {
     env.set_path("HOME", fake_home.path());
     env.remove("CODE_HOME");
     env.remove("CODEX_HOME");
+    // Move CWD so find_repo_dev_code_home() doesn't find the repo root.
+    env.set_cwd(fake_home.path());
 
     let default_dir = default_prompts_dir().expect("expected prompts dir");
     assert_eq!(
@@ -120,7 +135,7 @@ async fn discovers_prompts_from_legacy_codex_home() -> Result<()> {
 #[tokio::test]
 async fn prefers_code_home_when_both_locations_exist() -> Result<()> {
     let _env_lock = ENV_MUTEX.lock().await;
-    let env = EnvBackup::new(&["HOME", "CODE_HOME", "CODEX_HOME"]);
+    let mut env = EnvBackup::new(&["HOME", "CODE_HOME", "CODEX_HOME"]);
 
     let fake_home = TempDir::new()?;
     let code_home = fake_home.path().join(".code");
@@ -135,6 +150,8 @@ async fn prefers_code_home_when_both_locations_exist() -> Result<()> {
     env.set_path("HOME", fake_home.path());
     env.remove("CODE_HOME");
     env.remove("CODEX_HOME");
+    // Move CWD so find_repo_dev_code_home() doesn't find the repo root.
+    env.set_cwd(fake_home.path());
 
     let default_dir = default_prompts_dir().expect("expected prompts dir");
     assert_eq!(
