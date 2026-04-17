@@ -260,7 +260,51 @@ def _handle_emit_image_result(message):
         _log(f"unexpected emit_image_result for unknown id: {img_id}")
 
 
-def _dispatch(message):
+# ── Snapshot & Restore ──────────────────────────────────────────────────
+# Serialize kernel state so the host can restart the process without
+# losing user-defined variables or imports.
+
+def _safe_serialize_namespace():
+    """Return a JSON-safe dict of user-defined namespace entries."""
+    skip = {"__name__", "__builtins__", "codex", "_"}
+    result = {}
+    for key, val in _namespace.items():
+        if key.startswith("_") and key not in ("_",):
+            continue
+        if key in skip:
+            continue
+        try:
+            json.dumps(val)
+            result[key] = val
+        except (TypeError, ValueError, OverflowError):
+            result[key] = None
+    return result
+
+
+def _handle_snapshot(message):
+    payload = {
+        "namespace": _safe_serialize_namespace(),
+    }
+    _send({
+        "type": "snapshot_result",
+        "id": message.get("id", ""),
+        "ok": True,
+        "payload": payload,
+    })
+
+
+def _handle_restore(message):
+    payload = message.get("payload")
+    if not payload:
+        _send({"type": "restore_result", "id": message.get("id", ""), "ok": False, "error": "no payload"})
+        return
+    try:
+        ns = payload.get("namespace", {})
+        for key, val in ns.items():
+            _namespace[key] = val
+        _send({"type": "restore_result", "id": message.get("id", ""), "ok": True})
+    except Exception as e:
+        _send({"type": "restore_result", "id": message.get("id", ""), "ok": False, "error": str(e)})
     msg_type = message.get("type")
     if msg_type == "exec":
         _handle_exec(message["id"], message["code"])
@@ -268,6 +312,10 @@ def _dispatch(message):
         _handle_tool_result(message)
     elif msg_type == "emit_image_result":
         _handle_emit_image_result(message)
+    elif msg_type == "snapshot":
+        _handle_snapshot(message)
+    elif msg_type == "restore":
+        _handle_restore(message)
     else:
         _log(f"ignoring unknown message type: {msg_type}")
 

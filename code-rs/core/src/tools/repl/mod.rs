@@ -120,6 +120,11 @@ pub(crate) struct ReplManager {
     exec_tool_calls: Arc<Mutex<HashMap<String, ExecToolCalls>>>,
     next_id: AtomicU64,
     next_tool_seq: AtomicU64,
+    /// Snapshot of kernel REPL state captured before a restart so that
+    /// bindings, counters, and `codex.state` survive permission changes.
+    saved_snapshot: Mutex<Option<JsonValue>>,
+    /// Pending control-message response channels (snapshot_result, restore_result).
+    pending_control: Arc<Mutex<HashMap<String, oneshot::Sender<JsonValue>>>>,
 }
 
 impl Drop for ReplManager {
@@ -218,6 +223,8 @@ impl ReplManager {
             exec_tool_calls: Arc::new(Mutex::new(HashMap::new())),
             next_id: AtomicU64::new(0),
             next_tool_seq: AtomicU64::new(0),
+            saved_snapshot: Mutex::new(None),
+            pending_control: Arc::new(Mutex::new(HashMap::new())),
         }))
     }
 
@@ -230,8 +237,8 @@ impl ReplManager {
     }
 
     /// Grant a Deno permission (e.g. "net", "read", "write") at runtime.
-    /// Kills the current kernel so the next execution restarts with the
-    /// updated `--allow-*` flags.
+    /// Snapshots kernel state, then kills the kernel so the next execution
+    /// restarts with updated `--allow-*` flags and restores the snapshot.
     pub(crate) async fn grant_deno_permission(&self, perm: &str) {
         {
             let mut perms = self.deno_permissions.lock().await;
@@ -250,8 +257,116 @@ impl ReplManager {
                 }
             }
         }
-        tracing::info!(perm = %perm, "granted Deno permission; killing kernel for restart");
+        tracing::info!(perm = %perm, "granted Deno permission; snapshotting then killing kernel");
+        self.snapshot_kernel().await;
         self.kill_kernel().await;
+    }
+
+    // ── Snapshot & Restore ──────────────────────────────────────────────
+
+    /// Ask the running kernel to serialize its REPL state (bindings,
+    /// counters, codex.state).  Saves the payload in `self.saved_snapshot`
+    /// so it can be sent back via `restore_kernel()` after a restart.
+    async fn snapshot_kernel(&self) {
+        let guard = self.kernel.lock().await;
+        let Some(kernel) = guard.as_ref() else {
+            return;
+        };
+        let snap_id = format!(
+            "snap-{}",
+            self.next_id.fetch_add(1, Ordering::Relaxed)
+        );
+        let (tx, rx) = oneshot::channel();
+        self.pending_control
+            .lock()
+            .await
+            .insert(snap_id.clone(), tx);
+
+        let msg = json!({ "type": "snapshot", "id": snap_id });
+        if let Err(err) = send_json_line(&kernel.stdin, &msg).await {
+            tracing::warn!("failed to send snapshot request: {err}");
+            self.pending_control.lock().await.remove(&snap_id);
+            return;
+        }
+        drop(guard);
+
+        match tokio::time::timeout(Duration::from_secs(5), rx).await {
+            Ok(Ok(response)) => {
+                if response.get("ok").and_then(JsonValue::as_bool).unwrap_or(false) {
+                    if let Some(payload) = response.get("payload").cloned() {
+                        tracing::info!("kernel snapshot captured");
+                        *self.saved_snapshot.lock().await = Some(payload);
+                    }
+                } else {
+                    tracing::warn!("kernel snapshot returned not-ok");
+                }
+            }
+            Ok(Err(_)) => {
+                tracing::warn!("snapshot channel dropped");
+            }
+            Err(_) => {
+                tracing::warn!("snapshot request timed out");
+            }
+        }
+    }
+
+    /// If a saved snapshot exists, send it to the running kernel to
+    /// rebuild REPL state.  Clears the saved snapshot on success.
+    async fn restore_kernel(&self) {
+        let payload = {
+            let guard = self.saved_snapshot.lock().await;
+            guard.clone()
+        };
+        let Some(payload) = payload else {
+            return;
+        };
+
+        let guard = self.kernel.lock().await;
+        let Some(kernel) = guard.as_ref() else {
+            return;
+        };
+        let restore_id = format!(
+            "rst-{}",
+            self.next_id.fetch_add(1, Ordering::Relaxed)
+        );
+        let (tx, rx) = oneshot::channel();
+        self.pending_control
+            .lock()
+            .await
+            .insert(restore_id.clone(), tx);
+
+        let msg = json!({
+            "type": "restore",
+            "id": restore_id,
+            "payload": payload,
+        });
+        if let Err(err) = send_json_line(&kernel.stdin, &msg).await {
+            tracing::warn!("failed to send restore request: {err}");
+            self.pending_control.lock().await.remove(&restore_id);
+            return;
+        }
+        drop(guard);
+
+        match tokio::time::timeout(Duration::from_secs(5), rx).await {
+            Ok(Ok(response)) => {
+                if response.get("ok").and_then(JsonValue::as_bool).unwrap_or(false) {
+                    tracing::info!("kernel state restored from snapshot");
+                    *self.saved_snapshot.lock().await = None;
+                } else {
+                    let err = response
+                        .get("error")
+                        .and_then(JsonValue::as_str)
+                        .unwrap_or("unknown");
+                    tracing::warn!("kernel restore failed: {err}");
+                }
+            }
+            Ok(Err(_)) => {
+                tracing::warn!("restore channel dropped");
+            }
+            Err(_) => {
+                tracing::warn!("restore request timed out");
+            }
+        }
     }
 
     // ── Execute ─────────────────────────────────────────────────────────
@@ -288,10 +403,11 @@ impl ReplManager {
 
         let (stdin, pending, child, recent_stderr, tool_rx) = {
             let mut guard = self.kernel.lock().await;
-            if guard.is_none() {
+            let just_started = if guard.is_none() {
                 match self.start_kernel(sess, cwd).await {
                     Ok(kernel) => {
                         *guard = Some(kernel);
+                        true
                     }
                     Err(error) => {
                         drop(guard);
@@ -303,7 +419,9 @@ impl ReplManager {
                         });
                     }
                 }
-            }
+            } else {
+                false
+            };
             let Some(kernel) = guard.as_ref() else {
                 self.clear_exec_tool_calls(&id).await;
                 return Err(ReplExecError {
@@ -312,13 +430,19 @@ impl ReplManager {
                     content_items: Vec::new(),
                 });
             };
-            (
+            let result = (
                 Arc::clone(&kernel.stdin),
                 Arc::clone(&kernel.pending_execs),
                 Arc::clone(&kernel.child),
                 Arc::clone(&kernel.recent_stderr),
                 Arc::clone(&kernel.tool_rx),
-            )
+            );
+            drop(guard);
+            // Restore snapshot into the freshly-started kernel (if any).
+            if just_started {
+                self.restore_kernel().await;
+            }
+            result
         };
 
         pending.lock().await.insert(id.clone(), tx);
@@ -559,6 +683,7 @@ impl ReplManager {
             Arc::clone(&self.exec_tool_calls),
             Arc::clone(&stdin),
             tool_tx,
+            Arc::clone(&self.pending_control),
             shutdown.clone(),
         ));
         if let Some(stderr) = stderr {
@@ -827,6 +952,7 @@ impl ReplManager {
         exec_tool_calls: Arc<Mutex<HashMap<String, ExecToolCalls>>>,
         stdin: Arc<Mutex<ChildStdin>>,
         tool_tx: tokio::sync::mpsc::UnboundedSender<ToolRequest>,
+        pending_control: Arc<Mutex<HashMap<String, oneshot::Sender<JsonValue>>>>,
         shutdown: CancellationToken,
     ) {
         let mut reader = BufReader::new(stdout).lines();
@@ -1103,7 +1229,17 @@ impl ReplManager {
                     }
                 }
                 other => {
-                    warn!(message_type = ?other, "repl kernel sent unrecognized message type");
+                    // Route snapshot_result / restore_result to pending control channels.
+                    if other == "snapshot_result" || other == "restore_result" {
+                        if let Some(id) = message.get("id").and_then(JsonValue::as_str) {
+                            let sender = pending_control.lock().await.remove(id);
+                            if let Some(sender) = sender {
+                                let _ = sender.send(message);
+                            }
+                        }
+                    } else {
+                        warn!(message_type = ?other, "repl kernel sent unrecognized message type");
+                    }
                 }
             }
         };

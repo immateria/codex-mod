@@ -450,6 +450,75 @@ async function handleExec(message) {
   }
 }
 
+// ── Snapshot & Restore ──────────────────────────────────────────────
+// Serialize kernel REPL state so the host can kill and restart the
+// process (e.g. to change Deno permission flags) without losing
+// user-defined variables, imports, or the codex.state store.
+
+function safeSerialize(obj) {
+  if (obj == null) return null;
+  const out = Object.create(null);
+  for (const key of Object.keys(obj)) {
+    const val = obj[key];
+    try {
+      // Verify it survives a round-trip (functions, Symbols, etc. won't).
+      JSON.parse(JSON.stringify(val));
+      out[key] = val;
+    } catch {
+      // Non-serializable value — store a placeholder so the binding name
+      // is preserved even though the value is lost.
+      out[key] = null;
+    }
+  }
+  return out;
+}
+
+function handleSnapshot(message) {
+  const payload = {
+    previousSnapshot: safeSerialize(previousSnapshot),
+    previousBindings: previousBindings.map((b) => ({ name: b.name, kind: b.kind })),
+    cellCounter,
+    state: safeSerialize(state),
+    execGeneration,
+  };
+  send({
+    type: "snapshot_result",
+    id: message.id,
+    ok: true,
+    payload,
+  });
+}
+
+function handleRestore(message) {
+  const p = message.payload;
+  if (!p) {
+    send({ type: "restore_result", id: message.id, ok: false, error: "no payload" });
+    return;
+  }
+  try {
+    if (p.previousSnapshot) {
+      previousSnapshot = Object.assign(Object.create(null), p.previousSnapshot);
+    }
+    if (Array.isArray(p.previousBindings)) {
+      previousBindings = p.previousBindings.map((b) => ({ name: b.name, kind: b.kind }));
+    }
+    if (typeof p.cellCounter === "number") {
+      cellCounter = p.cellCounter;
+    }
+    if (typeof p.execGeneration === "number") {
+      execGeneration = p.execGeneration;
+    }
+    if (p.state && typeof p.state === "object") {
+      for (const key of Object.keys(p.state)) {
+        state[key] = p.state[key];
+      }
+    }
+    send({ type: "restore_result", id: message.id, ok: true });
+  } catch (err) {
+    send({ type: "restore_result", id: message.id, ok: false, error: String(err) });
+  }
+}
+
 function handleToolResult(message) {
   const resolver = pendingTool.get(message.id);
   if (resolver) {
@@ -537,6 +606,14 @@ async function handleLine(line) {
         ));
       } catch { /* best effort */ }
     }
+    return;
+  }
+  if (message.type === "snapshot") {
+    queue = queue.then(() => handleSnapshot(message));
+    return;
+  }
+  if (message.type === "restore") {
+    queue = queue.then(() => handleRestore(message));
     return;
   }
   try {
