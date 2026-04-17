@@ -976,7 +976,8 @@ mod tests {
             cwd: PathBuf::from("/tmp"),
             timeout_ms: None,
             env: HashMap::new(),
-            with_escalated_permissions: None,
+            sandbox_permissions: Default::default(),
+            additional_permissions: None,
             justification: None,
         }
     }

@@ -189,6 +189,7 @@ mod tool_call_id_tests {
             }],
             responses: vec![ResponseInputItem::CustomToolCallOutput {
                 call_id: "c1".to_string(),
+                name: None,
                 output: FunctionCallOutputPayload::from_text("ok".to_string()),
             }],
             partial_assistant_text: String::new(),
@@ -276,7 +277,7 @@ mod tool_call_id_tests {
 
         assert!(matches!(
             input.get(1),
-            Some(ResponseItem::CustomToolCallOutput { call_id, output })
+            Some(ResponseItem::CustomToolCallOutput { call_id, output, .. })
                 if call_id == "c1" && output.body.to_text().as_deref() == Some("aborted")
         ));
     }

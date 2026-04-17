@@ -548,6 +548,7 @@ mod tests {
             let output = process_exec_tool_call(
                 ExecParams {
                     command: actual_cmd.unwrap(),
+                    shell_script: None,
                     cwd: PathBuf::from(temp_home.path()),
                     timeout_ms: None,
                     env: HashMap::from([(
@@ -726,6 +727,7 @@ mod macos_tests {
             let output = process_exec_tool_call(
                 ExecParams {
                     command: actual_cmd.unwrap(),
+                    shell_script: None,
                     cwd: PathBuf::from(temp_home.path()),
                     timeout_ms: None,
                     env: HashMap::from([(
