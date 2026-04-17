@@ -114,7 +114,7 @@ pub(in crate::codex) async fn submission_loop(
                     let sentinel_input = vec![InputItem::Text {
                         text: PENDING_ONLY_SENTINEL.to_owned(),
                     }];
-                    let agent = AgentTask::spawn(Arc::clone(&sess), turn_context, sub_id, sentinel_input);
+                    let agent = AgentTask::spawn(Arc::clone(&sess), turn_context, sub_id, sentinel_input, TaskOriginKind::PendingInput, false);
                     sess.set_task(agent);
                 }
             }
@@ -165,7 +165,7 @@ pub(in crate::codex) async fn submission_loop(
 
                 // Spawn a new agent for this user input.
                 let turn_context = sess.make_turn_context_with_schema(final_output_json_schema);
-                let agent = AgentTask::spawn(Arc::clone(sess), turn_context, sub.id.clone(), items);
+                let agent = AgentTask::spawn(Arc::clone(sess), turn_context, sub.id.clone(), items, TaskOriginKind::User, true);
                 sess.set_task(agent);
             }
             Op::QueueUserInput { items } => {
@@ -188,7 +188,7 @@ pub(in crate::codex) async fn submission_loop(
                     // No task running: treat this as immediate user input without aborting.
                     sess.cleanup_old_status_items();
                     let turn_context = sess.make_turn_context();
-                    let agent = AgentTask::spawn(Arc::clone(sess), turn_context, sub.id.clone(), items);
+                    let agent = AgentTask::spawn(Arc::clone(sess), turn_context, sub.id.clone(), items, TaskOriginKind::QueuedUser, true);
                     sess.set_task(agent);
                 }
             }

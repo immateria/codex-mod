@@ -25,6 +25,7 @@ use crate::openai_tools::OpenAiTool;
 use crate::openai_tools::ResponsesApiTool;
 use crate::openai_tools::SEARCH_TOOL_BM25_TOOL_NAME;
 use crate::protocol::McpListToolsResponseEvent;
+use crate::protocol::TaskOriginKind;
 use crate::tools::scheduler::PendingToolCall;
 use code_app_server_protocol::AuthMode as AppAuthMode;
 

@@ -98,6 +98,7 @@ pub async fn run_conversation_loop(
                     }
                     EventMsg::AgentReasoningRawContent(_)
                     | EventMsg::AgentReasoningRawContentDelta(_)
+                    | EventMsg::TaskLifecycle(_)
                     | EventMsg::TaskStarted
                     | EventMsg::TokenCount(_)
                     | EventMsg::AgentReasoning(_)

@@ -452,6 +452,7 @@ pub(crate) fn to_exec_params(params: ShellToolCallParams, sess: &Session) -> Exe
     let sandbox_permissions = params.sandbox_permissions.unwrap_or_default();
     ExecParams {
         command: params.command,
+        shell_script: None,
         cwd: sess.resolve_path(params.workdir.clone()),
         timeout_ms,
         env: create_env(&sess.shell_environment_policy),
@@ -576,6 +577,7 @@ pub(crate) async fn handle_apply_patch_action(
         if outputs_custom {
             return ResponseInputItem::CustomToolCallOutput {
                 call_id: ctx.call_id.clone(),
+                name: None,
                 output: FunctionCallOutputPayload::from_text(guidance),
             };
         }
@@ -643,6 +645,7 @@ pub(crate) async fn handle_apply_patch_action(
 
             ResponseInputItem::CustomToolCallOutput {
                 call_id: ctx.call_id.clone(),
+                name: None,
                 output: FunctionCallOutputPayload::from_text(output),
             }
         }
@@ -740,6 +743,7 @@ pub(crate) async fn handle_apply_patch_action(
             if outputs_custom {
                 return ResponseInputItem::CustomToolCallOutput {
                     call_id: ctx.call_id.clone(),
+                    name: None,
                     output: FunctionCallOutputPayload::from_text(content),
                 };
             }
@@ -2389,6 +2393,7 @@ impl code_shell_escalation::ShellCommandExecutor for CoreShellCommandExecutor {
         let res = crate::exec::process_exec_tool_call_with_managed_network(
             ExecParams {
                 command,
+                shell_script: None,
                 cwd,
                 timeout_ms: self.timeout_ms,
                 env,

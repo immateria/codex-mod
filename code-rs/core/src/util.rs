@@ -104,6 +104,25 @@ pub(crate) fn is_shell_like_executable(token: &str) -> bool {
     code_shell_command::is_shell_like_executable(token)
 }
 
+/// Extract the shell script body from a command vector.
+///
+/// Returns `(index, script)` where `index` is the position of the script
+/// string in `command`. Handles both bare single-element commands and
+/// `["bash", "-c", "script"]` patterns.
+#[allow(dead_code)]
+pub(crate) fn extract_shell_script(command: &[String]) -> Option<(usize, &str)> {
+    match command {
+        [script] => Some((0, script.as_str())),
+        [first, second, third]
+            if is_shell_like_executable(first)
+                && matches!(second.as_str(), "-lc" | "-c") =>
+        {
+            Some((2, third.as_str()))
+        }
+        _ => None,
+    }
+}
+
 /// Serialize a [`reqwest::header::HeaderMap`] into a deterministic JSON object.
 pub(crate) fn header_map_to_json(headers: &reqwest::header::HeaderMap) -> serde_json::Value {
     let mut ordered: std::collections::BTreeMap<String, Vec<String>> =

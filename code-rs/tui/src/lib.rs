@@ -10,6 +10,7 @@ compile_error!(
 );
 
 use app::App;
+use std::backtrace::Backtrace;
 use code_core::BUILT_IN_OSS_MODEL_PROVIDER_ID;
 use code_core::config::set_cached_terminal_background;
 use code_core::config::Config;
@@ -723,9 +724,18 @@ pub async fn run_main(
         .with_writer(critical_writer)
         .with_filter(LevelFilter::ERROR);
 
+    let otel = match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        code_core::otel_init::build_provider(&config, env!("CARGO_PKG_VERSION"))
+    })) {
+        Ok(Ok(otel)) => otel,
+        Ok(Err(_)) | Err(_) => None,
+    };
+    let otel_logger_layer = otel.as_ref().map(|provider| provider.logger_layer());
+
     let _ = tracing_subscriber::registry()
         .with(env_layer)
         .with(critical_layer)
+        .with(otel_logger_layer)
         .try_init();
 
     if cli.oss {
@@ -733,8 +743,6 @@ pub async fn run_main(
             .await
             .map_err(|e| std::io::Error::other(format!("OSS setup failed: {e}")))?;
     }
-
-    let _otel = code_core::otel_init::build_provider(&config, env!("CARGO_PKG_VERSION"));
 
     let latest_upgrade_version = if crate::updates::upgrade_ui_enabled() {
         updates::get_upgrade_version(&config)
@@ -774,6 +782,19 @@ pub(crate) fn install_unified_panic_hook() {
             let current_thread = std::thread::current();
             let thread_name = current_thread.name().unwrap_or("unnamed");
             let thread_id = format!("{:?}", current_thread.id());
+            let backtrace = Backtrace::force_capture().to_string();
+
+            let location = info
+                .location()
+                .map(|location| (location.file(), location.line(), location.column()));
+
+            session_log::log_panic(
+                &info.to_string(),
+                thread_name,
+                &thread_id,
+                location,
+                &backtrace,
+            );
 
             if let Some(location) = info.location() {
                 tracing::error!(
@@ -783,6 +804,8 @@ pub(crate) fn install_unified_panic_hook() {
                     line = location.line(),
                     column = location.column(),
                     panic = %info,
+                    backtrace = %backtrace,
+                    session_log_path = session_log::log_path().as_ref().map(|path| path.display().to_string()),
                     "panic captured"
                 );
             } else {
@@ -790,6 +813,8 @@ pub(crate) fn install_unified_panic_hook() {
                     thread_name,
                     thread_id,
                     panic = %info,
+                    backtrace = %backtrace,
+                    session_log_path = session_log::log_path().as_ref().map(|path| path.display().to_string()),
                     "panic captured"
                 );
             }

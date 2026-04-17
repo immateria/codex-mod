@@ -26,6 +26,8 @@ pub(in crate::codex) struct AgentTask {
     pub(in crate::codex) sub_id: String,
     handle: AbortHandle,
     kind: AgentTaskKind,
+    pub(in crate::codex) _origin: TaskOriginKind,
+    pub(in crate::codex) _visible_to_user: bool,
 }
 
 impl AgentTask {
@@ -34,6 +36,8 @@ impl AgentTask {
         turn_context: Arc<TurnContext>,
         sub_id: String,
         input: Vec<InputItem>,
+        origin: TaskOriginKind,
+        visible_to_user: bool,
     ) -> Self {
         let handle = {
             let sess_clone = Arc::clone(&sess);
@@ -49,6 +53,8 @@ impl AgentTask {
             sub_id,
             handle,
             kind: AgentTaskKind::Regular,
+            _origin: origin,
+            _visible_to_user: visible_to_user,
         }
     }
 
@@ -78,6 +84,8 @@ impl AgentTask {
             sub_id,
             handle,
             kind: AgentTaskKind::Compact,
+            _origin: TaskOriginKind::ManualCompact,
+            _visible_to_user: false,
         }
     }
 
@@ -101,6 +109,8 @@ impl AgentTask {
             sub_id,
             handle,
             kind: AgentTaskKind::Review,
+            _origin: TaskOriginKind::Review,
+            _visible_to_user: true,
         }
     }
 

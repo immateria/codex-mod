@@ -64,6 +64,7 @@ impl ToolHandler for ApplyPatchToolHandler {
             code_apply_patch::MaybeApplyPatchVerified::Body(action) => {
                 let params = ExecParams {
                     command,
+                    shell_script: None,
                     cwd: sess.get_cwd().to_path_buf(),
                     timeout_ms: None,
                     env: HashMap::new(),

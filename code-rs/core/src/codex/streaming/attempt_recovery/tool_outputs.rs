@@ -111,6 +111,7 @@ pub(in crate::codex::streaming) fn missing_tool_outputs_to_insert(
                         idx,
                         ResponseItem::CustomToolCallOutput {
                             call_id: call_id.clone(),
+                            name: None,
                             output: FunctionCallOutputPayload::from_text("aborted".to_owned()),
                         },
                     ));

@@ -362,12 +362,13 @@ pub(super) async fn run_agent(sess: Arc<Session>, turn_context: Arc<TurnContext>
                         }
                         (
                             ResponseItem::CustomToolCall { .. },
-                            Some(ResponseInputItem::CustomToolCallOutput { call_id, output }),
+                            Some(ResponseInputItem::CustomToolCallOutput { call_id, name, output }),
                         ) => {
                             items_to_record_in_conversation_history.push(item.clone());
                             items_to_record_in_conversation_history.push(
                                 ResponseItem::CustomToolCallOutput {
                                     call_id: call_id.clone(),
+                                    name: name.clone(),
                                     output: output.clone(),
                                 },
                             );
@@ -630,7 +631,7 @@ pub(super) async fn run_agent(sess: Arc<Session>, turn_context: Arc<TurnContext>
             let turn_context = sess_clone.make_turn_context();
             let submission_id = queued.submission_id;
             let items = queued.core_items;
-            let agent = AgentTask::spawn(Arc::clone(&sess_clone), turn_context, submission_id, items);
+            let agent = AgentTask::spawn(Arc::clone(&sess_clone), turn_context, submission_id, items, TaskOriginKind::QueuedUser, true);
             sess_clone.set_task(agent);
         });
     }

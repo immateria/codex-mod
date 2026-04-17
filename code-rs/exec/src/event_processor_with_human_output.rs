@@ -276,7 +276,8 @@ impl EventProcessor for EventProcessorWithHumanOutput {
             | EventMsg::ReplayHistory(_)
             | EventMsg::BrowserScreenshotUpdate(_)
             | EventMsg::AgentStatusUpdate(_)
-            | EventMsg::CustomToolCallUpdate(_) => {}
+            | EventMsg::CustomToolCallUpdate(_)
+            | EventMsg::TaskLifecycle(_) => {}
             EventMsg::TaskStarted => {
                 // Reset per-turn diff cache so we only print new diffs once.
                 self.last_turn_diff = None;

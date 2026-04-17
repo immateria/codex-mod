@@ -305,6 +305,7 @@ impl ToolHandler for ReplToolHandler {
                     if outputs_custom {
                         ResponseInputItem::CustomToolCallOutput {
                             call_id: ctx.call_id,
+                            name: None,
                             output: payload,
                         }
                     } else {
@@ -316,6 +317,7 @@ impl ToolHandler for ReplToolHandler {
                 } else if outputs_custom {
                     ResponseInputItem::CustomToolCallOutput {
                         call_id: ctx.call_id,
+                        name: None,
                         output: FunctionCallOutputPayload::from_text(result.output),
                     }
                 } else {
@@ -346,6 +348,7 @@ impl ToolHandler for ReplToolHandler {
                     if outputs_custom {
                         ResponseInputItem::CustomToolCallOutput {
                             call_id: ctx.call_id,
+                            name: None,
                             output: payload,
                         }
                     } else {
@@ -357,6 +360,7 @@ impl ToolHandler for ReplToolHandler {
                 } else if outputs_custom {
                     ResponseInputItem::CustomToolCallOutput {
                         call_id: ctx.call_id,
+                        name: None,
                         output: FunctionCallOutputPayload::from_text(combined),
                     }
                 } else {

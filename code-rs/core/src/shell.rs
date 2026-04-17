@@ -153,6 +153,48 @@ impl Shell {
             Shell::Unknown => None,
         }
     }
+
+    /// Format a raw shell script into a full command invocation using this
+    /// shell. Falls back to a platform default (e.g. `sh -c`) if the shell
+    /// type cannot produce an invocation.
+    pub fn shell_script_invocation_or_default(
+        &self,
+        command: String,
+        use_login_shell: bool,
+    ) -> Vec<String> {
+        self.format_shell_script_invocation(command.clone(), use_login_shell)
+            .unwrap_or_else(|| default_shell_script_invocation(command, use_login_shell))
+    }
+
+    fn format_shell_script_invocation(
+        &self,
+        command: String,
+        use_login_shell: bool,
+    ) -> Option<Vec<String>> {
+        match self {
+            Shell::Zsh(zsh) => format_shell_script_invocation_with_rc(
+                &command,
+                &zsh.shell_path,
+                &zsh.zshrc_path,
+                use_login_shell,
+            ),
+            Shell::Bash(bash) => format_shell_script_invocation_with_rc(
+                &command,
+                &bash.shell_path,
+                &bash.bashrc_path,
+                use_login_shell,
+            ),
+            Shell::PowerShell(ps) => {
+                let mut args = vec![ps.exe.clone()];
+                let _ = use_login_shell;
+                args.push("-NoProfile".to_string());
+                args.push("-Command".to_string());
+                args.push(command);
+                Some(args)
+            }
+            Shell::Generic(_) | Shell::Unknown => None,
+        }
+    }
 }
 
 fn format_shell_invocation_with_rc(
@@ -187,6 +229,52 @@ fn strip_bash_lc(command: &[String]) -> Option<String> {
 
 fn is_bash_like(cmd: &str) -> bool {
     is_shell_like_executable(cmd)
+}
+
+/// Format a raw script string into a shell invocation, optionally sourcing
+/// the shell's RC file when `use_login_shell` is true.
+fn format_shell_script_invocation_with_rc(
+    command: &str,
+    shell_path: &str,
+    rc_path: &str,
+    use_login_shell: bool,
+) -> Option<Vec<String>> {
+    let shell_flag = if use_login_shell { "-lc" } else { "-c" };
+    let rc_command = if use_login_shell && std::path::Path::new(rc_path).exists() {
+        format_command_with_rc(rc_path, command)
+    } else {
+        command.to_string()
+    };
+    Some(vec![shell_path.to_string(), shell_flag.to_string(), rc_command])
+}
+
+fn format_command_with_rc(rc_path: &str, command: &str) -> String {
+    if command.contains('\n') || command.contains('\r') {
+        format!("source {rc_path} && {{\n{command}\n}}")
+    } else {
+        format!("source {rc_path} && ({command})")
+    }
+}
+
+#[cfg(unix)]
+fn default_shell_script_invocation(command: String, use_login_shell: bool) -> Vec<String> {
+    let shell_flag = if use_login_shell { "-lc" } else { "-c" };
+    vec!["sh".to_string(), shell_flag.to_string(), command]
+}
+
+#[cfg(target_os = "windows")]
+fn default_shell_script_invocation(command: String, _use_login_shell: bool) -> Vec<String> {
+    vec![
+        "powershell.exe".to_string(),
+        "-NoProfile".to_string(),
+        "-Command".to_string(),
+        command,
+    ]
+}
+
+#[cfg(all(not(unix), not(target_os = "windows")))]
+fn default_shell_script_invocation(command: String, _use_login_shell: bool) -> Vec<String> {
+    vec![command]
 }
 
 fn generic_shell_expects_script_argument(shell_command: &[String]) -> bool {

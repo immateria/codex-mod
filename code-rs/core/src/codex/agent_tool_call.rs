@@ -3,6 +3,7 @@ use std::fmt::Write as _;
 use super::*;
 use super::fs_utils::{ensure_agent_dir, write_agent_file};
 use super::streaming::AgentTask;
+use crate::protocol::TaskOriginKind;
 use super::truncation::truncate_middle_bytes;
 use crate::tools::events::execute_custom_tool;
 use code_protocol::models::FunctionCallOutputBody;
@@ -2009,7 +2010,7 @@ pub(super) async fn enqueue_agent_completion_wake(
         let sentinel_input = vec![InputItem::Text {
             text: PENDING_ONLY_SENTINEL.to_owned(),
         }];
-        let agent = AgentTask::spawn(Arc::clone(sess), turn_context, sub_id, sentinel_input);
+        let agent = AgentTask::spawn(Arc::clone(sess), turn_context, sub_id, sentinel_input, TaskOriginKind::PendingInput, false);
         sess.set_task(agent);
     }
 }

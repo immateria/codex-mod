@@ -1,5 +1,6 @@
 use super::*;
 use code_rmcp_client::ElicitationResponse;
+use crate::protocol::TaskOriginKind;
 use serde_json::Value;
 use code_protocol::dynamic_tools::DynamicToolResponse;
 use code_protocol::dynamic_tools::DynamicToolSpec;
@@ -312,6 +313,10 @@ pub(super) fn is_connectivity_error(err: &CodexErr) -> bool {
 #[cfg(test)]
 mod tests {
     use super::is_connectivity_error;
+    use super::{
+        ApprovedCommandMatchKind,
+        ApprovedCommandPattern,
+    };
     use crate::error::CodexErr;
 
     #[test]
@@ -334,6 +339,17 @@ mod tests {
         );
 
         assert!(is_connectivity_error(&err));
+    }
+
+    #[test]
+    fn approved_command_prefix_matches_raw_shell_script_tokens() {
+        let pattern = ApprovedCommandPattern::new(
+            vec!["git".to_string(), "status".to_string()],
+            ApprovedCommandMatchKind::Prefix,
+            None,
+        );
+
+        assert!(pattern.matches(&["git status --short".to_string()]));
     }
 }
 
@@ -1241,7 +1257,12 @@ impl Session {
         state.current_task = Some(agent);
     }
 
-    pub async fn start_pending_only_turn_if_idle(self: &Arc<Self>) -> bool {
+    pub(super) async fn start_internal_pending_only_turn(
+        self: &Arc<Self>,
+        sentinel: &str,
+        origin: TaskOriginKind,
+        visible_to_user: bool,
+    ) -> bool {
         let should_start = {
             let state = crate::codex::lock_or_panic!(self.state);
             state.current_task.is_none()
@@ -1255,11 +1276,27 @@ impl Session {
         let turn_context = self.make_turn_context();
         let sub_id = self.next_internal_sub_id();
         let sentinel_input = vec![InputItem::Text {
-            text: PENDING_ONLY_SENTINEL.to_owned(),
+            text: sentinel.to_owned(),
         }];
-        let agent = AgentTask::spawn(Arc::clone(self), turn_context, sub_id, sentinel_input);
+        let agent = AgentTask::spawn(
+            Arc::clone(self),
+            turn_context,
+            sub_id,
+            sentinel_input,
+            origin,
+            visible_to_user,
+        );
         self.set_task(agent);
         true
+    }
+
+    pub async fn start_pending_only_turn_if_idle(self: &Arc<Self>) -> bool {
+        self.start_internal_pending_only_turn(
+            PENDING_ONLY_SENTINEL,
+            TaskOriginKind::PendingInput,
+            false,
+        )
+        .await
     }
 
     pub fn replace_history(&self, items: Vec<ResponseItem>) {

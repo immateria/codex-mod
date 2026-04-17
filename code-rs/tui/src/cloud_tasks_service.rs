@@ -32,6 +32,7 @@ struct CloudTasksConfig {
     base_url: String,
     token: Option<String>,
     account_id: Option<String>,
+    is_fedramp_account: bool,
     use_mock: bool,
 }
 
@@ -194,6 +195,9 @@ fn build_backend(config: &CloudTasksConfig) -> Result<Arc<dyn CloudBackend>> {
     if let Some(account) = &config.account_id {
         client = client.with_chatgpt_account_id(account.clone());
     }
+    if config.is_fedramp_account {
+        client = client.with_fedramp_routing_header();
+    }
     Ok(Arc::new(client))
 }
 
@@ -209,6 +213,7 @@ async fn load_config() -> Result<CloudTasksConfig> {
             base_url,
             token: None,
             account_id: None,
+            is_fedramp_account: false,
             use_mock,
         });
     }
@@ -243,6 +248,7 @@ async fn load_config() -> Result<CloudTasksConfig> {
         base_url,
         token: Some(token),
         account_id,
+        is_fedramp_account: auth.is_fedramp_account(),
         use_mock: false,
     })
 }

@@ -433,6 +433,8 @@ fn apply_model_info_overrides_with_personality(
         .experimental_supported_tools
         .iter()
         .any(|tool| tool == IMAGE_GENERATION_TOOL);
+    family.additional_speed_tiers = info.additional_speed_tiers.clone();
+    family.supports_search_tool = info.supports_search_tool;
 
     if let Some(limit) = info.auto_compact_token_limit() {
         family.set_auto_compact_token_limit(Some(limit));
@@ -528,6 +530,7 @@ mod tests {
             visibility: ModelVisibility::None,
             supported_in_api: true,
             priority: 0,
+            additional_speed_tiers: Vec::new(),
             availability_nux: None,
             upgrade: None,
             base_instructions: String::new(),
@@ -546,6 +549,7 @@ mod tests {
             effective_context_window_percent: 95,
             experimental_supported_tools: Vec::new(),
             input_modalities: default_input_modalities(),
+            supports_search_tool: false,
             prefer_websockets: false,
             used_fallback_model_metadata: false,
         }
