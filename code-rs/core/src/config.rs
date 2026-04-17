@@ -563,6 +563,11 @@ pub struct Config {
     pub tools_search_tool: bool,
     /// Enable the optional `repl` tool (off by default).
     pub tools_repl: bool,
+    /// Per-runtime enabled flags.  `true` means the runtime will be probed
+    /// and registered if healthy.  Defaults to `true` for all runtimes.
+    pub repl_node_enabled: bool,
+    pub repl_deno_enabled: bool,
+    pub repl_python_enabled: bool,
     /// Runtimes that passed the health probe at session start.  Populated by
     /// `build_session` after probing all runtimes.  Each entry gets its own
     /// `repl_{label}` tool registration.
@@ -711,6 +716,15 @@ impl Config {
         Config::load_from_base_config_with_overrides(cfg, overrides, code_home)
     }
 
+    /// Whether a specific REPL runtime is enabled by the user.
+    pub fn is_repl_runtime_enabled(&self, kind: ReplRuntimeKindToml) -> bool {
+        match kind {
+            ReplRuntimeKindToml::Node => self.repl_node_enabled,
+            ReplRuntimeKindToml::Deno => self.repl_deno_enabled,
+            ReplRuntimeKindToml::Python => self.repl_python_enabled,
+        }
+    }
+
     /// Build a [`ReplRuntimeConfig`](crate::tools::repl::ReplRuntimeConfig) for the
     /// given runtime kind from the runtime registry.
     ///
@@ -738,6 +752,9 @@ impl Config {
     pub fn apply_repl_settings(&mut self, settings: &ReplSettingsToml) {
         self.tools_repl = settings.enabled;
         self.repl_default_runtime = settings.runtime;
+        self.repl_node_enabled = settings.node_enabled;
+        self.repl_deno_enabled = settings.deno_enabled;
+        self.repl_python_enabled = settings.python_enabled;
 
         // Update registry map.
         let spec = self.repl_runtimes.entry(settings.runtime).or_default();
@@ -1383,6 +1400,11 @@ pub struct ReplSettingsToml {
     /// Enable the `repl` tool.
     pub enabled: bool,
 
+    /// Per-runtime enabled flags.
+    pub node_enabled: bool,
+    pub deno_enabled: bool,
+    pub python_enabled: bool,
+
     /// Runtime kind used for `repl` (default: `node`).
     pub runtime: ReplRuntimeKindToml,
 
@@ -1417,6 +1439,15 @@ pub struct ToolsToml {
     /// Enable the optional `repl` tool (off by default).
     #[serde(default)]
     pub repl: Option<bool>,
+
+    /// Per-runtime enabled flags.  When `None`, the runtime is enabled if it
+    /// passes the health probe.  Set to `false` to skip a runtime entirely.
+    #[serde(default)]
+    pub repl_node_enabled: Option<bool>,
+    #[serde(default)]
+    pub repl_deno_enabled: Option<bool>,
+    #[serde(default)]
+    pub repl_python_enabled: Option<bool>,
 
     /// Select the default runtime used by `repl` (default: `node`).
     #[serde(default)]
@@ -2090,6 +2121,9 @@ impl Config {
             .and_then(|t| t.search_tool)
             .unwrap_or(false);
         let tools_repl = cfg.tools.as_ref().and_then(|t| t.repl).unwrap_or(false);
+        let repl_node_enabled = cfg.tools.as_ref().and_then(|t| t.repl_node_enabled).unwrap_or(true);
+        let repl_deno_enabled = cfg.tools.as_ref().and_then(|t| t.repl_deno_enabled).unwrap_or(true);
+        let repl_python_enabled = cfg.tools.as_ref().and_then(|t| t.repl_python_enabled).unwrap_or(true);
         let repl_default_runtime = cfg
             .tools
             .as_ref()
@@ -2698,6 +2732,9 @@ impl Config {
             tools_web_search_external,
             tools_search_tool,
             tools_repl,
+            repl_node_enabled,
+            repl_deno_enabled,
+            repl_python_enabled,
             repl_available_runtimes: Vec::new(),
             repl_default_runtime,
             repl_runtimes,

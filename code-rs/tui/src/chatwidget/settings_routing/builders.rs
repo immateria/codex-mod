@@ -168,6 +168,9 @@ impl ChatWidget<'_> {
         let rt_cfg = self.config.repl_runtime_config(rt);
         let settings = code_core::config::ReplSettingsToml {
             enabled: self.config.tools_repl,
+            node_enabled: self.config.repl_node_enabled,
+            deno_enabled: self.config.repl_deno_enabled,
+            python_enabled: self.config.repl_python_enabled,
             runtime: rt,
             runtime_path: rt_cfg.runtime_path,
             runtime_args: rt_cfg.runtime_args,

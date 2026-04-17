@@ -183,6 +183,18 @@ impl ReplSettingsView {
     pub(super) fn activate_row(&mut self, kind: RowKind) {
         match kind {
             RowKind::Enabled => self.toggle_enabled(),
+            RowKind::NodeEnabled => {
+                self.settings.node_enabled = !self.settings.node_enabled;
+                self.dirty = true;
+            }
+            RowKind::DenoEnabled => {
+                self.settings.deno_enabled = !self.settings.deno_enabled;
+                self.dirty = true;
+            }
+            RowKind::PythonEnabled => {
+                self.settings.python_enabled = !self.settings.python_enabled;
+                self.dirty = true;
+            }
             RowKind::RuntimeKind => self.cycle_runtime(),
             RowKind::RuntimePath => self.open_text_editor(TextTarget::RuntimePath),
             RowKind::PickRuntimePath => self.pick_runtime_path(),

@@ -41,6 +41,9 @@ enum ViewMode {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum RowKind {
     Enabled,
+    NodeEnabled,
+    DenoEnabled,
+    PythonEnabled,
     RuntimeKind,
     RuntimePath,
     PickRuntimePath,

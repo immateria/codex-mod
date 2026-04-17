@@ -7,8 +7,10 @@ use crate::bottom_pane::settings_ui::toggle;
 
 impl ReplSettingsView {
     pub(super) fn row_count(&self) -> usize {
-        // Enabled, runtime kind, runtime path.
-        let mut count = 3;
+        // Enabled + per-runtime toggles + default runtime selector.
+        let mut count = 5;
+        // Runtime path for the selected default runtime.
+        count += 1;
         // Optional: runtime picker action.
         if crate::platform_caps::supports_native_picker() {
             count += 1;
@@ -56,7 +58,14 @@ impl ReplSettingsView {
 
     pub(super) fn build_rows(&self) -> Vec<RowKind> {
         let mut rows = Vec::with_capacity(self.row_count());
-        rows.extend([RowKind::Enabled, RowKind::RuntimeKind, RowKind::RuntimePath]);
+        rows.extend([
+            RowKind::Enabled,
+            RowKind::NodeEnabled,
+            RowKind::DenoEnabled,
+            RowKind::PythonEnabled,
+            RowKind::RuntimeKind,
+            RowKind::RuntimePath,
+        ]);
         if crate::platform_caps::supports_native_picker() {
             rows.push(RowKind::PickRuntimePath);
         }
@@ -113,34 +122,40 @@ impl ReplSettingsView {
         rows.iter()
             .copied()
             .map(|kind| match kind {
-                RowKind::Enabled => KeyValueRow::new("Enabled")
+                RowKind::Enabled => KeyValueRow::new("REPL")
                     .with_value(Self::enabled_value(self.settings.enabled)),
-                RowKind::RuntimeKind => KeyValueRow::new("Runtime").with_value(StyledText::new(
+                RowKind::NodeEnabled => KeyValueRow::new("  Node")
+                    .with_value(Self::enabled_value(self.settings.node_enabled)),
+                RowKind::DenoEnabled => KeyValueRow::new("  Deno")
+                    .with_value(Self::enabled_value(self.settings.deno_enabled)),
+                RowKind::PythonEnabled => KeyValueRow::new("  Python")
+                    .with_value(Self::enabled_value(self.settings.python_enabled)),
+                RowKind::RuntimeKind => KeyValueRow::new("Configure runtime").with_value(StyledText::new(
                     runtime_label,
                     crate::colors::style_info(),
                 )),
-                RowKind::RuntimePath => KeyValueRow::new("Runtime path").with_value(
+                RowKind::RuntimePath => KeyValueRow::new("  Path").with_value(
                     StyledText::new(
                         runtime_path.clone(),
                         crate::colors::style_text_dim(),
                     ),
                 ),
-                RowKind::PickRuntimePath => KeyValueRow::new("Pick runtime path (file picker)"),
-                RowKind::ClearRuntimePath => KeyValueRow::new("Clear runtime path (use PATH)"),
-                RowKind::RuntimeArgs => KeyValueRow::new("Runtime args").with_value(
+                RowKind::PickRuntimePath => KeyValueRow::new("  Pick path (file picker)"),
+                RowKind::ClearRuntimePath => KeyValueRow::new("  Clear path (use PATH)"),
+                RowKind::RuntimeArgs => KeyValueRow::new("  Args").with_value(
                     StyledText::new(
                         runtime_args.clone(),
                         crate::colors::style_text_dim(),
                     ),
                 ),
-                RowKind::NodeModuleDirs => KeyValueRow::new("Node module dirs").with_value(
+                RowKind::NodeModuleDirs => KeyValueRow::new("  Module dirs").with_value(
                     StyledText::new(
                         module_dirs.clone(),
                         crate::colors::style_text_dim(),
                     ),
                 ),
                 RowKind::AddNodeModuleDir => {
-                    KeyValueRow::new("Add node module dir (folder picker)")
+                    KeyValueRow::new("  Add module dir (folder picker)")
                 }
                 RowKind::DenoPermRead => KeyValueRow::new("  allow-read")
                     .with_value(Self::perm_value(dp.allow_read)),

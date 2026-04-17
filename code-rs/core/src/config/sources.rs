@@ -3906,6 +3906,9 @@ pub fn set_repl_settings(
         .ok_or_else(|| anyhow::anyhow!("`tools` must be a TOML table"))?;
 
     tools_table["repl"] = toml_edit::value(settings.enabled);
+    tools_table["repl_node_enabled"] = toml_edit::value(settings.node_enabled);
+    tools_table["repl_deno_enabled"] = toml_edit::value(settings.deno_enabled);
+    tools_table["repl_python_enabled"] = toml_edit::value(settings.python_enabled);
 
     let runtime = settings.runtime.label();
     tools_table["repl_runtime"] = toml_edit::value(runtime);

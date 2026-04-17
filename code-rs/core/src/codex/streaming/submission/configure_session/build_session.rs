@@ -113,6 +113,13 @@ impl Runner<'_> {
         if config.tools_repl {
             let mut available_runtimes = Vec::new();
             for &kind in crate::config::ReplRuntimeKindToml::ALL {
+                if !config.is_repl_runtime_enabled(kind) {
+                    tracing::debug!(
+                        runtime = %kind,
+                        "repl runtime disabled by user — skipping"
+                    );
+                    continue;
+                }
                 let probe_handle = crate::tools::repl::ReplHandle::new(
                     config.repl_runtime_config(kind),
                 );
