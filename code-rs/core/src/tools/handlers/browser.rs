@@ -91,6 +91,8 @@ pub(crate) async fn handle_browser_tool(
         #[cfg(feature = "browser-automation")]
         "close" => lifecycle::handle_browser_close(sess, ctx).await,
         #[cfg(feature = "browser-automation")]
+        "restart" => lifecycle::handle_browser_restart(sess, ctx, payload_string).await,
+        #[cfg(feature = "browser-automation")]
         "targets" => lifecycle::handle_browser_targets(sess, ctx).await,
         #[cfg(feature = "browser-automation")]
         "new_tab" => lifecycle::handle_browser_new_tab(sess, ctx, payload_string).await,

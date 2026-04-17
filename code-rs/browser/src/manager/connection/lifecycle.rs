@@ -149,4 +149,30 @@ impl BrowserManager {
         // Just delegate to stop() which handles cleanup properly
         self.stop().await
     }
+
+    /// Drop the current browser connection without closing external Chrome.
+    /// After this call, `start()` / `connect_to_chrome_only()` will establish
+    /// a fresh connection instead of returning the "already connected" early-exit.
+    pub async fn disconnect(&self) -> Result<()> {
+        self.stop_idle_monitor().await;
+
+        // Abort the event handler task
+        if let Some(task) = self.event_task.lock().await.take() {
+            task.abort();
+        }
+
+        self.stop_navigation_monitor().await;
+
+        // Clear page state
+        *self.page.lock().await = None;
+        *self.background_page.lock().await = None;
+
+        // Drop the browser handle (does NOT close external Chrome — just drops the WS)
+        let mut browser_guard = self.browser.lock().await;
+        if let Some(_browser) = browser_guard.take() {
+            info!("Disconnected from browser (connection dropped, browser process untouched)");
+        }
+
+        Ok(())
+    }
 }

@@ -90,7 +90,18 @@ impl ChatWidget<'_> {
             config.connect_port = connect_choice.connect_port;
         }
 
-        // Try to connect to existing Chrome (no fallback to internal browser) with timeout
+        // Try to connect to existing Chrome (no fallback to internal browser) with timeout.
+        // If an old connection (internal or external) is still active, disconnect it
+        // first so connect_to_chrome_only() doesn't hit the "already connected" guard.
+        {
+            let status = browser_manager.get_status().await;
+            if status.browser_active {
+                tracing::info!("[cdp] dropping existing browser connection before reconnecting");
+                if let Err(e) = browser_manager.disconnect().await {
+                    tracing::warn!("[cdp] disconnect failed (proceeding anyway): {e}");
+                }
+            }
+        }
         tracing::info!("[cdp] calling BrowserManager::connect_to_chrome_only()…");
         let connect_result = tokio::time::timeout(
             super::CDP_CONNECT_DEADLINE,

@@ -176,6 +176,66 @@ pub(super) async fn handle_browser_close(sess: &Session, ctx: &ToolCallCtx) -> R
     .await
 }
 
+pub(super) async fn handle_browser_restart(
+    sess: &Session,
+    ctx: &ToolCallCtx,
+    arguments: String,
+) -> ResponseInputItem {
+    let params = serde_json::from_str(&arguments).ok();
+    let arguments_clone = arguments.clone();
+    let call_id_clone = ctx.call_id.clone();
+
+    execute_custom_tool(
+        sess,
+        ctx,
+        "browser_restart".to_owned(),
+        params,
+        || async move {
+            let url = serde_json::from_str::<Value>(&arguments_clone)
+                .ok()
+                .and_then(|json| {
+                    json.get("url")
+                        .and_then(serde_json::Value::as_str)
+                        .map(ToString::to_string)
+                })
+                .unwrap_or_else(|| "about:blank".to_owned());
+
+            // Get or create the browser manager
+            let browser_manager =
+                code_browser::global::get_or_create_browser_manager().await;
+
+            // Disconnect the current connection (if any) without killing external Chrome
+            if let Err(e) = browser_manager.disconnect().await {
+                tracing::warn!("[browser_restart] disconnect failed: {e}");
+            }
+
+            // Re-enable and start a fresh connection
+            browser_manager.set_enabled_sync(true);
+            match browser_manager.start().await {
+                Ok(()) => {
+                    match browser_manager.goto(&url).await {
+                        Ok(_) => tool_output(
+                            call_id_clone,
+                            format!("Browser restarted and navigated to: {url}"),
+                        ),
+                        Err(e) => tool_output(
+                            call_id_clone,
+                            format!(
+                                "Browser restarted but navigation to {url} failed: {e}"
+                            ),
+                        ),
+                    }
+                }
+                Err(e) => tool_error(
+                    call_id_clone,
+                    format!("Failed to restart browser: {e}"),
+                ),
+            }
+        },
+    )
+    .await
+}
+
 pub(super) async fn handle_browser_status(sess: &Session, ctx: &ToolCallCtx) -> ResponseInputItem {
     let sess_clone = sess;
     let call_id_clone = ctx.call_id.clone();

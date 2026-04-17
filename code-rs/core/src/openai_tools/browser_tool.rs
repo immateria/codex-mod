@@ -16,6 +16,7 @@ pub(super) fn create_browser_tool(browser_enabled: bool) -> OpenAiTool {
     if browser_enabled {
         actions.extend([
             "close",
+            "restart",
             "click",
             "click_selector",
             "move",
