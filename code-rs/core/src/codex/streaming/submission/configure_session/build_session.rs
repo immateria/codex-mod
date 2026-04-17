@@ -36,7 +36,7 @@ impl Runner<'_> {
             rollout_recorder,
         } = prepared;
 
-        let config = Arc::clone(&self.config);
+        let mut config = Arc::clone(&self.config);
 
         // Create debug logger based on config
         let debug_logger = match crate::debug_logger::DebugLogger::new(config.debug) {
@@ -107,6 +107,32 @@ impl Runner<'_> {
             });
             manager
         };
+
+        // Probe REPL runtime health early so the client (and every per-turn
+        // tool rebuild) already knows whether the tool is available.
+        if config.tools_repl {
+            let default_rt = config.repl_default_runtime;
+            let probe_handle = crate::tools::repl::ReplHandle::new(
+                config.repl_runtime_config(default_rt),
+            );
+            match probe_handle.probe_health().await {
+                Ok(version) => {
+                    tracing::info!(
+                        runtime = %default_rt,
+                        version = %version,
+                        "repl runtime available"
+                    );
+                }
+                Err(err) => {
+                    tracing::warn!(
+                        runtime = %default_rt,
+                        error = %err,
+                        "repl runtime unavailable — disabling tool"
+                    );
+                    Arc::make_mut(&mut config).tools_repl = false;
+                }
+            }
+        }
 
         // Wrap provided auth (if any) in a minimal AuthManager for client usage.
         let client = ModelClient::new(
@@ -214,32 +240,6 @@ impl Runner<'_> {
         tools_config.web_search_external = config.tools_web_search_external;
         tools_config.search_tool = config.tools_search_tool;
         tools_config.repl = config.tools_repl;
-
-        // Probe runtime health early: if the default JS runtime is unavailable,
-        // disable the tool so the model doesn't repeatedly try a broken REPL.
-        if tools_config.repl {
-            let default_rt = config.repl_default_runtime;
-            let probe_handle = crate::tools::repl::ReplHandle::new(
-                config.repl_runtime_config(default_rt),
-            );
-            match probe_handle.probe_health().await {
-                Ok(version) => {
-                    tracing::info!(
-                        runtime = %default_rt,
-                        version = %version,
-                        "repl runtime available"
-                    );
-                }
-                Err(err) => {
-                    tracing::warn!(
-                        runtime = %default_rt,
-                        error = %err,
-                        "repl runtime unavailable — disabling tool"
-                    );
-                    tools_config.repl = false;
-                }
-            }
-        }
 
         let mut agent_models: Vec<String> = if config.agents.is_empty() {
             default_agent_configs()

@@ -468,6 +468,7 @@ impl ModelClient {
         tools_config.web_search_allowed_domains.clone_from(&self.config.tools_web_search_allowed_domains);
         tools_config.web_search_external = self.config.tools_web_search_external;
         tools_config.search_tool = self.config.tools_search_tool;
+        tools_config.repl = self.config.tools_repl;
 
         let auth_mode = self
             .auth_manager
