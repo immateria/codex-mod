@@ -544,7 +544,7 @@ pub fn supports_service_tier(model: &str) -> bool {
         .or_else(|| model.strip_prefix("test-"))
         .or_else(|| model.strip_prefix("cloud-"))
         .unwrap_or(model);
-    normalized.starts_with("gpt-5.4")
+    normalized.eq_ignore_ascii_case("gpt-5.4")
 }
 
 pub fn supports_extended_context(model: &str) -> bool {
