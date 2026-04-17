@@ -15,9 +15,11 @@ pub(super) async fn run_turn(
     pending_input_tail: Vec<ResponseItem>,
     mut input: Vec<ResponseItem>,
 ) -> CodexResult<Vec<ProcessedResponseItem>> {
-    // Check if browser is enabled
+    // When browser-automation is compiled in, always expose the full action
+    // list so the model can open and interact with the browser in the same
+    // turn.  The handlers return clear errors when the browser isn't open.
     #[cfg(feature = "browser-automation")]
-    let browser_enabled = code_browser::global::get_browser_manager().await.is_some();
+    let browser_enabled = true;
     #[cfg(not(feature = "browser-automation"))]
     let browser_enabled = false;
 
