@@ -30,14 +30,11 @@ pub(crate) async fn chatgpt_get_request<T: DeserializeOwned>(
         anyhow::anyhow!("ChatGPT account ID not available, please re-run `code login`")
     });
 
-    let mut request = client
+    let request = client
         .get(&url)
         .bearer_auth(&token.access_token)
         .header("chatgpt-account-id", account_id?)
         .header("Content-Type", "application/json");
-    if token.id_token.is_fedramp_account() {
-        request = request.header("X-OpenAI-Fedramp", "true");
-    }
 
     let response = request.send().await.context("Failed to send request")?;
 

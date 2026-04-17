@@ -306,9 +306,6 @@ impl ModelProviderInfo {
 
         if let Some(auth) = auth {
             builder = builder.bearer_auth(auth.get_token().await?);
-            if auth.is_fedramp_account() {
-                builder = builder.header("X-OpenAI-Fedramp", "true");
-            }
         }
 
         Ok(self.apply_http_headers(builder))
@@ -341,9 +338,6 @@ impl ModelProviderInfo {
 
         if let Some(auth) = auth {
             builder = builder.bearer_auth(auth.get_token().await?);
-            if auth.is_fedramp_account() {
-                builder = builder.header("X-OpenAI-Fedramp", "true");
-            }
         }
 
         Ok(self.apply_http_headers(builder))
@@ -378,9 +372,6 @@ impl ModelProviderInfo {
         let mut builder = client.post(url);
         if let Some(auth) = auth {
             builder = builder.bearer_auth(auth.get_token().await?);
-            if auth.is_fedramp_account() {
-                builder = builder.header("X-OpenAI-Fedramp", "true");
-            }
         }
 
         Ok(self.apply_http_headers(builder))

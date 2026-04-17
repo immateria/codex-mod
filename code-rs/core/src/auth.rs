@@ -254,11 +254,6 @@ impl CodexAuth {
             .and_then(|t| t.id_token.chatgpt_plan_type.as_ref().map(PlanType::as_string))
     }
 
-    pub fn is_fedramp_account(&self) -> bool {
-        self.get_current_token_data()
-            .is_some_and(|t| t.id_token.is_fedramp_account())
-    }
-
     pub fn supports_pro_only_models(&self) -> bool {
         self.mode.is_chatgpt()
             && self
@@ -1150,7 +1145,6 @@ mod tests {
                         chatgpt_plan_type: Some(PlanType::Known(KnownPlan::Pro)),
                         chatgpt_user_id: Some("user-12345".to_string()),
                         chatgpt_account_id: Some("bc3618e3-489d-4d49-9362-1561dc53ba53".to_string()),
-                        chatgpt_account_is_fedramp: false,
                         raw_jwt: fake_jwt,
                     },
                     access_token: "test-access-token".to_string(),
@@ -1206,7 +1200,6 @@ mod tests {
                         chatgpt_plan_type: Some(PlanType::Known(KnownPlan::Pro)),
                         chatgpt_user_id: Some("user-12345".to_string()),
                         chatgpt_account_id: Some("bc3618e3-489d-4d49-9362-1561dc53ba53".to_string()),
-                        chatgpt_account_is_fedramp: false,
                         raw_jwt: fake_jwt,
                     },
                     access_token: "test-access-token".to_string(),
