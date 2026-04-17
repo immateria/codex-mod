@@ -49,6 +49,8 @@
     #[test]
     fn repl_settings_emits_apply_event_with_expected_fields() {
     let _guard = enter_test_runtime_guard();
+    // Disable native picker for deterministic row count across platforms.
+    crate::platform_caps::set_test_force_no_picker(true);
     let mut harness = ChatWidgetHarness::new();
     use crate::bottom_pane::SettingsSection;
 
@@ -65,7 +67,9 @@
         chat.handle_key_event(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
 
         // Move to Apply and activate.
-        for _ in 0..7 {
+        // Rows: Enabled, NodeEnabled, DenoEnabled, PythonEnabled, RuntimeKind,
+        //   RuntimePath, RuntimeArgs, NodeModuleDirs, Apply, Close
+        for _ in 0..8 {
             chat.handle_key_event(KeyEvent::new(KeyCode::Down, KeyModifiers::NONE));
         }
         chat.handle_key_event(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
@@ -81,6 +85,7 @@
 
     let applied = applied.expect("expected SetReplSettings event");
     assert!(applied.enabled, "expected Enabled to be true after toggle");
+    crate::platform_caps::set_test_force_no_picker(false);
     }
 
     #[test]

@@ -65,7 +65,11 @@ impl ChatWidget<'_> {
 
         #[cfg(test)]
         {
-            if CAPTURE_AUTO_TURN_COMMIT_STUB.lock().unwrap().is_some() {
+            let guard = match CAPTURE_AUTO_TURN_COMMIT_STUB.lock() {
+                Ok(g) => g,
+                Err(poisoned) => poisoned.into_inner(),
+            };
+            if guard.is_some() {
                 return;
             }
         }
@@ -89,9 +93,15 @@ impl ChatWidget<'_> {
         parent: Option<&GhostCommit>,
     ) -> Result<GhostCommit, GitToolingError> {
         #[cfg(test)]
-        if let Some(stub) = CAPTURE_AUTO_TURN_COMMIT_STUB.lock().unwrap().as_ref() {
-            let parent_id = parent.map(|commit| commit.id().to_string());
-            return stub(message, parent_id);
+        {
+            let guard = match CAPTURE_AUTO_TURN_COMMIT_STUB.lock() {
+                Ok(g) => g,
+                Err(poisoned) => poisoned.into_inner(),
+            };
+            if let Some(stub) = guard.as_ref() {
+                let parent_id = parent.map(|commit| commit.id().to_string());
+                return stub(message, parent_id);
+            }
         }
         let mut options = CreateGhostCommitOptions::new(self.config.cwd.as_path()).message(message);
         if let Some(parent_commit) = parent {
@@ -110,8 +120,14 @@ impl ChatWidget<'_> {
         repo_path: PathBuf,
     ) -> Result<GhostCommit, GitToolingError> {
         #[cfg(test)]
-        if let Some(stub) = CAPTURE_AUTO_TURN_COMMIT_STUB.lock().unwrap().as_ref() {
-            return stub("auto review baseline snapshot", None);
+        {
+            let guard = match CAPTURE_AUTO_TURN_COMMIT_STUB.lock() {
+                Ok(g) => g,
+                Err(poisoned) => poisoned.into_inner(),
+            };
+            if let Some(stub) = guard.as_ref() {
+                return stub("auto review baseline snapshot", None);
+            }
         }
         let hook_repo = repo_path.clone();
         let options =
