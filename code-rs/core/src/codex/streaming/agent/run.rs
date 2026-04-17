@@ -596,6 +596,7 @@ pub(super) async fn run_agent(sess: Arc<Session>, turn_context: Arc<TurnContext>
         exit_review_mode(sess.clone(), sub_id.clone(), output).await;
     }
 
+    sess.revoke_deno_turn_permissions().await;
     sess.remove_task(&sub_id);
     let event = sess.make_event(
         &sub_id,

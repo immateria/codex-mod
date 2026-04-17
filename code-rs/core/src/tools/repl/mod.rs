@@ -125,6 +125,9 @@ pub(crate) struct ReplManager {
     saved_snapshot: Mutex<Option<JsonValue>>,
     /// Pending control-message response channels (snapshot_result, restore_result).
     pending_control: Arc<Mutex<HashMap<String, oneshot::Sender<JsonValue>>>>,
+    /// Deno permissions granted with Turn scope that should be revoked
+    /// when the turn ends.
+    turn_granted_perms: Mutex<Vec<String>>,
 }
 
 impl Drop for ReplManager {
@@ -225,6 +228,7 @@ impl ReplManager {
             next_tool_seq: AtomicU64::new(0),
             saved_snapshot: Mutex::new(None),
             pending_control: Arc::new(Mutex::new(HashMap::new())),
+            turn_granted_perms: Mutex::new(Vec::new()),
         }))
     }
 
@@ -258,6 +262,45 @@ impl ReplManager {
             }
         }
         tracing::info!(perm = %perm, "granted Deno permission; snapshotting then killing kernel");
+        self.snapshot_kernel().await;
+        self.kill_kernel().await;
+    }
+
+    /// Like `grant_deno_permission` but marks the permission as turn-scoped
+    /// so it can be revoked at turn end via `revoke_turn_permissions()`.
+    pub(crate) async fn grant_deno_permission_for_turn(&self, perm: &str) {
+        self.turn_granted_perms.lock().await.push(perm.to_owned());
+        self.grant_deno_permission(perm).await;
+    }
+
+    /// Revoke any Deno permissions that were granted with Turn scope.
+    /// Snapshots state, resets the flags, and kills the kernel so the
+    /// next execution starts with the narrower permission set.
+    pub(crate) async fn revoke_turn_permissions(&self) {
+        let revoked: Vec<String> = {
+            let mut guard = self.turn_granted_perms.lock().await;
+            std::mem::take(&mut *guard)
+        };
+        if revoked.is_empty() {
+            return;
+        }
+        {
+            let mut perms = self.deno_permissions.lock().await;
+            for perm in &revoked {
+                match perm.as_str() {
+                    "net" => perms.allow_net = false,
+                    "read" => perms.allow_read = false,
+                    "write" => perms.allow_write = false,
+                    "env" => perms.allow_env = false,
+                    "run" => perms.allow_run = false,
+                    "sys" => perms.allow_sys = false,
+                    "ffi" => perms.allow_ffi = false,
+                    "all" => perms.allow_all = false,
+                    _ => {}
+                }
+            }
+        }
+        tracing::info!(?revoked, "revoking turn-scoped Deno permissions; snapshotting then killing kernel");
         self.snapshot_kernel().await;
         self.kill_kernel().await;
     }

@@ -57,6 +57,7 @@ pub(super) async fn run_remote_compact_task(
         Ok(_history) => {
             // Mirror local compaction behaviour: clear the running task when the
             // compaction finished successfully so the UI can unblock.
+            sess.revoke_deno_turn_permissions().await;
             sess.remove_task(&sub_id);
             Ok(())
         }

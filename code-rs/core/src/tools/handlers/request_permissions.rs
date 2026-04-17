@@ -116,7 +116,7 @@ async fn handle_request_permissions(
     // grants network or filesystem access, update the live Deno kernel
     // permissions so the next execution picks them up.
     if !response.permissions.is_empty() {
-        bridge_deno_permissions(sess, &response.permissions).await;
+        bridge_deno_permissions(sess, &response.permissions, &response.scope).await;
     }
 
     let content = match serde_json::to_string(&response) {
@@ -135,16 +135,21 @@ async fn handle_request_permissions(
 /// Map granted `request_permissions` capabilities to Deno `--allow-*` flags.
 /// If the Deno REPL manager is running, the corresponding permission is
 /// enabled and the kernel is killed so the next execution restarts with
-/// updated flags.
+/// updated flags.  Turn-scoped grants are tracked so they can be revoked
+/// at turn end.
 async fn bridge_deno_permissions(
     sess: &Session,
     perms: &code_protocol::request_permissions::RequestPermissionProfile,
+    scope: &code_protocol::request_permissions::PermissionGrantScope,
 ) {
     use crate::config::ReplRuntimeKindToml;
+    use code_protocol::request_permissions::PermissionGrantScope;
 
     let Some(manager) = sess.repl_manager_if_started_for_runtime(ReplRuntimeKindToml::Deno) else {
         return;
     };
+
+    let is_turn = matches!(scope, PermissionGrantScope::Turn);
 
     // Network permission → --allow-net
     if perms
@@ -153,16 +158,28 @@ async fn bridge_deno_permissions(
         .and_then(|n| n.enabled)
         .unwrap_or(false)
     {
-        manager.grant_deno_permission("net").await;
+        if is_turn {
+            manager.grant_deno_permission_for_turn("net").await;
+        } else {
+            manager.grant_deno_permission("net").await;
+        }
     }
 
-    // File system read → --allow-read
+    // File system read → --allow-read, write → --allow-write
     if let Some(ref fs) = perms.file_system {
         if fs.read.as_ref().is_some_and(|v| !v.is_empty()) {
-            manager.grant_deno_permission("read").await;
+            if is_turn {
+                manager.grant_deno_permission_for_turn("read").await;
+            } else {
+                manager.grant_deno_permission("read").await;
+            }
         }
         if fs.write.as_ref().is_some_and(|v| !v.is_empty()) {
-            manager.grant_deno_permission("write").await;
+            if is_turn {
+                manager.grant_deno_permission_for_turn("write").await;
+            } else {
+                manager.grant_deno_permission("write").await;
+            }
         }
     }
 }

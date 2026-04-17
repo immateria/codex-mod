@@ -384,6 +384,7 @@ pub(super) async fn perform_compaction(
     }
 
     if remove_task_on_completion {
+        sess.revoke_deno_turn_permissions().await;
         sess.remove_task(&sub_id);
     }
 

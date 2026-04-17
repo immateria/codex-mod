@@ -717,6 +717,17 @@ impl Session {
             .and_then(crate::tools::repl::ReplHandle::manager_if_started)
     }
 
+    /// Revoke any turn-scoped Deno permissions that were granted via
+    /// `bridge_deno_permissions()`.  Called at turn end so temporary
+    /// grants don't persist beyond the turn.
+    pub(crate) async fn revoke_deno_turn_permissions(&self) {
+        if let Some(manager) = self.repl_manager_if_started_for_runtime(
+            crate::config::ReplRuntimeKindToml::Deno,
+        ) {
+            manager.revoke_turn_permissions().await;
+        }
+    }
+
     pub(crate) fn background_exec_cmd_display(&self, call_id: &str) -> Option<String> {
         let state = crate::codex::lock_or_panic!(self.state);
         state
