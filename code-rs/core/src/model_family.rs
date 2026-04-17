@@ -238,6 +238,19 @@ fn apply_upstream_model_overrides(mut family: ModelFamily) -> ModelFamily {
             usize::try_from(model_info.truncation_policy.limit).unwrap_or(10_000),
         ),
     };
+    if let Some(apt) = &model_info.apply_patch_tool_type {
+        family.apply_patch_tool_type = Some(match apt {
+            code_protocol::openai_models::ApplyPatchToolType::Freeform => {
+                ApplyPatchToolType::Freeform
+            }
+            code_protocol::openai_models::ApplyPatchToolType::Function => {
+                ApplyPatchToolType::Function
+            }
+        });
+    }
+    family.prefer_websockets = model_info.prefer_websockets;
+    family.supports_search_tool = model_info.supports_search_tool;
+    family.additional_speed_tiers = model_info.additional_speed_tiers.clone();
 
     family
 }
@@ -363,6 +376,21 @@ pub fn find_family_for_model(slug: &str) -> Option<ModelFamily> {
             base_instructions: GPT_5_2_CODEX_INSTRUCTIONS.to_owned(),
             apply_patch_tool_type: Some(ApplyPatchToolType::Freeform),
             supports_parallel_tool_calls: true,
+            context_window: Some(CONTEXT_WINDOW_272K),
+            max_output_tokens: Some(MAX_OUTPUT_DEFAULT),
+            truncation_policy: TruncationPolicy::Tokens(10_000),
+        )
+    } else if slug.starts_with("gpt-5.4") {
+        // GPT-5.4 family: latest frontier model with freeform apply_patch,
+        // shell_command tool, websocket preference, and token-based truncation.
+        model_family!(
+            slug, "gpt-5.4",
+            supports_reasoning_summaries: true,
+            base_instructions: GPT_5_2_CODEX_INSTRUCTIONS.to_owned(),
+            apply_patch_tool_type: Some(ApplyPatchToolType::Freeform),
+            supports_parallel_tool_calls: true,
+            prefer_websockets: true,
+            supports_search_tool: true,
             context_window: Some(CONTEXT_WINDOW_272K),
             max_output_tokens: Some(MAX_OUTPUT_DEFAULT),
             truncation_policy: TruncationPolicy::Tokens(10_000),
@@ -516,7 +544,7 @@ pub fn supports_service_tier(model: &str) -> bool {
         .or_else(|| model.strip_prefix("test-"))
         .or_else(|| model.strip_prefix("cloud-"))
         .unwrap_or(model);
-    normalized.eq_ignore_ascii_case("gpt-5.4")
+    normalized.starts_with("gpt-5.4")
 }
 
 pub fn supports_extended_context(model: &str) -> bool {
