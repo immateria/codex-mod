@@ -51,6 +51,7 @@ pub(super) async fn resolve_runtime(cfg: ReplRuntimeConfig) -> Result<ResolvedRu
         args,
         version,
         module_dirs: cfg.module_dirs,
+        deno_permissions: cfg.deno_permissions,
     })
 }
 
@@ -187,13 +188,47 @@ pub(super) fn build_runtime_command(
     ) {
         // Runtime has its own permission sandbox (Deno).
         let mut cmd = Command::new(&runtime.executable);
-        let allow_env = caps.sandbox_env_passthrough.join(",");
-        let tmp_dir_display = tmp_dir.display();
         cmd.arg("run");
         cmd.arg("--quiet");
         cmd.arg("--no-prompt");
-        cmd.arg(format!("--allow-env={allow_env}"));
-        cmd.arg(format!("--allow-read={tmp_dir_display}"));
+
+        let perm_flags = runtime.deno_permissions.to_deno_flags();
+        if perm_flags.iter().any(|f| f == "--allow-all") {
+            // --allow-all supersedes everything.
+            cmd.arg("--allow-all");
+        } else {
+            // Always allow the kernel temp dir for reading (kernel needs it).
+            let tmp_dir_display = tmp_dir.display();
+            let has_blanket_read = perm_flags.iter().any(|f| f == "--allow-read");
+            if !has_blanket_read {
+                cmd.arg(format!("--allow-read={tmp_dir_display}"));
+            }
+
+            // Always allow the required env vars (kernel needs them).
+            let has_blanket_env = perm_flags.iter().any(|f| f == "--allow-env");
+            if !has_blanket_env {
+                let allow_env = caps.sandbox_env_passthrough.join(",");
+                cmd.arg(format!("--allow-env={allow_env}"));
+            }
+
+            // Apply user-configured permission flags.
+            for flag in &perm_flags {
+                // Skip env/read since we handle them above with finer granularity.
+                if flag == "--allow-env" || flag == "--allow-read" {
+                    continue;
+                }
+                cmd.arg(flag);
+            }
+
+            // If user enabled blanket read or env, add those after skipping above.
+            if has_blanket_read {
+                cmd.arg("--allow-read");
+            }
+            if has_blanket_env {
+                cmd.arg("--allow-env");
+            }
+        }
+
         cmd.args(&runtime.args);
         cmd.arg(kernel_path);
         cmd

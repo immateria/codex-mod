@@ -27,6 +27,10 @@ impl ReplSettingsView {
                 count += 1;
             }
         }
+        // Deno-only: permission toggles (8 categories).
+        if matches!(self.settings.runtime, ReplRuntimeKindToml::Deno) {
+            count += 8;
+        }
         // Apply, close.
         count += 2;
         count
@@ -40,6 +44,14 @@ impl ReplSettingsView {
         let mut status = toggle::enabled_word_warning_off(enabled);
         status.style = status.style.add_modifier(Modifier::BOLD);
         status
+    }
+
+    fn perm_value(allowed: bool) -> StyledText<'static> {
+        if allowed {
+            StyledText::new("allow", crate::colors::style_success())
+        } else {
+            StyledText::new("deny", crate::colors::style_text_dim())
+        }
     }
 
     pub(super) fn build_rows(&self) -> Vec<RowKind> {
@@ -58,6 +70,19 @@ impl ReplSettingsView {
             if crate::platform_caps::supports_native_picker() {
                 rows.push(RowKind::AddNodeModuleDir);
             }
+        }
+
+        if matches!(self.settings.runtime, ReplRuntimeKindToml::Deno) {
+            rows.extend([
+                RowKind::DenoPermRead,
+                RowKind::DenoPermWrite,
+                RowKind::DenoPermNet,
+                RowKind::DenoPermEnv,
+                RowKind::DenoPermRun,
+                RowKind::DenoPermSys,
+                RowKind::DenoPermFfi,
+                RowKind::DenoPermAll,
+            ]);
         }
 
         rows.push(RowKind::Apply);
@@ -83,6 +108,7 @@ impl ReplSettingsView {
             format!("{} entries", self.settings.node_module_dirs.len())
         };
         let apply_suffix = if self.dirty { " *" } else { "" };
+        let dp = &self.settings.deno_permissions;
 
         rows.iter()
             .copied()
@@ -116,6 +142,22 @@ impl ReplSettingsView {
                 RowKind::AddNodeModuleDir => {
                     KeyValueRow::new("Add node module dir (folder picker)")
                 }
+                RowKind::DenoPermRead => KeyValueRow::new("  allow-read")
+                    .with_value(Self::perm_value(dp.allow_read)),
+                RowKind::DenoPermWrite => KeyValueRow::new("  allow-write")
+                    .with_value(Self::perm_value(dp.allow_write)),
+                RowKind::DenoPermNet => KeyValueRow::new("  allow-net")
+                    .with_value(Self::perm_value(dp.allow_net)),
+                RowKind::DenoPermEnv => KeyValueRow::new("  allow-env")
+                    .with_value(Self::perm_value(dp.allow_env)),
+                RowKind::DenoPermRun => KeyValueRow::new("  allow-run")
+                    .with_value(Self::perm_value(dp.allow_run)),
+                RowKind::DenoPermSys => KeyValueRow::new("  allow-sys")
+                    .with_value(Self::perm_value(dp.allow_sys)),
+                RowKind::DenoPermFfi => KeyValueRow::new("  allow-ffi")
+                    .with_value(Self::perm_value(dp.allow_ffi)),
+                RowKind::DenoPermAll => KeyValueRow::new("  allow-all (⚠ full access)")
+                    .with_value(Self::perm_value(dp.allow_all)),
                 RowKind::Apply => KeyValueRow::new("Apply changes").with_value(StyledText::new(
                     apply_suffix,
                     crate::colors::style_warning(),

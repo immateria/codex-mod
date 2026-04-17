@@ -11,6 +11,8 @@ pub struct ReplRuntimeConfig {
     /// Extra module/package search directories (Node: node_modules parents;
     /// Python: virtualenv paths; etc.).
     pub module_dirs: Vec<PathBuf>,
+    /// Deno sandbox permission toggles.  Only meaningful when `kind` is `Deno`.
+    pub deno_permissions: crate::config::DenoPermissions,
 }
 
 /// Resolved runtime after probing the binary for version/capabilities.
@@ -21,6 +23,7 @@ pub(super) struct ResolvedRuntime {
     pub args: Vec<String>,
     pub version: String,
     pub module_dirs: Vec<PathBuf>,
+    pub deno_permissions: crate::config::DenoPermissions,
 }
 
 #[derive(Clone, Debug)]

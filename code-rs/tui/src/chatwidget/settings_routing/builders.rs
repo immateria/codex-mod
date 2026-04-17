@@ -172,6 +172,7 @@ impl ChatWidget<'_> {
             runtime_path: rt_cfg.runtime_path,
             runtime_args: rt_cfg.runtime_args,
             node_module_dirs: rt_cfg.module_dirs,
+            deno_permissions: rt_cfg.deno_permissions,
         };
         let network_enabled = cfg!(feature = "managed-network-proxy")
             && self.config.network.as_ref().is_some_and(|net| net.enabled);

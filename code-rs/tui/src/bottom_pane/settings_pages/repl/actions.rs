@@ -190,8 +190,22 @@ impl ReplSettingsView {
             RowKind::RuntimeArgs => self.open_list_editor(ListTarget::RuntimeArgs),
             RowKind::NodeModuleDirs => self.open_list_editor(ListTarget::NodeModuleDirs),
             RowKind::AddNodeModuleDir => self.add_node_module_dir(),
+            RowKind::DenoPermRead => self.toggle_deno_perm(|dp| &mut dp.allow_read),
+            RowKind::DenoPermWrite => self.toggle_deno_perm(|dp| &mut dp.allow_write),
+            RowKind::DenoPermNet => self.toggle_deno_perm(|dp| &mut dp.allow_net),
+            RowKind::DenoPermEnv => self.toggle_deno_perm(|dp| &mut dp.allow_env),
+            RowKind::DenoPermRun => self.toggle_deno_perm(|dp| &mut dp.allow_run),
+            RowKind::DenoPermSys => self.toggle_deno_perm(|dp| &mut dp.allow_sys),
+            RowKind::DenoPermFfi => self.toggle_deno_perm(|dp| &mut dp.allow_ffi),
+            RowKind::DenoPermAll => self.toggle_deno_perm(|dp| &mut dp.allow_all),
             RowKind::Apply => self.apply_settings(),
             RowKind::Close => self.is_complete = true,
         }
+    }
+
+    fn toggle_deno_perm(&mut self, accessor: impl FnOnce(&mut code_core::config::DenoPermissions) -> &mut bool) {
+        let field = accessor(&mut self.settings.deno_permissions);
+        *field = !*field;
+        self.dirty = true;
     }
 }

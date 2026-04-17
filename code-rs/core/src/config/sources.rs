@@ -3939,6 +3939,22 @@ pub fn set_repl_settings(
         &settings.node_module_dirs,
     )?;
 
+    // Persist Deno permissions as an inline table.
+    {
+        let dp = &settings.deno_permissions;
+        let mut perm_table = toml_edit::InlineTable::new();
+        perm_table.insert("allow_read", dp.allow_read.into());
+        perm_table.insert("allow_write", dp.allow_write.into());
+        perm_table.insert("allow_net", dp.allow_net.into());
+        perm_table.insert("allow_env", dp.allow_env.into());
+        perm_table.insert("allow_run", dp.allow_run.into());
+        perm_table.insert("allow_sys", dp.allow_sys.into());
+        perm_table.insert("allow_ffi", dp.allow_ffi.into());
+        perm_table.insert("allow_all", dp.allow_all.into());
+        tools_table["repl_deno_permissions"] =
+            toml_edit::value(toml_edit::Value::InlineTable(perm_table));
+    }
+
     std::fs::create_dir_all(code_home)?;
     let tmp_file = NamedTempFile::new_in(code_home)?;
     std::fs::write(tmp_file.path(), doc.to_string())?;

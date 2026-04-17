@@ -583,6 +583,8 @@ pub struct Config {
     pub repl_deno_path: Option<PathBuf>,
     /// Additional arguments passed to the Deno `repl` runtime process.
     pub repl_deno_args: Vec<String>,
+    /// Deno sandbox permission toggles for the REPL.
+    pub repl_deno_permissions: DenoPermissions,
     /// Optional explicit path to the Python runtime executable used by `repl`.
     pub repl_python_path: Option<PathBuf>,
     /// Additional arguments passed to the Python `repl` runtime process.
@@ -725,6 +727,7 @@ impl Config {
             runtime_path: spec.and_then(|s| s.path.clone()),
             runtime_args: spec.map_or_else(Vec::new, |s| s.args.clone()),
             module_dirs: spec.map_or_else(Vec::new, |s| s.module_dirs.clone()),
+            deno_permissions: self.repl_deno_permissions.clone(),
         }
     }
 
@@ -751,6 +754,7 @@ impl Config {
             ReplRuntimeKindToml::Deno => {
                 self.repl_deno_path.clone_from(&settings.runtime_path);
                 self.repl_deno_args.clone_from(&settings.runtime_args);
+                self.repl_deno_permissions = settings.deno_permissions.clone();
             }
             ReplRuntimeKindToml::Python => {
                 self.repl_python_path.clone_from(&settings.runtime_path);
@@ -1264,6 +1268,88 @@ pub struct RuntimeCapabilities {
     pub uses_node_module_dirs: bool,
 }
 
+/// Deno permission flags for the REPL sandbox.
+///
+/// Each field corresponds to a `--allow-*` flag.  When a field is `true`,
+/// the blanket `--allow-X` flag is passed (full access for that category).
+/// When `false`, the category is denied unless the base flags in `runtime.rs`
+/// already allow it (e.g. the kernel tmp dir always gets `--allow-read`).
+///
+/// For fine-grained control (e.g. allow only certain paths), users can add
+/// explicit flags like `--allow-write=/tmp` in `runtime_args` instead.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(default)]
+pub struct DenoPermissions {
+    /// Allow reading files/dirs beyond the kernel temp dir.
+    pub allow_read: bool,
+    /// Allow writing files/dirs.
+    pub allow_write: bool,
+    /// Allow network access.
+    pub allow_net: bool,
+    /// Allow environment variable access beyond the required CODEX_REPL_* vars.
+    pub allow_env: bool,
+    /// Allow running subprocesses.
+    pub allow_run: bool,
+    /// Allow system info access (hostname, OS, etc.).
+    pub allow_sys: bool,
+    /// Allow FFI (foreign function interface).
+    pub allow_ffi: bool,
+    /// Grant all permissions (equivalent to `deno run -A`).
+    pub allow_all: bool,
+}
+
+impl Default for DenoPermissions {
+    fn default() -> Self {
+        Self {
+            allow_read: true,
+            allow_write: true,
+            allow_net: false,
+            allow_env: true,
+            allow_run: false,
+            allow_sys: false,
+            allow_ffi: false,
+            allow_all: false,
+        }
+    }
+}
+
+impl DenoPermissions {
+    /// Build the `--allow-*` flags for the Deno CLI.
+    ///
+    /// When `allow_all` is set, only `--allow-all` is emitted.
+    /// Otherwise, individual `--allow-X` flags are emitted for each
+    /// enabled category, plus the baseline flags for env/read that the
+    /// kernel always needs (caller is responsible for those).
+    pub fn to_deno_flags(&self) -> Vec<String> {
+        if self.allow_all {
+            return vec!["--allow-all".to_owned()];
+        }
+        let mut flags = Vec::new();
+        if self.allow_read {
+            flags.push("--allow-read".to_owned());
+        }
+        if self.allow_write {
+            flags.push("--allow-write".to_owned());
+        }
+        if self.allow_net {
+            flags.push("--allow-net".to_owned());
+        }
+        if self.allow_env {
+            flags.push("--allow-env".to_owned());
+        }
+        if self.allow_run {
+            flags.push("--allow-run".to_owned());
+        }
+        if self.allow_sys {
+            flags.push("--allow-sys".to_owned());
+        }
+        if self.allow_ffi {
+            flags.push("--allow-ffi".to_owned());
+        }
+        flags
+    }
+}
+
 /// Per-runtime configuration for the REPL tool.
 ///
 /// Each supported runtime (Node, Deno, future Python/Ruby) stores its
@@ -1308,6 +1394,9 @@ pub struct ReplSettingsToml {
 
     /// Extra directories to search for packages when using the Node runtime.
     pub node_module_dirs: Vec<PathBuf>,
+
+    /// Deno sandbox permission toggles.  Only used when `runtime` is `deno`.
+    pub deno_permissions: DenoPermissions,
 }
 
 #[derive(Deserialize, Debug, Clone, Default, JsonSchema)]
@@ -1358,6 +1447,11 @@ pub struct ToolsToml {
     /// Additional arguments passed to the Deno `repl` runtime process.
     #[serde(default)]
     pub repl_deno_args: Option<Vec<String>>,
+
+    /// Deno sandbox permission toggles.  When omitted, defaults apply
+    /// (read + write + env allowed; net, run, sys, ffi denied).
+    #[serde(default)]
+    pub repl_deno_permissions: Option<DenoPermissions>,
 
     /// Explicit path to the Python runtime executable for `repl`.
     #[serde(default)]
@@ -2044,6 +2138,9 @@ impl Config {
                     Vec::new()
                 }
             });
+        let repl_deno_permissions = tools_ref
+            .and_then(|t| t.repl_deno_permissions.clone())
+            .unwrap_or_default();
         let repl_python_path = tools_ref
             .and_then(|t| t.repl_python_path.clone());
         let repl_python_args = tools_ref
@@ -2608,6 +2705,7 @@ impl Config {
             repl_node_args,
             repl_deno_path,
             repl_deno_args,
+            repl_deno_permissions,
             repl_python_path,
             repl_python_args,
             repl_node_module_dirs,
