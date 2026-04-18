@@ -316,7 +316,12 @@ impl ChatWidget<'_> {
     pub(super) fn settings_summary_personality(&self) -> Option<String> {
         let p = crate::bottom_pane::settings_pages::personality::model::personality_label(self.config.model_personality);
         let t = crate::bottom_pane::settings_pages::personality::model::tone_label(self.config.model_tone);
-        Some(format!("{p} · {t}"))
+        let traits_tag = if self.config.personality_traits.as_ref().map_or(true, |t| t.is_neutral()) {
+            ""
+        } else {
+            " · traits"
+        };
+        Some(format!("{p} · {t}{traits_tag}"))
     }
 
     pub(super) fn settings_summary_theme(&self) -> Option<String> {

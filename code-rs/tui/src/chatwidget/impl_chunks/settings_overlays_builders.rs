@@ -164,7 +164,7 @@ impl ChatWidget<'_> {
         PersonalitySettingsView::new(
             self.config.model_personality,
             self.config.model_tone,
-            self.config.personality_traits.is_some(),
+            self.config.personality_traits,
             self.app_event_tx.clone(),
         )
     }

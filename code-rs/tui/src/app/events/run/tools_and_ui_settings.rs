@@ -156,6 +156,12 @@
                     }
                     self.schedule_redraw();
                 }
+                AppEvent::SetPersonalityTraits(traits) => {
+                    if let AppState::Chat { widget } = &mut self.app_state {
+                        widget.apply_personality_traits(traits);
+                    }
+                    self.schedule_redraw();
+                }
                 AppEvent::StatusLineSetup {
                     top_items,
                     bottom_items,

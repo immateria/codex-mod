@@ -16,11 +16,11 @@ impl PersonalitySettingsView {
             SettingsPanelStyle::bottom_pane().with_margin(Margin::new(0, 0)),
             vec![
                 Line::from(Span::styled(
-                    "Configure personality archetype, communication tone, and trait tuning.",
+                    "Archetype sets character; Tone is an orthogonal modifier.",
                     Style::new().fg(colors::text_dim()),
                 )),
                 Line::from(Span::styled(
-                    "Personality sets the overall character; Tone is an orthogonal modifier.",
+                    "Traits fine-tune individual dimensions (1–5 scale, 3 = neutral).",
                     Style::new().fg(colors::text_dim()),
                 )),
                 Line::from(""),

@@ -619,6 +619,7 @@ const SECTION_ICONS: &[SectionIcon] = &[
     SectionIcon { name: "Network",          nerd: "\u{f0ac} ", unicode: "◎ " },
     SectionIcon { name: "Notifications",    nerd: "\u{f0f3} ", unicode: "◔ " },
     SectionIcon { name: "Prompts",          nerd: "\u{f27a} ", unicode: "◆ " },
+    SectionIcon { name: "Personality",      nerd: "\u{f050d} ", unicode: "☺ " },
     SectionIcon { name: "Skills",           nerd: "\u{f0ad} ", unicode: "✎ " },
     SectionIcon { name: "Plugins",          nerd: "\u{f12e} ", unicode: "⊞ " },
 ];

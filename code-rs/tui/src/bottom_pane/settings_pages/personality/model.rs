@@ -1,6 +1,7 @@
 use ratatui::style::Style;
 
 use code_core::config_types::{Personality, Tone};
+use code_core::personality_traits::{PersonalityTraits, TRAIT_MAX, TRAIT_MIN, TRAIT_NEUTRAL};
 
 use crate::bottom_pane::settings_ui::menu_rows::SettingsMenuRow;
 use crate::bottom_pane::settings_ui::rows::StyledText;
@@ -29,24 +30,24 @@ pub(crate) fn tone_label(t: Option<Tone>) -> &'static str {
     }
 }
 
-fn personality_description(p: Option<Personality>) -> &'static str {
+fn personality_hint(p: Option<Personality>) -> &'static str {
     match p {
-        Some(Personality::None) | None => "No personality overlay",
-        Some(Personality::Friendly) => "Warm, collaborative, empathetic teammate",
-        Some(Personality::Pragmatic) => "Effective, direct, clarity-focused engineer",
-        Some(Personality::Concise) => "Terse, no-nonsense, signal over noise",
-        Some(Personality::Enthusiastic) => "Passionate, energetic, curiosity-driven",
-        Some(Personality::Mentor) => "Patient teacher, deep explanations",
+        Some(Personality::None) | None => "no overlay",
+        Some(Personality::Friendly) => "warm, empathetic",
+        Some(Personality::Pragmatic) => "direct, effective",
+        Some(Personality::Concise) => "terse, no-nonsense",
+        Some(Personality::Enthusiastic) => "energetic, curious",
+        Some(Personality::Mentor) => "patient teacher",
     }
 }
 
-fn tone_description(t: Option<Tone>) -> &'static str {
+fn tone_hint(t: Option<Tone>) -> &'static str {
     match t {
-        Some(Tone::Neutral) | None => "Default tone, no modifier",
-        Some(Tone::Formal) => "Professional, measured language",
-        Some(Tone::Casual) => "Relaxed, conversational, pair-programming style",
-        Some(Tone::Direct) => "Straightforward, no hedging",
-        Some(Tone::Encouraging) => "Supportive, positive, constructive",
+        Some(Tone::Neutral) | None => "default",
+        Some(Tone::Formal) => "professional",
+        Some(Tone::Casual) => "conversational",
+        Some(Tone::Direct) => "no hedging",
+        Some(Tone::Encouraging) => "supportive",
     }
 }
 
@@ -92,42 +93,140 @@ fn cycle_tone_backward(t: Option<Tone>) -> Option<Tone> {
     })
 }
 
+/// Render a trait value as a compact visual bar: `[●●●○○]`
+fn trait_bar(value: u8) -> String {
+    let v = value.clamp(TRAIT_MIN, TRAIT_MAX) as usize;
+    let filled = "●".repeat(v);
+    let empty = "○".repeat((TRAIT_MAX as usize).saturating_sub(v));
+    format!("[{filled}{empty}]")
+}
+
+/// Short label for the low and high extremes shown as hint.
+fn trait_pole_hint(row: PersonalityRow) -> &'static str {
+    match row {
+        PersonalityRow::TraitConciseness  => "detailed ← → terse",
+        PersonalityRow::TraitThoroughness => "trust & ship ← → triple-check",
+        PersonalityRow::TraitAutonomy     => "always ask ← → act alone",
+        PersonalityRow::TraitPedagogy     => "just answers ← → deep explain",
+        PersonalityRow::TraitEnthusiasm   => "reserved ← → high energy",
+        PersonalityRow::TraitFormality    => "casual ← → formal",
+        PersonalityRow::TraitBoldness     => "conservative ← → bold refactor",
+        _ => "",
+    }
+}
+
+fn trait_display_label(row: PersonalityRow) -> &'static str {
+    match row {
+        PersonalityRow::TraitConciseness  => "Conciseness",
+        PersonalityRow::TraitThoroughness => "Thoroughness",
+        PersonalityRow::TraitAutonomy     => "Autonomy",
+        PersonalityRow::TraitPedagogy     => "Pedagogy",
+        PersonalityRow::TraitEnthusiasm   => "Enthusiasm",
+        PersonalityRow::TraitFormality    => "Formality",
+        PersonalityRow::TraitBoldness     => "Boldness",
+        _ => "",
+    }
+}
+
+fn get_trait_value(traits: &PersonalityTraits, row: PersonalityRow) -> u8 {
+    match row {
+        PersonalityRow::TraitConciseness  => traits.conciseness,
+        PersonalityRow::TraitThoroughness => traits.thoroughness,
+        PersonalityRow::TraitAutonomy     => traits.autonomy,
+        PersonalityRow::TraitPedagogy     => traits.pedagogy,
+        PersonalityRow::TraitEnthusiasm   => traits.enthusiasm,
+        PersonalityRow::TraitFormality    => traits.formality,
+        PersonalityRow::TraitBoldness     => traits.boldness,
+        _ => TRAIT_NEUTRAL,
+    }
+}
+
+fn set_trait_value(traits: &mut PersonalityTraits, row: PersonalityRow, value: u8) {
+    let v = value.clamp(TRAIT_MIN, TRAIT_MAX);
+    match row {
+        PersonalityRow::TraitConciseness  => traits.conciseness = v,
+        PersonalityRow::TraitThoroughness => traits.thoroughness = v,
+        PersonalityRow::TraitAutonomy     => traits.autonomy = v,
+        PersonalityRow::TraitPedagogy     => traits.pedagogy = v,
+        PersonalityRow::TraitEnthusiasm   => traits.enthusiasm = v,
+        PersonalityRow::TraitFormality    => traits.formality = v,
+        PersonalityRow::TraitBoldness     => traits.boldness = v,
+        _ => {}
+    }
+}
+
 impl PersonalitySettingsView {
     pub(super) fn rows(&self) -> Vec<PersonalityRow> {
         vec![
             PersonalityRow::Archetype,
             PersonalityRow::TonePreference,
-            PersonalityRow::TraitsInfo,
+            PersonalityRow::TraitSeparator,
+            PersonalityRow::TraitConciseness,
+            PersonalityRow::TraitThoroughness,
+            PersonalityRow::TraitAutonomy,
+            PersonalityRow::TraitPedagogy,
+            PersonalityRow::TraitEnthusiasm,
+            PersonalityRow::TraitFormality,
+            PersonalityRow::TraitBoldness,
         ]
     }
 
     pub(super) fn menu_rows(&self) -> Vec<SettingsMenuRow<'static, PersonalityRow>> {
         let p_label = personality_label(self.personality);
-        let p_desc = personality_description(self.personality);
+        let p_hint = personality_hint(self.personality);
         let t_label = tone_label(self.tone);
-        let t_desc = tone_description(self.tone);
-        let traits_value = if self.has_traits { "Custom (config.toml)" } else { "Not set" };
+        let t_hint = tone_hint(self.tone);
 
-        vec![
+        let mut rows = vec![
             SettingsMenuRow::new(PersonalityRow::Archetype, "Personality")
+                .with_label_pad_cols(14)
                 .with_value(StyledText::new(
-                    format!("{p_label} — {p_desc}"),
+                    p_label.to_owned(),
                     Style::new().fg(colors::function()),
                 ))
-                .with_selected_hint("←→ or Enter to cycle"),
+                .with_selected_hint(p_hint),
             SettingsMenuRow::new(PersonalityRow::TonePreference, "Tone")
+                .with_label_pad_cols(14)
                 .with_value(StyledText::new(
-                    format!("{t_label} — {t_desc}"),
+                    t_label.to_owned(),
                     Style::new().fg(colors::function()),
                 ))
-                .with_selected_hint("←→ or Enter to cycle"),
-            SettingsMenuRow::new(PersonalityRow::TraitsInfo, "Traits")
-                .with_value(StyledText::new(
-                    traits_value.to_owned(),
-                    Style::new().fg(colors::text_dim()),
-                ))
-                .with_selected_hint("Set via [personality_traits] in config.toml"),
-        ]
+                .with_selected_hint(t_hint),
+        ];
+
+        // Separator
+        let mut sep = SettingsMenuRow::new(PersonalityRow::TraitSeparator, "── Traits ──");
+        sep.enabled = false;
+        rows.push(sep);
+
+        // Trait sliders
+        let trait_rows = [
+            PersonalityRow::TraitConciseness,
+            PersonalityRow::TraitThoroughness,
+            PersonalityRow::TraitAutonomy,
+            PersonalityRow::TraitPedagogy,
+            PersonalityRow::TraitEnthusiasm,
+            PersonalityRow::TraitFormality,
+            PersonalityRow::TraitBoldness,
+        ];
+
+        for tr in trait_rows {
+            let value = get_trait_value(&self.traits, tr);
+            let bar = trait_bar(value);
+            let style = if value == TRAIT_NEUTRAL {
+                Style::new().fg(colors::text_dim())
+            } else {
+                Style::new().fg(colors::function())
+            };
+            rows.push(
+                SettingsMenuRow::new(tr, trait_display_label(tr))
+                    .with_label_pad_cols(14)
+                    .with_value(StyledText::new(bar, style))
+                    .with_selected_hint(trait_pole_hint(tr)),
+            );
+        }
+
+        rows
     }
 
     pub(super) fn selected_row(&self) -> Option<PersonalityRow> {
@@ -142,6 +241,12 @@ impl PersonalitySettingsView {
             Some(PersonalityRow::TonePreference) => {
                 self.tone = cycle_tone_forward(self.tone);
             }
+            Some(row) if self.is_trait_row(row) => {
+                let v = get_trait_value(&self.traits, row);
+                if v < TRAIT_MAX {
+                    set_trait_value(&mut self.traits, row, v + 1);
+                }
+            }
             _ => {}
         }
     }
@@ -154,7 +259,30 @@ impl PersonalitySettingsView {
             Some(PersonalityRow::TonePreference) => {
                 self.tone = cycle_tone_backward(self.tone);
             }
+            Some(row) if self.is_trait_row(row) => {
+                let v = get_trait_value(&self.traits, row);
+                if v > TRAIT_MIN {
+                    set_trait_value(&mut self.traits, row, v - 1);
+                }
+            }
             _ => {}
         }
+    }
+
+    pub(super) fn is_trait_row(&self, row: PersonalityRow) -> bool {
+        matches!(
+            row,
+            PersonalityRow::TraitConciseness
+                | PersonalityRow::TraitThoroughness
+                | PersonalityRow::TraitAutonomy
+                | PersonalityRow::TraitPedagogy
+                | PersonalityRow::TraitEnthusiasm
+                | PersonalityRow::TraitFormality
+                | PersonalityRow::TraitBoldness
+        )
+    }
+
+    pub(super) fn current_traits(&self) -> PersonalityTraits {
+        self.traits
     }
 }

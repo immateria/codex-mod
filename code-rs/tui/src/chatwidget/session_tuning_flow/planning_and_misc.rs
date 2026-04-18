@@ -381,6 +381,22 @@ impl ChatWidget<'_> {
         self.request_redraw();
     }
 
+    pub(crate) fn apply_personality_traits(
+        &mut self,
+        traits: Option<code_core::personality_traits::PersonalityTraits>,
+    ) {
+        self.config.personality_traits = traits;
+        let label = if traits.map_or(true, |t| t.is_neutral()) {
+            "neutral".to_owned()
+        } else {
+            "custom".to_owned()
+        };
+        self.bottom_pane.flash_footer_notice(format!("Traits: {label}"));
+        self.submit_op(self.current_configure_session_op());
+        self.refresh_settings_overview_rows();
+        self.request_redraw();
+    }
+
     pub(crate) fn handle_context_window_command(&mut self, command_args: String) {
         let trimmed = command_args.trim();
         if trimmed.is_empty() {

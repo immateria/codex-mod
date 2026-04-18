@@ -880,6 +880,7 @@ pub(crate) enum AppEvent {
     SetIconMode(code_core::config_types::IconMode),
     SetModelPersonality(Option<code_core::config_types::Personality>),
     SetModelTone(Option<code_core::config_types::Tone>),
+    SetPersonalityTraits(Option<code_core::personality_traits::PersonalityTraits>),
     StatusLineSetup {
         top_items: Vec<StatusLineItem>,
         bottom_items: Vec<StatusLineItem>,

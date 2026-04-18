@@ -17,6 +17,12 @@ impl PersonalitySettingsView {
         self.app_event_tx.send(AppEvent::SetModelTone(self.tone));
     }
 
+    fn emit_traits_change(&self) {
+        let traits = self.current_traits();
+        let value = if traits.is_neutral() { None } else { Some(traits) };
+        self.app_event_tx.send(AppEvent::SetPersonalityTraits(value));
+    }
+
     fn handle_key(&mut self, key: KeyEvent) -> bool {
         let rows = self.rows();
         if self.state.selected_idx.is_none() {
@@ -28,10 +34,18 @@ impl PersonalitySettingsView {
         match key.code {
             KeyCode::Up | KeyCode::Char('k') => {
                 self.state.move_up_wrap(total);
+                // Skip separator
+                if self.selected_row() == Some(PersonalityRow::TraitSeparator) {
+                    self.state.move_up_wrap(total);
+                }
                 true
             }
             KeyCode::Down | KeyCode::Char('j') => {
                 self.state.move_down_wrap(total);
+                // Skip separator
+                if self.selected_row() == Some(PersonalityRow::TraitSeparator) {
+                    self.state.move_down_wrap(total);
+                }
                 true
             }
             KeyCode::Right | KeyCode::Char('l') | KeyCode::Enter | KeyCode::Char(' ') => {
@@ -56,6 +70,7 @@ impl PersonalitySettingsView {
         match self.selected_row() {
             Some(PersonalityRow::Archetype) => self.emit_personality_change(),
             Some(PersonalityRow::TonePreference) => self.emit_tone_change(),
+            Some(row) if self.is_trait_row(row) => self.emit_traits_change(),
             _ => {}
         }
     }
