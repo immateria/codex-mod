@@ -10,6 +10,7 @@ use crate::config_types::ServiceTier;
 use crate::config_types::TextVerbosity;
 use crate::config_types::Personality;
 use crate::config_types::Tone;
+use crate::personality_traits::PersonalityTraits;
 use crate::config_types::AppsToml;
 use crate::config_types::FeaturesToml;
 use crate::config_types::WindowsToml;
@@ -47,6 +48,7 @@ pub struct ConfigProfile {
     pub model_text_verbosity: Option<TextVerbosity>,
     pub model_personality: Option<Personality>,
     pub model_tone: Option<Tone>,
+    pub personality_traits: Option<PersonalityTraits>,
     pub model_context_window: Option<u64>,
     pub model_auto_compact_token_limit: Option<i64>,
     pub context_mode: Option<ContextMode>,

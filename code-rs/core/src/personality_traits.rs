@@ -241,6 +241,44 @@ impl PersonalityTraits {
 
     // ── Prompt generation ───────────────────────────────────────────────
 
+    /// Return a copy with only the `n` most-deviated traits kept; the rest
+    /// reset to neutral. Useful for compact models that handle fewer
+    /// instructions better.
+    pub fn top_n_traits(&self, n: usize) -> Self {
+        let clamped = self.clamped();
+        let mut deviations: Vec<(usize, u8)> = [
+            clamped.conciseness,
+            clamped.thoroughness,
+            clamped.autonomy,
+            clamped.pedagogy,
+            clamped.enthusiasm,
+            clamped.formality,
+            clamped.boldness,
+        ]
+        .iter()
+        .enumerate()
+        .map(|(i, &v)| (i, v.abs_diff(TRAIT_NEUTRAL)))
+        .collect();
+
+        deviations.sort_by(|a, b| b.1.cmp(&a.1));
+        let keep: std::collections::HashSet<usize> =
+            deviations.iter().take(n).map(|&(i, _)| i).collect();
+
+        let pick = |idx: usize, val: u8| -> u8 {
+            if keep.contains(&idx) { val } else { TRAIT_NEUTRAL }
+        };
+
+        Self {
+            conciseness: pick(0, clamped.conciseness),
+            thoroughness: pick(1, clamped.thoroughness),
+            autonomy: pick(2, clamped.autonomy),
+            pedagogy: pick(3, clamped.pedagogy),
+            enthusiasm: pick(4, clamped.enthusiasm),
+            formality: pick(5, clamped.formality),
+            boldness: pick(6, clamped.boldness),
+        }
+    }
+
     /// Generate instruction text from trait levels. Only emits instructions
     /// for non-neutral traits (≠3). Returns `None` if all traits are neutral.
     pub fn to_prompt_instructions(&self) -> Option<String> {
@@ -402,29 +440,20 @@ pub struct ModelAdjustments;
 
 impl ModelAdjustments {
     /// Given a model capability tier and traits, return potentially modified
-    /// trait instructions. For now this is a passthrough — the infrastructure
-    /// is here for future refinement.
+    /// trait instructions.
     pub fn adjust_instructions(
         tier: ModelCapabilityTier,
         traits: &PersonalityTraits,
     ) -> Option<String> {
-        let base = traits.to_prompt_instructions()?;
-
         match tier {
-            ModelCapabilityTier::Reasoning => {
-                // Reasoning models already think internally, so we could
-                // rephrase thoroughness from "think carefully" to "verify
-                // your output". For now, pass through.
-                Some(base)
-            }
-            ModelCapabilityTier::Standard => {
-                // Full instructions work well for standard models.
-                Some(base)
+            ModelCapabilityTier::Reasoning | ModelCapabilityTier::Standard => {
+                traits.to_prompt_instructions()
             }
             ModelCapabilityTier::Compact => {
-                // For compact models, we could reduce to only the top 3
-                // most-deviated traits. For now, pass through.
-                Some(base)
+                // Compact models handle fewer instructions better.
+                // Keep only the top 3 most-deviated traits.
+                let reduced = traits.top_n_traits(3);
+                reduced.to_prompt_instructions()
             }
         }
     }
@@ -579,5 +608,52 @@ thoroughness = 2
         // Unspecified fields default to neutral
         assert_eq!(traits.autonomy, TRAIT_NEUTRAL);
         assert_eq!(traits.pedagogy, TRAIT_NEUTRAL);
+    }
+
+    #[test]
+    fn top_n_traits_keeps_most_deviated() {
+        let traits = PersonalityTraits {
+            conciseness: 5,    // deviation = 2
+            thoroughness: 1,   // deviation = 2
+            autonomy: 4,       // deviation = 1
+            pedagogy: 5,       // deviation = 2
+            enthusiasm: 2,     // deviation = 1
+            formality: 3,      // deviation = 0 (neutral)
+            boldness: 3,       // deviation = 0 (neutral)
+        };
+        let top3 = traits.top_n_traits(3);
+        // The three most-deviated: conciseness(2), thoroughness(2), pedagogy(2)
+        assert_ne!(top3.conciseness, TRAIT_NEUTRAL);
+        assert_ne!(top3.thoroughness, TRAIT_NEUTRAL);
+        assert_ne!(top3.pedagogy, TRAIT_NEUTRAL);
+        // formality and boldness were neutral, stay neutral
+        assert_eq!(top3.formality, TRAIT_NEUTRAL);
+        assert_eq!(top3.boldness, TRAIT_NEUTRAL);
+    }
+
+    #[test]
+    fn compact_model_reduces_instructions() {
+        let traits = PersonalityTraits {
+            conciseness: 5,
+            thoroughness: 5,
+            autonomy: 5,
+            pedagogy: 5,
+            enthusiasm: 5,
+            formality: 5,
+            boldness: 5,
+        };
+        let full = ModelAdjustments::adjust_instructions(
+            ModelCapabilityTier::Standard,
+            &traits,
+        ).unwrap();
+        let compact = ModelAdjustments::adjust_instructions(
+            ModelCapabilityTier::Compact,
+            &traits,
+        ).unwrap();
+        // Compact should have fewer instruction lines
+        let full_lines = full.lines().count();
+        let compact_lines = compact.lines().count();
+        assert!(compact_lines < full_lines,
+            "compact ({compact_lines}) should have fewer lines than full ({full_lines})");
     }
 }

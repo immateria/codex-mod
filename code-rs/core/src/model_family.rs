@@ -3,6 +3,7 @@ use crate::config_types::Tone;
 use crate::config_types::ContextMode;
 use crate::config_types::ReasoningEffort;
 use crate::config_types::ReasoningSummary;
+use crate::personality_traits::PersonalityTraits;
 use crate::tool_apply_patch::ApplyPatchToolType;
 use code_protocol::openai_models::ConfigShellToolType;
 use code_protocol::openai_models::ModelInfo;
@@ -150,9 +151,10 @@ pub struct ModelFamily {
 }
 
 pub(crate) fn base_instructions_override_for_personality(
-    _model: &str,
+    model: &str,
     personality: Option<Personality>,
     tone: Option<Tone>,
+    traits: Option<&PersonalityTraits>,
 ) -> Option<String> {
     let personality_message = match personality {
         Some(Personality::None) | None => "",
@@ -169,10 +171,35 @@ pub(crate) fn base_instructions_override_for_personality(
         Some(Tone::Direct) => TONE_DIRECT,
         Some(Tone::Encouraging) => TONE_ENCOURAGING,
     };
+
+    // Compose trait instructions: if both an archetype and custom traits are
+    // set, the archetype provides a base profile and custom traits overlay on
+    // top (non-neutral custom values win).
+    let traits_message = if let Some(custom) = traits {
+        let archetype_base = personality.and_then(|p| match p {
+            Personality::None => None,
+            Personality::Friendly => Some(PersonalityTraits::friendly()),
+            Personality::Pragmatic => Some(PersonalityTraits::pragmatic()),
+            Personality::Concise => Some(PersonalityTraits::concise()),
+            Personality::Enthusiastic => Some(PersonalityTraits::enthusiastic()),
+            Personality::Mentor => Some(PersonalityTraits::mentor()),
+        });
+        let effective = match archetype_base {
+            Some(base) => base.merge_overlay(custom),
+            None => *custom,
+        };
+        let tier = crate::personality_traits::ModelAdjustments::tier_from_model_slug(model);
+        crate::personality_traits::ModelAdjustments::adjust_instructions(tier, &effective)
+            .unwrap_or_default()
+    } else {
+        String::new()
+    };
+
     Some(
         GPT_5_2_CODEX_INSTRUCTIONS_TEMPLATE
             .replace("{{ personality }}", personality_message)
-            .replace("{{ tone }}", tone_message),
+            .replace("{{ tone }}", tone_message)
+            .replace("{{ personality_traits }}", &traits_message),
     )
 }
 

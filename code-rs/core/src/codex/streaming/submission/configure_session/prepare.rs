@@ -82,6 +82,7 @@ impl Runner<'_> {
                 &model,
                 updated_config.model_personality,
                 updated_config.model_tone,
+                updated_config.personality_traits.as_ref(),
             )
         });
         updated_config.base_instructions = base_instructions.clone();

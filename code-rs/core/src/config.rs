@@ -43,6 +43,7 @@ use crate::config_types::UriBasedFileOpener;
 use crate::config_types::ConfirmGuardConfig;
 use crate::config_types::Personality;
 use crate::config_types::Tone;
+use crate::personality_traits::PersonalityTraits;
 use crate::config_types::WindowsSandboxModeToml;
 use crate::config_types::WindowsToml;
 use crate::config_types::DEFAULT_OTEL_ENVIRONMENT;
@@ -396,6 +397,9 @@ pub struct Config {
 
     /// Optional tone modifier applied on top of personality.
     pub model_tone: Option<Tone>,
+
+    /// Optional fine-grained personality trait overrides (RPG-stat style).
+    pub personality_traits: Option<PersonalityTraits>,
 
     /// Optional override for the compaction prompt text.
     pub compact_prompt_override: Option<String>,
@@ -1035,6 +1039,7 @@ pub struct ConfigToml {
     pub model_text_verbosity: Option<TextVerbosity>,
     pub model_personality: Option<Personality>,
     pub model_tone: Option<Tone>,
+    pub personality_traits: Option<PersonalityTraits>,
     pub context_mode: Option<ContextMode>,
     pub service_tier: Option<ServiceTier>,
     pub windows: Option<WindowsToml>,
@@ -2310,6 +2315,10 @@ impl Config {
             .model_tone
             .or(cfg.model_tone);
 
+        let personality_traits = config_profile
+            .personality_traits
+            .or(cfg.personality_traits);
+
         let service_tier = match config_profile.service_tier.or(cfg.service_tier) {
             Some(ServiceTier::Fast) => Some(ServiceTier::Fast),
             Some(ServiceTier::Standard) | None => None,
@@ -2664,6 +2673,7 @@ impl Config {
             base_instructions,
             model_personality,
             model_tone,
+            personality_traits,
             compact_prompt_override,
             mcp_servers: cfg.mcp_servers,
             experimental_client_tools: cfg.experimental_client_tools.clone(),
