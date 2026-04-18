@@ -28,7 +28,7 @@ impl ChatWidget<'_> {
         // provider output; else append to the tail. Use the event.id for
         // in-place replacement.
         let placement = match order.and_then(|om| om.output_index) {
-            Some(v) if v == i32::MAX as u32 => SystemPlacement::Tail,
+            Some(v) if v == code_core::protocol::BACKGROUND_OUTPUT_INDEX => SystemPlacement::Tail,
             Some(_) => SystemPlacement::Early,
             None => SystemPlacement::Tail,
         };

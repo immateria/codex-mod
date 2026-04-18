@@ -17,7 +17,7 @@ impl BrowserSessionOrderKey {
         let out = meta
             .output_index
             .map_or(i32::MAX, |value| {
-                if value > i32::MAX as u32 {
+                if value > code_core::protocol::BACKGROUND_OUTPUT_INDEX {
                     i32::MAX
                 } else {
                     value as i32

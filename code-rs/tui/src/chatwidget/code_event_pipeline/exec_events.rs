@@ -16,7 +16,7 @@ impl ChatWidget<'_> {
             tracing::warn!("missing OrderMeta for ExecCommandBegin; using synthetic order");
             code_core::protocol::OrderMeta {
                 request_ordinal: self.last_seen_request_index,
-                output_index: Some(i32::MAX as u32),
+                output_index: Some(code_core::protocol::BACKGROUND_OUTPUT_INDEX),
                 sequence_number: Some(seq),
             }
         });
@@ -177,7 +177,7 @@ impl ChatWidget<'_> {
             tracing::warn!("missing OrderMeta for ExecCommandEnd; using synthetic order");
             code_core::protocol::OrderMeta {
                 request_ordinal: self.last_seen_request_index,
-                output_index: Some(i32::MAX as u32),
+                output_index: Some(code_core::protocol::BACKGROUND_OUTPUT_INDEX),
                 sequence_number: Some(seq),
             }
         });
@@ -240,7 +240,7 @@ impl ChatWidget<'_> {
             tracing::warn!("missing OrderMeta for ReplExecBegin; using synthetic order");
             code_core::protocol::OrderMeta {
                 request_ordinal: self.last_seen_request_index,
-                output_index: Some(i32::MAX as u32),
+                output_index: Some(code_core::protocol::BACKGROUND_OUTPUT_INDEX),
                 sequence_number: Some(seq),
             }
         });

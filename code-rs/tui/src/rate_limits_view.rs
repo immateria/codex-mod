@@ -732,7 +732,7 @@ fn build_status_line(metrics: &RateLimitMetrics) -> Line<'static> {
             (true, true) => "weekly and hourly windows exhausted",
             (true, false) => "hourly window exhausted",
             (false, true) => "weekly window exhausted",
-            (false, false) => unreachable!(),
+            (false, false) => unreachable!("guarded by outer || check"),
         };
         Line::from(vec![
             Span::styled(

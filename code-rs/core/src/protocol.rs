@@ -880,6 +880,13 @@ fn rate_limit_snapshot_from_protocol(
     }
 }
 
+/// Sentinel output_index used for background / internal events.
+///
+/// Chosen as `i32::MAX` (not `u32::MAX`) because `OrderKey.out` is `i32` and
+/// the TUI casts `output_index` with `v as i32`.  `i32::MAX` round-trips
+/// correctly; `u32::MAX` would wrap to `-1` and break sort order.
+pub const BACKGROUND_OUTPUT_INDEX: u32 = i32::MAX as u32;
+
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct OrderMeta {
     /// 1-based ordinal of this request/turn in the session

@@ -681,7 +681,7 @@ impl Session {
     ) -> crate::protocol::OrderMeta {
         let normalized_req = if req_ordinal == 0 { 1 } else { req_ordinal };
         let sequence = self.next_background_sequence(sub_id);
-        let stored_output_index = output_index.unwrap_or(i32::MAX as u32);
+        let stored_output_index = output_index.unwrap_or(crate::protocol::BACKGROUND_OUTPUT_INDEX);
         crate::protocol::OrderMeta {
             request_ordinal: normalized_req,
             output_index: Some(stored_output_index),
@@ -694,7 +694,7 @@ impl Session {
         ctx: &ToolCallCtx,
         req_ordinal: u64,
     ) -> crate::protocol::OrderMeta {
-        let base_output = ctx.output_index.unwrap_or(i32::MAX as u32);
+        let base_output = ctx.output_index.unwrap_or(crate::protocol::BACKGROUND_OUTPUT_INDEX);
         self.next_background_order(&ctx.sub_id, req_ordinal, Some(base_output))
     }
 

@@ -33,7 +33,7 @@ impl ChatWidget<'_> {
     // Track latest request index observed from provider so internal inserts can anchor to it.
     pub(super) fn note_order(&mut self, order: Option<&code_core::protocol::OrderMeta>) {
         if let Some(om) = order {
-            let is_background_sentinel = om.output_index == Some(i32::MAX as u32);
+            let is_background_sentinel = om.output_index == Some(code_core::protocol::BACKGROUND_OUTPUT_INDEX);
             let is_initial_session = self.last_seen_request_index == 0;
             if is_background_sentinel && is_initial_session {
                 return;
@@ -85,58 +85,7 @@ impl ChatWidget<'_> {
     //   * If no cells exist for this request yet, place near the top of this
     //     request (after headers/prompts) so provider output can follow.
     pub(super) fn near_time_key(&mut self, order: Option<&code_core::protocol::OrderMeta>) -> OrderKey {
-        if let Some(om) = order {
-            return self.provider_order_key_from_order_meta(om);
-        }
-
-        // If we just staged a user prompt for the next request, keep using the
-        // next‑turn anchor so the background item lands with that turn.
-        if self.pending_user_prompts_for_next_turn > 0 {
-            return self.next_req_key_after_prompt();
-        }
-
-        let req = if self.last_seen_request_index > 0 {
-            self.last_seen_request_index
-        } else {
-            // No provider traffic yet: allocate a synthetic request bucket.
-            // Use the same path as next_internal_key() to keep monotonicity.
-            if self.current_request_index < self.last_seen_request_index {
-                self.current_request_index = self.last_seen_request_index;
-            }
-            self.current_request_index = self.current_request_index.saturating_add(1);
-            self.current_request_index
-        };
-
-        // Scan for the latest key within this request to append after.
-        let mut last_in_req: Option<OrderKey> = None;
-        for k in &self.cell_order_seq {
-            if k.req == req {
-                last_in_req = Some(match last_in_req {
-                    Some(prev) => {
-                        if *k > prev {
-                            *k
-                        } else {
-                            prev
-                        }
-                    }
-                    None => *k,
-                });
-            }
-        }
-
-        self.internal_seq = self.internal_seq.saturating_add(1);
-        match last_in_req {
-            Some(last) => OrderKey {
-                req,
-                out: last.out,
-                seq: last.seq.saturating_add(1),
-            },
-            None => OrderKey {
-                req,
-                out: i32::MIN + 2,
-                seq: self.internal_seq,
-            },
-        }
+        self.near_time_key_inner(order, true)
     }
 
     /// Like `near_time_key` but never advances to the next request when a prompt is queued.
@@ -146,34 +95,37 @@ impl ChatWidget<'_> {
         &mut self,
         order: Option<&code_core::protocol::OrderMeta>,
     ) -> OrderKey {
+        self.near_time_key_inner(order, false)
+    }
+
+    fn near_time_key_inner(
+        &mut self,
+        order: Option<&code_core::protocol::OrderMeta>,
+        allow_next_turn: bool,
+    ) -> OrderKey {
         if let Some(om) = order {
             return self.provider_order_key_from_order_meta(om);
         }
+
+        // If we just staged a user prompt for the next request, keep using the
+        // next‑turn anchor so the background item lands with that turn.
+        if allow_next_turn && self.pending_user_prompts_for_next_turn > 0 {
+            return self.next_req_key_after_prompt();
+        }
+
         let req = if self.last_seen_request_index > 0 {
             self.last_seen_request_index
         } else {
-            if self.current_request_index < self.last_seen_request_index {
-                self.current_request_index = self.last_seen_request_index;
-            }
             self.current_request_index = self.current_request_index.saturating_add(1);
             self.current_request_index
         };
 
-        let mut last_in_req: Option<OrderKey> = None;
-        for k in &self.cell_order_seq {
-            if k.req == req {
-                last_in_req = Some(match last_in_req {
-                    Some(prev) => {
-                        if *k > prev {
-                            *k
-                        } else {
-                            prev
-                        }
-                    }
-                    None => *k,
-                });
-            }
-        }
+        // Scan for the latest key within this request to append after.
+        let last_in_req = self.cell_order_seq.iter()
+            .filter(|k| k.req == req)
+            .max()
+            .copied();
+
         self.internal_seq = self.internal_seq.saturating_add(1);
         match last_in_req {
             Some(last) => OrderKey {
@@ -224,10 +176,6 @@ impl ChatWidget<'_> {
         let mut req = if self.last_seen_request_index > 0 {
             self.last_seen_request_index
         } else {
-            // Ensure current_request_index always moves forward
-            if self.current_request_index < self.last_seen_request_index {
-                self.current_request_index = self.last_seen_request_index;
-            }
             self.current_request_index = self.current_request_index.saturating_add(1);
             self.current_request_index
         };

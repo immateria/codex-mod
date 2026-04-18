@@ -82,7 +82,7 @@ impl InterruptManager {
                         tracing::warn!("missing OrderMeta in queued ExecEnd; rendering with synthetic order");
                         let synthetic = code_core::protocol::OrderMeta {
                             request_ordinal: chat.last_seen_request_index,
-                            output_index: Some(i32::MAX as u32),
+                            output_index: Some(code_core::protocol::BACKGROUND_OUTPUT_INDEX),
                             sequence_number: Some(1),
                         };
                         chat.enqueue_or_handle_exec_end(ev, synthetic);

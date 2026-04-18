@@ -1106,7 +1106,7 @@ impl BackgroundOrderTicket {
         let seq = self.seq_counter.fetch_add(1, Ordering::SeqCst);
         code_core::protocol::OrderMeta {
             request_ordinal: self.request_ordinal,
-            output_index: Some(i32::MAX as u32),
+            output_index: Some(code_core::protocol::BACKGROUND_OUTPUT_INDEX),
             sequence_number: Some(seq),
         }
     }
