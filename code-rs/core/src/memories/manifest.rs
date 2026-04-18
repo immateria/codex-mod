@@ -655,7 +655,7 @@ mod tests {
         UserMemoryManifestEntry {
             id: id.to_string(),
             content: content.to_string(),
-            tags: tags.iter().map(|s| s.to_string()).collect(),
+            tags: tags.iter().map(ToString::to_string).collect(),
             pinned,
         }
     }

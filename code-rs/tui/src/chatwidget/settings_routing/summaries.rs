@@ -316,7 +316,7 @@ impl ChatWidget<'_> {
     pub(super) fn settings_summary_personality(&self) -> Option<String> {
         let p = crate::bottom_pane::settings_pages::personality::model::personality_label(self.config.model_personality);
         let t = crate::bottom_pane::settings_pages::personality::model::tone_label(self.config.model_tone);
-        let traits_tag = if self.config.personality_traits.as_ref().map_or(true, |t| t.is_neutral()) {
+        let traits_tag = if self.config.personality_traits.as_ref().is_none_or(code_core::personality_traits::PersonalityTraits::is_neutral) {
             ""
         } else {
             " · traits"

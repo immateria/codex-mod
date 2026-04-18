@@ -903,31 +903,29 @@ struct OpenAiErrorData {
 }
 
 fn classify_refresh_failure(status: StatusCode, body: &str) -> RefreshTokenError {
-    if let Ok(parsed) = serde_json::from_str::<OpenAiErrorWrapper>(body) {
-        if let Some(error) = parsed.error {
-            if let Some(code) = error.code.as_deref()
-                && matches!(
-                    code,
-                    "refresh_token_expired"
-                        | "refresh_token_reused"
-                        | "refresh_token_invalidated"
-                )
-            {
-                let message = error.message.unwrap_or_else(|| match code {
-                    "refresh_token_expired" => {
-                        "refresh token expired; please sign in again".to_string()
-                    }
-                    "refresh_token_reused" => {
-                        "refresh token already rotated; please sign in again".to_string()
-                    }
-                    "refresh_token_invalidated" => {
-                        "refresh token revoked; please sign in again".to_string()
-                    }
-                    _ => "refresh token unavailable; please sign in again".to_string(),
-                });
-                return RefreshTokenError::permanent(format!("{code}: {message}"));
+    if let Ok(parsed) = serde_json::from_str::<OpenAiErrorWrapper>(body)
+        && let Some(error) = parsed.error
+        && let Some(code) = error.code.as_deref()
+        && matches!(
+            code,
+            "refresh_token_expired"
+                | "refresh_token_reused"
+                | "refresh_token_invalidated"
+        )
+    {
+        let message = error.message.unwrap_or_else(|| match code {
+            "refresh_token_expired" => {
+                "refresh token expired; please sign in again".to_string()
             }
-        }
+            "refresh_token_reused" => {
+                "refresh token already rotated; please sign in again".to_string()
+            }
+            "refresh_token_invalidated" => {
+                "refresh token revoked; please sign in again".to_string()
+            }
+            _ => "refresh token unavailable; please sign in again".to_string(),
+        });
+        return RefreshTokenError::permanent(format!("{code}: {message}"));
     }
 
     if let Ok(parsed) = serde_json::from_str::<OAuthErrorBody>(body)

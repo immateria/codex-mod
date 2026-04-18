@@ -128,7 +128,7 @@ fn trait_display_label(row: PersonalityRow) -> &'static str {
     }
 }
 
-fn get_trait_value(traits: &PersonalityTraits, row: PersonalityRow) -> u8 {
+fn get_trait_value(traits: PersonalityTraits, row: PersonalityRow) -> u8 {
     match row {
         PersonalityRow::TraitConciseness  => traits.conciseness,
         PersonalityRow::TraitThoroughness => traits.thoroughness,
@@ -211,7 +211,7 @@ impl PersonalitySettingsView {
         ];
 
         for tr in trait_rows {
-            let value = get_trait_value(&self.traits, tr);
+            let value = get_trait_value(self.traits, tr);
             let bar = trait_bar(value);
             let style = if value == TRAIT_NEUTRAL {
                 Style::new().fg(colors::text_dim())
@@ -242,7 +242,7 @@ impl PersonalitySettingsView {
                 self.tone = cycle_tone_forward(self.tone);
             }
             Some(row) if self.is_trait_row(row) => {
-                let v = get_trait_value(&self.traits, row);
+                let v = get_trait_value(self.traits, row);
                 if v < TRAIT_MAX {
                     set_trait_value(&mut self.traits, row, v + 1);
                 }
@@ -260,7 +260,7 @@ impl PersonalitySettingsView {
                 self.tone = cycle_tone_backward(self.tone);
             }
             Some(row) if self.is_trait_row(row) => {
-                let v = get_trait_value(&self.traits, row);
+                let v = get_trait_value(self.traits, row);
                 if v > TRAIT_MIN {
                     set_trait_value(&mut self.traits, row, v - 1);
                 }

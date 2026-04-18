@@ -1158,7 +1158,7 @@ mod tests {
     fn test_verified_raw_shell_command_heredoc() {
         let dir = tempdir().unwrap();
         assert!(matches!(
-            maybe_parse_apply_patch_verified(&vec![heredoc_script("")], dir.path()),
+            maybe_parse_apply_patch_verified(&[heredoc_script("")], dir.path()),
             MaybeApplyPatchVerified::Body(_)
         ));
     }

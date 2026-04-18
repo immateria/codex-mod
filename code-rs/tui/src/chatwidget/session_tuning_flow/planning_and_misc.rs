@@ -386,7 +386,7 @@ impl ChatWidget<'_> {
         traits: Option<code_core::personality_traits::PersonalityTraits>,
     ) {
         self.config.personality_traits = traits;
-        let label = if traits.map_or(true, |t| t.is_neutral()) {
+        let label = if traits.is_none_or(|t| t.is_neutral()) {
             "neutral".to_owned()
         } else {
             "custom".to_owned()

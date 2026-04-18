@@ -736,6 +736,7 @@ pub async fn run_main(
         Ok(Ok(otel)) => otel,
         Ok(Err(_)) | Err(_) => None,
     };
+    #[allow(clippy::redundant_closure_for_method_calls)] // code_otel is not a direct dep
     let otel_logger_layer = otel.as_ref().map(|provider| provider.logger_layer());
 
     let _ = tracing_subscriber::registry()

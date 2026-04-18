@@ -584,12 +584,10 @@ impl Runner<'_> {
 
         // Inject REPL snapshots from the old session into the new handles
         // so the first execute() on each runtime restores the previous state.
-        if !repl_snapshots.is_empty() {
-            if let Some(sess_arc) = self.sess.as_ref() {
-                for (kind, snap) in repl_snapshots {
-                    if let Some(handle) = sess_arc.repl_handles.get(&kind) {
-                        handle.inject_snapshot(snap).await;
-                    }
+        if !repl_snapshots.is_empty() && let Some(sess_arc) = self.sess.as_ref() {
+            for (kind, snap) in repl_snapshots {
+                if let Some(handle) = sess_arc.repl_handles.get(&kind) {
+                    handle.inject_snapshot(snap).await;
                 }
             }
         }
