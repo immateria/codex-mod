@@ -195,12 +195,27 @@ pub(crate) fn base_instructions_override_for_personality(
         String::new()
     };
 
-    Some(
-        GPT_5_2_CODEX_INSTRUCTIONS_TEMPLATE
-            .replace("{{ personality }}", personality_message)
-            .replace("{{ tone }}", tone_message)
-            .replace("{{ personality_traits }}", &traits_message),
-    )
+    let raw = GPT_5_2_CODEX_INSTRUCTIONS_TEMPLATE
+        .replace("{{ personality }}", personality_message)
+        .replace("{{ tone }}", tone_message)
+        .replace("{{ personality_traits }}", &traits_message);
+    // Collapse runs of 3+ consecutive newlines (from empty placeholders) to a
+    // single blank line so the prompt stays clean when personality/tone/traits
+    // are unset.
+    let mut collapsed = String::with_capacity(raw.len());
+    let mut consecutive_newlines = 0u32;
+    for ch in raw.chars() {
+        if ch == '\n' {
+            consecutive_newlines += 1;
+            if consecutive_newlines <= 2 {
+                collapsed.push(ch);
+            }
+        } else {
+            consecutive_newlines = 0;
+            collapsed.push(ch);
+        }
+    }
+    Some(collapsed)
 }
 
 macro_rules! model_family {

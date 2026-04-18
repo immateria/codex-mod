@@ -19,6 +19,7 @@ pub(crate) mod model;
 pub(crate) mod network;
 pub(crate) mod notifications;
 pub(crate) mod overview;
+pub(crate) mod personality;
 pub(crate) mod planning;
 pub(crate) mod plugins;
 pub(crate) mod prompts;

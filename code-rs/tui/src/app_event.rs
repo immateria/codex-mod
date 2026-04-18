@@ -878,6 +878,8 @@ pub(crate) enum AppEvent {
     SetTuiSettingsMenuConfig(SettingsMenuConfig),
     SetTuiHotkeysConfig(TuiHotkeysConfig),
     SetIconMode(code_core::config_types::IconMode),
+    SetModelPersonality(Option<code_core::config_types::Personality>),
+    SetModelTone(Option<code_core::config_types::Tone>),
     StatusLineSetup {
         top_items: Vec<StatusLineItem>,
         bottom_items: Vec<StatusLineItem>,

@@ -357,6 +357,30 @@ impl ChatWidget<'_> {
         self.request_redraw();
     }
 
+    pub(crate) fn apply_personality_selection(
+        &mut self,
+        personality: Option<code_core::config_types::Personality>,
+    ) {
+        self.config.model_personality = personality;
+        let label = crate::bottom_pane::settings_pages::personality::model::personality_label(personality);
+        self.bottom_pane.flash_footer_notice(format!("Personality: {label}"));
+        self.submit_op(self.current_configure_session_op());
+        self.refresh_settings_overview_rows();
+        self.request_redraw();
+    }
+
+    pub(crate) fn apply_tone_selection(
+        &mut self,
+        tone: Option<code_core::config_types::Tone>,
+    ) {
+        self.config.model_tone = tone;
+        let label = crate::bottom_pane::settings_pages::personality::model::tone_label(tone);
+        self.bottom_pane.flash_footer_notice(format!("Tone: {label}"));
+        self.submit_op(self.current_configure_session_op());
+        self.refresh_settings_overview_rows();
+        self.request_redraw();
+    }
+
     pub(crate) fn handle_context_window_command(&mut self, command_args: String) {
         let trimmed = command_args.trim();
         if trimmed.is_empty() {

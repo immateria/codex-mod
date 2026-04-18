@@ -65,6 +65,13 @@ impl ChatWidget<'_> {
         })
     }
 
+    fn open_personality_settings_section(&mut self) -> bool {
+        let view = self.build_personality_settings_view();
+        self.open_bottom_pane_settings(move |this| {
+            this.bottom_pane.show_settings_view(view);
+        })
+    }
+
     fn open_secrets_settings_section(&mut self) -> bool {
         let view = self.build_secrets_settings_view();
         self.open_bottom_pane_settings(move |this| {
@@ -228,6 +235,8 @@ impl ChatWidget<'_> {
             #[cfg(feature = "managed-network-proxy")]
             SettingsSection::Network                            => self.open_network_settings_section(),
 
+            SettingsSection::Personality                        => self.open_personality_settings_section(),
+
             SettingsSection::Agents | SettingsSection::Limits => false,
             #[cfg(feature = "browser-automation")]
             SettingsSection::Chrome => false,
@@ -298,7 +307,8 @@ impl ChatWidget<'_> {
             | SettingsSection::Apps
             | SettingsSection::Memories
             | SettingsSection::Skills
-            | SettingsSection::Plugins => false,
+            | SettingsSection::Plugins
+            | SettingsSection::Personality => false,
             #[cfg(feature = "managed-network-proxy")]
             SettingsSection::Network => false,
         };

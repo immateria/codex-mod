@@ -160,6 +160,19 @@ impl ChatWidget<'_> {
         PlanningSettingsContent::new(self.build_planning_settings_view())
     }
 
+    fn build_personality_settings_view(&self) -> PersonalitySettingsView {
+        PersonalitySettingsView::new(
+            self.config.model_personality,
+            self.config.model_tone,
+            self.config.personality_traits.is_some(),
+            self.app_event_tx.clone(),
+        )
+    }
+
+    fn build_personality_settings_content(&self) -> settings_overlay::PersonalitySettingsContent {
+        settings_overlay::PersonalitySettingsContent::new(self.build_personality_settings_view())
+    }
+
     fn build_auto_drive_settings_view(&self) -> AutoDriveSettingsView {
         let model = self.config.auto_drive.model.clone();
         let model_effort = self.config.auto_drive.model_reasoning_effort;

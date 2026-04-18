@@ -30,6 +30,7 @@ impl SettingsSection {
             SettingsSection::Network => "Network",
             SettingsSection::Notifications => "Notifications",
             SettingsSection::Prompts => "Prompts",
+            SettingsSection::Personality => "Personality",
             SettingsSection::Skills => "Skills",
             SettingsSection::Plugins => "Plugins",
         }
@@ -82,6 +83,7 @@ impl SettingsSection {
                 "Adjust desktop and terminal notification preferences."
             }
             SettingsSection::Prompts => "Create and edit custom prompt snippets.",
+            SettingsSection::Personality => "Configure personality archetype, communication tone, and trait tuning.",
             SettingsSection::Skills => "Manage project-scoped and global skills.",
             SettingsSection::Plugins => "Browse and manage installed plugins and marketplaces.",
         }
@@ -122,6 +124,7 @@ impl SettingsSection {
             SettingsSection::Network => "Configure managed network mediation for tool execution.",
             SettingsSection::Notifications => "Notification preferences coming soon.",
             SettingsSection::Prompts => "Manage custom prompts.",
+            SettingsSection::Personality => "Personality and tone preferences.",
             SettingsSection::Skills => "Manage skills.",
             SettingsSection::Plugins => "Manage plugins and marketplaces.",
         }

@@ -33,6 +33,7 @@ pub(crate) use self::contents::{
     PlanningSettingsContent,
     PluginsSettingsContent,
     PromptsSettingsContent,
+    PersonalitySettingsContent,
     ReviewSettingsContent,
     SecretsSettingsContent,
     ShellSettingsContent,
@@ -64,6 +65,7 @@ pub(crate) struct SettingsOverlayView {
     help: Option<SettingsHelpOverlay>,
     model_content: Option<ModelSettingsContent>,
     planning_content: Option<PlanningSettingsContent>,
+    personality_content: Option<PersonalitySettingsContent>,
     theme_content: Option<ThemeSettingsContent>,
     interface_content: Option<InterfaceSettingsContent>,
     experimental_features_content: Option<ExperimentalFeaturesSettingsContent>,
@@ -134,6 +136,7 @@ impl SettingsOverlayView {
             help: None,
             model_content: None,
             planning_content: None,
+            personality_content: None,
             theme_content: None,
             interface_content: None,
             experimental_features_content: None,
@@ -278,6 +281,10 @@ impl SettingsOverlayView {
 
     pub(crate) fn set_planning_content(&mut self, content: PlanningSettingsContent) {
         self.planning_content = Some(content);
+    }
+
+    pub(crate) fn set_personality_content(&mut self, content: PersonalitySettingsContent) {
+        self.personality_content = Some(content);
     }
 
     pub(crate) fn set_theme_content(&mut self, content: ThemeSettingsContent) {
@@ -530,6 +537,10 @@ impl SettingsOverlayView {
                 .planning_content
                 .as_ref()
                 .map(|content| content as &dyn SettingsContent),
+            SettingsSection::Personality => self
+                .personality_content
+                .as_ref()
+                .map(|content| content as &dyn SettingsContent),
             SettingsSection::Theme => self
                 .theme_content
                 .as_ref()
@@ -647,6 +658,10 @@ impl SettingsOverlayView {
                 .map(|content| content as &mut dyn SettingsContent),
             SettingsSection::Planning => self
                 .planning_content
+                .as_mut()
+                .map(|content| content as &mut dyn SettingsContent),
+            SettingsSection::Personality => self
+                .personality_content
                 .as_mut()
                 .map(|content| content as &mut dyn SettingsContent),
             SettingsSection::Theme => self

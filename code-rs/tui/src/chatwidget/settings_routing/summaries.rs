@@ -23,6 +23,7 @@ impl ChatWidget<'_> {
                     SettingsSection::Agents        => self.settings_summary_agents(),
                     SettingsSection::Memories      => self.settings_summary_memories(),
                     SettingsSection::Prompts       => self.settings_summary_prompts(),
+                    SettingsSection::Personality   => self.settings_summary_personality(),
                     SettingsSection::Skills        => self.settings_summary_skills(),
                     SettingsSection::Plugins       => self.settings_summary_plugins(),
                     SettingsSection::AutoDrive     => self.settings_summary_auto_drive(),
@@ -310,6 +311,12 @@ impl ChatWidget<'_> {
         };
         let effort = Self::format_reasoning_effort(self.config.planning_model_reasoning_effort);
         Some(format!("Model: {model_display} ({effort})"))
+    }
+
+    pub(super) fn settings_summary_personality(&self) -> Option<String> {
+        let p = crate::bottom_pane::settings_pages::personality::model::personality_label(self.config.model_personality);
+        let t = crate::bottom_pane::settings_pages::personality::model::tone_label(self.config.model_tone);
+        Some(format!("{p} · {t}"))
     }
 
     pub(super) fn settings_summary_theme(&self) -> Option<String> {

@@ -157,6 +157,7 @@ impl SettingsOverlayView {
             SettingsSection::Network => "Network Mediation",
             SettingsSection::Mcp => "MCP Servers",
             SettingsSection::Prompts => "Custom Prompts",
+            SettingsSection::Personality => "Personality & Tone",
         }
     }
 

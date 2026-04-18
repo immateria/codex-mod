@@ -144,6 +144,18 @@
                     }
                     self.schedule_redraw();
                 }
+                AppEvent::SetModelPersonality(personality) => {
+                    if let AppState::Chat { widget } = &mut self.app_state {
+                        widget.apply_personality_selection(personality);
+                    }
+                    self.schedule_redraw();
+                }
+                AppEvent::SetModelTone(tone) => {
+                    if let AppState::Chat { widget } = &mut self.app_state {
+                        widget.apply_tone_selection(tone);
+                    }
+                    self.schedule_redraw();
+                }
                 AppEvent::StatusLineSetup {
                     top_items,
                     bottom_items,

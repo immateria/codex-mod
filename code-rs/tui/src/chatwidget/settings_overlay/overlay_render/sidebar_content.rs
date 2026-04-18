@@ -140,6 +140,13 @@ impl SettingsOverlayView {
                 }
                 self.render_placeholder(area, buf, SettingsSection::Planning.placeholder());
             }
+            SettingsSection::Personality => {
+                if let Some(content) = self.personality_content.as_ref() {
+                    content.render(area, buf);
+                    return;
+                }
+                self.render_placeholder(area, buf, SettingsSection::Personality.placeholder());
+            }
             SettingsSection::Theme => {
                 if let Some(content) = self.theme_content.as_ref() {
                     content.render(area, buf);

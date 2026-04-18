@@ -152,6 +152,7 @@ mod model;
 #[cfg(feature = "managed-network-proxy")]
 mod network;
 mod notifications;
+mod personality;
 mod planning;
 mod plugins;
 mod prompts;
@@ -178,6 +179,7 @@ pub(crate) use model::ModelSettingsContent;
 #[cfg(feature = "managed-network-proxy")]
 pub(crate) use network::NetworkSettingsContent;
 pub(crate) use notifications::NotificationsSettingsContent;
+pub(crate) use personality::PersonalitySettingsContent;
 pub(crate) use planning::PlanningSettingsContent;
 pub(crate) use plugins::PluginsSettingsContent;
 pub(crate) use prompts::PromptsSettingsContent;

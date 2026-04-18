@@ -283,6 +283,7 @@ use crate::bottom_pane::settings_pages::mcp::{McpServerRow, McpServerRows, McpSe
 use crate::bottom_pane::settings_pages::model::ModelSelectionView;
 use crate::bottom_pane::settings_pages::notifications::{NotificationsMode, NotificationsSettingsView};
 use crate::bottom_pane::settings_pages::planning::PlanningSettingsView;
+use crate::bottom_pane::settings_pages::personality::PersonalitySettingsView;
 use crate::bottom_pane::settings_pages::prompts::PromptsSettingsView;
 use crate::bottom_pane::settings_pages::review::{ReviewSettingsInit, ReviewSettingsView};
 use crate::bottom_pane::settings_pages::skills::SkillsSettingsView;
