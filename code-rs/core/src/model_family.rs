@@ -1,4 +1,5 @@
 use crate::config_types::Personality;
+use crate::config_types::Tone;
 use crate::config_types::ContextMode;
 use crate::config_types::ReasoningEffort;
 use crate::config_types::ReasoningSummary;
@@ -29,6 +30,17 @@ const PERSONALITY_FRIENDLY: &str =
     include_str!("../templates/personalities/gpt-5.2-codex_friendly.md");
 const PERSONALITY_PRAGMATIC: &str =
     include_str!("../templates/personalities/gpt-5.2-codex_pragmatic.md");
+const PERSONALITY_CONCISE: &str =
+    include_str!("../templates/personalities/concise.md");
+const PERSONALITY_ENTHUSIASTIC: &str =
+    include_str!("../templates/personalities/enthusiastic.md");
+const PERSONALITY_MENTOR: &str =
+    include_str!("../templates/personalities/mentor.md");
+
+const TONE_FORMAL: &str = include_str!("../templates/tones/formal.md");
+const TONE_CASUAL: &str = include_str!("../templates/tones/casual.md");
+const TONE_DIRECT: &str = include_str!("../templates/tones/direct.md");
+const TONE_ENCOURAGING: &str = include_str!("../templates/tones/encouraging.md");
 
 const CONTEXT_WINDOW_272K: u64 = 272_000;
 const CONTEXT_WINDOW_200K: u64 = 200_000;
@@ -140,15 +152,27 @@ pub struct ModelFamily {
 pub(crate) fn base_instructions_override_for_personality(
     _model: &str,
     personality: Option<Personality>,
+    tone: Option<Tone>,
 ) -> Option<String> {
     let personality_message = match personality {
         Some(Personality::None) | None => "",
         Some(Personality::Friendly) => PERSONALITY_FRIENDLY,
         Some(Personality::Pragmatic) => PERSONALITY_PRAGMATIC,
+        Some(Personality::Concise) => PERSONALITY_CONCISE,
+        Some(Personality::Enthusiastic) => PERSONALITY_ENTHUSIASTIC,
+        Some(Personality::Mentor) => PERSONALITY_MENTOR,
+    };
+    let tone_message = match tone {
+        Some(Tone::Neutral) | None => "",
+        Some(Tone::Formal) => TONE_FORMAL,
+        Some(Tone::Casual) => TONE_CASUAL,
+        Some(Tone::Direct) => TONE_DIRECT,
+        Some(Tone::Encouraging) => TONE_ENCOURAGING,
     };
     Some(
         GPT_5_2_CODEX_INSTRUCTIONS_TEMPLATE
-            .replace("{{ personality }}", personality_message),
+            .replace("{{ personality }}", personality_message)
+            .replace("{{ tone }}", tone_message),
     )
 }
 

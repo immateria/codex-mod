@@ -15,6 +15,7 @@ use code_protocol::config_types::CollaborationMode;
 use code_protocol::config_types::CollaborationModeMask;
 use code_protocol::config_types::ForcedLoginMethod;
 use code_protocol::config_types::Personality;
+use code_protocol::config_types::Tone;
 use code_protocol::config_types::ReasoningSummary;
 use code_protocol::config_types::ApprovalsReviewer as CoreApprovalsReviewer;
 use code_protocol::config_types::SandboxMode as CoreSandboxMode;
@@ -2102,6 +2103,9 @@ pub struct ThreadStartParams {
     pub developer_instructions: Option<String>,
     #[ts(optional = nullable)]
     pub personality: Option<Personality>,
+    /// Override the response tone.
+    #[ts(optional = nullable)]
+    pub tone: Option<Tone>,
     #[ts(optional = nullable)]
     pub ephemeral: Option<bool>,
     #[experimental("thread/start.dynamicTools")]
@@ -2198,6 +2202,9 @@ pub struct ThreadResumeParams {
     pub developer_instructions: Option<String>,
     #[ts(optional = nullable)]
     pub personality: Option<Personality>,
+    /// Override the response tone.
+    #[ts(optional = nullable)]
+    pub tone: Option<Tone>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema, TS)]
@@ -3412,6 +3419,9 @@ pub struct TurnStartParams {
     /// Override the personality for this turn and subsequent turns.
     #[ts(optional = nullable)]
     pub personality: Option<Personality>,
+    /// Override the response tone for this turn and subsequent turns.
+    #[ts(optional = nullable)]
+    pub tone: Option<Tone>,
     /// Optional JSON Schema used to constrain the final assistant message for this turn.
     #[ts(optional = nullable)]
     pub output_schema: Option<JsonValue>,

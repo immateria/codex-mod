@@ -2341,6 +2341,7 @@ impl MessageProcessor {
             base_instructions,
             developer_instructions,
             personality,
+            tone,
             dynamic_tools,
             ..
         } = params;
@@ -2412,6 +2413,7 @@ impl MessageProcessor {
         // V2-specific fields that aren't part of the core config builder yet.
         config.demo_developer_message = developer_instructions;
         config.model_personality = personality.map(protocol_personality_to_core);
+        config.model_tone = tone.map(protocol_tone_to_core);
 
         let model = config.model.clone();
         let model_provider = config.model_provider_id.clone();
@@ -2507,6 +2509,7 @@ impl MessageProcessor {
             base_instructions,
             developer_instructions,
             personality,
+            tone,
         } = params;
 
         if history.is_some() {
@@ -2647,6 +2650,7 @@ impl MessageProcessor {
         // V2-specific fields that aren't part of the core config builder yet.
         config.demo_developer_message = developer_instructions;
         config.model_personality = personality.map(protocol_personality_to_core);
+        config.model_tone = tone.map(protocol_tone_to_core);
 
         let model = config.model.clone();
         let model_provider = config.model_provider_id.clone();
@@ -4091,6 +4095,29 @@ fn protocol_personality_to_core(
         }
         code_protocol::config_types::Personality::Pragmatic => {
             code_core::config_types::Personality::Pragmatic
+        }
+        code_protocol::config_types::Personality::Concise => {
+            code_core::config_types::Personality::Concise
+        }
+        code_protocol::config_types::Personality::Enthusiastic => {
+            code_core::config_types::Personality::Enthusiastic
+        }
+        code_protocol::config_types::Personality::Mentor => {
+            code_core::config_types::Personality::Mentor
+        }
+    }
+}
+
+fn protocol_tone_to_core(
+    tone: code_protocol::config_types::Tone,
+) -> code_core::config_types::Tone {
+    match tone {
+        code_protocol::config_types::Tone::Neutral => code_core::config_types::Tone::Neutral,
+        code_protocol::config_types::Tone::Formal => code_core::config_types::Tone::Formal,
+        code_protocol::config_types::Tone::Casual => code_core::config_types::Tone::Casual,
+        code_protocol::config_types::Tone::Direct => code_core::config_types::Tone::Direct,
+        code_protocol::config_types::Tone::Encouraging => {
+            code_core::config_types::Tone::Encouraging
         }
     }
 }

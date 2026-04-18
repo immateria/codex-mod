@@ -461,6 +461,9 @@ fn map_personality(personality: ConfigPersonality) -> ProtocolPersonality {
         ConfigPersonality::None => ProtocolPersonality::None,
         ConfigPersonality::Friendly => ProtocolPersonality::Friendly,
         ConfigPersonality::Pragmatic => ProtocolPersonality::Pragmatic,
+        ConfigPersonality::Concise => ProtocolPersonality::Concise,
+        ConfigPersonality::Enthusiastic => ProtocolPersonality::Enthusiastic,
+        ConfigPersonality::Mentor => ProtocolPersonality::Mentor,
     }
 }
 

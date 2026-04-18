@@ -81,6 +81,7 @@ impl Runner<'_> {
             crate::model_family::base_instructions_override_for_personality(
                 &model,
                 updated_config.model_personality,
+                updated_config.model_tone,
             )
         });
         updated_config.base_instructions = base_instructions.clone();

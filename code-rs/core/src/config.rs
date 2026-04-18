@@ -42,6 +42,7 @@ use crate::config_types::Tui;
 use crate::config_types::UriBasedFileOpener;
 use crate::config_types::ConfirmGuardConfig;
 use crate::config_types::Personality;
+use crate::config_types::Tone;
 use crate::config_types::WindowsSandboxModeToml;
 use crate::config_types::WindowsToml;
 use crate::config_types::DEFAULT_OTEL_ENVIRONMENT;
@@ -390,8 +391,11 @@ pub struct Config {
     /// Base instructions override.
     pub base_instructions: Option<String>,
 
-    /// Optional personality used to template gpt-5.2-codex base instructions.
+    /// Optional personality used to template base instructions.
     pub model_personality: Option<Personality>,
+
+    /// Optional tone modifier applied on top of personality.
+    pub model_tone: Option<Tone>,
 
     /// Optional override for the compaction prompt text.
     pub compact_prompt_override: Option<String>,
@@ -1030,6 +1034,7 @@ pub struct ConfigToml {
     pub model_reasoning_summary: Option<ReasoningSummary>,
     pub model_text_verbosity: Option<TextVerbosity>,
     pub model_personality: Option<Personality>,
+    pub model_tone: Option<Tone>,
     pub context_mode: Option<ContextMode>,
     pub service_tier: Option<ServiceTier>,
     pub windows: Option<WindowsToml>,
@@ -2301,6 +2306,10 @@ impl Config {
             .model_personality
             .or(cfg.model_personality);
 
+        let model_tone = config_profile
+            .model_tone
+            .or(cfg.model_tone);
+
         let service_tier = match config_profile.service_tier.or(cfg.service_tier) {
             Some(ServiceTier::Fast) => Some(ServiceTier::Fast),
             Some(ServiceTier::Standard) | None => None,
@@ -2654,6 +2663,7 @@ impl Config {
             demo_developer_message: None,
             base_instructions,
             model_personality,
+            model_tone,
             compact_prompt_override,
             mcp_servers: cfg.mcp_servers,
             experimental_client_tools: cfg.experimental_client_tools.clone(),

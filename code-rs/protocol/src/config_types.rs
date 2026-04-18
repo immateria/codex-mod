@@ -118,6 +118,34 @@ pub enum Personality {
     None,
     Friendly,
     Pragmatic,
+    Concise,
+    Enthusiastic,
+    Mentor,
+}
+
+#[derive(
+    Debug,
+    Serialize,
+    Deserialize,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    Display,
+    JsonSchema,
+    TS,
+    PartialOrd,
+    Ord,
+    EnumIter,
+)]
+#[serde(rename_all = "lowercase")]
+#[strum(serialize_all = "lowercase")]
+pub enum Tone {
+    Neutral,
+    Formal,
+    Casual,
+    Direct,
+    Encouraging,
 }
 
 #[derive(

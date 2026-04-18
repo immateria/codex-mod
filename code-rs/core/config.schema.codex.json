@@ -760,6 +760,9 @@
         "model_text_verbosity": {
           "$ref": "#/definitions/TextVerbosity"
         },
+        "model_tone": {
+          "$ref": "#/definitions/Tone"
+        },
         "planning_model": {
           "type": "string"
         },
@@ -1577,7 +1580,10 @@
       "enum": [
         "none",
         "friendly",
-        "pragmatic"
+        "pragmatic",
+        "concise",
+        "enthusiastic",
+        "mentor"
       ],
       "type": "string"
     },
@@ -2589,6 +2595,16 @@
         "dark-zen-garden",
         "dark-paper-light-pro",
         "custom"
+      ],
+      "type": "string"
+    },
+    "Tone": {
+      "enum": [
+        "neutral",
+        "formal",
+        "casual",
+        "direct",
+        "encouraging"
       ],
       "type": "string"
     },
@@ -3639,6 +3655,9 @@
     },
     "model_text_verbosity": {
       "$ref": "#/definitions/TextVerbosity"
+    },
+    "model_tone": {
+      "$ref": "#/definitions/Tone"
     },
     "network": {
       "allOf": [

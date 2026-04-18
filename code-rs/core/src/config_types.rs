@@ -3255,6 +3255,20 @@ pub enum Personality {
     Friendly,
     #[default]
     Pragmatic,
+    Concise,
+    Enthusiastic,
+    Mentor,
+}
+
+#[derive(Debug, Serialize, Deserialize, Default, Clone, Copy, PartialEq, Eq, JsonSchema)]
+#[serde(rename_all = "kebab-case")]
+pub enum Tone {
+    #[default]
+    Neutral,
+    Formal,
+    Casual,
+    Direct,
+    Encouraging,
 }
 
 #[derive(Debug, Deserialize)]

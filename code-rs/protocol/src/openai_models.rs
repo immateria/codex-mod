@@ -394,6 +394,11 @@ impl ModelInstructionsVariables {
                 Personality::None => Some(String::new()),
                 Personality::Friendly => self.personality_friendly.clone(),
                 Personality::Pragmatic => self.personality_pragmatic.clone(),
+                // New personalities fall back to the local template system;
+                // the remote catalog doesn't carry text for them yet.
+                Personality::Concise
+                | Personality::Enthusiastic
+                | Personality::Mentor => None,
             }
         } else {
             self.personality_default.clone()
