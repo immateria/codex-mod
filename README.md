@@ -5,138 +5,205 @@
 <h1 align="center">codex-mod</h1>
 
 <p align="center">
-  Fork of <code>every-code/main</code> with a short list of changes: Android/Termux builds, Codex ports into <code>code-rs</code>, managed network mediation, a context-aware Memories pipeline, app-server exec v2 with Windows sandboxing, and TUI cleanup.
+  A fork of <code>every-code/main</code> that went a bit further than planned.
+  Personality traits, autonomous runs, browser tools, local LLM support,
+  session resume, and a TUI with too many settings pages.
 </p>
 
 <p align="center">
-  <a href="#differences-vs-upstream-every-code">Differences</a> ·
-  <a href="#feature-matrix-quick-map">Matrix</a> ·
-  <a href="#dev-notes">Dev notes</a> ·
-  <a href="#compare-with-upstream">Compare</a> ·
-  <a href="#validate-locally">Validate</a>
+  <a href="#whats-different">Differences</a> ·
+  <a href="#feature-matrix">Feature matrix</a> ·
+  <a href="#personality-system">Personality</a> ·
+  <a href="#the-tui">TUI</a> ·
+  <a href="#dev-notes">Dev notes</a>
 </p>
 
 ---
 
-## Differences vs upstream Every Code
+## What's different
 
-This repo keeps changes in two buckets:
-- `Codex port`: pulled from upstream `codex-rs` into `code-rs`.
-- `Fork choice`: intentional behavior/architecture change (not just a straight port).
+About 880 commits on top of upstream, spread across ~60 crates in `code-rs/`.
+Some are straight ports from OpenAI's `codex-rs`, some were ported then
+reshaped, and some are new.
 
-## Feature matrix (quick map)
-
-Legend: `Hybrid` = started as a Codex port, then got adapted for this fork.
-
-| Area                                             | Source      | How it works here                                                                                                                                                                                                                                                                                                                       | Pointers                                                                                                                                                     |
-| ------------------------------------------------ | ----------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Tool runtime architecture                        | Codex port  | Tool routing moved out of streaming into a router/registry/handler layout.                                                                                                                                                                                                                                                              | `code-rs/core/src/tools/*`                                                                                                                                   |
-| Parallel tool dispatch                           | Codex port  | Parallel batches exist, but get downgraded when ordering metadata is missing.                                                                                                                                                                                                                                                           | `code-rs/core/src/tools/scheduler.rs`                                                                                                                        |
-| Tool handler coverage checks                     | Codex port  | Tests ensure enabled function/freeform tools have handlers.                                                                                                                                                                                                                                                                             | `code-rs/core/src/tools/router.rs`                                                                                                                           |
-| MCP dispatch policy                              | Fork choice | MCP `dispatch=parallel` is user-configurable and still access-gated.                                                                                                                                                                                                                                                                    | `code-rs/core/src/mcp_connection_manager.rs`<br>`code-rs/core/src/config_types.rs`                                                                           |
-| `search_tool_bm25`                               | Hybrid      | MCP tools stay hidden until search selection exists, then only selected tools are exposed.                                                                                                                                                                                                                                              | `code-rs/core/src/tools/handlers/search_tool_bm25.rs`<br>`code-rs/core/src/tools/router.rs`                                                                  |
-| `apply_patch`                                    | Hybrid      | Dedicated handler, but it still runs the same local safety checks (branch/hook/diff).                                                                                                                                                                                                                                                  | `code-rs/core/src/tools/handlers/apply_patch.rs`<br>`code-rs/core/src/codex/exec_tool.rs`                                                                    |
-| Streamable shell (`exec_command`, `write_stdin`) | Hybrid      | PTY sessions with cleanup on abort/kill and apply-patch interception guidance.                                                                                                                                                                                                                                                          | `code-rs/core/src/tools/handlers/exec_command.rs`<br>`code-rs/core/src/exec_command/session_manager.rs`                                                      |
-| App-server exec v2                               | Hybrid      | Raw `command/exec*` sessions support streaming output, stdin writes, resize/terminate, and connection-scoped process ids.                                                                                                                                                                                                               | `code-rs/app-server/src/command_exec.rs`<br>`code-rs/app-server-protocol/src/protocol/v2.rs`                                                                 |
-| Windows sandbox runtime                          | Hybrid      | Windows secure exec supports restricted-token/elevated modes through a dedicated sandbox backend instead of silently falling back to unsandboxed execution.                                                                                                                                                                             | `code-rs/core/src/windows_sandbox.rs`<br>`code-rs/core/src/sandboxing.rs`<br>`code-rs/windows-sandbox-rs/*`                                                  |
-| JS REPL                                          | Hybrid      | Runtime-selectable (`node`/`deno`), configurable runtime path/args, per-call override; Node >=18 required.                                                                                                                                                                                                                              | `code-rs/core/src/tools/js_repl/*`<br>`code-rs/core/src/tools/handlers/js_repl.rs`                                                                           |
-| JS REPL history linkage                          | Fork choice | Child execs track `parent_call_id`, show lineage markers, and support jump-to-parent navigation.                                                                                                                                                                                                                                        | `code-rs/tui/src/history_cell/js_repl.rs`<br>`code-rs/tui/src/chatwidget/exec_tools/lifecycle/begin_flow.rs`                                                 |
-| MCP resource tools                               | Codex port  | `list_mcp_resources`, `list_mcp_resource_templates`, `read_mcp_resource` are implemented.                                                                                                                                                                                                                                               | `code-rs/core/src/tools/handlers/mcp_resource.rs`                                                                                                            |
-| MCP settings editor                              | Fork choice | TUI supports server/tool scheduling edits (persist + apply without a full restart).                                                                                                                                                                                                                                                     | `code-rs/tui/src/bottom_pane/mcp_settings_view/*`<br>`code-rs/tui/src/app/events.rs`                                                                         |
-| Network mediation                                | Hybrid      | Upstream mediation ideas, but fork UX/policy: temporary approvals + macOS fail-closed path for sandboxed runs. Gated at build time via `managed-network-proxy`.                                                                                                                                                                         | `code-rs/core/src/network_approval.rs`<br>`code-rs/core/src/seatbelt.rs`<br>`code-rs/tui/src/bottom_pane/settings_pages/network/*`                           |
-| Network approval UX                              | Fork choice | Network prompts have network-specific options (`allow once`, `allow for session`, deny run/open settings).                                                                                                                                                                                                                              | `code-rs/tui/src/user_approval_widget.rs`<br>`code-rs/tui/src/chatwidget/history_pipeline/runtime_flow/approvals.rs`                                         |
-| Status line lanes                                | Fork choice | Independent top/bottom status lanes with `/statusline` routing, clickable actions, speed toggles, and directory-picker controls.                                                                                                                                                                                                        | `code-rs/tui/src/chatwidget/status_line_flow.rs`<br>`code-rs/tui/src/chatwidget/terminal_surface_render.rs`                                                  |
-| Settings UX routing                              | Fork choice | Settings can render as an overlay or in the bottom pane; `auto` switches by width threshold.                                                                                                                                                                                                                                           | `code-rs/tui/src/chatwidget/settings_routing.rs`                                                                                                             |
-| Session context mode / auto-context              | Hybrid      | Session tuning lets you choose a context mode and see auto-context checks. On supported models, `auto` uses the 1M-capable limits while keeping pre-turn compaction checks active; `enabled` forces the large window without the extra "when should I compact?" layer, and `disabled` stays on model defaults.                     | `code-rs/core/src/protocol.rs`<br>`code-rs/core/src/codex/streaming/submission/configure_session/*`<br>`code-rs/tui/src/bottom_pane/model_selection_view.rs` |
-| Hotkeys                                          | Fork choice | Global + per-platform overrides (`macos/windows/linux/android/termux/BSD`), Fn keys + modifier chords.                                                                                                                                                                                                                                  | `code-rs/core/src/config_types.rs`<br>`code-rs/tui/src/bottom_pane/interface_settings_view.rs`                                                               |
-| Output folding in history                        | Fork choice | Tool/exec/JS-heavy outputs can collapse to keep history readable.                                                                                                                                                                                                                                                                       | `code-rs/tui/src/history_cell/*`                                                                                                                             |
-| Shell profile system                             | Fork choice | Shell-style profiles include summaries, scoped skills/references, MCP include/exclude, and safety overrides.                                                                                                                                                                                                                            | `code-rs/core/src/config_types.rs`<br>`code-rs/core/src/config/sources.rs`                                                                                   |
-| Shell/profile UX                                 | Fork choice | Shell selection + profile editing are exposed in settings views.                                                                                                                                                                                                                                                                        | `code-rs/tui/src/bottom_pane/shell_selection_view.rs`<br>`code-rs/tui/src/chatwidget/shell_config_flow.rs`                                                   |
-| Memories pipeline                                | Hybrid      | Memories are context-aware, epoch-based, backed by a derived SQLite index, and published through immutable snapshot generations for prompt selection and human inspection.                                                                                                                                                              | `code-rs/core/src/memories/*`<br>`code-rs/memories-state/src/lib.rs`                                                                                         |
-| Auth model                                       | Fork choice | Multi-account workflows and separate CLI auth store mode vs MCP OAuth store mode.                                                                                                                                                                                                                                                       | `code-rs/core/src/auth_accounts.rs`<br>`code-rs/core/src/config.rs`                                                                                          |
-| Credentials storage controls                     | Fork choice | `file`, `keyring`, `auto`, and `ephemeral` modes are configurable and used by TUI account flows.                                                                                                                                                                                                                                        | `code-rs/core/src/auth/storage.rs`<br>`code-rs/tui/src/bottom_pane/login_accounts_view.rs`                                                                   |
-| Picker/file-manager actions                      | Fork choice | Profile/config path workflows support a picker and "open in file manager", with fallbacks.                                                                                                                                                                                                                                              | `code-rs/tui/src/bottom_pane/*`                                                                                                                              |
-| CLI automation commands                          | Codex port  | `code fork`, `code sandbox`, debug send-message-v2 helpers are present.                                                                                                                                                                                                                                                                 | `code-rs/cli/src/*`                                                                                                                                          |
-| Streaming recovery                               | Codex port  | Retry/auto-compact reconciliation hardening with stronger tool-call correlation.                                                                                                                                                                                                                                                        | `code-rs/core/src/codex/streaming/*`                                                                                                                         |
-| Stream ordering diagnostics                      | Fork choice | Ordering guarantees are backed by replay tooling for debugging regressions.                                                                                                                                                                                                                                                             | `code-rs/cli/src/bin/order_replay.rs`                                                                                                                        |
-| Utility crates                                   | Codex port  | `stream-parser`, `sleep-inhibitor`, plus newer exec/runtime helpers like `pty` and `string` live in `code-rs/utils`.                                                                                                                                                                                                                    | `code-rs/utils/stream-parser`<br>`code-rs/utils/sleep-inhibitor`<br>`code-rs/utils/pty`<br>`code-rs/utils/string`                                            |
-| Android/Termux gating                            | Fork choice | Unsupported browser/CDP paths are compile-time gated; build flow is fork-specific.                                                                                                                                                                                                                                                      | `code-rs/tui/src/chatwidget.rs`<br>`build.zsh`                                                                                                               |
-
-<details>
-<summary>More detail (ports, fork choices, safety rules)</summary>
-
-### Codex ports integrated into `code-rs`
-
-- Tool runtime modularization: router/registry/handler replaces monolithic tool routing in streaming.
-- Parallel tool scheduler parity: batch/exclusive planning with ordering safeguards.
-- Tool surface parity: `search_tool_bm25`, `apply_patch`, `exec_command`, `write_stdin`, optional `js_repl`.
-- MCP parity wiring: richer status/auth/runtime handling.
-- MCP resource tools: list/read resource surfaces.
-- App-server exec v2: raw `command/exec*` sessions, output deltas, stdin writes, resize/terminate support.
-- Windows sandbox parity for raw exec: restricted-token/elevated runtime support instead of unsandboxed fallback.
-- CLI parity commands: `code fork`, `code sandbox`, and debug send-message-v2 helpers.
-- Streaming/recovery parity: retry/compaction reconciliation and tool-call correlation hardening.
-- Utility backports: `stream-parser`, `sleep-inhibitor`, plus newer `pty`/`string` helpers used by exec/runtime parity work.
-
-### Fork-specific choices
-
-- Shell selection and profiles are configurable and exposed in the TUI.
-- MCP scheduling is enforced in core and editable in TUI.
-- Network mediation is opt-in and shows up in settings, approvals, and the statusline (with deep links).
-- Settings can render in two places (overlay + bottom pane); width decides which.
-- The header/status area is interactive: you can change speed mode and working directory from the UI.
-- Hotkeys are configurable with per-platform overrides.
-- Multi-account auth storage is split: CLI auth vs MCP OAuth.
-- Android/Termux builds compile out unsupported browser/CDP paths.
-
-### Hybrid ports (ported, but adapted here)
-
-- `search_tool_bm25` gates MCP visibility until a session selection exists.
-- `apply_patch` handler is wired through the local safety/hook/diff checks.
-- `exec_command`/`write_stdin` uses the local exec lifecycle and safety checks.
-- Session context mode and auto-context checks are wired through configure-session and the TUI tuning flow. In practice, `auto` is basically "1M + early warnings" on supported models: it enables the larger window, keeps the check events flowing, and warns or compacts before later turns when context gets tight.
-- Memories use upstream-style extraction/selection ideas, but this fork keeps `SessionCatalog` as the source of truth and publishes immutable snapshots.
-- Network mediation enforcement policy differs by platform (macOS stricter; others best-effort).
-
-### Safety rules
-
-- `codex-rs` is treated as read-only reference; runtime changes land in `code-rs`.
-- Stream ordering stays strict and testable (there's a replay tool for debugging).
-- Config persistence stays layered (root/profile/session semantics are deliberate).
-</details>
+- **Codex port** — pulled from upstream `codex-rs` into `code-rs`
+- **Hybrid** — ported, then changed to fit this fork
+- **Fork-only** — doesn't exist upstream
 
 > [!NOTE]
-> This README is only about what's different from upstream Every Code. For install/usage
-> docs and the general overview, start with upstream.
+> This README only covers what's different. For general install and usage,
+> see upstream.
 >
 > - Upstream remote: `upstream` (just-every/code)
-> - Upstream baseline branch: `every-code/main`
+> - Baseline branch: `every-code/main`
+
+---
+
+## Feature matrix
+
+### Core
+
+| Area               | Source     | What it does                                                           | Where to look                                    |
+| ------------------ | ---------- | ---------------------------------------------------------------------- | ------------------------------------------------ |
+| Tool runtime       | Codex port | Router/registry/handler instead of monolithic streaming dispatch       | `core/src/tools/*`                               |
+| Parallel tools     | Codex port | Batch/exclusive scheduling; degrades when ordering metadata is missing | `core/src/tools/scheduler.rs`                    |
+| Streaming recovery | Codex port | Retry and auto-compact reconciliation with tool-call correlation       | `core/src/codex/streaming/*`                     |
+| App-server exec v2 | Hybrid     | Streaming output, stdin, resize/terminate, connection-scoped PIDs      | `app-server/`, `app-server-protocol/`            |
+| Windows sandbox    | Hybrid     | Restricted-token and elevated modes through a real sandbox backend     | `windows-sandbox-rs/`, `core/src/sandboxing.rs`  |
+| MCP dispatch       | Fork-only  | Configurable `dispatch=parallel` with server/tool scheduling edits     | `core/src/mcp_connection_manager.rs`             |
+| Network mediation  | Hybrid     | Temporary approvals, macOS fail-closed path, compile-gated             | `network-proxy/`, `core/src/network_approval.rs` |
+
+### AI and models
+
+| Area               | Source    | What it does                                                                               | Where to look                                            |
+| ------------------ | --------- | ------------------------------------------------------------------------------------------ | -------------------------------------------------------- |
+| Personality traits | Fork-only | 7 trait sliders (1–5), archetype presets, tone axis — [details below](#personality-system) | `core/src/personality_traits.rs`, `tui/.../personality/` |
+| Model families     | Hybrid    | Per-model context windows, truncation policy, reasoning effort clamping                    | `core/src/model_family.rs`, `core/src/reasoning.rs`      |
+| Auto-drive         | Fork-only | Autonomous agent with Launch→Run→Resolve phases, backoff, metrics                          | `code-auto-drive-core/`                                  |
+| Ollama             | Fork-only | Local LLM support — auto-pulls models, detects context window                              | `ollama/`                                                |
+| ChatGPT connector  | Fork-only | Backend API for apply commands, task submission                                            | `chatgpt/`                                               |
+| Feature flags      | Fork-only | Flag registry with lifecycle stages and an experimental menu                               | `features/`                                              |
+| Cloud tasks        | Fork-only | Task tracking UI, review coordination, diff preview                                        | `cloud-tasks/`                                           |
+| Memories           | Hybrid    | Epoch-based, SQLite-indexed, published as immutable snapshots                              | `core/src/memories/*`, `memories-state/`                 |
+
+### REPL and tools
+
+| Area                 | Source    | What it does                                                                         | Where to look                                 |
+| -------------------- | --------- | ------------------------------------------------------------------------------------ | --------------------------------------------- |
+| Multi-runtime REPL   | Hybrid    | Node, Deno, Python — per-runtime toggles, permission management, `codex.emitImage()` | `core/src/tools/repl/`                        |
+| REPL history linkage | Fork-only | Child execs track their parent call; you can jump between them                       | `tui/src/history_cell/`                       |
+| Browser automation   | Fork-only | Headless Chrome via CDP — screenshots, viewport config, asset storage                | `browser/`                                    |
+| `search_tool_bm25`   | Hybrid    | MCP tools stay hidden until a selection exists                                       | `core/src/tools/handlers/search_tool_bm25.rs` |
+| `apply_patch`        | Hybrid    | Wired through local safety, hook, and diff checks                                    | `core/src/tools/handlers/apply_patch.rs`      |
+
+### TUI
+
+| Area                | Source    | What it does                                                                 | Where to look                            |
+| ------------------- | --------- | ---------------------------------------------------------------------------- | ---------------------------------------- |
+| 30 settings pages   | Fork-only | Everything from model selection to shell profiles — [listed below](#the-tui) | `tui/src/bottom_pane/settings_pages/`    |
+| Intro animation     | Fork-only | Glitch reveal, gradient effects, 10+ variants                                | `tui/src/glitch_animation.rs`            |
+| Status line         | Fork-only | 24 items across top/bottom lanes, clickable, configurable via `/statusline`  | `tui/src/chatwidget/status_line_flow.rs` |
+| Icon tiers          | Fork-only | Nerd Fonts → Unicode → ASCII fallback, per-icon overrides in config          | `tui/src/icons.rs`                       |
+| Session resume/fork | Fork-only | JSONL session catalog — resume or fork any previous conversation             | `core/src/session_catalog.rs`            |
+| Rate limit charts   | Fork-only | Weekly/hourly usage gauges and breakdown                                     | `tui/src/rate_limits_view.rs`            |
+| Hotkeys             | Fork-only | Per-platform overrides (macOS, Windows, Linux, Android, Termux, BSD)         | `core/src/config_types.rs`               |
+| Shell profiles      | Fork-only | Scoped skills, MCP include/exclude, safety overrides                         | `core/src/config/sources.rs`             |
+| Auth                | Fork-only | Multi-account with device code + PKCE, file/keyring/ephemeral storage        | `login/`, `core/src/auth/`               |
+| Android/Termux      | Fork-only | Browser/CDP paths compiled out; separate build flow                          | `build.zsh`                              |
+
+---
+
+## Personality system
+
+Pick an archetype, a tone, then dial in traits. Or skip the archetype and
+just use the sliders.
+
+**Archetypes:** Pragmatic (default) · Friendly · Concise · Enthusiastic · Mentor · None
+
+**Tone:** Neutral · Formal · Casual · Direct · Encouraging
+
+**Traits** (1–5 scale, 3 = neutral — neutral traits emit no instructions):
+
+| Trait        | 1                | 5                       |
+| ------------ | ---------------- | ----------------------- |
+| Conciseness  | Very detailed    | Extremely terse         |
+| Thoroughness | Trust and ship   | Triple-check everything |
+| Autonomy     | Always ask first | Act without asking      |
+| Pedagogy     | Just answers     | Deep explanations       |
+| Enthusiasm   | Reserved         | High energy             |
+| Formality    | Very casual      | Very formal             |
+| Boldness     | Conservative     | Bold refactoring        |
+
+The instructions sent to the model adapt based on what model you're using —
+reasoning models don't get told to "think step by step" (they already do),
+and smaller models get shorter instructions to avoid wasting context.
+
+Edit in the TUI (Personality settings page) or in config:
+
+```toml
+[personality]
+personality = "friendly"
+tone = "casual"
+
+[personality.traits]
+conciseness = 4
+thoroughness = 2
+boldness = 5
+```
+
+---
+
+## The TUI
+
+### Settings pages
+
+30 pages, accessible via shortcuts or `/settings`:
+
+| Category    | Pages                                                                              |
+| ----------- | ---------------------------------------------------------------------------------- |
+| AI          | Personality, Model, Planning, Auto-drive, Agents, Prompts                          |
+| Tools       | REPL, MCP, Browser, Exec limits, Skills                                            |
+| Environment | Shell, Shell profiles, Shell escalation, Network, Secrets                          |
+| Session     | Memories, Review, Validation, Notifications, Experimental                          |
+| Interface   | Hotkeys, Status line, Theme, Verbosity, Updates, Accounts, Plugins, Apps, Overview |
+
+### Icons
+
+Three tiers with automatic fallback. Set `tui.icon_mode` to `nerd_fonts`,
+`unicode` (default), or `ascii`. Override individual icons if you want:
+
+```toml
+[tui.icons.gutter_exec]
+ascii = "$"
+unicode = "❯"
+nerd_fonts = ""
+```
+
+### Animations
+
+The intro screen has a glitch-reveal effect with character-by-character
+rendering, shine bands, and fade transitions. There are 10+ reveal variants
+(GlitchSweep, ChromaticScan, AuroraBridge, NeonRoad, etc.) plus a header
+wave, shimmer effects, and a JSON-driven spinner registry.
+
+### Status line
+
+Top and bottom lanes, each configurable with items like model name, git
+branch, context remaining, rate limits, REPL status, and more. Use
+`/statusline` to configure.
+
+---
 
 ## Dev notes
 
-- Rust sources to edit live under `code-rs/`.
-- `codex-rs/` is treated as a read-only mirror of OpenAI Codex and used for
-  parity work and reference.
+Rust sources live in `code-rs/` (~60 crates). `codex-rs/` is a read-only
+mirror of upstream OpenAI Codex, kept around for reference.
 
-### Optional build: no managed network proxy
+### Build
 
-The managed network proxy subsystem (and its dependency tree) is controlled by a single Cargo feature:
+```bash
+./build-fast.sh                                       # full validation, required before push
 
-- Default build: proxy enabled (status quo): `cargo build -p code-cli`
-- Small build: proxy + Network UI compiled out: `cargo build -p code-cli --no-default-features`
-- Explicit opt-in: `cargo build -p code-cli --features managed-network-proxy`
+cd code-rs && cargo check -p code-tui                 # quick incremental check
+cd code-rs && cargo clippy --workspace --all-targets  # all warnings must be clean
+cd code-rs && cargo nextest run --no-fail-fast         # tests
+```
 
-When compiled without `managed-network-proxy`, `[network] enabled=true` is ignored and Codex emits a warning during session configuration.
+### Building without the network proxy
+
+```bash
+cargo build -p code-cli                              # proxy enabled (default)
+cargo build -p code-cli --no-default-features         # proxy compiled out
+```
 
 ## Compare with upstream
 
 ```bash
 git diff every-code/main..main
-
 git log --oneline every-code/main..main
 ```
 
-## Validate locally
+## Validate
 
 ```bash
 ./build-fast.sh
