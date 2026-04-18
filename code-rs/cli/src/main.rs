@@ -681,6 +681,10 @@ fn main() -> anyhow::Result<()> {
 }
 
 async fn cli_main(code_linux_sandbox_exe: Option<PathBuf>) -> anyhow::Result<()> {
+    // Install the rustls crypto provider early, before any background thread
+    // can attempt a TLS connection (e.g. WebSocket via tokio-tungstenite).
+    code_utils_rustls_provider::ensure_rustls_crypto_provider();
+
     let MultitoolCli {
         config_overrides: root_config_overrides,
         mut interactive,

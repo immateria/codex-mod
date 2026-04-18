@@ -486,6 +486,12 @@ pub async fn run_main(
     mut cli: Cli,
     code_linux_sandbox_exe: Option<PathBuf>,
 ) -> std::io::Result<ExitSummary> {
+    // Install the rustls crypto provider before any TLS operation. Background
+    // threads (e.g. rate_limit_refresh) may attempt WebSocket/TLS connections
+    // before reqwest auto-initializes; without an explicit install the process
+    // panics.
+    code_utils_rustls_provider::ensure_rustls_crypto_provider();
+
     cli.finalize_defaults();
 
     let (sandbox_mode, approval_policy) = if cli.full_auto {
