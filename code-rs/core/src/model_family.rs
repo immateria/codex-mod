@@ -138,18 +138,9 @@ pub struct ModelFamily {
 }
 
 pub(crate) fn base_instructions_override_for_personality(
-    model: &str,
+    _model: &str,
     personality: Option<Personality>,
 ) -> Option<String> {
-    if !(model.starts_with("gpt-5.2-codex")
-        || model.starts_with("gpt-5.3-codex")
-        || model.starts_with("gpt-5.4")
-        || model.starts_with("bengalfox")
-        || model.starts_with("exp-codex")
-        || model.starts_with("codex-1p"))
-    {
-        return None;
-    }
     let personality_message = match personality {
         Some(Personality::None) | None => "",
         Some(Personality::Friendly) => PERSONALITY_FRIENDLY,
