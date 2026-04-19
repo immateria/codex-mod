@@ -56,7 +56,6 @@ impl ChatWidget<'_> {
         cell: &dyn crate::history_cell::HistoryCell,
     ) -> Vec<ratatui::text::Line<'static>> {
         let mut lines = self.cell_lines_for_terminal_index(idx, cell);
-        let _has_icon = cell.gutter_symbol().is_some();
         let first_prefix: Cow<'static, str> = if let Some(sym) = cell.gutter_symbol() {
             format!(" {sym} ").into() // one space, icon, one space
         } else {

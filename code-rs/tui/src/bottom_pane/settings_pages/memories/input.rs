@@ -564,6 +564,9 @@ impl MemoriesSettingsView {
             return false;
         };
         let total = list.entries.len();
+        if total == 0 {
+            return false;
+        }
         let visible = list.viewport_rows.get().max(1);
         let mut state = list.list_state.get();
 

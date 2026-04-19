@@ -34,25 +34,29 @@ fn compact_json_string(json_pretty: &str) -> String {
     let mut chars = json_pretty.chars().peekable();
     let mut in_string = false;
     let mut escape_next = false;
+    let mut last_pushed: Option<char> = None;
 
     while let Some(ch) = chars.next() {
         match ch {
             '"' if !escape_next => {
                 in_string = !in_string;
                 result.push(ch);
+                last_pushed = Some(ch);
             }
             '\\' if in_string => {
                 escape_next = !escape_next;
                 result.push(ch);
+                last_pushed = Some(ch);
             }
             '\n' | '\r' if !in_string => {
                 // Skip newlines when not in a string literal.
             }
             ' ' | '\t' if !in_string => {
                 if let Some(&next_ch) = chars.peek()
-                    && let Some(last_ch) = result.chars().last()
-                        && (last_ch == ':' || last_ch == ',') && !matches!(next_ch, '}' | ']') {
+                    && let Some(lp) = last_pushed
+                        && (lp == ':' || lp == ',') && !matches!(next_ch, '}' | ']') {
                             result.push(' ');
+                            last_pushed = Some(' ');
                         }
             }
             _ => {
@@ -60,6 +64,7 @@ fn compact_json_string(json_pretty: &str) -> String {
                     escape_next = false;
                 }
                 result.push(ch);
+                last_pushed = Some(ch);
             }
         }
     }
@@ -67,7 +72,7 @@ fn compact_json_string(json_pretty: &str) -> String {
     result
 }
 
-/// Truncate `text` to at most `max_graphemes` graphemes, avoiding partial graphemes and adding an ellipsis when there
+/// Truncate `text` to at most `max_chars` characters, appending an ellipsis when there
 /// is enough space.
 /// Truncate by character count and append a single ellipsis when truncated.
 ///
@@ -121,7 +126,7 @@ pub(crate) fn truncate_to_display_width(text: &str, max_width: usize) -> String 
     let mut out = String::new();
     let mut width = 0usize;
     for ch in text.chars() {
-        let ch_width = UnicodeWidthChar::width(ch).unwrap_or(1);
+        let ch_width = UnicodeWidthChar::width(ch).unwrap_or(0);
         if width + ch_width > max_width {
             break;
         }
@@ -304,7 +309,7 @@ pub(crate) fn split_long_word(word: &str, width: usize) -> Vec<String> {
     let mut current_width = 0;
 
     for ch in word.chars() {
-        let ch_width = UnicodeWidthChar::width(ch).unwrap_or(1);
+        let ch_width = UnicodeWidthChar::width(ch).unwrap_or(0);
         if current_width + ch_width > width && !current.is_empty() {
             parts.push(std::mem::replace(&mut current, String::with_capacity(width * 4)));
             current_width = 0;

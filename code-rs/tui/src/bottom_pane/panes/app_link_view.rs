@@ -100,7 +100,7 @@ impl AppLinkView {
         let w = width as usize;
         let mut lines: u16 = 0;
         for part in text.split('\n') {
-            let len = part.chars().count();
+            let len = unicode_width::UnicodeWidthStr::width(part);
             if len == 0 {
                 lines = lines.saturating_add(1);
                 continue;
