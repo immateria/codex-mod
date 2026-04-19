@@ -40,7 +40,7 @@ impl SettingsOverlayView {
             // Expanded: sidebar (with toggle row on top) + content.
             // Adaptive width: cap at 22 but shrink proportionally on
             // narrow screens so the content pane always gets ≥ 60% width.
-            let sidebar_width = 22u16.min(area.width * 35 / 100).max(12);
+            let sidebar_width = 22u16.min((u32::from(area.width) * 35 / 100) as u16).max(12);
             let [sidebar_col, main] =
                 Layout::horizontal([Constraint::Length(sidebar_width), Constraint::Fill(1)])
                     .areas(area);

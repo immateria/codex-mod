@@ -480,7 +480,7 @@ impl AutoDriveCardCell {
         let mut current_width = 0usize;
 
         for ch in word.chars() {
-            let char_width = UnicodeWidthChar::width(ch).unwrap_or(1);
+            let char_width = UnicodeWidthChar::width(ch).unwrap_or(0);
             if current_width + char_width > width {
                 if !current.is_empty() {
                     rows.push(current);
