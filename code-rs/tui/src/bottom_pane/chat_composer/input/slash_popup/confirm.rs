@@ -1,5 +1,16 @@
 use super::*;
 
+fn canonicalize_slash_command_text_for_builtin(original: &str, cmd: SlashCommand) -> String {
+    let trimmed = original.trim_start();
+    let Some(rest) = trimmed.strip_prefix('/') else {
+        return format!("/{}", cmd.command());
+    };
+
+    let name_end = rest.find(char::is_whitespace).unwrap_or(rest.len());
+    let suffix = &rest[name_end..];
+    format!("/{}{}", cmd.command(), suffix)
+}
+
 pub(super) fn confirm_slash_popup_selection_inner(view: &mut ChatComposer) -> (InputResult, bool) {
     let selection = {
         let ActivePopup::Command(popup) = &mut view.active_popup else {
@@ -25,10 +36,11 @@ pub(super) fn confirm_slash_popup_selection_inner(view: &mut ChatComposer) -> (I
         }
     };
 
-    let command_text = view.textarea.text().to_owned();
+    let original_text = view.textarea.text().to_owned();
 
     match selection {
         SlashPopupSelection::Builtin(cmd) => {
+            let command_text = canonicalize_slash_command_text_for_builtin(&original_text, cmd);
             view.history.record_local_submission(&command_text);
             if cmd.is_prompt_expanding() {
                 view.app_event_tx
@@ -41,7 +53,7 @@ pub(super) fn confirm_slash_popup_selection_inner(view: &mut ChatComposer) -> (I
             (InputResult::Command(cmd), true)
         }
         SlashPopupSelection::UserPrompt(prompt_content) => {
-            view.history.record_local_submission(&command_text);
+            view.history.record_local_submission(&original_text);
             view.textarea.set_text("");
             view.active_popup = ActivePopup::None;
             if let Some(contents) = prompt_content {

@@ -168,8 +168,20 @@ pub(super) fn handle_settings_key(chat: &mut ChatWidget<'_>, key_event: KeyEvent
             }
             return true;
         }
-        // BackTab always returns focus to sidebar.
+        // BackTab: let the active content handle it first (for multi-field forms).
+        // If not handled, treat it as a focus jump back to the sidebar.
         KeyCode::BackTab if content_focused => {
+            let handled_by_content = chat
+                .settings
+                .overlay
+                .as_mut()
+                .and_then(|overlay| overlay.active_content_mut())
+                .is_some_and(|content| content.handle_key(key_event));
+            if handled_by_content {
+                chat.request_redraw();
+                return true;
+            }
+
             if let Some(overlay) = chat.settings.overlay.as_mut() {
                 if overlay.is_sidebar_collapsed() {
                     overlay.toggle_sidebar_collapsed();
@@ -429,5 +441,42 @@ mod tests {
 
         let screen = render_chat_widget_to_vt100(&mut harness, 100, 28);
         assert!(screen.contains(slug), "expected slug to be visible; got:\n{screen}");
+    }
+
+    #[test]
+    fn prompts_editor_backtab_cycles_focus_in_content() {
+        use crate::test_helpers::render_chat_widget_to_vt100;
+
+        let mut harness = ChatWidgetHarness::new();
+        harness.with_chat(|chat| {
+            chat.ensure_settings_overlay_section(SettingsSection::Prompts);
+        });
+
+        harness.send_key(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
+
+        let screen = render_chat_widget_to_vt100(&mut harness, 100, 28);
+        assert!(
+            screen.contains("Name (slug) • Enter to save"),
+            "expected name field to be focused; got:\n{screen}"
+        );
+
+        harness.send_key(KeyEvent::new(KeyCode::Tab, KeyModifiers::NONE));
+        let screen = render_chat_widget_to_vt100(&mut harness, 100, 28);
+        assert!(
+            screen.contains("Content (multiline)"),
+            "expected body field to be focused; got:\n{screen}"
+        );
+
+        harness.send_key(KeyEvent::new(KeyCode::BackTab, KeyModifiers::SHIFT));
+        harness.with_chat(|chat| {
+            let overlay = chat.settings.overlay.as_ref().expect("overlay");
+            assert!(overlay.is_content_focused(), "expected content to keep focus");
+        });
+
+        let screen = render_chat_widget_to_vt100(&mut harness, 100, 28);
+        assert!(
+            screen.contains("Name (slug) • Enter to save"),
+            "expected name field to be focused after BackTab; got:\n{screen}"
+        );
     }
 }

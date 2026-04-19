@@ -236,6 +236,35 @@ fn subagent_popup_prefill_does_not_record_submission_history() {
 }
 
 #[test]
+fn builtin_slash_popup_confirm_canonicalizes_partial_command_text() {
+    let (tx, rx) = std::sync::mpsc::channel::<AppEvent>();
+    let app_tx = AppEventSender::new(tx);
+    let mut composer = ChatComposer::new(true, app_tx, true);
+
+    composer.textarea.set_text("/pro");
+    composer.sync_command_popup();
+
+    let (result, handled) = composer.confirm_slash_popup_selection();
+
+    assert_eq!(result, InputResult::Command(SlashCommand::Prompts));
+    assert!(handled);
+
+    let events = rx.try_iter().collect::<Vec<_>>();
+    let Some((cmd, payload)) = events.iter().find_map(|ev| {
+        if let AppEvent::DispatchCommand(cmd, payload) = ev {
+            Some((*cmd, payload.as_str()))
+        } else {
+            None
+        }
+    }) else {
+        panic!("expected DispatchCommand event, got: {events:?}");
+    };
+
+    assert_eq!(cmd, SlashCommand::Prompts);
+    assert_eq!(payload, "/prompts");
+}
+
+#[test]
 fn footer_only_mode_uses_footer_height_and_hides_cursor() {
     let (tx, _rx) = std::sync::mpsc::channel::<AppEvent>();
     let app_tx = AppEventSender::new(tx);
