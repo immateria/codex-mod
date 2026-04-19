@@ -75,7 +75,7 @@ fn insert_history_lines_to_writer_above<B, W>(
         // line-by-line prints that let the terminal naturally scroll. This is
         // safe before the first bottom-pane draw and avoids a 1-line scroll
         // region that would overwrite the same line repeatedly.
-        for line in word_wrap_lines(&lines, screen_size.width.max(1)) {
+        for line in wrapped {
             write_spans(writer, line.iter()).ok();
             queue!(writer, Print("\r\n")).ok();
         }
@@ -430,5 +430,28 @@ fn slice_line_spans(
         style: original.style,
         alignment: original.alignment,
         spans: acc,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use ratatui::backend::TestBackend;
+
+    #[test]
+    fn insert_history_fallback_height_one_prints_lines() {
+        let backend = TestBackend::new(10, 1);
+        let mut terminal = ratatui::Terminal::new(backend).expect("terminal");
+        let mut out: Vec<u8> = Vec::new();
+
+        insert_history_lines_to_writer_above(
+            &mut terminal,
+            &mut out,
+            0,
+            vec![Line::from("hello")],
+        );
+
+        let rendered = String::from_utf8_lossy(&out);
+        assert!(rendered.contains("hello"));
     }
 }

@@ -285,15 +285,26 @@ impl SettingsOverlayView {
             };
 
             let icon_prefix = crate::icons::section_icon(row.section.label());
-            let label_raw = format!("{}{}", icon_prefix, row.section.label());
-            let label_text = format!("{label_raw:<LABEL_COLUMN_WIDTH$}");
+            let label_raw = format!("{icon_prefix}{}", row.section.label());
+            let label_visible = self.trim_with_ellipsis(&label_raw, LABEL_COLUMN_WIDTH);
+            let label_visible_width = UnicodeWidthStr::width(label_visible.as_str());
+            let mut label_text = label_visible;
+            if label_visible_width < LABEL_COLUMN_WIDTH {
+                label_text.extend(std::iter::repeat(' ').take(
+                    LABEL_COLUMN_WIDTH.saturating_sub(label_visible_width),
+                ));
+            }
 
             let summary_src = row.summary.as_deref().unwrap_or("—");
-            let base_width = 1 + 1 + LABEL_COLUMN_WIDTH;
+            let indicator_width = UnicodeWidthStr::width(indicator);
+            let base_prefix_width = indicator_width.saturating_add(UnicodeWidthStr::width(" "));
+            let base_width = base_prefix_width.saturating_add(LABEL_COLUMN_WIDTH);
             let available_tail = content_width.saturating_sub(base_width);
-            let label_hit_start = area.x.saturating_add(2);
-            let label_hit_end_offset =
-                2usize.saturating_add(UnicodeWidthStr::width(row.section.label()));
+
+            let label_hit_start = area
+                .x
+                .saturating_add(u16::try_from(base_prefix_width).unwrap_or(u16::MAX));
+            let label_hit_end_offset = base_prefix_width.saturating_add(label_visible_width);
             let label_hit_end = area
                 .x
                 .saturating_add(label_hit_end_offset.min(content_width) as u16);
@@ -314,9 +325,9 @@ impl SettingsOverlayView {
                 if summary_budget > 0 {
                     let summary_trimmed = self.trim_with_ellipsis(summary_src, summary_budget);
                     if !summary_trimmed.is_empty() {
-                        let summary_hit_start_offset = 2usize
+                        let summary_hit_start_offset = base_prefix_width
                             .saturating_add(LABEL_COLUMN_WIDTH)
-                            .saturating_add(1);
+                            .saturating_add(UnicodeWidthStr::width(" "));
                         let summary_hit_start = area
                             .x
                             .saturating_add(summary_hit_start_offset.min(content_width) as u16);
@@ -362,8 +373,12 @@ impl SettingsOverlayView {
             }
             lines.push(info_line);
             line_sections.push(Some(row.section));
-            let info_hit_start = area.x.saturating_add(4);
-            let info_hit_end_offset = 4usize.saturating_add(info_trimmed_width);
+            let info_prefix_width = UnicodeWidthStr::width("  ")
+                .saturating_add(UnicodeWidthStr::width("└ "));
+            let info_hit_start = area
+                .x
+                .saturating_add(u16::try_from(info_prefix_width).unwrap_or(u16::MAX));
+            let info_hit_end_offset = info_prefix_width.saturating_add(info_trimmed_width);
             let info_hit_end = area
                 .x
                 .saturating_add(info_hit_end_offset.min(content_width) as u16);
@@ -432,5 +447,49 @@ impl SettingsOverlayView {
             .style(bg_style)
             .scroll((scroll, 0))
             .render(area, buf);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::chatwidget::SettingsOverviewRow;
+    use ratatui::buffer::Buffer;
+
+    #[test]
+    fn overview_hit_ranges_include_section_icon_prefix() {
+        for mode in [
+            code_core::config_types::IconMode::Unicode,
+            code_core::config_types::IconMode::NerdFonts,
+        ] {
+            crate::icons::with_test_icon_mode(mode, || {
+                let mut overlay = SettingsOverlayView::new(SettingsSection::Model);
+                overlay.set_mode_menu(Some(SettingsSection::Model));
+                overlay.set_overview_rows(vec![SettingsOverviewRow::new(
+                    SettingsSection::Model,
+                    Some("summary".to_owned()),
+                )]);
+
+                let area = Rect::new(10, 5, 60, 10);
+                let mut buf = Buffer::empty(area);
+                overlay.render_overview_list(area, &mut buf);
+
+                let hit_ranges = overlay.last_overview_line_hit_ranges.borrow();
+                let first_line = hit_ranges.get(0).copied().expect("first hit range");
+                let (start, end) = first_line[0].expect("label hit range");
+
+                let icon_prefix = crate::icons::section_icon(SettingsSection::Model.label());
+                let label_raw = format!("{icon_prefix}{}", SettingsSection::Model.label());
+                let label_visible = overlay.trim_with_ellipsis(&label_raw, LABEL_COLUMN_WIDTH);
+                let indicator = crate::icons::pointer_active();
+                let base_prefix_width = unicode_width::UnicodeWidthStr::width(indicator)
+                    + unicode_width::UnicodeWidthStr::width(" ");
+                let expected_start = area.x + base_prefix_width as u16;
+                let expected_end = expected_start
+                    + unicode_width::UnicodeWidthStr::width(label_visible.as_str()) as u16;
+
+                assert_eq!((start, end), (expected_start, expected_end));
+            });
+        }
     }
 }

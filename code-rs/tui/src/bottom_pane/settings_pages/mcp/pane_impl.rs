@@ -41,7 +41,7 @@ impl McpSettingsView {
         };
 
         let block = crate::components::popup_frame::themed_block()
-            .title(" MCP Servers ")
+            .title(" MCP ")
             .title_alignment(Alignment::Center);
         block.render(area, buf);
 

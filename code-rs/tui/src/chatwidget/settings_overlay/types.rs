@@ -12,6 +12,9 @@ pub(crate) trait SettingsContent {
     fn handle_key(&mut self, key: KeyEvent) -> bool;
     fn is_complete(&self) -> bool;
     fn on_close(&mut self) {}
+    /// Called when the overlay navigates away from this content without
+    /// committing changes (e.g. returning to the overview or switching sections).
+    fn on_deactivate(&mut self) {}
     fn handle_paste(&mut self, _text: String) -> bool {
         false
     }
@@ -118,16 +121,32 @@ impl SettingsHelpOverlay {
         Self { lines }
     }
 
-    pub(super) fn section(section: SettingsSection) -> Self {
+    pub(super) fn section(
+        section: SettingsSection,
+        focus: SettingsOverlayFocus,
+        content_has_back: bool,
+    ) -> Self {
         let title = crate::colors::style_text_bold();
         let hint = crate::colors::style_text_dim();
+
+        let esc_line = match focus {
+            SettingsOverlayFocus::Sidebar => "• Esc    Return to overview",
+            SettingsOverlayFocus::Content => {
+                if content_has_back {
+                    "• Esc    Back (within page)"
+                } else {
+                    "• Esc    Return to overview"
+                }
+            }
+        };
+
         let mut lines = vec![
             Line::from(vec![Span::styled(
                 format!("{} Shortcuts", section.label()),
                 title,
             )]),
             Line::default(),
-            Line::from(vec![Span::styled("• Esc    Return to overview", hint)]),
+            Line::from(vec![Span::styled(esc_line, hint)]),
             Line::from(vec![Span::styled("• Tab    Focus content", hint)]),
             Line::from(vec![Span::styled("• Shift+Tab  Focus sidebar", hint)]),
             Line::from(vec![Span::styled(
@@ -141,40 +160,14 @@ impl SettingsHelpOverlay {
                 hint,
             )]));
         }
-        let show_activate = matches!(
-            section,
-            SettingsSection::Agents
-                | SettingsSection::Mcp
-                | SettingsSection::Repl
-                | SettingsSection::ExecLimits
-                | SettingsSection::Accounts
-                | SettingsSection::Apps
-                | SettingsSection::Memories
-                | SettingsSection::Experimental
-                | SettingsSection::Shell
-                | SettingsSection::ShellEscalation
-                | SettingsSection::ShellProfiles
-                | SettingsSection::Skills
-        ) || {
-            #[cfg(feature = "managed-network-proxy")]
-            {
-                matches!(section, SettingsSection::Network)
-            }
-            #[cfg(not(feature = "managed-network-proxy"))]
-            {
-                false
-            }
-        };
-        if show_activate {
-            lines.push(Line::from(vec![Span::styled(
-                "• Enter  Activate focused action",
-                hint,
-            )]));
-        }
+        lines.push(Line::from(vec![Span::styled(
+            "• Enter/Space  Activate focused action",
+            hint,
+        )]));
         lines.push(Line::from(vec![Span::styled("• ?      Toggle this help", hint)]));
         lines.push(Line::default());
         lines.push(Line::from(vec![Span::styled(
-            "Press Esc twice to close",
+            "From overview: Esc closes settings",
             crate::colors::style_text_dim(),
         )]));
         Self { lines }

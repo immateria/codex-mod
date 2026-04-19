@@ -104,7 +104,7 @@ impl SettingsSection {
             }
             SettingsSection::ExecLimits => "Configure execution resource limits for tool commands.",
             SettingsSection::Planning => "Planning settings coming soon.",
-            SettingsSection::Updates => "Upgrade Codex and manage automatic updates.",
+            SettingsSection::Updates => "Manage updates and automatic upgrades.",
             SettingsSection::Accounts => "Account switching settings coming soon.",
             SettingsSection::Secrets => "Manage secrets stored in CODE_HOME (delete only).",
             SettingsSection::Apps => "Manage connector-source accounts and connected apps.",

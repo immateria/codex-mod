@@ -1,14 +1,11 @@
 impl SettingsOverlayView {
     fn render_sidebar(&self, area: Rect, buf: &mut Buffer) {
+
         if area.is_empty() {
+            self.last_sidebar_line_hit_ranges.borrow_mut().clear();
+            self.last_sidebar_line_indices.borrow_mut().clear();
             return;
         }
-
-        let sections: Vec<SettingsSection> = if self.overview_rows.is_empty() {
-            SettingsSection::ALL.to_vec()
-        } else {
-            self.overview_rows.iter().map(|row| row.section).collect()
-        };
 
         fill_rect(
             buf,
@@ -17,37 +14,36 @@ impl SettingsOverlayView {
             crate::colors::style_on_background(),
         );
 
-        if sections.is_empty() {
-            return;
-        }
-
         let visible = area.height as usize;
         if visible == 0 {
+            self.last_sidebar_line_hit_ranges.borrow_mut().clear();
+            self.last_sidebar_line_indices.borrow_mut().clear();
             return;
         }
 
-        let selected_idx = sections
-            .iter()
-            .position(|section| *section == self.active_section())
-            .unwrap_or(0);
-
-        let total = sections.len();
-        let window = ListWindow::centered(total, visible, selected_idx);
-        let start = window.start;
-        let end = window.end;
-
-        // Get current hover state
+        let active_section = self.active_section();
+        let sidebar_focused = self.is_sidebar_focused();
         let hovered = *self.hovered_section.borrow();
 
-        let mut lines: Vec<Line<'static>> = Vec::new();
-        for (idx, section) in sections.iter().copied().enumerate().take(end).skip(start) {
+        let mut lines: Vec<Line<'static>> = Vec::with_capacity(visible);
+        let mut line_indices: Vec<Option<usize>> = Vec::with_capacity(visible);
+        let mut line_hit_ranges: Vec<Option<(u16, u16)>> = Vec::with_capacity(visible);
+
+        let area_end_x = area.x.saturating_add(area.width);
+
+        let mut push_row = |idx: usize,
+                            section: SettingsSection,
+                            is_first_visible: bool,
+                            is_last_visible: bool,
+                            start: usize,
+                            end: usize,
+                            total: usize,
+                            selected_idx: usize| {
             let is_active = idx == selected_idx;
             let is_hovered = hovered == Some(section) && !is_active;
-            let is_first_visible = idx == start;
-            let is_last_visible = idx + 1 == end;
 
-            let selection_indicator = if is_active {
-                if self.is_sidebar_focused() {
+            let selection_indicator: &'static str = if is_active {
+                if sidebar_focused {
                     crate::icons::pointer_focused()
                 } else {
                     crate::icons::pointer_active()
@@ -57,7 +53,7 @@ impl SettingsOverlayView {
             } else {
                 " "
             };
-            let overflow_indicator = if is_first_visible && start > 0 {
+            let overflow_indicator: &'static str = if is_first_visible && start > 0 {
                 crate::icons::arrow_up()
             } else if is_last_visible && end < total {
                 crate::icons::arrow_down()
@@ -65,30 +61,42 @@ impl SettingsOverlayView {
                 " "
             };
 
-            let mut spans: Vec<Span<'static>> = Vec::new();
+            let prefix_width = unicode_width::UnicodeWidthStr::width(selection_indicator)
+                .saturating_add(unicode_width::UnicodeWidthStr::width(overflow_indicator))
+                .saturating_add(1);
+            let label_start = area
+                .x
+                .saturating_add(u16::try_from(prefix_width).unwrap_or(u16::MAX));
+
+            let icon_prefix = crate::icons::section_icon(section.label());
+            let icon_width = unicode_width::UnicodeWidthStr::width(icon_prefix);
+            let label_width = unicode_width::UnicodeWidthStr::width(section.label());
+            let label_end = label_start
+                .saturating_add(u16::try_from(icon_width.saturating_add(label_width)).unwrap_or(u16::MAX))
+                .min(area_end_x);
+            let hit_range = (label_start < label_end).then_some((label_start, label_end));
+
+            let label_style = if is_active {
+                crate::colors::style_text_bold()
+            } else if is_hovered {
+                Style::default()
+                    .fg(crate::colors::text_bright())
+                    .add_modifier(Modifier::BOLD | Modifier::UNDERLINED)
+            } else {
+                crate::colors::style_text_dim()
+            };
+
+            let mut spans: Vec<Span<'static>> = Vec::with_capacity(5);
+            spans.push(Span::styled(selection_indicator, crate::colors::style_text()));
             spans.push(Span::styled(
-                selection_indicator.to_owned(),
-                crate::colors::style_text(),
-            ));
-            spans.push(Span::styled(
-                overflow_indicator.to_owned(),
+                overflow_indicator,
                 crate::colors::style_text_dim(),
             ));
             spans.push(Span::raw(" "));
-            let icon_prefix = crate::icons::section_icon(section.label());
-            let label_text = format!("{}{}", icon_prefix, section.label());
-            spans.push(Span::styled(
-                label_text,
-                if is_active {
-                    crate::colors::style_text_bold()
-                } else if is_hovered {
-                    Style::default()
-                        .fg(crate::colors::text_bright())
-                        .add_modifier(Modifier::BOLD | Modifier::UNDERLINED)
-                } else {
-                    crate::colors::style_text_dim()
-                },
-            ));
+            if !icon_prefix.is_empty() {
+                spans.push(Span::styled(icon_prefix, label_style));
+            }
+            spans.push(Span::styled(section.label(), label_style));
 
             let line = if is_active {
                 Line::from(spans).style(
@@ -105,12 +113,77 @@ impl SettingsOverlayView {
             } else {
                 Line::from(spans)
             };
+
             lines.push(line);
+            line_indices.push(Some(idx));
+            line_hit_ranges.push(hit_range);
+        };
+
+        if self.overview_rows.is_empty() {
+            let total = SettingsSection::ALL.len();
+            if total == 0 {
+                self.last_sidebar_line_hit_ranges.borrow_mut().clear();
+                self.last_sidebar_line_indices.borrow_mut().clear();
+                return;
+            }
+            let selected_idx = SettingsSection::ALL
+                .iter()
+                .position(|section| *section == active_section)
+                .unwrap_or(0);
+            let window = ListWindow::centered(total, visible, selected_idx);
+            let start = window.start;
+            let end = window.end;
+            for idx in start..end {
+                let section = SettingsSection::ALL[idx];
+                push_row(
+                    idx,
+                    section,
+                    idx == start,
+                    idx + 1 == end,
+                    start,
+                    end,
+                    total,
+                    selected_idx,
+                );
+            }
+        } else {
+            let total = self.overview_rows.len();
+            if total == 0 {
+                self.last_sidebar_line_hit_ranges.borrow_mut().clear();
+                self.last_sidebar_line_indices.borrow_mut().clear();
+                return;
+            }
+            let selected_idx = self
+                .overview_rows
+                .iter()
+                .position(|row| row.section == active_section)
+                .unwrap_or(0);
+            let window = ListWindow::centered(total, visible, selected_idx);
+            let start = window.start;
+            let end = window.end;
+            for idx in start..end {
+                let section = self.overview_rows[idx].section;
+                push_row(
+                    idx,
+                    section,
+                    idx == start,
+                    idx + 1 == end,
+                    start,
+                    end,
+                    total,
+                    selected_idx,
+                );
+            }
         }
 
         while lines.len() < visible {
             lines.push(Line::from(" "));
+            line_indices.push(None);
+            line_hit_ranges.push(None);
         }
+
+        *self.last_sidebar_line_hit_ranges.borrow_mut() = line_hit_ranges;
+        *self.last_sidebar_line_indices.borrow_mut() = line_indices;
 
         Paragraph::new(lines)
             .alignment(Alignment::Left)

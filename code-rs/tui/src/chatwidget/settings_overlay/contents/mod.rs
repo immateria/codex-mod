@@ -31,7 +31,7 @@ macro_rules! impl_settings_content {
 }
 
 macro_rules! impl_settings_content_with_paste {
-    ($ty:ty) => {
+    ($ty:ty $(, on_close = $on_close:ident)? $(, on_deactivate = $on_deactivate:ident)? ) => {
         impl super::super::SettingsContent for $ty {
             fn render(&self, area: ratatui::layout::Rect, buf: &mut ratatui::buffer::Buffer) {
                 self.view.content_only().render(area, buf);
@@ -62,6 +62,18 @@ macro_rules! impl_settings_content_with_paste {
                     .content_only_mut()
                     .handle_mouse_event_direct(mouse_event, area)
             }
+
+            $(
+            fn on_close(&mut self) {
+                self.view.$on_close();
+            }
+            )?
+
+            $(
+            fn on_deactivate(&mut self) {
+                self.view.$on_deactivate();
+            }
+            )?
         }
     };
 }

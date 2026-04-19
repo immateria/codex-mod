@@ -198,6 +198,12 @@ pub(crate) struct InterfaceSettingsView {
 
 crate::bottom_pane::chrome_view::impl_chrome_view!(InterfaceSettingsView);
 
+impl Drop for InterfaceSettingsView {
+    fn drop(&mut self) {
+        self.revert_unapplied_icon_mode_preview();
+    }
+}
+
 impl InterfaceSettingsView {
     pub(super) fn desired_height_impl(&self, _width: u16) -> u16 {
         match &self.mode {
@@ -254,5 +260,14 @@ impl InterfaceSettingsView {
 
     pub(crate) fn has_back_navigation(&self) -> bool {
         !matches!(self.mode, ViewMode::Main)
+    }
+
+    pub(crate) fn revert_unapplied_icon_mode_preview(&mut self) {
+        if self.icon_mode == self.icon_mode_baseline {
+            return;
+        }
+        self.icon_mode = self.icon_mode_baseline;
+        crate::icons::set_icon_mode(self.icon_mode_baseline);
+        self.status = None;
     }
 }

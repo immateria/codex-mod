@@ -190,6 +190,30 @@ pub(crate) fn icon_mode() -> IconMode {
     IconMode::from_u8(ICON_MODE.load(Ordering::Relaxed))
 }
 
+#[cfg(test)]
+pub(crate) fn with_test_icon_mode<T>(mode: IconMode, f: impl FnOnce() -> T) -> T {
+    use std::sync::{Mutex, OnceLock};
+
+    static TEST_ICON_MODE_LOCK: OnceLock<Mutex<()>> = OnceLock::new();
+    let _guard = TEST_ICON_MODE_LOCK
+        .get_or_init(|| Mutex::new(()))
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+
+    struct RestoreIconMode(IconMode);
+
+    impl Drop for RestoreIconMode {
+        fn drop(&mut self) {
+            set_icon_mode(self.0);
+        }
+    }
+
+    let prev = icon_mode();
+    let _restore = RestoreIconMode(prev);
+    set_icon_mode(mode);
+    f()
+}
+
 /// Whether `NerdFont` mode is currently active (convenience wrapper).
 pub(crate) fn nerd_fonts_enabled() -> bool {
     ICON_MODE.load(Ordering::Relaxed) == 0

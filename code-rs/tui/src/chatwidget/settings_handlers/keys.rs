@@ -181,7 +181,7 @@ pub(super) fn handle_settings_key(chat: &mut ChatWidget<'_>, key_event: KeyEvent
         }
         // Esc in content pane: if the content has internal back-navigation
         // (e.g. a detail sub-view), let it handle Esc first. Otherwise
-        // return focus to the sidebar.
+        // go back to the overview (matching the footer hint + help copy).
         KeyCode::Esc if content_focused => {
             let has_back = chat
                 .settings
@@ -191,10 +191,7 @@ pub(super) fn handle_settings_key(chat: &mut ChatWidget<'_>, key_event: KeyEvent
                 .is_some_and(super::settings_overlay::SettingsContent::has_back_navigation);
             if !has_back {
                 if let Some(overlay) = chat.settings.overlay.as_mut() {
-                    if overlay.is_sidebar_collapsed() {
-                        overlay.toggle_sidebar_collapsed();
-                    }
-                    overlay.set_focus_sidebar();
+                    overlay.set_mode_menu(None);
                 }
                 chat.request_redraw();
                 return true;
@@ -345,4 +342,60 @@ pub(super) fn handle_settings_key(chat: &mut ChatWidget<'_>, key_event: KeyEvent
     }
 
     false
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::bottom_pane::SettingsSection;
+    use crate::chatwidget::smoke_helpers::ChatWidgetHarness;
+    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+
+    #[test]
+    fn esc_returns_to_overview_then_closes() {
+        crate::icons::with_test_icon_mode(code_core::config_types::IconMode::Unicode, || {
+            let mut harness = ChatWidgetHarness::new();
+            harness.with_chat(|chat| {
+                chat.ensure_settings_overlay_section(SettingsSection::Interface);
+                let overlay = chat.settings.overlay.as_ref().expect("overlay");
+                assert!(!overlay.is_menu_active());
+                assert!(overlay.is_content_focused());
+            });
+
+            harness.send_key(KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE));
+            harness.with_chat(|chat| {
+                let overlay = chat.settings.overlay.as_ref().expect("overlay after esc");
+                assert!(overlay.is_menu_active());
+            });
+
+            harness.send_key(KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE));
+            harness.with_chat(|chat| {
+                assert!(chat.settings.overlay.is_none());
+            });
+        });
+    }
+
+    #[test]
+    fn interface_icon_mode_preview_reverts_when_returning_to_overview() {
+        crate::icons::with_test_icon_mode(code_core::config_types::IconMode::Unicode, || {
+            let mut harness = ChatWidgetHarness::new();
+            harness.with_chat(|chat| {
+                chat.ensure_settings_overlay_section(SettingsSection::Interface);
+            });
+
+            harness.with_chat(|chat| {
+                let overlay = chat.settings.overlay.as_mut().expect("overlay");
+                let content = overlay.active_content_mut().expect("content");
+                // Cycle icon mode via the page itself:
+                // move selection to the icon row, then Right to cycle.
+                assert!(content.handle_key(KeyEvent::new(KeyCode::Down, KeyModifiers::NONE)));
+                assert!(content.handle_key(KeyEvent::new(KeyCode::Down, KeyModifiers::NONE)));
+                assert!(content.handle_key(KeyEvent::new(KeyCode::Right, KeyModifiers::NONE)));
+                assert_eq!(crate::icons::icon_mode(), code_core::config_types::IconMode::NerdFonts);
+            });
+
+            // Esc returns to overview and should revert the preview.
+            harness.send_key(KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE));
+            assert_eq!(crate::icons::icon_mode(), code_core::config_types::IconMode::Unicode);
+        });
+    }
 }

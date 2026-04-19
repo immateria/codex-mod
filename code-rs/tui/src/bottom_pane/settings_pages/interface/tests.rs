@@ -56,3 +56,25 @@ fn ctrl_s_with_no_changes_emits_no_events() {
     assert!(rx.try_recv().is_err());
 }
 
+#[test]
+fn icon_mode_preview_reverts_when_deactivated_without_apply() {
+    crate::icons::with_test_icon_mode(code_core::config_types::IconMode::Unicode, || {
+        let (tx, _rx) = mpsc::channel();
+        let app_event_tx = AppEventSender::new(tx);
+        let mut view = InterfaceSettingsView::new(
+            PathBuf::from("/tmp"),
+            SettingsMenuConfig::default(),
+            TuiHotkeysConfig::default(),
+            code_core::config_types::IconMode::Unicode,
+            app_event_tx,
+        );
+
+        view.cycle_icon_mode_next();
+        assert_eq!(crate::icons::icon_mode(), code_core::config_types::IconMode::NerdFonts);
+
+        view.revert_unapplied_icon_mode_preview();
+        assert_eq!(crate::icons::icon_mode(), code_core::config_types::IconMode::Unicode);
+        assert_eq!(view.icon_mode, view.icon_mode_baseline);
+    });
+}
+

@@ -111,6 +111,12 @@ pub(crate) struct SettingsOverlayView {
     last_panel_inner_area: RefCell<Rect>,
     /// Currently hovered section in sidebar (for visual feedback)
     hovered_section: RefCell<Option<SettingsSection>>,
+    /// Cached sidebar hit ranges for each rendered row (label only).
+    /// Each entry corresponds to the visible row at `y = last_sidebar_area.y + i`.
+    last_sidebar_line_hit_ranges: RefCell<Vec<Option<(u16, u16)>>>,
+    /// Cached logical section index for each rendered sidebar row.
+    /// The index is the row index used by `sidebar_section_at()`.
+    last_sidebar_line_indices: RefCell<Vec<Option<usize>>>,
     /// Whether the sidebar is collapsed (hidden) in section view.
     sidebar_collapsed: Cell<bool>,
     /// Rectangle of the sidebar toggle button for mouse hit testing.
@@ -172,6 +178,8 @@ impl SettingsOverlayView {
             last_overview_scroll: RefCell::new(0),
             last_panel_inner_area: RefCell::new(Rect::default()),
             hovered_section: RefCell::new(None),
+            last_sidebar_line_hit_ranges: RefCell::new(Vec::new()),
+            last_sidebar_line_indices: RefCell::new(Vec::new()),
             sidebar_collapsed: Cell::new(false),
             last_sidebar_toggle_area: RefCell::new(Rect::default()),
             last_close_button_area: RefCell::new(Rect::default()),
@@ -230,6 +238,11 @@ impl SettingsOverlayView {
     }
 
     pub(crate) fn set_mode_menu(&mut self, selected: Option<SettingsSection>) {
+        if !self.is_menu_active() {
+            if let Some(content) = self.active_content_mut() {
+                content.on_deactivate();
+            }
+        }
         let section = selected.unwrap_or(self.last_section);
         self.mode = SettingsOverlayMode::Menu(MenuState::new(section));
         self.focus = SettingsOverlayFocus::Sidebar;
@@ -240,6 +253,13 @@ impl SettingsOverlayView {
 
     pub(crate) fn set_mode_section(&mut self, section: SettingsSection) {
         let was_menu = self.is_menu_active();
+        if let SettingsOverlayMode::Section(state) = self.mode
+            && state.active() != section
+            && let Some(content) = self.active_content_mut()
+        {
+            content.on_deactivate();
+        }
+
         self.mode = SettingsOverlayMode::Section(SectionState::new(section));
         self.last_section = section;
         if was_menu {
@@ -258,7 +278,10 @@ impl SettingsOverlayView {
         self.help = Some(if menu_active {
             SettingsHelpOverlay::overview()
         } else {
-            SettingsHelpOverlay::section(self.active_section())
+            let content_has_back = self
+                .active_content()
+                .is_some_and(SettingsContent::has_back_navigation);
+            SettingsHelpOverlay::section(self.active_section(), self.focus, content_has_back)
         });
     }
 
@@ -268,10 +291,10 @@ impl SettingsOverlayView {
 
     pub(crate) fn set_overview_rows(&mut self, rows: Vec<SettingsOverviewRow>) {
         let fallback = rows.first().map_or(self.last_section, |row| row.section);
-        if let SettingsOverlayMode::Menu(state) = &mut self.mode
-            && !rows.iter().any(|row| row.section == state.selected()) {
-                state.set_selected(fallback);
-            }
+        let active_visible = rows.iter().any(|row| row.section == self.active_section());
+        if !active_visible {
+            self.set_mode_menu(Some(fallback));
+        }
         self.overview_rows = rows;
     }
 
@@ -746,34 +769,27 @@ impl SettingsOverlayView {
     }
 
     pub(crate) fn notify_close(&mut self) {
-        match self.active_section() {
-            SettingsSection::Model => {
-                if let Some(content) = self.model_content.as_mut() {
-                    content.on_close();
-                }
-            }
-            SettingsSection::Theme => {
-                if let Some(content) = self.theme_content.as_mut() {
-                    content.on_close();
-                }
-            }
-            SettingsSection::Notifications => {
-                if let Some(content) = self.notifications_content.as_mut() {
-                    content.on_close();
-                }
-            }
-            SettingsSection::Mcp => {
-                if let Some(content) = self.mcp_content.as_mut() {
-                    content.on_close();
-                }
-            }
-            #[cfg(feature = "browser-automation")]
-            SettingsSection::Chrome => {
-                if let Some(content) = self.chrome_content.as_mut() {
-                    content.on_close();
-                }
-            }
-            _ => {}
+        if let Some(content) = self.active_content_mut() {
+            content.on_deactivate();
+            content.on_close();
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn set_overview_rows_repairs_section_mode_when_active_disappears() {
+        let mut overlay = SettingsOverlayView::new(SettingsSection::Apps);
+        // Overlay starts in section mode.
+        assert!(!overlay.is_menu_active());
+        assert_eq!(overlay.active_section(), SettingsSection::Apps);
+
+        overlay.set_overview_rows(vec![SettingsOverviewRow::new(SettingsSection::Model, None)]);
+
+        assert!(overlay.is_menu_active());
+        assert_eq!(overlay.active_section(), SettingsSection::Model);
     }
 }

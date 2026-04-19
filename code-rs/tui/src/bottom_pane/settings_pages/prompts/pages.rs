@@ -101,7 +101,7 @@ impl PromptsSettingsView {
 
     pub(super) fn list_page(&self) -> SettingsMenuPage<'static> {
         SettingsMenuPage::new(
-            "Custom Prompts",
+            "Prompts",
             SettingsPanelStyle::bottom_pane(),
             self.list_header_lines(),
             Vec::new(),
@@ -180,7 +180,7 @@ impl PromptsSettingsView {
             status_and_shortcuts_split(None, &shortcuts);
 
         SettingsActionPage::new(
-            "Custom Prompts",
+            "Prompts",
             SettingsPanelStyle::bottom_pane(),
             vec![title_line("Confirm delete")],
             footer_lines,

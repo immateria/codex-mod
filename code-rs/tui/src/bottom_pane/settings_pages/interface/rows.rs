@@ -83,7 +83,7 @@ impl InterfaceSettingsView {
             match kind {
                 RowKind::OpenMode => "Settings menu",
                 RowKind::OverlayMinWidth => "Overlay min width",
-                RowKind::NerdFonts => "NerdFont icons",
+                RowKind::NerdFonts => "Icon mode",
                 RowKind::HotkeyScope => "Hotkey scope",
                 RowKind::ShowConfigToml => "Show config.toml",
                 RowKind::ShowCodeHome => "Show CODE_HOME",

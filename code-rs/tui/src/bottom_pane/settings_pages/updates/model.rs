@@ -13,7 +13,7 @@ use super::{
 };
 
 impl UpdateSettingsView {
-    pub(super) const PANEL_TITLE: &'static str = "Upgrade";
+    pub(super) const PANEL_TITLE: &'static str = "Updates";
     pub(super) const ROW_COUNT: usize = 3;
     pub(super) const HEADER_LINE_COUNT: usize = 2;
     pub(super) const FOOTER_LINE_COUNT: usize = 1;

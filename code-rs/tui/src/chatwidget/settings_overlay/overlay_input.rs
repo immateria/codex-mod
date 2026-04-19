@@ -274,7 +274,30 @@ impl SettingsOverlayView {
             return None;
         }
 
-        let rel_y = y.saturating_sub(sidebar_area.y);
+        let rel_y = y.saturating_sub(sidebar_area.y) as usize;
+
+        // Fast path: use cached hit ranges from the most recent render pass.
+        let cached_idx = self
+            .last_sidebar_line_indices
+            .borrow()
+            .get(rel_y)
+            .copied()
+            .flatten();
+        let cached_range = self
+            .last_sidebar_line_hit_ranges
+            .borrow()
+            .get(rel_y)
+            .copied()
+            .flatten();
+
+        if let (Some(idx), Some((start, end))) = (cached_idx, cached_range) {
+            if x >= start && x < end {
+                return Some(idx);
+            }
+            return None;
+        }
+
+        // Fallback: compute hit range when caches are unavailable (e.g. before first render).
         let total = self.sidebar_section_count();
         if total == 0 {
             return None;
@@ -282,17 +305,55 @@ impl SettingsOverlayView {
         let visible = sidebar_area.height as usize;
         let selected_idx = self.sidebar_selected_index().unwrap_or(0);
         let window = ListWindow::centered(total, visible, selected_idx);
-        let idx = window.index_for_relative_row(rel_y as usize)?;
+        let idx = window.index_for_relative_row(rel_y)?;
         let section = self.sidebar_section_at(idx)?;
 
-        // Only treat the row as "hit" when the pointer is over the section label
-        // text, not just anywhere in the sidebar padding.
-        let label_start = sidebar_area.x.saturating_add(3);
-        let label_width = UnicodeWidthStr::width(section.label()) as u16;
+        let is_active = idx == selected_idx;
+        let hovered = *self.hovered_section.borrow();
+        let is_hovered = hovered == Some(section) && !is_active;
+
+        let selection_indicator = if is_active {
+            if self.is_sidebar_focused() {
+                crate::icons::pointer_focused()
+            } else {
+                crate::icons::pointer_active()
+            }
+        } else if is_hovered {
+            crate::icons::arrow_right()
+        } else {
+            " "
+        };
+
+        let is_first_visible = idx == window.start;
+        let is_last_visible = idx + 1 == window.end;
+        let overflow_indicator = if is_first_visible && window.start > 0 {
+            crate::icons::arrow_up()
+        } else if is_last_visible && window.end < total {
+            crate::icons::arrow_down()
+        } else {
+            " "
+        };
+
+        let prefix_width = UnicodeWidthStr::width(selection_indicator)
+            .saturating_add(UnicodeWidthStr::width(overflow_indicator))
+            .saturating_add(UnicodeWidthStr::width(" "));
+
+        let label_start = sidebar_area
+            .x
+            .saturating_add(u16::try_from(prefix_width).unwrap_or(u16::MAX));
+
+        let icon_prefix = crate::icons::section_icon(section.label());
+        let label_width = UnicodeWidthStr::width(icon_prefix)
+            .saturating_add(UnicodeWidthStr::width(section.label()));
         if label_width == 0 {
             return None;
         }
-        let label_end = label_start.saturating_add(label_width);
+
+        let available_width = sidebar_area.width.saturating_sub(
+            u16::try_from(prefix_width).unwrap_or(u16::MAX),
+        );
+        let visible_width = available_width.min(u16::try_from(label_width).unwrap_or(u16::MAX));
+        let label_end = label_start.saturating_add(visible_width);
         if x < label_start || x >= label_end {
             return None;
         }
@@ -434,11 +495,33 @@ mod tests {
 
     #[test]
     fn sidebar_hit_test_requires_pointer_over_text() {
-        let overlay = SettingsOverlayView::new(SettingsSection::Model);
-        *overlay.last_sidebar_area.borrow_mut() = Rect::new(0, 0, 22, 10);
+        for mode in [
+            code_core::config_types::IconMode::Unicode,
+            code_core::config_types::IconMode::NerdFonts,
+        ] {
+            crate::icons::with_test_icon_mode(mode, || {
+                let overlay = SettingsOverlayView::new(SettingsSection::Model);
+                *overlay.last_sidebar_area.borrow_mut() = Rect::new(0, 0, 22, 10);
 
-        // "Model" is drawn starting at x+3, so pointing at the far-right padding should not hit.
-        assert_eq!(overlay.hit_test_sidebar_index(20, 0), None);
-        assert_eq!(overlay.hit_test_sidebar_index(3, 0), Some(0));
+                let section = SettingsSection::Model;
+                let selection_indicator = crate::icons::pointer_active();
+                let overflow_indicator = " ";
+                let prefix_width = unicode_width::UnicodeWidthStr::width(selection_indicator)
+                    + unicode_width::UnicodeWidthStr::width(overflow_indicator)
+                    + unicode_width::UnicodeWidthStr::width(" ");
+                let label_start = u16::try_from(prefix_width).unwrap_or(0);
+
+                // Pointing at the far-right padding should not hit.
+                assert_eq!(overlay.hit_test_sidebar_index(20, 0), None);
+                assert_eq!(overlay.hit_test_sidebar_index(label_start, 0), Some(0));
+
+                // The icon prefix is part of the label span; the full visible label should be clickable.
+                let icon_prefix = crate::icons::section_icon(section.label());
+                let label_width = (unicode_width::UnicodeWidthStr::width(icon_prefix)
+                    + unicode_width::UnicodeWidthStr::width(section.label())) as u16;
+                let right_edge = label_start.saturating_add(label_width).saturating_sub(1);
+                assert_eq!(overlay.hit_test_sidebar_index(right_edge, 0), Some(0));
+            });
+        }
     }
 }

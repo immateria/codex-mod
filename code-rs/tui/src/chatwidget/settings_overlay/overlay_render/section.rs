@@ -137,8 +137,8 @@ impl SettingsOverlayView {
             SettingsSection::ShellProfiles => "Shell Profiles",
             SettingsSection::ExecLimits => "Exec Limits",
             SettingsSection::Planning => "Planning Settings",
-            SettingsSection::Updates => "Upgrade",
-            SettingsSection::Accounts => "Account Switching",
+            SettingsSection::Updates => SettingsSection::Updates.label(),
+            SettingsSection::Accounts => SettingsSection::Accounts.label(),
             SettingsSection::Secrets => "Secrets",
             SettingsSection::Apps => "Apps",
             SettingsSection::Agents => "Agents",
@@ -148,16 +148,16 @@ impl SettingsOverlayView {
             SettingsSection::AutoDrive => "Auto Drive Settings",
             SettingsSection::Review => "Review Settings",
             SettingsSection::Validation => "Validation Settings",
-            SettingsSection::Limits => "Rate Limits",
+            SettingsSection::Limits => SettingsSection::Limits.label(),
             #[cfg(feature = "browser-automation")]
             SettingsSection::Chrome => "Chrome Launch Options",
             SettingsSection::Notifications => "Notifications",
             SettingsSection::Repl => "REPL",
             #[cfg(feature = "managed-network-proxy")]
             SettingsSection::Network => "Network Mediation",
-            SettingsSection::Mcp => "MCP Servers",
-            SettingsSection::Prompts => "Custom Prompts",
-            SettingsSection::Personality => "Personality & Tone",
+            SettingsSection::Mcp => SettingsSection::Mcp.label(),
+            SettingsSection::Prompts => SettingsSection::Prompts.label(),
+            SettingsSection::Personality => SettingsSection::Personality.label(),
         }
     }
 

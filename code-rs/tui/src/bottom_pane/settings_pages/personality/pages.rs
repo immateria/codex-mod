@@ -12,7 +12,7 @@ use super::PersonalitySettingsView;
 impl PersonalitySettingsView {
     pub(super) fn page(&self) -> SettingsMenuPage<'static> {
         SettingsMenuPage::new(
-            "Personality & Tone",
+            "Personality",
             SettingsPanelStyle::bottom_pane().with_margin(Margin::new(0, 0)),
             vec![
                 Line::from(Span::styled(
