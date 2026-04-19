@@ -153,7 +153,7 @@ impl ChatWidget<'_> {
             ];
 
             let measure = |spans: &[Span]| -> usize {
-                spans.iter().map(|s| s.content.chars().count()).sum()
+                spans.iter().map(|s| unicode_width::UnicodeWidthStr::width(s.content.as_ref())).sum()
             };
             let left_len = measure(&left_spans);
             let right_len = measure(&right_spans);

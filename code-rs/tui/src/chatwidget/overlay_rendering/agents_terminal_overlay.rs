@@ -222,7 +222,7 @@ impl ChatWidget<'_> {
                         .saturating_sub((UnicodeWidthStr::width(status_icon) as u16).saturating_add(5))
                         .max(4) as usize;
                     let mut display_name = model_label.clone();
-                    if display_name.chars().count() > name_room {
+                    if UnicodeWidthStr::width(display_name.as_str()) > name_room {
                         display_name = display_name
                             .chars()
                             .take(name_room.saturating_sub(1))

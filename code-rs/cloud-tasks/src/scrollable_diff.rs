@@ -114,7 +114,7 @@ impl ScrollableDiff {
     fn rewrap(&mut self, width: u16) {
         if width == 0 {
             self.wrapped = self.raw.clone();
-            self.state.content_h = self.wrapped.len() as u16;
+            self.state.content_h = self.wrapped.len().min(u16::MAX as usize) as u16;
             return;
         }
         let max_cols = width as usize;
@@ -171,6 +171,6 @@ impl ScrollableDiff {
         }
         self.wrapped = out;
         self.wrapped_src_idx = out_idx;
-        self.state.content_h = self.wrapped.len() as u16;
+        self.state.content_h = self.wrapped.len().min(u16::MAX as usize) as u16;
     }
 }

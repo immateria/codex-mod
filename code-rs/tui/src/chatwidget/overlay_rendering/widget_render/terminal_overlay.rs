@@ -1,5 +1,6 @@
 use super::*;
 use super::pending_command::{pending_command_box_lines, render_text_box};
+use unicode_width::UnicodeWidthStr;
 
 impl ChatWidget<'_> {
     pub(super) fn render_terminal_overlay_and_bottom_pane(
@@ -106,7 +107,7 @@ impl ChatWidget<'_> {
                             now_ms,
                         );
                         if !frame.is_empty() {
-                            consumed_width += frame.chars().count();
+                            consumed_width += UnicodeWidthStr::width(frame.as_str());
                             header_spans.push(ratatui::text::Span::styled(
                                 frame,
                                 Style::default().fg(crate::colors::spinner()),
@@ -153,7 +154,7 @@ impl ChatWidget<'_> {
                             format!("{icon} "),
                             Style::default().fg(color),
                         ));
-                        consumed_width = consumed_width.saturating_add(icon.chars().count() + 1);
+                        consumed_width = consumed_width.saturating_add(UnicodeWidthStr::width(icon) + 1);
 
                         consumed_width = consumed_width
                             .saturating_add(UnicodeWidthStr::width(status_text.as_str()));
