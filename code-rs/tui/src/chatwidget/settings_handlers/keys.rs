@@ -479,4 +479,28 @@ mod tests {
             "expected name field to be focused after BackTab; got:\n{screen}"
         );
     }
+
+    #[test]
+    fn prompts_editor_backtab_on_first_field_returns_to_sidebar() {
+        use crate::test_helpers::render_chat_widget_to_vt100;
+
+        let mut harness = ChatWidgetHarness::new();
+        harness.with_chat(|chat| {
+            chat.ensure_settings_overlay_section(SettingsSection::Prompts);
+        });
+
+        harness.send_key(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
+
+        let screen = render_chat_widget_to_vt100(&mut harness, 100, 28);
+        assert!(
+            screen.contains("Name (slug) • Enter to save"),
+            "expected name field to be focused; got:\n{screen}"
+        );
+
+        harness.send_key(KeyEvent::new(KeyCode::BackTab, KeyModifiers::SHIFT));
+        harness.with_chat(|chat| {
+            let overlay = chat.settings.overlay.as_ref().expect("overlay");
+            assert!(overlay.is_sidebar_focused(), "expected sidebar to have focus");
+        });
+    }
 }

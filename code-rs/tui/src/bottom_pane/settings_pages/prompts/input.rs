@@ -47,6 +47,11 @@ impl PromptsSettingsView {
                     true
                 }
                 KeyEvent { code: KeyCode::BackTab, .. } => {
+                    // When already at the first field, let the overlay treat BackTab
+                    // as a focus jump back to the settings sidebar.
+                    if matches!(self.focus, Focus::Name | Focus::List) {
+                        return false;
+                    }
                     self.cycle_focus(false);
                     true
                 }
