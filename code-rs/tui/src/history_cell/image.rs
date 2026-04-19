@@ -558,12 +558,23 @@ impl ImageOutputCell {
         };
         if needs_recreate {
             let dyn_img = match ImageReader::open(path) {
-                Ok(reader) => reader.decode().map_err(|_| ())?,
-                Err(_) => return Err(()),
+                Ok(reader) => match reader.decode() {
+                    Ok(img) => img,
+                    Err(e) => {
+                        tracing::warn!("image decode failed for {}: {e}", path.display());
+                        return Err(());
+                    }
+                },
+                Err(e) => {
+                    tracing::warn!("image open failed for {}: {e}", path.display());
+                    return Err(());
+                }
             };
             let protocol = picker
                 .new_protocol(dyn_img, target, Resize::Fit(Some(FilterType::Lanczos3)))
-                .map_err(|_| ())?;
+                .map_err(|e| {
+                    tracing::warn!("image protocol creation failed: {e}");
+                })?;
             *cache = Some((path.to_path_buf(), target, protocol));
         }
         Ok(())

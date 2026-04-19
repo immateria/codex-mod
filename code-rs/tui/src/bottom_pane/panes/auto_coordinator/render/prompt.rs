@@ -140,8 +140,13 @@ pub(super) fn render_pending_prompt_block(
         left_cell.set_symbol("│");
         left_cell.set_style(border_style);
 
+        let right_bound = area.x.saturating_add(area.width.saturating_sub(1));
         for (idx, ch) in text.chars().enumerate() {
-            let cell = &mut buf[(area.x + 1 + idx as u16, current_y)];
+            let col = area.x + 1 + idx as u16;
+            if col >= right_bound {
+                break;
+            }
+            let cell = &mut buf[(col, current_y)];
             let mut utf8 = [0u8; 4];
             let sym = ch.encode_utf8(&mut utf8);
             cell.set_symbol(sym);

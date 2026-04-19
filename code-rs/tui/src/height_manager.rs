@@ -137,7 +137,10 @@ impl HeightManager {
         // from 5 to 3 rows so more history is visible. On Termux, always prefer
         // the compact floor regardless of terminal height.
         let min_bottom: u16 = if area.height < 16 || platform_caps::is_termux() { 3 } else { 5 };
-        let percent_cap: u16 = (u32::from(area.height).saturating_mul(u32::from(self.cfg.bottom_percent_cap)) / 100) as u16;
+        let percent_cap: u16 = (u32::from(area.height)
+            .saturating_mul(u32::from(self.cfg.bottom_percent_cap))
+            / 100)
+            .min(u32::from(u16::MAX)) as u16;
         let bottom_cap = percent_cap.max(min_bottom);
         let desired = bottom_desired_height.max(min_bottom).min(bottom_cap);
 

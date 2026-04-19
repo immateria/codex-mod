@@ -291,12 +291,23 @@ impl BrowserSessionCell {
 
         if needs_recreate {
             let dyn_img = match ImageReader::open(path) {
-                Ok(reader) => reader.decode().map_err(|_| ())?,
-                Err(_) => return Err(()),
+                Ok(reader) => match reader.decode() {
+                    Ok(img) => img,
+                    Err(e) => {
+                        tracing::warn!("screenshot decode failed for {}: {e}", path.display());
+                        return Err(());
+                    }
+                },
+                Err(e) => {
+                    tracing::warn!("screenshot open failed for {}: {e}", path.display());
+                    return Err(());
+                }
             };
             let protocol = picker
                 .new_protocol(dyn_img, target, Resize::Fit(Some(FilterType::Lanczos3)))
-                .map_err(|_| ())?;
+                .map_err(|e| {
+                    tracing::warn!("screenshot protocol creation failed: {e}");
+                })?;
             *cache = Some((path.to_path_buf(), target, protocol));
         }
 

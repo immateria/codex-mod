@@ -99,8 +99,11 @@ pub(crate) fn step_index_by_delta(
     delta: isize,
     behavior: ScrollSelectionBehavior,
 ) -> usize {
-    if count == 0 || delta == 0 {
+    if count == 0 {
         return 0;
+    }
+    if delta == 0 {
+        return current;
     }
 
     let mut index = clamp_index(current, count);

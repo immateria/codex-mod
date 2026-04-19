@@ -334,10 +334,9 @@ fn split_text_and_fences(src: &str) -> Vec<Segment> {
                         // End code block: emit segment without fences
                         segments.push(Segment::Code {
                             _lang: code_lang.take(),
-                            content: code_content.clone(),
+                            content: std::mem::take(&mut code_content),
                             fenced: true,
                         });
-                        code_content.clear();
                         code_mode = CodeMode::None;
                         fence_token = "";
                         continue;
@@ -360,10 +359,9 @@ fn split_text_and_fences(src: &str) -> Vec<Segment> {
                         // Close the indented code block and reprocess this line as normal text.
                         segments.push(Segment::Code {
                             _lang: None,
-                            content: code_content.clone(),
+                            content: std::mem::take(&mut code_content),
                             fenced: false,
                         });
-                        code_content.clear();
                         code_mode = CodeMode::None;
                         // Now handle current line as text.
                         curr_text.push_str(line);
@@ -375,14 +373,13 @@ fn split_text_and_fences(src: &str) -> Vec<Segment> {
     }
 
     if code_mode != CodeMode::None {
-        // Unterminated code fence: treat accumulated content as a code segment.
         segments.push(Segment::Code {
             _lang: code_lang.take(),
-            content: code_content.clone(),
+            content: code_content,
             fenced: matches!(code_mode, CodeMode::Fenced),
         });
     } else if !curr_text.is_empty() {
-        segments.push(Segment::Text(curr_text.clone()));
+        segments.push(Segment::Text(curr_text));
     }
 
     segments
