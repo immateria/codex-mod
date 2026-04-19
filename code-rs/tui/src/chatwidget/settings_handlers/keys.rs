@@ -398,4 +398,36 @@ mod tests {
             assert_eq!(crate::icons::icon_mode(), code_core::config_types::IconMode::Unicode);
         });
     }
+
+    #[test]
+    fn prompts_new_prompt_accepts_typing() {
+        use crate::test_helpers::render_chat_widget_to_vt100;
+
+        let mut harness = ChatWidgetHarness::new();
+        harness.with_chat(|chat| {
+            chat.ensure_settings_overlay_section(SettingsSection::Prompts);
+            let overlay = chat.settings.overlay.as_ref().expect("overlay");
+            assert!(!overlay.is_menu_active());
+            assert!(overlay.active_content().is_some(), "expected prompts content to exist");
+        });
+
+        // Enter the editor ("Add new..." when empty).
+        harness.send_key(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
+        harness.with_chat(|chat| {
+            let overlay = chat.settings.overlay.as_ref().expect("overlay");
+            let content = overlay.active_content().expect("content");
+            assert!(
+                content.has_back_navigation(),
+                "expected prompts page to enter edit mode"
+            );
+        });
+
+        let slug = "my-test-prompt";
+        for ch in slug.chars() {
+            harness.send_key(KeyEvent::new(KeyCode::Char(ch), KeyModifiers::NONE));
+        }
+
+        let screen = render_chat_widget_to_vt100(&mut harness, 100, 28);
+        assert!(screen.contains(slug), "expected slug to be visible; got:\n{screen}");
+    }
 }

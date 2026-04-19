@@ -16,12 +16,14 @@ impl ChatWidget<'_> {
         fill_rect(buf, frame_area, None, scrim_style);
 
         // Reduce horizontal padding on very narrow screens to maximize content room.
-        let padding = u16::from(history_area.width >= 40);
+        let padding = u16::from(frame_area.width >= 40);
+        let bottom = frame_area.y.saturating_add(frame_area.height);
+        let height = bottom.saturating_sub(history_area.y);
         let overlay_area = Rect {
-            x: history_area.x + padding,
+            x: frame_area.x.saturating_add(padding),
             y: history_area.y,
-            width: history_area.width.saturating_sub(padding * 2),
-            height: history_area.height,
+            width: frame_area.width.saturating_sub(padding * 2),
+            height,
         };
 
         Clear.render(overlay_area, buf);
