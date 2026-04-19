@@ -49,7 +49,7 @@ impl NotificationsSettingsView {
                 Span::styled("Edit ", Style::new().fg(colors::text_dim())),
                 Span::styled("[tui].notifications", Style::new().fg(colors::info())),
                 Span::styled(
-                    " in ~/.code/config.toml to adjust filters.",
+                    " in config.toml to adjust filters.",
                     Style::new().fg(colors::text_dim()),
                 ),
             ])], Vec::new()),

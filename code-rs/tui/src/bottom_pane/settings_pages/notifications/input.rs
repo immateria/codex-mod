@@ -24,7 +24,7 @@ impl NotificationsSettingsView {
                 );
                 self.app_event_tx.send_background_event_with_ticket(
                     &self.ticket,
-                    "Edit ~/.code/config.toml [tui].notifications to change filters.".to_owned(),
+                    "Edit [tui].notifications in your config.toml to change filters.".to_owned(),
                 );
             }
         }

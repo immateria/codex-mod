@@ -1,6 +1,7 @@
 use crossterm::event::{KeyCode, KeyEvent};
 
 use crate::app_event::AppEvent;
+use crate::components::scroll_state::ScrollState;
 
 use super::{PersonalityRow, PersonalitySettingsView};
 
@@ -29,7 +30,12 @@ impl PersonalitySettingsView {
             self.state.selected_idx = Some(0);
         }
         let total = rows.len();
-        self.state.ensure_visible(total, 6);
+        let visible = ScrollState::visible_budget(
+            self.viewport_rows.get(),
+            super::DEFAULT_VISIBLE_ROWS,
+            total,
+        );
+        self.state.ensure_visible(total, visible);
 
         match key.code {
             KeyCode::Up | KeyCode::Char('k') => {

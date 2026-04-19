@@ -20,9 +20,10 @@ pub(super) fn format_notification_message_inner(title: &str, body: Option<&str>)
 
     const MAX_LEN: usize = 160;
     if message.chars().count() > MAX_LEN {
+        let limit = MAX_LEN.saturating_sub(3);
         let mut truncated = String::new();
-        for ch in message.chars() {
-            if truncated.chars().count() >= MAX_LEN.saturating_sub(3) {
+        for (i, ch) in message.chars().enumerate() {
+            if i >= limit {
                 break;
             }
             truncated.push(ch);

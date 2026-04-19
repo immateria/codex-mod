@@ -190,7 +190,7 @@ impl ReviewSettingsView {
                         SelectionKind::ReviewModel
                         | SelectionKind::ReviewResolveModel
                         | SelectionKind::AutoReviewModel
-                        | SelectionKind::AutoReviewResolveModel => {}
+                        | SelectionKind::AutoReviewResolveModel => self.activate_selection_kind(kind),
                     }
                 }
                 true
@@ -205,7 +205,7 @@ impl ReviewSettingsView {
                         SelectionKind::ReviewModel
                         | SelectionKind::ReviewResolveModel
                         | SelectionKind::AutoReviewModel
-                        | SelectionKind::AutoReviewResolveModel => {}
+                        | SelectionKind::AutoReviewResolveModel => self.activate_selection_kind(kind),
                     }
                 }
                 true

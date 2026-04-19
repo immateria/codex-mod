@@ -509,7 +509,7 @@ impl ChatWidget<'_> {
                             entries.join(", ")
                         };
                         self.push_background_tail(format!(
-                            "TUI notifications use custom filters ([{filters}]); edit ~/.code/config.toml to change them."
+                            "TUI notifications use custom filters ([{filters}]); edit [tui].notifications in config.toml to change them."
                         ));
                     }
                 }

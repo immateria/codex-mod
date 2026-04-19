@@ -12,6 +12,8 @@ mod pane_impl;
 mod pages;
 mod render;
 
+const DEFAULT_VISIBLE_ROWS: usize = 6;
+
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub(crate) enum PersonalityRow {
     Archetype,
@@ -32,6 +34,7 @@ pub(crate) struct PersonalitySettingsView {
     traits: PersonalityTraits,
     app_event_tx: AppEventSender,
     state: ScrollState,
+    viewport_rows: std::cell::Cell<usize>,
     is_complete: bool,
 }
 
@@ -51,6 +54,7 @@ impl PersonalitySettingsView {
             traits: traits.unwrap_or_default(),
             app_event_tx,
             state,
+            viewport_rows: std::cell::Cell::new(DEFAULT_VISIBLE_ROWS),
             is_complete: false,
         }
     }

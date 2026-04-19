@@ -9,14 +9,16 @@ impl PersonalitySettingsView {
     fn render_in_chrome(&self, chrome: ChromeMode, area: Rect, buf: &mut Buffer) {
         let page = self.page();
         let rows = self.menu_rows();
-        let _layout = page.render_menu_rows_in_chrome(
+        if let Some(layout) = page.render_menu_rows_in_chrome(
             chrome,
             area,
             buf,
             self.state.scroll_top,
             self.selected_row(),
             &rows,
-        );
+        ) {
+            self.viewport_rows.set(layout.body.height.max(1) as usize);
+        }
     }
 
     pub(super) fn render_content_only(&self, area: Rect, buf: &mut Buffer) {
