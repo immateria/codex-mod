@@ -541,13 +541,14 @@ impl InterfaceSettingsView {
 
     pub(super) fn cycle_icon_mode_next(&mut self) {
         self.icon_mode = self.icon_mode.next();
-        crate::icons::set_icon_mode(self.icon_mode);
+        // Global icon mode is NOT mutated here — it stays pending until Apply.
+        // See apply_settings() for the commit path and
+        // revert_unapplied_icon_mode_preview() for the close/cancel revert.
         self.status = None;
     }
 
     pub(super) fn cycle_icon_mode_prev(&mut self) {
         self.icon_mode = self.icon_mode.prev();
-        crate::icons::set_icon_mode(self.icon_mode);
         self.status = None;
     }
 

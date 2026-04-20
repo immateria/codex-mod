@@ -57,7 +57,7 @@ fn ctrl_s_with_no_changes_emits_no_events() {
 }
 
 #[test]
-fn icon_mode_preview_reverts_when_deactivated_without_apply() {
+fn icon_mode_cycle_does_not_mutate_global() {
     crate::icons::with_test_icon_mode(code_core::config_types::IconMode::Unicode, || {
         let (tx, _rx) = mpsc::channel();
         let app_event_tx = AppEventSender::new(tx);
@@ -69,12 +69,19 @@ fn icon_mode_preview_reverts_when_deactivated_without_apply() {
             app_event_tx,
         );
 
+        // Cycling changes the local pending value but leaves the global untouched.
         view.cycle_icon_mode_next();
-        assert_eq!(crate::icons::icon_mode(), code_core::config_types::IconMode::NerdFonts);
+        assert_eq!(view.icon_mode, code_core::config_types::IconMode::NerdFonts);
+        assert_eq!(
+            crate::icons::icon_mode(),
+            code_core::config_types::IconMode::Unicode,
+            "global icon mode must not change until Apply"
+        );
 
+        // Revert restores local to baseline (global was never touched).
         view.revert_unapplied_icon_mode_preview();
-        assert_eq!(crate::icons::icon_mode(), code_core::config_types::IconMode::Unicode);
         assert_eq!(view.icon_mode, view.icon_mode_baseline);
+        assert_eq!(crate::icons::icon_mode(), code_core::config_types::IconMode::Unicode);
     });
 }
 

@@ -94,7 +94,7 @@ impl SettingsOverlayView {
             return;
         }
 
-        let title = Self::section_panel_title(self.active_section());
+        let title = self.active_section().panel_title();
         // Use horizontal-only margin so the shortcut bar sits flush against
         // the bottom border.  A 1-row top inset is applied manually below
         // to keep content from touching the title bar.
@@ -124,41 +124,6 @@ impl SettingsOverlayView {
         };
         self.render_content(content, buf);
         self.strip_child_border(content, buf);
-    }
-
-    fn section_panel_title(section: SettingsSection) -> &'static str {
-        match section {
-            SettingsSection::Model => "Select Model & Reasoning",
-            SettingsSection::Theme => "Theme Settings",
-            SettingsSection::Interface => "Interface",
-            SettingsSection::Experimental => "Experimental Features",
-            SettingsSection::Shell => "Shell Selection",
-            SettingsSection::ShellEscalation => "Shell Escalation",
-            SettingsSection::ShellProfiles => "Shell Profiles",
-            SettingsSection::ExecLimits => "Exec Limits",
-            SettingsSection::Planning => "Planning Settings",
-            SettingsSection::Updates => SettingsSection::Updates.label(),
-            SettingsSection::Accounts => SettingsSection::Accounts.label(),
-            SettingsSection::Secrets => "Secrets",
-            SettingsSection::Apps => "Apps",
-            SettingsSection::Agents => "Agents",
-            SettingsSection::Memories => "Memories",
-            SettingsSection::Skills => "Skills",
-            SettingsSection::Plugins => "Plugins",
-            SettingsSection::AutoDrive => "Auto Drive Settings",
-            SettingsSection::Review => "Review Settings",
-            SettingsSection::Validation => "Validation Settings",
-            SettingsSection::Limits => SettingsSection::Limits.label(),
-            #[cfg(feature = "browser-automation")]
-            SettingsSection::Chrome => "Chrome Launch Options",
-            SettingsSection::Notifications => "Notifications",
-            SettingsSection::Repl => "REPL",
-            #[cfg(feature = "managed-network-proxy")]
-            SettingsSection::Network => "Network Mediation",
-            SettingsSection::Mcp => SettingsSection::Mcp.label(),
-            SettingsSection::Prompts => SettingsSection::Prompts.label(),
-            SettingsSection::Personality => SettingsSection::Personality.label(),
-        }
     }
 
     fn strip_child_border(&self, area: Rect, buf: &mut Buffer) {

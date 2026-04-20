@@ -89,6 +89,45 @@ impl SettingsSection {
         }
     }
 
+    /// Descriptive title shown in the overlay panel header.
+    ///
+    /// This is the canonical "long name" for a section — use `label()` for the
+    /// compact sidebar/overview form.
+    pub(crate) const fn panel_title(self) -> &'static str {
+        match self {
+            SettingsSection::Model => "Select Model & Reasoning",
+            SettingsSection::Theme => "Theme Settings",
+            SettingsSection::Interface => "Interface",
+            SettingsSection::Experimental => "Experimental Features",
+            SettingsSection::Shell => "Shell Selection",
+            SettingsSection::ShellEscalation => "Shell Escalation",
+            SettingsSection::ShellProfiles => "Shell Profiles",
+            SettingsSection::ExecLimits => "Exec Limits",
+            SettingsSection::Planning => "Planning Settings",
+            SettingsSection::Updates => "Updates",
+            SettingsSection::Accounts => "Accounts",
+            SettingsSection::Secrets => "Secrets",
+            SettingsSection::Apps => "Apps",
+            SettingsSection::Agents => "Agents",
+            SettingsSection::Memories => "Memories",
+            SettingsSection::Skills => "Skills",
+            SettingsSection::Plugins => "Plugins",
+            SettingsSection::AutoDrive => "Auto Drive Settings",
+            SettingsSection::Review => "Review Settings",
+            SettingsSection::Validation => "Validation Settings",
+            SettingsSection::Limits => "Rate Limits",
+            #[cfg(feature = "browser-automation")]
+            SettingsSection::Chrome => "Chrome Launch Options",
+            SettingsSection::Notifications => "Notifications",
+            SettingsSection::Repl => "REPL",
+            #[cfg(feature = "managed-network-proxy")]
+            SettingsSection::Network => "Network Mediation",
+            SettingsSection::Mcp => "MCP Servers",
+            SettingsSection::Prompts => "Custom Prompts",
+            SettingsSection::Personality => "Personality & Tone",
+        }
+    }
+
     pub(crate) const fn placeholder(self) -> &'static str {
         match self {
             SettingsSection::Model => "Model settings coming soon.",

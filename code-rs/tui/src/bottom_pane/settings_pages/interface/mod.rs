@@ -267,6 +267,9 @@ impl InterfaceSettingsView {
             return;
         }
         self.icon_mode = self.icon_mode_baseline;
+        // Defensive: ensure the global matches baseline even though cycling
+        // no longer mutates it.  Costs nothing and guards against future
+        // regressions that might re-introduce live preview.
         crate::icons::set_icon_mode(self.icon_mode_baseline);
         self.status = None;
     }
