@@ -8,7 +8,7 @@ use code_core::config::{
     set_shell_style_profile_skills,
     set_shell_style_profile_summary,
 };
-use code_core::config_types::{ShellConfig, ShellScriptStyle, ShellStyleProfileConfig};
+use code_core::config_types::{ShellConfig, ShellScriptStyle, ShellStyleProfileConfig, ShellStyleProfileEntry};
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind};
 use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
@@ -47,9 +47,9 @@ use model::{
 pub(crate) struct ShellProfilesSettingsView {
     code_home: PathBuf,
     active_shell_path: Option<String>,
-    active_style: Option<ShellScriptStyle>,
-    selected_style: ShellScriptStyle,
-    shell_style_profiles: HashMap<ShellScriptStyle, ShellStyleProfileConfig>,
+    active_profile_id: Option<String>,
+    selected_id: String,
+    shell_style_profiles: HashMap<String, ShellStyleProfileEntry>,
     available_skills: Vec<SkillOption>,
     available_mcp_servers: Vec<String>,
     summary_field: FormTextField,
@@ -71,7 +71,7 @@ impl ShellProfilesSettingsView {
     pub(crate) fn new(
         code_home: PathBuf,
         current_shell: Option<&ShellConfig>,
-        shell_style_profiles: HashMap<ShellScriptStyle, ShellStyleProfileConfig>,
+        shell_style_profiles: HashMap<String, ShellStyleProfileEntry>,
         available_skills: Vec<(String, String)>,
         available_mcp_servers: Vec<String>,
         app_event_tx: AppEventSender,
@@ -82,7 +82,10 @@ impl ShellProfilesSettingsView {
                 .script_style
                 .or_else(|| ShellScriptStyle::infer_from_shell_program(&shell.path))
         });
-        let selected_style = active_style.unwrap_or(ShellScriptStyle::BashZshCompatible);
+        let active_profile_id = active_style.map(|s| s.to_string());
+        let selected_id = active_profile_id
+            .clone()
+            .unwrap_or_else(|| ShellScriptStyle::BashZshCompatible.to_string());
 
         let mut references_field = FormTextField::new_multi_line();
         references_field.set_placeholder("docs/shell/my-style.md");
@@ -132,8 +135,8 @@ impl ShellProfilesSettingsView {
         let mut view = Self {
             code_home,
             active_shell_path,
-            active_style,
-            selected_style,
+            active_profile_id,
+            selected_id: selected_id.clone(),
             shell_style_profiles,
             available_skills,
             available_mcp_servers,
@@ -150,7 +153,7 @@ impl ShellProfilesSettingsView {
             pick_viewport_rows: Cell::new(1),
         };
         view.scroll.selected_idx = Some(0);
-        view.load_fields_for_style(selected_style);
+        view.load_fields_for_style(&selected_id);
         view
     }
 
@@ -161,20 +164,22 @@ impl ShellProfilesSettingsView {
                 .script_style
                 .or_else(|| ShellScriptStyle::infer_from_shell_program(&shell.path))
         });
+        let active_profile_id = active_style.map(|s| s.to_string());
 
-        if self.active_style == active_style {
+        if self.active_profile_id == active_profile_id {
             return;
         }
 
-        self.active_style = active_style;
+        self.active_profile_id = active_profile_id.clone();
 
         if matches!(self.mode, ViewMode::Main)
             && !self.dirty
-            && let Some(active) = self.active_style
-            && self.selected_style != active
+            && let Some(ref active_id) = self.active_profile_id
+            && self.selected_id != *active_id
         {
-            self.selected_style = active;
-            self.load_fields_for_style(active);
+            let id = active_id.clone();
+            self.selected_id = id.clone();
+            self.load_fields_for_style(&id);
         }
     }
 

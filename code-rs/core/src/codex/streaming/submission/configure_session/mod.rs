@@ -7,7 +7,7 @@ use crate::config_types::ReasoningSummary as ReasoningSummaryConfig;
 use crate::config_types::ServiceTier;
 use crate::config_types::ShellConfig;
 use crate::config_types::ShellScriptStyle;
-use crate::config_types::ShellStyleProfileConfig;
+use crate::config_types::ShellStyleProfileEntry;
 use crate::config_types::TextVerbosity as TextVerbosityConfig;
 use crate::model_provider_info::ModelProviderInfo;
 use crate::protocol::AskForApproval;
@@ -154,7 +154,7 @@ struct ConfigureSessionRequest {
     demo_developer_message: Option<String>,
     dynamic_tools: Vec<DynamicToolSpec>,
     shell_override: Option<ShellConfig>,
-    shell_style_profiles: HashMap<ShellScriptStyle, ShellStyleProfileConfig>,
+    shell_style_profiles: HashMap<String, ShellStyleProfileEntry>,
     network: Option<crate::config::NetworkProxySettingsToml>,
     tools_repl: bool,
     repl_default_runtime: crate::config::ReplRuntimeKindToml,

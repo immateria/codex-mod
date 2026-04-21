@@ -33,8 +33,7 @@ use crate::config_types::ProjectHookConfig;
 use crate::config_types::SandboxWorkspaceWrite;
 use crate::config_types::ShellConfig;
 use crate::config_types::ShellPresetConfig;
-use crate::config_types::ShellScriptStyle;
-use crate::config_types::ShellStyleProfileConfig;
+use crate::config_types::ShellStyleProfileEntry;
 use crate::config_types::ShellEnvironmentPolicy;
 use crate::config_types::ShellEnvironmentPolicyToml;
 use crate::config_types::TextVerbosity;
@@ -354,8 +353,8 @@ pub struct Config {
     /// When unset, Code will try to auto-discover the wrapper at runtime.
     pub main_execve_wrapper_exe: Option<PathBuf>,
 
-    /// Optional shell-style-specific resource profiles keyed by style.
-    pub shell_style_profiles: HashMap<ShellScriptStyle, ShellStyleProfileConfig>,
+    /// Optional shell-style-specific resource profiles keyed by profile id.
+    pub shell_style_profiles: HashMap<String, ShellStyleProfileEntry>,
 
     /// Patterns requiring an explicit confirm prefix before running.
     pub confirm_guard: ConfirmGuardConfig,
@@ -918,9 +917,9 @@ pub struct ConfigToml {
     #[serde(default)]
     pub main_execve_wrapper_exe: Option<PathBuf>,
 
-    /// Optional shell-style resource profiles keyed by style slug.
+    /// Optional shell-style resource profiles keyed by profile id.
     #[serde(default)]
-    pub shell_style_profiles: HashMap<ShellScriptStyle, ShellStyleProfileConfig>,
+    pub shell_style_profiles: HashMap<String, ShellStyleProfileEntry>,
 
     /// Sandbox mode to use.
     pub sandbox_mode: Option<SandboxMode>,

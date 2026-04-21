@@ -66,9 +66,9 @@ pub(super) fn delete_current_inner(view: &mut SkillsSettingsView) {
             ) {
                 Ok(_) => {
                     profiles_changed = true;
-                    if let Some(profile) = view.shell_style_profiles.get_mut(&style) {
-                        remove_profile_skill(&mut profile.skills, identifier);
-                        remove_profile_skill(&mut profile.disabled_skills, identifier);
+                    if let Some(entry) = view.shell_style_profiles.get_mut(&style.to_string()) {
+                        remove_profile_skill(&mut entry.config.skills, identifier);
+                        remove_profile_skill(&mut entry.config.disabled_skills, identifier);
                     }
                 }
                 Err(err) => append_warning(

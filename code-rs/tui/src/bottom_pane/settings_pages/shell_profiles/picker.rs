@@ -11,7 +11,10 @@ impl ShellProfilesSettingsView {
         &self,
         target: PickTarget,
     ) -> (Vec<String>, Vec<String>) {
-        let profile = self.shell_style_profiles.get(&self.selected_style);
+        let profile = self
+            .shell_style_profiles
+            .get(&self.selected_id)
+            .map(|e| &e.config);
         match target {
             PickTarget::SkillsAllowlist => (
                 profile.map(|p| p.skills.clone()).unwrap_or_default(),
@@ -186,65 +189,74 @@ impl ShellProfilesSettingsView {
     }
 
     pub(super) fn apply_picker_selection(&mut self, target: PickTarget, selection: Vec<String>) {
-        if selection.is_empty() && !self.shell_style_profiles.contains_key(&self.selected_style) {
+        if selection.is_empty() && !self.shell_style_profiles.contains_key(&self.selected_id) {
             return;
         }
 
-        let profile = self
+        let selected_id = self.selected_id.clone();
+        let entry = self
             .shell_style_profiles
-            .entry(self.selected_style)
-            .or_default();
+            .entry(selected_id.clone())
+            .or_insert_with(Default::default);
 
         match target {
             PickTarget::SkillsAllowlist => {
-                profile.skills = selection;
+                entry.config.skills = selection;
                 let selected_set: HashSet<String> =
-                    profile.skills.iter().map(|v| normalize_list_key(v)).collect();
-                profile
+                    entry.config.skills.iter().map(|v| normalize_list_key(v)).collect();
+                entry
+                    .config
                     .disabled_skills
                     .retain(|v| !selected_set.contains(&normalize_list_key(v)));
             }
             PickTarget::DisabledSkills => {
-                profile.disabled_skills = selection;
-                let selected_set: HashSet<String> = profile
+                entry.config.disabled_skills = selection;
+                let selected_set: HashSet<String> = entry
+                    .config
                     .disabled_skills
                     .iter()
                     .map(|v| normalize_list_key(v))
                     .collect();
-                profile
+                entry
+                    .config
                     .skills
                     .retain(|v| !selected_set.contains(&normalize_list_key(v)));
             }
             PickTarget::McpInclude => {
-                profile.mcp_servers.include = selection;
-                let selected_set: HashSet<String> = profile
+                entry.config.mcp_servers.include = selection;
+                let selected_set: HashSet<String> = entry
+                    .config
                     .mcp_servers
                     .include
                     .iter()
                     .map(|v| normalize_list_key(v))
                     .collect();
-                profile
+                entry
+                    .config
                     .mcp_servers
                     .exclude
                     .retain(|v| !selected_set.contains(&normalize_list_key(v)));
             }
             PickTarget::McpExclude => {
-                profile.mcp_servers.exclude = selection;
-                let selected_set: HashSet<String> = profile
+                entry.config.mcp_servers.exclude = selection;
+                let selected_set: HashSet<String> = entry
+                    .config
                     .mcp_servers
                     .exclude
                     .iter()
                     .map(|v| normalize_list_key(v))
                     .collect();
-                profile
+                entry
+                    .config
                     .mcp_servers
                     .include
                     .retain(|v| !selected_set.contains(&normalize_list_key(v)));
             }
         }
 
-        if style_profile_is_empty(profile) {
-            self.shell_style_profiles.remove(&self.selected_style);
+        let is_empty = style_profile_is_empty(&entry.config);
+        if is_empty {
+            self.shell_style_profiles.remove(&selected_id);
         }
     }
 
@@ -321,7 +333,7 @@ impl ShellProfilesSettingsView {
             } else {
                 format!("{selected_count} selected")
             };
-        let style = self.selected_style.to_string();
+        let style = self.selected_id.clone();
         vec![Line::from(Span::styled(
             format!(
                 "{}  •  style: {style}  •  {selection_summary}",

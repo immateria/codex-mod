@@ -16,6 +16,7 @@ use crate::config_types::CommandSafetyRuleset;
 use crate::config_types::ShellConfig;
 use crate::config_types::ShellScriptStyle;
 use crate::config_types::ShellStyleProfileConfig;
+use crate::config_types::ShellStyleProfileEntry;
 use crate::exec::SandboxType;
 use crate::is_dangerous_command::command_might_be_dangerous_with_context_and_rules;
 use crate::is_safe_command::is_known_safe_command_with_context_and_rules;
@@ -114,7 +115,7 @@ fn current_os_command_safety_rule_config(os: &CommandSafetyOsProfileConfig) -> &
 pub fn resolve_command_safety_profile(
     shell: &Shell,
     shell_config: Option<&ShellConfig>,
-    shell_style_profiles: &HashMap<ShellScriptStyle, ShellStyleProfileConfig>,
+    shell_style_profiles: &HashMap<String, ShellStyleProfileEntry>,
 ) -> ResolvedCommandSafetyProfile {
     let style = shell.script_style();
     let mut resolved = ResolvedCommandSafetyProfile {
@@ -128,7 +129,13 @@ pub fn resolve_command_safety_profile(
         resolved.dangerous_command_detection_enabled = shell_legacy_override;
     }
 
-    let style_profile = style.and_then(|active_style| shell_style_profiles.get(&active_style));
+    let style_profile: Option<&ShellStyleProfileConfig> = shell
+        .shell_command_path()
+        .map(|path| crate::shell::shell_basename(path))
+        .and_then(|basename| {
+            crate::config_types::resolve_shell_style_profile(shell_style_profiles, &basename)
+                .map(|(_, entry)| &entry.config)
+        });
     if let Some(profile_legacy_override) =
         style_profile.and_then(|profile| profile.dangerous_command_detection)
     {
@@ -773,11 +780,14 @@ mod tests {
             command: vec!["zsh".to_string()],
             script_style: Some(ShellScriptStyle::Zsh),
         });
-        let mut profiles: HashMap<ShellScriptStyle, ShellStyleProfileConfig> = HashMap::new();
+        let mut profiles: HashMap<String, ShellStyleProfileEntry> = HashMap::new();
         profiles.insert(
-            ShellScriptStyle::Zsh,
-            ShellStyleProfileConfig {
-                dangerous_command_detection: Some(false),
+            "zsh".to_string(),
+            ShellStyleProfileEntry {
+                config: ShellStyleProfileConfig {
+                    dangerous_command_detection: Some(false),
+                    ..Default::default()
+                },
                 ..Default::default()
             },
         );
@@ -810,8 +820,14 @@ mod tests {
         shell_cfg.command_safety.rules.dangerous_command_detection = Some(false);
 
         let mut profile = ShellStyleProfileConfig::default();
-        let mut profiles = HashMap::new();
-        profiles.insert(ShellScriptStyle::Zsh, profile.clone());
+        let mut profiles: HashMap<String, ShellStyleProfileEntry> = HashMap::new();
+        profiles.insert(
+            "zsh".to_string(),
+            ShellStyleProfileEntry {
+                config: profile.clone(),
+                ..Default::default()
+            },
+        );
 
         let shell_only = resolve_command_safety_profile(&shell, Some(&shell_cfg), &profiles);
         assert!(!shell_only.dangerous_command_detection_enabled);
@@ -822,7 +838,13 @@ mod tests {
         profile.command_safety.rules.safe_rules = Some(CommandSafetyRuleset::Windows);
         profile.command_safety.rules.dangerous_rules = Some(CommandSafetyRuleset::Posix);
         profile.command_safety.rules.dangerous_command_detection = Some(true);
-        profiles.insert(ShellScriptStyle::Zsh, profile.clone());
+        profiles.insert(
+            "zsh".to_string(),
+            ShellStyleProfileEntry {
+                config: profile.clone(),
+                ..Default::default()
+            },
+        );
 
         let shell_and_profile = resolve_command_safety_profile(&shell, Some(&shell_cfg), &profiles);
         assert!(shell_and_profile.dangerous_command_detection_enabled);
@@ -831,7 +853,13 @@ mod tests {
 
         // 3) shell + os
         profile.command_safety.rules = crate::config_types::CommandSafetyRuleConfig::default();
-        profiles.insert(ShellScriptStyle::Zsh, profile.clone());
+        profiles.insert(
+            "zsh".to_string(),
+            ShellStyleProfileEntry {
+                config: profile.clone(),
+                ..Default::default()
+            },
+        );
 
         set_current_os_override(
             &mut shell_cfg.command_safety.os,
@@ -855,7 +883,13 @@ mod tests {
                 dangerous_rules: Some(CommandSafetyRuleset::Windows),
             },
         );
-        profiles.insert(ShellScriptStyle::Zsh, profile);
+        profiles.insert(
+            "zsh".to_string(),
+            ShellStyleProfileEntry {
+                config: profile,
+                ..Default::default()
+            },
+        );
 
         let shell_profile_and_os =
             resolve_command_safety_profile(&shell, Some(&shell_cfg), &profiles);

@@ -5,15 +5,27 @@ pub(super) async fn load_skills_inventory_and_refresh_session(
     config_snapshot: Arc<Config>,
 ) -> crate::skills::model::SkillLoadOutcome {
     let skills_enabled = config_snapshot.skills_enabled;
-    let active_shell_style = sess.user_shell.script_style();
+
+    let active_profile = sess
+        .user_shell
+        .shell_command_path()
+        .map(|path| crate::shell::shell_basename(path))
+        .and_then(|basename| {
+            crate::config_types::resolve_shell_style_profile(
+                &config_snapshot.shell_style_profiles,
+                &basename,
+            )
+        });
+    let active_shell_style = active_profile
+        .and_then(|(id, entry)| entry.effective_style(id))
+        .or_else(|| sess.user_shell.script_style());
     let active_shell_style_label = active_shell_style.map(|style| style.to_string());
 
     let mut shell_style_skill_filter: Option<HashSet<String>> = None;
     let mut shell_style_disabled_skills: HashSet<String> = HashSet::new();
     let mut shell_style_skill_roots: Vec<PathBuf> = Vec::new();
-    if let Some(style) = active_shell_style
-        && let Some(profile) = config_snapshot.shell_style_profiles.get(&style)
-    {
+    if let Some((_, active_entry)) = active_profile {
+        let profile = &active_entry.config;
         let requested_skills: HashSet<String> = profile
             .skills
             .iter()

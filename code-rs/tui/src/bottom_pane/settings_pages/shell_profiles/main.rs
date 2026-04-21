@@ -37,36 +37,40 @@ impl ShellProfilesSettingsView {
     pub(super) fn cycle_style_next(&mut self) {
         self.stage_pending_profile_from_fields();
         let styles = relevant_styles_for_shell(self.active_shell_path.as_deref());
-        self.selected_style = match styles.iter().position(|&s| s == self.selected_style) {
-            Some(i) => styles[(i + 1) % styles.len()],
-            None => styles[0],
+        let ids: Vec<String> = styles.iter().map(|s| s.to_string()).collect();
+        self.selected_id = match ids.iter().position(|id| id == &self.selected_id) {
+            Some(i) => ids[(i + 1) % ids.len()].clone(),
+            None => ids[0].clone(),
         };
-        self.load_fields_for_style(self.selected_style);
+        let id = self.selected_id.clone();
+        self.load_fields_for_style(&id);
         self.status = None;
     }
 
     pub(super) fn cycle_style_prev(&mut self) {
         self.stage_pending_profile_from_fields();
         let styles = relevant_styles_for_shell(self.active_shell_path.as_deref());
-        self.selected_style = match styles.iter().position(|&s| s == self.selected_style) {
-            Some(0) => styles[styles.len() - 1],
-            Some(i) => styles[i - 1],
-            None => styles[0],
+        let ids: Vec<String> = styles.iter().map(|s| s.to_string()).collect();
+        self.selected_id = match ids.iter().position(|id| id == &self.selected_id) {
+            Some(0) => ids[ids.len() - 1].clone(),
+            Some(i) => ids[i - 1].clone(),
+            None => ids[0].clone(),
         };
-        self.load_fields_for_style(self.selected_style);
+        let id = self.selected_id.clone();
+        self.load_fields_for_style(&id);
         self.status = None;
     }
 
     pub(super) fn row_value(&self, row: RowKind) -> Option<String> {
         match row {
             RowKind::Style => {
-                let selected = self.selected_style.to_string();
-                match self.active_style {
-                    Some(active) if active == self.selected_style => {
+                let selected = &self.selected_id;
+                match &self.active_profile_id {
+                    Some(active) if active == selected => {
                         Some(format!("{selected} (active)"))
                     }
                     Some(active) => Some(format!("{selected} (active: {active})")),
-                    None => Some(selected),
+                    None => Some(selected.clone()),
                 }
             }
             RowKind::Summary => {
@@ -87,8 +91,8 @@ impl ShellProfilesSettingsView {
             RowKind::SkillsAllowlist => {
                 let count = self
                     .shell_style_profiles
-                    .get(&self.selected_style)
-                    .map_or(0, |profile| profile.skills.len());
+                    .get(&self.selected_id)
+                    .map_or(0, |entry| entry.config.skills.len());
                 if count == 0 {
                     Some("all (no filter)".to_owned())
                 } else {
@@ -98,14 +102,14 @@ impl ShellProfilesSettingsView {
             RowKind::DisabledSkills => Some(format!(
                 "{} disabled",
                 self.shell_style_profiles
-                    .get(&self.selected_style)
-                    .map_or(0, |profile| profile.disabled_skills.len())
+                    .get(&self.selected_id)
+                    .map_or(0, |entry| entry.config.disabled_skills.len())
             )),
             RowKind::McpInclude => {
                 let count = self
                     .shell_style_profiles
-                    .get(&self.selected_style)
-                    .map_or(0, |profile| profile.mcp_servers.include.len());
+                    .get(&self.selected_id)
+                    .map_or(0, |entry| entry.config.mcp_servers.include.len());
                 if count == 0 {
                     Some("all (no filter)".to_owned())
                 } else {
@@ -115,8 +119,8 @@ impl ShellProfilesSettingsView {
             RowKind::McpExclude => Some(format!(
                 "{} excluded",
                 self.shell_style_profiles
-                    .get(&self.selected_style)
-                    .map_or(0, |profile| profile.mcp_servers.exclude.len())
+                    .get(&self.selected_id)
+                    .map_or(0, |entry| entry.config.mcp_servers.exclude.len())
             )),
             RowKind::OpenSkills | RowKind::Apply | RowKind::Close => None,
         }
@@ -154,34 +158,40 @@ impl ShellProfilesSettingsView {
 
     pub(super) fn request_summary_generation(&mut self) {
         self.stage_pending_profile_from_fields();
-        let profile = self
+        let entry = self
             .shell_style_profiles
-            .get(&self.selected_style)
+            .get(&self.selected_id)
             .cloned()
             .unwrap_or_default();
+        let profile = entry.config;
+        let style = entry
+            .style
+            .or_else(|| ShellScriptStyle::parse(&self.selected_id))
+            .unwrap_or(ShellScriptStyle::BashZshCompatible);
 
         self.status = Some("Generating summary...".to_owned());
         self.app_event_tx
             .send(AppEvent::RequestGenerateShellStyleProfileSummary {
-                style: self.selected_style,
+                style,
                 profile,
             });
     }
 
     pub(crate) fn apply_generated_summary(&mut self, style: ShellScriptStyle, summary: String) {
         let normalized = summary.trim().to_owned();
-        if style == self.selected_style {
+        let id = style.to_string();
+        if id == self.selected_id {
             self.summary_field.set_text(normalized.as_str());
         }
 
-        let profile = self.shell_style_profiles.entry(style).or_default();
-        profile.summary = if normalized.is_empty() {
+        let entry = self.shell_style_profiles.entry(id.clone()).or_default();
+        entry.config.summary = if normalized.is_empty() {
             None
         } else {
             Some(normalized)
         };
-        if style_profile_is_empty(profile) {
-            self.shell_style_profiles.remove(&style);
+        if style_profile_is_empty(&entry.config) {
+            self.shell_style_profiles.remove(&id);
         }
 
         self.dirty = true;
@@ -220,8 +230,10 @@ impl ShellProfilesSettingsView {
             .filter(|path| !path.is_empty())
             .unwrap_or("auto");
         let active_style = self
-            .active_style.map_or_else(|| "auto".to_owned(), |style| style.to_string());
-        let selected_style = self.selected_style.to_string();
+            .active_profile_id
+            .as_deref()
+            .map_or_else(|| "auto".to_owned(), |id| id.to_owned());
+        let selected_style = self.selected_id.clone();
         let styles_summary = if selected_style == active_style {
             format!("style: {active_style}")
         } else {
@@ -268,8 +280,8 @@ impl ShellProfilesSettingsView {
         } else if self.selected_row() == RowKind::Style {
             let summary = self
                 .shell_style_profiles
-                .get(&self.selected_style)
-                .and_then(|profile| profile.summary.as_deref())
+                .get(&self.selected_id)
+                .and_then(|entry| entry.config.summary.as_deref())
                 .unwrap_or("")
                 .trim();
             if summary.is_empty() {

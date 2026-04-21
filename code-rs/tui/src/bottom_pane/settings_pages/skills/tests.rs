@@ -4,7 +4,7 @@ use super::*;
 use std::path::PathBuf;
 use std::sync::mpsc::channel;
 
-fn make_view(profiles: HashMap<ShellScriptStyle, ShellStyleProfileConfig>) -> SkillsSettingsView {
+fn make_view(profiles: HashMap<String, code_core::config_types::ShellStyleProfileEntry>) -> SkillsSettingsView {
     let (tx, _rx) = channel();
     SkillsSettingsView::new(Vec::new(), profiles, AppEventSender::new(tx))
 }
@@ -63,15 +63,18 @@ fn paste_marks_style_resource_fields_dirty() {
 
 #[test]
 fn style_paste_loads_profile_paths_when_not_dirty() {
-    let mut profiles: HashMap<ShellScriptStyle, ShellStyleProfileConfig> = HashMap::new();
+    let mut profiles: HashMap<String, code_core::config_types::ShellStyleProfileEntry> = HashMap::new();
     profiles.insert(
-        ShellScriptStyle::Zsh,
-        ShellStyleProfileConfig {
-            references: vec![PathBuf::from("docs/shell/zsh.md")],
-            skill_roots: vec![PathBuf::from("skills/zsh")],
-            mcp_servers: code_core::config_types::ShellStyleMcpConfig {
-                include: vec!["termux".to_string()],
-                exclude: vec!["legacy".to_string()],
+        "zsh".to_string(),
+        code_core::config_types::ShellStyleProfileEntry {
+            config: ShellStyleProfileConfig {
+                references: vec![PathBuf::from("docs/shell/zsh.md")],
+                skill_roots: vec![PathBuf::from("skills/zsh")],
+                mcp_servers: code_core::config_types::ShellStyleMcpConfig {
+                    include: vec!["termux".to_string()],
+                    exclude: vec!["legacy".to_string()],
+                },
+                ..Default::default()
             },
             ..Default::default()
         },
@@ -95,15 +98,18 @@ fn style_paste_loads_profile_paths_when_not_dirty() {
 
 #[test]
 fn style_paste_does_not_override_manual_paths_when_dirty() {
-    let mut profiles: HashMap<ShellScriptStyle, ShellStyleProfileConfig> = HashMap::new();
+    let mut profiles: HashMap<String, code_core::config_types::ShellStyleProfileEntry> = HashMap::new();
     profiles.insert(
-        ShellScriptStyle::Zsh,
-        ShellStyleProfileConfig {
-            references: vec![PathBuf::from("docs/shell/zsh.md")],
-            skill_roots: vec![PathBuf::from("skills/zsh")],
-            mcp_servers: code_core::config_types::ShellStyleMcpConfig {
-                include: vec!["termux".to_string()],
-                exclude: vec!["legacy".to_string()],
+        "zsh".to_string(),
+        code_core::config_types::ShellStyleProfileEntry {
+            config: ShellStyleProfileConfig {
+                references: vec![PathBuf::from("docs/shell/zsh.md")],
+                skill_roots: vec![PathBuf::from("skills/zsh")],
+                mcp_servers: code_core::config_types::ShellStyleMcpConfig {
+                    include: vec!["termux".to_string()],
+                    exclude: vec!["legacy".to_string()],
+                },
+                ..Default::default()
             },
             ..Default::default()
         },
@@ -190,13 +196,16 @@ fn content_only_list_mouse_geometry_differs_from_framed() {
 
 #[test]
 fn edit_click_focuses_style_mcp_include_field() {
-    let mut profiles: HashMap<ShellScriptStyle, ShellStyleProfileConfig> = HashMap::new();
+    let mut profiles: HashMap<String, code_core::config_types::ShellStyleProfileEntry> = HashMap::new();
     profiles.insert(
-        ShellScriptStyle::Zsh,
-        ShellStyleProfileConfig {
-            mcp_servers: code_core::config_types::ShellStyleMcpConfig {
-                include: vec!["termux".to_string()],
-                exclude: vec!["legacy".to_string()],
+        "zsh".to_string(),
+        code_core::config_types::ShellStyleProfileEntry {
+            config: ShellStyleProfileConfig {
+                mcp_servers: code_core::config_types::ShellStyleMcpConfig {
+                    include: vec!["termux".to_string()],
+                    exclude: vec!["legacy".to_string()],
+                },
+                ..Default::default()
             },
             ..Default::default()
         },

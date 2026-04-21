@@ -1,5 +1,5 @@
 use super::*;
-use code_core::config_types::ShellStyleProfileConfig;
+use code_core::config_types::ShellStyleProfileEntry;
 
 impl ChatWidget<'_> {
 
@@ -225,7 +225,7 @@ impl ChatWidget<'_> {
 
     pub(crate) fn apply_shell_style_profiles(
         &mut self,
-        shell_style_profiles: std::collections::HashMap<ShellScriptStyle, ShellStyleProfileConfig>,
+        shell_style_profiles: std::collections::HashMap<String, ShellStyleProfileEntry>,
     ) {
         self.config.shell_style_profiles = shell_style_profiles;
         self.submit_configure_session_for_current_settings();

@@ -227,7 +227,18 @@ impl Runner<'_> {
             }
         }
 
-        let active_shell_style = resolved_shell.script_style();
+        let active_profile = resolved_shell
+            .shell_command_path()
+            .map(|path| crate::shell::shell_basename(path))
+            .and_then(|basename| {
+                crate::config_types::resolve_shell_style_profile(
+                    &updated_config.shell_style_profiles,
+                    &basename,
+                )
+            });
+        let active_shell_style = active_profile
+            .and_then(|(id, entry)| entry.effective_style(id))
+            .or_else(|| resolved_shell.script_style());
         let active_shell_style_label = active_shell_style.map(|style| style.to_string());
         let mut shell_style_profile_messages: Vec<String> = Vec::new();
         let mut shell_style_skill_filter: Option<HashSet<String>> = None;
@@ -237,9 +248,8 @@ impl Runner<'_> {
         let mut shell_style_mcp_exclude: HashSet<String> = HashSet::new();
         let mut effective_mcp_servers = updated_config.mcp_servers.clone();
 
-        if let Some(style) = active_shell_style
-            && let Some(profile) = updated_config.shell_style_profiles.get(&style).cloned()
-        {
+        if let Some((_, active_entry)) = active_profile {
+            let profile = active_entry.config.clone();
             shell_style_mcp_include = profile
                 .mcp_servers
                 .include
@@ -309,8 +319,11 @@ impl Runner<'_> {
                         }
                         let trimmed = contents.trim();
                         if !trimmed.is_empty() {
+                            let style_label = active_shell_style
+                                .map(|s| s.to_string())
+                                .unwrap_or_default();
                             shell_style_profile_messages.push(format!(
-                                "Shell style reference `{style}` from `{}`:\n\n{trimmed}",
+                                "Shell style reference `{style_label}` from `{}`:\n\n{trimmed}",
                                 full_path.display(),
                             ));
                         }

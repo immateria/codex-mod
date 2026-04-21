@@ -74,6 +74,17 @@ pub enum Shell {
 }
 
 impl Shell {
+    /// Returns the primary executable path/name for this shell, for basename lookup.
+    pub fn shell_command_path(&self) -> Option<&str> {
+        match self {
+            Shell::Zsh(zsh) => Some(&zsh.shell_path),
+            Shell::Bash(bash) => Some(&bash.shell_path),
+            Shell::PowerShell(ps) => Some(&ps.exe),
+            Shell::Generic(generic) => generic.command.first().map(|s| s.as_str()),
+            Shell::Unknown => None,
+        }
+    }
+
     pub fn script_style(&self) -> Option<ShellScriptStyle> {
         match self {
             Shell::Zsh(_) => Some(ShellScriptStyle::Zsh),

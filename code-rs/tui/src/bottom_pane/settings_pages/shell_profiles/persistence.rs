@@ -1,13 +1,13 @@
 use super::*;
 
 impl ShellProfilesSettingsView {
-    pub(super) fn load_fields_for_style(&mut self, style: ShellScriptStyle) {
+    pub(super) fn load_fields_for_style(&mut self, id: &str) {
         let (summary, references, skill_roots) =
-            if let Some(profile) = self.shell_style_profiles.get(&style) {
+            if let Some(entry) = self.shell_style_profiles.get(id) {
                 (
-                    profile.summary.clone().unwrap_or_default(),
-                    profile.references.clone(),
-                    profile.skill_roots.clone(),
+                    entry.config.summary.clone().unwrap_or_default(),
+                    entry.config.references.clone(),
+                    entry.config.skill_roots.clone(),
                 )
             } else {
                 (String::new(), Vec::new(), Vec::new())
@@ -34,20 +34,22 @@ impl ShellProfilesSettingsView {
         if references.is_empty()
             && skill_roots.is_empty()
             && summary.is_none()
-            && !self.shell_style_profiles.contains_key(&self.selected_style)
+            && !self.shell_style_profiles.contains_key(&self.selected_id)
         {
             return;
         }
 
-        let profile = self
+        let selected_id = self.selected_id.clone();
+        let entry = self
             .shell_style_profiles
-            .entry(self.selected_style)
-            .or_default();
-        profile.summary = summary;
-        profile.references = references;
-        profile.skill_roots = skill_roots;
-        if style_profile_is_empty(profile) {
-            self.shell_style_profiles.remove(&self.selected_style);
+            .entry(selected_id.clone())
+            .or_insert_with(Default::default);
+        entry.config.summary = summary;
+        entry.config.references = references;
+        entry.config.skill_roots = skill_roots;
+        let is_empty = style_profile_is_empty(&entry.config);
+        if is_empty {
+            self.shell_style_profiles.remove(&selected_id);
         }
     }
 
@@ -69,16 +71,18 @@ impl ShellProfilesSettingsView {
             ShellScriptStyle::Xonsh,
             ShellScriptStyle::Oil,
         ] {
+            let id = style.to_string();
             let (summary, references, skill_roots, skills, disabled_skills, include, exclude) =
-                if let Some(profile) = self.shell_style_profiles.get(&style) {
+                if let Some(entry) = self.shell_style_profiles.get(&id) {
+                    let p = &entry.config;
                     (
-                        profile.summary.clone(),
-                        profile.references.clone(),
-                        profile.skill_roots.clone(),
-                        profile.skills.clone(),
-                        profile.disabled_skills.clone(),
-                        profile.mcp_servers.include.clone(),
-                        profile.mcp_servers.exclude.clone(),
+                        p.summary.clone(),
+                        p.references.clone(),
+                        p.skill_roots.clone(),
+                        p.skills.clone(),
+                        p.disabled_skills.clone(),
+                        p.mcp_servers.include.clone(),
+                        p.mcp_servers.exclude.clone(),
                     )
                 } else {
                     (

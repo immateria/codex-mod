@@ -789,6 +789,21 @@ impl ShellScriptStyle {
         }
     }
 
+    pub fn default_applicable_shells(self) -> &'static [&'static str] {
+        match self {
+            Self::PosixSh => &["sh", "dash", "ash", "ksh"],
+            Self::BashZshCompatible => &["bash", "mksh"],
+            Self::Zsh => &["zsh"],
+            Self::PowerShell => &["powershell", "pwsh"],
+            Self::Cmd => &["cmd"],
+            Self::Nushell => &["nu"],
+            Self::Elvish => &["elvish"],
+            Self::Fish => &["fish"],
+            Self::Xonsh => &["xonsh"],
+            Self::Oil => &["osh", "oil"],
+        }
+    }
+
     pub fn developer_instruction(self) -> &'static str {
         match self {
             Self::PosixSh => {
@@ -921,6 +936,74 @@ pub struct ShellStyleProfileConfig {
     /// This setting takes precedence over shell-level configuration.
     #[serde(default)]
     pub dangerous_command_detection: Option<bool>,
+}
+
+/// A user-created shell style profile entry, keyed by a string id.
+///
+/// The `style` field selects which script syntax the model uses.
+/// If absent, the id is tried as a style name (backward compat with old config format).
+/// `applicable_shells` lists the shell basenames for which this profile activates.
+/// If empty, defaults to the natural basenames for the resolved style.
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, JsonSchema, Default)]
+pub struct ShellStyleProfileEntry {
+    /// Script style to use. If None, inferred from the map key (backward compat).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub style: Option<ShellScriptStyle>,
+
+    /// Shell basenames this profile activates for.
+    /// When empty, defaults to the style's natural shells.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub applicable_shells: Vec<String>,
+
+    /// The profile settings (skills, mcp, references, etc.).
+    #[serde(flatten)]
+    pub config: ShellStyleProfileConfig,
+}
+
+impl ShellStyleProfileEntry {
+    /// The effective style for this entry, using the map key as fallback.
+    pub fn effective_style(&self, id: &str) -> Option<ShellScriptStyle> {
+        self.style.or_else(|| ShellScriptStyle::parse(id))
+    }
+
+    /// The effective applicable shells: explicit list, or empty slice (callers use
+    /// `effective_style(id).map(|s| s.default_applicable_shells())` for defaults).
+    pub fn effective_applicable_shells(&self) -> &[String] {
+        &self.applicable_shells
+    }
+}
+
+/// Find the active shell style profile for the given shell basename.
+///
+/// Checks each entry's `applicable_shells` (explicit, or style defaults).
+/// Returns the first matching `(id, entry)` pair, or `None` if no profile matches.
+/// Callers should fall back to `ShellScriptStyle::infer_from_shell_program` when `None`.
+pub fn resolve_shell_style_profile<'a>(
+    profiles: &'a HashMap<String, ShellStyleProfileEntry>,
+    shell_basename: &str,
+) -> Option<(&'a str, &'a ShellStyleProfileEntry)> {
+    let basename_lower = shell_basename.to_ascii_lowercase();
+    for (id, entry) in profiles {
+        let matched = if !entry.applicable_shells.is_empty() {
+            entry
+                .applicable_shells
+                .iter()
+                .any(|s| s.to_ascii_lowercase() == basename_lower)
+        } else {
+            entry
+                .effective_style(id)
+                .map(|style| {
+                    style
+                        .default_applicable_shells()
+                        .contains(&basename_lower.as_str())
+                })
+                .unwrap_or(false)
+        };
+        if matched {
+            return Some((id.as_str(), entry));
+        }
+    }
+    None
 }
 
 #[derive(Deserialize, Debug, Clone, PartialEq, Eq, JsonSchema)]
@@ -3747,7 +3830,7 @@ mod tests {
         #[derive(Deserialize)]
         struct Root {
             #[serde(default)]
-            shell_style_profiles: HashMap<ShellScriptStyle, ShellStyleProfileConfig>,
+            shell_style_profiles: HashMap<String, ShellStyleProfileEntry>,
         }
 
         let parsed: Root = toml::from_str(
@@ -3766,31 +3849,33 @@ mod tests {
         )
         .expect("shell style profile should deserialize");
 
-        let profile = parsed
+        let entry = parsed
             .shell_style_profiles
-            .get(&ShellScriptStyle::Zsh)
+            .get("zsh")
             .expect("zsh profile exists");
-        assert_eq!(profile.references, vec![PathBuf::from("docs/shell/zsh.md")]);
+        assert_eq!(entry.config.references, vec![PathBuf::from("docs/shell/zsh.md")]);
         assert_eq!(
-            profile.prepend_developer_messages,
+            entry.config.prepend_developer_messages,
             vec!["Use idiomatic zsh.".to_string()]
         );
-        assert_eq!(profile.skills, vec!["zsh-arrays".to_string()]);
+        assert_eq!(entry.config.skills, vec!["zsh-arrays".to_string()]);
         assert_eq!(
-            profile.disabled_skills,
+            entry.config.disabled_skills,
             vec!["legacy-zsh-skill".to_string()]
         );
-        assert_eq!(profile.skill_roots, vec![PathBuf::from("skills/zsh")]);
-        assert_eq!(profile.mcp_servers.include, vec!["termux".to_string()]);
-        assert_eq!(profile.mcp_servers.exclude, vec!["linux-only".to_string()]);
+        assert_eq!(entry.config.skill_roots, vec![PathBuf::from("skills/zsh")]);
+        assert_eq!(entry.config.mcp_servers.include, vec!["termux".to_string()]);
+        assert_eq!(entry.config.mcp_servers.exclude, vec!["linux-only".to_string()]);
+        // effective_style() infers from map key
+        assert_eq!(entry.effective_style("zsh"), Some(ShellScriptStyle::Zsh));
     }
 
     #[test]
-    fn deserialize_shell_style_profiles_table_accepts_alias_keys() {
+    fn deserialize_shell_style_profiles_table_accepts_string_keys() {
         #[derive(Deserialize)]
         struct Root {
             #[serde(default)]
-            shell_style_profiles: HashMap<ShellScriptStyle, ShellStyleProfileConfig>,
+            shell_style_profiles: HashMap<String, ShellStyleProfileEntry>,
         }
 
         let parsed: Root = toml::from_str(
@@ -3799,15 +3884,20 @@ mod tests {
             prepend_developer_messages = ["Use shared bash/zsh syntax."]
         "#,
         )
-        .expect("shell style profile alias key should deserialize");
+        .expect("shell style profile string key should deserialize");
 
-        let profile = parsed
+        let entry = parsed
             .shell_style_profiles
-            .get(&ShellScriptStyle::BashZshCompatible)
-            .expect("bash-zsh-compatible profile exists");
+            .get("bash-zsh")
+            .expect("bash-zsh profile exists");
         assert_eq!(
-            profile.prepend_developer_messages,
+            entry.config.prepend_developer_messages,
             vec!["Use shared bash/zsh syntax.".to_string()]
+        );
+        // effective_style() resolves "bash-zsh" via ShellScriptStyle::parse
+        assert_eq!(
+            entry.effective_style("bash-zsh"),
+            Some(ShellScriptStyle::BashZshCompatible)
         );
     }
 

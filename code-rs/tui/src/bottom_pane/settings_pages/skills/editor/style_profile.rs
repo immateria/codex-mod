@@ -22,7 +22,11 @@ pub(super) fn set_style_resource_fields_from_profile_inner(
     view: &mut SkillsSettingsView,
     style: Option<ShellScriptStyle>,
 ) {
-    let profile = style.and_then(|shell_style| view.shell_style_profiles.get(&shell_style));
+    let profile = style.and_then(|shell_style| {
+        view.shell_style_profiles
+            .get(&shell_style.to_string())
+            .map(|entry| &entry.config)
+    });
     let (references, skill_roots, mcp_include, mcp_exclude) = match profile {
         Some(profile) => (
             profile.references.clone(),
@@ -61,15 +65,15 @@ pub(super) fn infer_style_profile_mode_inner(
         return StyleProfileMode::Inherit;
     };
 
-    let Some(profile) = view.shell_style_profiles.get(&style) else {
+    let Some(profile) = view.shell_style_profiles.get(&style.to_string()) else {
         return StyleProfileMode::Inherit;
     };
 
     let identifiers = [slug, display_name];
-    if profile_list_contains_any(&profile.disabled_skills, &identifiers) {
+    if profile_list_contains_any(&profile.config.disabled_skills, &identifiers) {
         return StyleProfileMode::Disable;
     }
-    if profile_list_contains_any(&profile.skills, &identifiers) {
+    if profile_list_contains_any(&profile.config.skills, &identifiers) {
         return StyleProfileMode::Enable;
     }
     StyleProfileMode::Inherit

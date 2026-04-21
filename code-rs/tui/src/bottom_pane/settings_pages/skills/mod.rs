@@ -8,7 +8,7 @@ use code_core::config::{
     set_shell_style_profile_skill_mode,
     ShellStyleSkillMode,
 };
-use code_core::config_types::{CommandSafetyProfileConfig, ShellScriptStyle, ShellStyleProfileConfig};
+use code_core::config_types::{CommandSafetyProfileConfig, ShellScriptStyle, ShellStyleProfileConfig, ShellStyleProfileEntry};
 use code_core::protocol::Op;
 use code_protocol::skills::{Skill, SkillScope};
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind};
@@ -50,7 +50,7 @@ use model::*;
 
 pub(crate) struct SkillsSettingsView {
     skills: Vec<Skill>,
-    shell_style_profiles: HashMap<ShellScriptStyle, ShellStyleProfileConfig>,
+    shell_style_profiles: HashMap<String, ShellStyleProfileEntry>,
     list_state: ScrollState,
     list_viewport_rows: Cell<usize>,
     mode: Mode,
@@ -68,7 +68,7 @@ crate::bottom_pane::chrome_view::impl_chrome_view!(SkillsSettingsView);
 impl SkillsSettingsView {
     pub fn new(
         skills: Vec<Skill>,
-        shell_style_profiles: HashMap<ShellScriptStyle, ShellStyleProfileConfig>,
+        shell_style_profiles: HashMap<String, ShellStyleProfileEntry>,
         app_event_tx: AppEventSender,
     ) -> Self {
         Self {

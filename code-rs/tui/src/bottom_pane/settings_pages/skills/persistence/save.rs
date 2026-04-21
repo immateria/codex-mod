@@ -166,9 +166,9 @@ pub(super) fn save_current_inner(view: &mut SkillsSettingsView) {
                     continue;
                 }
                 profiles_changed = true;
-                if let Some(profile) = view.shell_style_profiles.get_mut(&previous_style) {
-                    remove_profile_skill(&mut profile.skills, identifier);
-                    remove_profile_skill(&mut profile.disabled_skills, identifier);
+                if let Some(entry) = view.shell_style_profiles.get_mut(&previous_style.to_string()) {
+                    remove_profile_skill(&mut entry.config.skills, identifier);
+                    remove_profile_skill(&mut entry.config.disabled_skills, identifier);
                 }
             }
             profiles_changed |= view.cleanup_empty_style_profile(Some(previous_style));

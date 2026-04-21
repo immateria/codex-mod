@@ -130,7 +130,7 @@ pub(crate) fn skill_root_paths_for_watcher(config: &Config) -> Vec<PathBuf> {
     let mut roots = skill_roots(config);
 
     for profile in config.shell_style_profiles.values() {
-        for path in &profile.skill_roots {
+        for path in &profile.config.skill_roots {
             if path.as_os_str().is_empty() {
                 continue;
             }

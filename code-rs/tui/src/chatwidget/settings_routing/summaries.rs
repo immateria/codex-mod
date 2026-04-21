@@ -199,9 +199,10 @@ impl ChatWidget<'_> {
         let Some(style) = active_style else {
             return Some("Active: auto".to_owned());
         };
-        let Some(profile) = self.config.shell_style_profiles.get(&style) else {
+        let Some(entry) = self.config.shell_style_profiles.get(&style.to_string()) else {
             return Some(format!("Active: {style} · (no overrides)"));
         };
+        let profile = &entry.config;
 
         let refs = profile.references.len();
         let roots = profile.skill_roots.len();

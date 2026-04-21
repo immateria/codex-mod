@@ -27,8 +27,7 @@ use crate::config_types::McpToolSchedulingOverrideToml;
 use crate::config_types::MemoriesConfig;
 use crate::config_types::ContextMode as ContextModeConfig;
 use crate::config_types::ShellConfig;
-use crate::config_types::ShellScriptStyle;
-use crate::config_types::ShellStyleProfileConfig;
+use crate::config_types::ShellStyleProfileEntry;
 use crate::config_types::ServiceTier as ServiceTierConfig;
 use crate::config_types::TextVerbosity as TextVerbosityConfig;
 use code_message_history::HistoryEntry;
@@ -152,7 +151,7 @@ pub struct ConfigureSessionOp {
     #[serde(default)]
     pub shell: Option<ShellConfig>,
     #[serde(default, skip_serializing_if = "HashMap::is_empty")]
-    pub shell_style_profiles: HashMap<ShellScriptStyle, ShellStyleProfileConfig>,
+    pub shell_style_profiles: HashMap<String, ShellStyleProfileEntry>,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[serde(default)]
     pub network: Option<crate::config::NetworkProxySettingsToml>,

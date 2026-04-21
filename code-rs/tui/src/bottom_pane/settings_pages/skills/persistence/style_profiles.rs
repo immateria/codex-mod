@@ -45,16 +45,19 @@ impl SkillsSettingsView {
             .map_err(|err| format!("Failed to update shell_style_profiles: {err}"))?;
         }
 
-        let profile = self.shell_style_profiles.entry(style).or_default();
+        let profile = self
+            .shell_style_profiles
+            .entry(style.to_string())
+            .or_insert_with(Default::default);
         for identifier in &deduped_identifiers {
-            remove_profile_skill(&mut profile.skills, identifier);
-            remove_profile_skill(&mut profile.disabled_skills, identifier);
+            remove_profile_skill(&mut profile.config.skills, identifier);
+            remove_profile_skill(&mut profile.config.disabled_skills, identifier);
         }
         if self.editor.style_profile_mode == StyleProfileMode::Enable {
-            profile.skills.push(skill_name.trim().to_owned());
+            profile.config.skills.push(skill_name.trim().to_owned());
         }
         if self.editor.style_profile_mode == StyleProfileMode::Disable {
-            profile.disabled_skills.push(skill_name.trim().to_owned());
+            profile.config.disabled_skills.push(skill_name.trim().to_owned());
         }
         Ok(true)
     }
@@ -83,14 +86,15 @@ impl SkillsSettingsView {
         set_shell_style_profile_paths(code_home, style, &references, &skill_roots)
             .map_err(|err| format!("Failed to update shell_style_profiles paths: {err}"))?;
 
+        let key = style.to_string();
         let should_remove = {
-            let profile = self.shell_style_profiles.entry(style).or_default();
-            profile.references = references;
-            profile.skill_roots = skill_roots;
-            style_profile_is_empty(profile)
+            let entry = self.shell_style_profiles.entry(key.clone()).or_insert_with(Default::default);
+            entry.config.references = references;
+            entry.config.skill_roots = skill_roots;
+            style_profile_is_empty(&entry.config)
         };
         if should_remove {
-            self.shell_style_profiles.remove(&style);
+            self.shell_style_profiles.remove(&key);
         }
 
         self.editor.style_references_dirty = false;
@@ -122,14 +126,15 @@ impl SkillsSettingsView {
         set_shell_style_profile_mcp_servers(code_home, style, &include, &exclude)
             .map_err(|err| format!("Failed to update shell_style_profiles mcp_servers: {err}"))?;
 
+        let key = style.to_string();
         let should_remove = {
-            let profile = self.shell_style_profiles.entry(style).or_default();
-            profile.mcp_servers.include = include;
-            profile.mcp_servers.exclude = exclude;
-            style_profile_is_empty(profile)
+            let entry = self.shell_style_profiles.entry(key.clone()).or_insert_with(Default::default);
+            entry.config.mcp_servers.include = include;
+            entry.config.mcp_servers.exclude = exclude;
+            style_profile_is_empty(&entry.config)
         };
         if should_remove {
-            self.shell_style_profiles.remove(&style);
+            self.shell_style_profiles.remove(&key);
         }
 
         self.editor.style_mcp_include_dirty = false;
@@ -141,12 +146,13 @@ impl SkillsSettingsView {
         let Some(style) = style else {
             return false;
         };
+        let key = style.to_string();
         if self
             .shell_style_profiles
-            .get(&style)
-            .is_some_and(style_profile_is_empty)
+            .get(&key)
+            .is_some_and(|e| style_profile_is_empty(&e.config))
         {
-            self.shell_style_profiles.remove(&style);
+            self.shell_style_profiles.remove(&key);
             return true;
         }
         false

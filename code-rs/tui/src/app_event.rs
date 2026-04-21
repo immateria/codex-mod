@@ -9,6 +9,7 @@ use code_core::config_types::PluginsToml;
 use code_core::config_types::AppsSourcesToml;
 use code_core::config_types::ShellScriptStyle;
 use code_core::config_types::ShellStyleProfileConfig;
+use code_core::config_types::ShellStyleProfileEntry;
 use code_core::config_types::SettingsMenuConfig;
 use code_core::config_types::StatusLineLane;
 use code_core::config_types::TextVerbosity;
@@ -471,7 +472,7 @@ pub(crate) enum AppEvent {
 
     /// Update shell-style profiles for the running session.
     UpdateShellStyleProfiles {
-        shell_style_profiles: HashMap<ShellScriptStyle, ShellStyleProfileConfig>,
+        shell_style_profiles: HashMap<String, ShellStyleProfileEntry>,
     },
 
     /// Request generation of a user-facing shell profile summary via the model.
