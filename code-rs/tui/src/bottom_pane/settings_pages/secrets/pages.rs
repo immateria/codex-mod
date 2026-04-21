@@ -98,7 +98,7 @@ impl SecretsSettingsView {
         let mut hints = vec![
             hint_nav(" navigate"),
             KeyHint::new("r", " refresh"),
-            hint_esc(" back"),
+            hint_esc(" close"),
         ];
 
         if !deleting {

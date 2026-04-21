@@ -109,7 +109,7 @@ impl PromptsSettingsView {
         .with_shortcuts(crate::bottom_pane::settings_ui::hints::ShortcutPlacement::Bottom, 
             vec![
                 hint_nav(" navigate"),
-                hint_enter(" edit"),
+                hint_enter(" activate"),
                 KeyHint::new(crate::bottom_pane::settings_ui::hints::key_ctrl("N"), " new"),
                 hint_esc(" close"),
             ],

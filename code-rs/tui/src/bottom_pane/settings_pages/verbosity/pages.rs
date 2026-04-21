@@ -20,7 +20,7 @@ impl VerbositySelectionView {
         ])];
         let shortcuts = vec![
             hint_nav(" navigate"),
-            hint_enter(" select"),
+            hint_enter(" activate"),
             hint_esc(" close"),
         ];
 

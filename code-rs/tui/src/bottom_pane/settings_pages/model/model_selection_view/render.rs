@@ -376,7 +376,7 @@ impl ModelSelectionView {
         let mut hints = vec![
             KeyHint::new(crate::icons::nav_up_down(), " navigate"),
             KeyHint::new(format!("{lr} +/-", lr = crate::icons::nav_left_right()), " adjust"),
-            hint_enter(" select/edit"),
+            hint_enter(" activate"),
         ];
         if self.data.target.supports_context_mode() {
             hints.push(

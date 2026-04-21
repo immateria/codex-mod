@@ -61,7 +61,7 @@ impl AutoDriveSettingsView {
             &[
                 KeyHint::new(key_tab(), " next field"),
                 KeyHint::new(key_space(), " toggle"),
-                hint_enter(" save/activate"),
+                hint_enter(" activate"),
                 hint_esc(" back"),
             ],
         );
@@ -87,7 +87,7 @@ impl AutoDriveSettingsView {
                 .as_deref()
                 .map(|message| crate::bottom_pane::settings_ui::rows::StyledText::new(message, Style::new().fg(colors::warning()))),
             &[
-                hint_enter(" select/toggle"),
+                hint_enter(" activate"),
                 hint_nav_horizontal(" adjust delay"),
                 hint_esc(" close"),
                 KeyHint::new(key_ctrl("S"), " save"),
@@ -101,7 +101,7 @@ impl AutoDriveSettingsView {
                 .as_deref()
                 .map(|message| crate::bottom_pane::settings_ui::rows::StyledText::new(message, Style::new().fg(colors::warning()))),
             &[
-                hint_enter(" edit/add"),
+                hint_enter(" activate"),
                 KeyHint::new(key_space(), " toggle enabled"),
                 KeyHint::new("d", " remove"),
                 hint_esc(" back"),

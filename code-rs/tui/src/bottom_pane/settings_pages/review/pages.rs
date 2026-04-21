@@ -22,7 +22,7 @@ impl ReviewSettingsView {
     fn shortcuts(&self) -> Vec<KeyHint<'static>> {
         vec![
             hint_nav(" navigate"),
-            hint_enter(" select"),
+            hint_enter(" activate"),
             KeyHint::new(crate::bottom_pane::settings_ui::hints::key_space(), " toggle"),
             hint_nav_horizontal(" adjust"),
             hint_esc(" close"),

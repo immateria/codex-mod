@@ -227,7 +227,7 @@ impl McpSettingsView {
             McpSettingsMode::EditServerScheduling(_) | McpSettingsMode::EditToolScheduling(_) => {
                 vec![
                     hint_nav(" navigate"),
-                    hint_enter(" edit/toggle"),
+                    hint_enter(" activate"),
                     KeyHint::new(crate::icons::ctrl_combo("S"), " save"),
                     hint_esc(" cancel"),
                 ]
