@@ -17,8 +17,9 @@ pub(crate) fn shell_basename(path: &str) -> String {
         .file_name()
         .and_then(|s| s.to_str())
         .unwrap_or(trimmed);
-    let base = base.strip_suffix(".exe").unwrap_or(base);
+    // Strip version suffix before .exe so that `bash.exe-5.2` → `bash.exe` → `bash`.
     let base = strip_version_suffix(base);
+    let base = base.strip_suffix(".exe").unwrap_or(base);
     base.to_ascii_lowercase()
 }
 
@@ -529,6 +530,26 @@ pub async fn default_user_shell_with_override(shell_override: Option<&ShellConfi
 }
 
 #[cfg(test)]
+mod tests_common {
+    use super::*;
+
+    #[test]
+    fn shell_basename_handles_versioned_paths() {
+        assert_eq!(shell_basename("/usr/local/bin/bash-5.2"), "bash");
+        assert_eq!(shell_basename("/opt/homebrew/bin/zsh-5.9.1"), "zsh");
+        assert_eq!(shell_basename("fish.exe"), "fish");
+        assert_eq!(shell_basename(r#""zsh""#), "zsh");
+        assert_eq!(shell_basename("oil-shell"), "oil-shell");
+        assert_eq!(shell_basename("/data/data/com.termux/files/usr/bin/bash"), "bash");
+        assert_eq!(shell_basename("ZSH"), "zsh");
+        assert_eq!(shell_basename("/usr/bin/env"), "env");
+        // Versioned Windows executables: strip version first, then .exe
+        assert_eq!(shell_basename("bash.exe-5.2"), "bash");
+        assert_eq!(shell_basename("zsh.exe-6"), "zsh");
+    }
+}
+
+#[cfg(test)]
 #[cfg(unix)]
 mod tests {
     use super::*;
@@ -952,17 +973,5 @@ mod tests_windows {
                 Some(expected_cmd.iter().map(|s| (*s).to_string()).collect())
             );
         }
-    }
-
-    #[test]
-    fn shell_basename_handles_versioned_paths() {
-        assert_eq!(shell_basename("/usr/local/bin/bash-5.2"), "bash");
-        assert_eq!(shell_basename("/opt/homebrew/bin/zsh-5.9.1"), "zsh");
-        assert_eq!(shell_basename("fish.exe"), "fish");
-        assert_eq!(shell_basename(r#""zsh""#), "zsh");
-        assert_eq!(shell_basename("oil-shell"), "oil-shell");
-        assert_eq!(shell_basename("/data/data/com.termux/files/usr/bin/bash"), "bash");
-        assert_eq!(shell_basename("ZSH"), "zsh");
-        assert_eq!(shell_basename("/usr/bin/env"), "env");
     }
 }

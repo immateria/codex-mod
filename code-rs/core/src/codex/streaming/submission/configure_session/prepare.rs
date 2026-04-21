@@ -295,7 +295,13 @@ impl Runner<'_> {
                             continue;
                         }
                         if size > REFERENCE_FILE_MAX_BYTES {
-                            contents.truncate(REFERENCE_FILE_MAX_BYTES as usize);
+                            // Find the nearest char boundary at or before the limit
+                            // to avoid panicking on a multi-byte UTF-8 codepoint.
+                            let mut cap = REFERENCE_FILE_MAX_BYTES as usize;
+                            while cap > 0 && !contents.is_char_boundary(cap) {
+                                cap -= 1;
+                            }
+                            contents.truncate(cap);
                             warn!(
                                 "shell style reference {} truncated at 1 MB ({size} bytes total)",
                                 full_path.display()
