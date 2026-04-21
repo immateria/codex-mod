@@ -54,7 +54,7 @@ impl MemoriesSettingsView {
                         RowKind::OpenDirectory => "Enter to open".into(),
                         RowKind::Apply => {
                             if self.current_scope_dirty() {
-                                "Enter to save".into()
+                                "Enter to apply".into()
                             } else {
                                 "No changes".into()
                             }

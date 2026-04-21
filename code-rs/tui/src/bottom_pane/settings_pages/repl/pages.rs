@@ -23,7 +23,7 @@ impl ReplSettingsView {
             )])]
         } else {
             vec![crate::bottom_pane::settings_ui::hints::shortcut_line(&[
-                crate::bottom_pane::settings_ui::hints::hint_enter(" edit"),
+                crate::bottom_pane::settings_ui::hints::hint_enter(" activate"),
                 crate::bottom_pane::settings_ui::hints::KeyHint::new("Ctrl+S", " apply"),
                 crate::bottom_pane::settings_ui::hints::hint_esc(" close"),
             ])]

@@ -63,7 +63,7 @@ impl ExecLimitsSettingsView {
         let is_dirty = self.settings != self.last_applied;
         if is_dirty {
             lines.push(Line::from(Span::styled(
-                "Pending changes: select Apply to save.",
+                "Pending changes (Ctrl+S to apply).",
                 Style::default().fg(colors::warning()),
             )));
         } else if self

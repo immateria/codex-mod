@@ -272,7 +272,7 @@ impl ShellProfilesSettingsView {
         ];
         if self.dirty {
             spans.push(Span::styled(
-                "  •  unsaved".to_owned(),
+                "  •  pending".to_owned(),
                 Style::default()
                     .fg(crate::colors::warning())
                     .add_modifier(Modifier::BOLD),
@@ -471,7 +471,7 @@ impl ShellProfilesSettingsView {
         self.selected_id = id.clone();
         self.load_fields_for_style(&id);
         self.dirty = true;
-        self.status = Some(format!("Created profile '{id}'. Configure and select Apply to save."));
+        self.status = Some(format!("Created profile '{id}'. Configure, then select Apply."));
     }
 
     pub(super) fn delete_profile(&mut self) {

@@ -404,9 +404,9 @@ impl MemoriesSettingsView {
             RowKind::OpenDirectory => self.code_home.join("memories").display().to_string(),
             RowKind::Apply => {
                 if self.current_scope_dirty() {
-                    "● Unsaved changes".to_owned()
+                    "Pending".to_owned()
                 } else {
-                    "✓ Saved".to_owned()
+                    "Applied".to_owned()
                 }
             }
             RowKind::Close => String::new(),
@@ -460,7 +460,7 @@ impl MemoriesSettingsView {
             RowKind::RefreshArtifacts => "Force an immediate rebuild of all memory artifacts, bypassing the normal throttle. Use after changing settings or clearing artifacts.",
             RowKind::ClearArtifacts => "Delete generated memory files (summary, raw, rollouts). The session catalog and database are preserved — a refresh will regenerate everything.",
             RowKind::OpenDirectory => "Open the memories directory in Finder/Explorer/your file manager.",
-            RowKind::Apply => "Save the current settings for this scope to config.toml.",
+            RowKind::Apply => "Apply the current settings for this scope to config.toml.",
             RowKind::Close => "Dismiss the Memories settings view.",
         }
     }

@@ -151,7 +151,7 @@ impl InterfaceSettingsView {
                                 || self.dirty_hotkeys
                                 || self.icon_mode != self.icon_mode_baseline;
                             Some(StyledText::new(
-                                if is_dirty { "Pending" } else { "Saved" },
+                                if is_dirty { "Pending" } else { "Applied" },
                                 if is_dirty {
                                     Style::new().fg(crate::colors::warning()).bold()
                                 } else {

@@ -491,7 +491,7 @@ impl InterfaceSettingsView {
         if self.dirty_hotkeys {
             if let Err(err) = self.validate_hotkeys() {
                 let msg = if saved_any {
-                    format!("Saved settings menu. Hotkeys not saved: {err}")
+                    format!("Applied settings. Hotkeys not applied: {err}")
                 } else {
                     err
                 };
@@ -506,9 +506,9 @@ impl InterfaceSettingsView {
         }
 
         if saved_any {
-            self.status = Some(("Saved interface settings".to_owned(), false));
+            self.status = Some(("Applied interface settings".to_owned(), false));
         } else {
-            self.status = Some(("No changes to save".to_owned(), false));
+            self.status = Some(("No changes to apply".to_owned(), false));
         }
     }
 

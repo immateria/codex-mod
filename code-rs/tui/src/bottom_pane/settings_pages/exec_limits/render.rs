@@ -30,7 +30,7 @@ impl ExecLimitsSettingsView {
                 RowKind::ResetBothAuto => KeyValueRow::new("Reset both to Auto"),
                 RowKind::DisableBoth => KeyValueRow::new("Disable both"),
                 RowKind::Apply => KeyValueRow::new("Apply").with_value(StyledText::new(
-                    if is_dirty { "Pending" } else { "Saved" },
+                    if is_dirty { "Pending" } else { "Applied" },
                     Style::default().fg(colors::success()),
                 )),
                 RowKind::Close => KeyValueRow::new("Close"),
