@@ -307,7 +307,7 @@ fn shell_compatibility_rank(
     current: MemoryShellStyle,
     candidate: MemoryShellStyle,
 ) -> Option<u8> {
-    use MemoryShellStyle::{BashZshCompatible, Cmd, Elvish, Nushell, PosixSh, PowerShell, Unknown, Zsh};
+    use MemoryShellStyle::{BashZshCompatible, Cmd, Elvish, Fish, Nushell, Oil, PosixSh, PowerShell, Unknown, Xonsh, Zsh};
 
     let ordered = match current {
         Zsh => &[Zsh, BashZshCompatible, PosixSh, Unknown][..],
@@ -317,6 +317,9 @@ fn shell_compatibility_rank(
         Cmd => &[Cmd, Unknown][..],
         Nushell => &[Nushell, Unknown][..],
         Elvish => &[Elvish, Unknown][..],
+        Fish => &[Fish, Unknown][..],
+        Xonsh => &[Xonsh, Unknown][..],
+        Oil => &[Oil, PosixSh, Unknown][..],
         Unknown => &[Unknown][..],
     };
     ordered.iter().position(|style| *style == candidate).map(|idx| idx as u8)
@@ -349,6 +352,9 @@ pub(crate) fn memory_shell_style_from_script_style(style: ShellScriptStyle) -> M
         ShellScriptStyle::Cmd => MemoryShellStyle::Cmd,
         ShellScriptStyle::Nushell => MemoryShellStyle::Nushell,
         ShellScriptStyle::Elvish => MemoryShellStyle::Elvish,
+        ShellScriptStyle::Fish => MemoryShellStyle::Fish,
+        ShellScriptStyle::Xonsh => MemoryShellStyle::Xonsh,
+        ShellScriptStyle::Oil => MemoryShellStyle::Oil,
     }
 }
 

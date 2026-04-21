@@ -960,6 +960,9 @@ fn shell_style_label(shell_style: MemoryShellStyle) -> &'static str {
         MemoryShellStyle::Cmd => "cmd",
         MemoryShellStyle::Nushell => "nushell",
         MemoryShellStyle::Elvish => "elvish",
+        MemoryShellStyle::Fish => "fish",
+        MemoryShellStyle::Xonsh => "xonsh",
+        MemoryShellStyle::Oil => "oil",
         MemoryShellStyle::Unknown => "unknown",
     }
 }

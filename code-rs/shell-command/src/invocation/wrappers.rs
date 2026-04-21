@@ -44,6 +44,24 @@ pub(crate) fn extract_script_wrapper(command: &[String]) -> Option<ScriptWrapper
             script: script.trim().to_owned(),
         }),
 
+        [fish, flag, script] if is_fish_executable(fish) && flag == "-c" => Some(ScriptWrapper {
+            family: ScriptWrapperFamily::Fish,
+            mode_flag: flag.clone(),
+            script: script.trim().to_owned(),
+        }),
+
+        [xonsh, flag, script] if is_xonsh_executable(xonsh) && flag == "-c" => Some(ScriptWrapper {
+            family: ScriptWrapperFamily::Xonsh,
+            mode_flag: flag.clone(),
+            script: script.trim().to_owned(),
+        }),
+
+        [osh, flag, script] if is_oil_executable(osh) && flag == "-c" => Some(ScriptWrapper {
+            family: ScriptWrapperFamily::Oil,
+            mode_flag: flag.clone(),
+            script: script.trim().to_owned(),
+        }),
+
         _ => None,
     }
 }
@@ -188,6 +206,33 @@ fn is_elvish_executable(exe: &str) -> bool {
         .unwrap_or(exe)
         .to_ascii_lowercase();
     executable_name == "elvish" || executable_name == "elvish.exe"
+}
+
+fn is_fish_executable(exe: &str) -> bool {
+    let executable_name = Path::new(exe)
+        .file_name()
+        .and_then(|osstr| osstr.to_str())
+        .unwrap_or(exe)
+        .to_ascii_lowercase();
+    executable_name == "fish" || executable_name == "fish.exe"
+}
+
+fn is_xonsh_executable(exe: &str) -> bool {
+    let executable_name = Path::new(exe)
+        .file_name()
+        .and_then(|osstr| osstr.to_str())
+        .unwrap_or(exe)
+        .to_ascii_lowercase();
+    executable_name == "xonsh" || executable_name == "xonsh.exe"
+}
+
+fn is_oil_executable(exe: &str) -> bool {
+    let executable_name = Path::new(exe)
+        .file_name()
+        .and_then(|osstr| osstr.to_str())
+        .unwrap_or(exe)
+        .to_ascii_lowercase();
+    matches!(executable_name.as_str(), "osh" | "osh.exe" | "oil" | "oil.exe")
 }
 
 fn join_arguments_as_script(args: &[String]) -> String {

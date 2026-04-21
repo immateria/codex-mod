@@ -4310,6 +4310,7 @@ script_style = "zsh"
             script_style: Some(crate::config_types::ShellScriptStyle::Zsh),
             command_safety: crate::config_types::CommandSafetyProfileConfig::default(),
             dangerous_command_detection: None,
+            rc_path: None,
         });
 
         let overrides = ConfigOverrides {

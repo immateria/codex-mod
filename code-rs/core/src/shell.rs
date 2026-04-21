@@ -7,6 +7,38 @@ use crate::config_types::ShellScriptStyle;
 use crate::config_types::ShellConfig;
 use crate::util::is_shell_like_executable;
 
+/// Extract the canonical shell name from a potentially full path.
+///
+/// Strips directory components, `.exe` suffix, trailing version suffixes
+/// (e.g. `-5.2`), and leading/trailing quotes, then lowercases.
+pub(crate) fn shell_basename(path: &str) -> String {
+    let trimmed = path.trim_matches('"').trim_matches('\'');
+    let base = std::path::Path::new(trimmed)
+        .file_name()
+        .and_then(|s| s.to_str())
+        .unwrap_or(trimmed);
+    let base = base.strip_suffix(".exe").unwrap_or(base);
+    let base = strip_version_suffix(base);
+    base.to_ascii_lowercase()
+}
+
+/// Strip a trailing version suffix like `-5`, `-5.2`, or `-5.2.1`.
+///
+/// Only strips when the part after the last `-` is purely digits and dots
+/// (so `oil-shell` is left alone, but `bash-5.2` becomes `bash`).
+fn strip_version_suffix(name: &str) -> &str {
+    let mut idx = name.len();
+    while let Some(dash) = name[..idx].rfind('-') {
+        let suffix = &name[dash + 1..idx];
+        if !suffix.is_empty() && suffix.chars().all(|c| c.is_ascii_digit() || c == '.') {
+            idx = dash;
+        } else {
+            break;
+        }
+    }
+    &name[..idx]
+}
+
 #[derive(Debug, PartialEq, Eq, Clone, Serialize, Deserialize)]
 pub struct ZshShell {
     pub(crate) shell_path: String,
@@ -320,14 +352,14 @@ fn detect_default_user_shell() -> Shell {
                 .into_owned();
             let home_path = CStr::from_ptr((*pw).pw_dir).to_string_lossy().into_owned();
 
-            if shell_path.ends_with("/zsh") {
+            if shell_basename(&shell_path) == "zsh" {
                 return Shell::Zsh(ZshShell {
                     shell_path,
                     zshrc_path: format!("{home_path}/.zshrc"),
                 });
             }
 
-            if shell_path.ends_with("/bash") {
+            if shell_basename(&shell_path) == "bash" {
                 return Shell::Bash(BashShell {
                     shell_path,
                     bashrc_path: format!("{home_path}/.bashrc"),
@@ -337,26 +369,43 @@ fn detect_default_user_shell() -> Shell {
             // For non-Bash/Zsh shells, prefer a generic `-c` invocation with a
             // best-effort script style so downstream UX (instructions, safety)
             // can be shell-aware.
-            if shell_path.ends_with("/sh")
-                || shell_path.ends_with("/dash")
-                || shell_path.ends_with("/ash")
-                || shell_path.ends_with("/ksh")
-            {
+            if matches!(
+                shell_basename(&shell_path).as_str(),
+                "sh" | "dash" | "ash" | "ksh"
+            ) {
                 return Shell::Generic(GenericShell {
                     command: vec![shell_path, "-c".to_owned()],
                     script_style: Some(ShellScriptStyle::PosixSh),
                 });
             }
-            if shell_path.ends_with("/nu") {
+            if shell_basename(&shell_path) == "nu" {
                 return Shell::Generic(GenericShell {
                     command: vec![shell_path, "-c".to_owned()],
                     script_style: Some(ShellScriptStyle::Nushell),
                 });
             }
-            if shell_path.ends_with("/elvish") {
+            if shell_basename(&shell_path) == "elvish" {
                 return Shell::Generic(GenericShell {
                     command: vec![shell_path, "-c".to_owned()],
                     script_style: Some(ShellScriptStyle::Elvish),
+                });
+            }
+            if shell_basename(&shell_path) == "fish" {
+                return Shell::Generic(GenericShell {
+                    command: vec![shell_path, "-c".to_owned()],
+                    script_style: Some(ShellScriptStyle::Fish),
+                });
+            }
+            if shell_basename(&shell_path) == "xonsh" {
+                return Shell::Generic(GenericShell {
+                    command: vec![shell_path, "-c".to_owned()],
+                    script_style: Some(ShellScriptStyle::Xonsh),
+                });
+            }
+            if matches!(shell_basename(&shell_path).as_str(), "osh" | "oil") {
+                return Shell::Generic(GenericShell {
+                    command: vec![shell_path, "-c".to_owned()],
+                    script_style: Some(ShellScriptStyle::Oil),
                 });
             }
         }
@@ -412,16 +461,65 @@ pub async fn default_user_shell() -> Shell {
     Shell::Unknown
 }
 
+/// Resolve the default zshrc path, preferring `$ZDOTDIR` over `$HOME`.
+pub(crate) fn default_zshrc_path() -> String {
+    if let Ok(zdotdir) = std::env::var("ZDOTDIR") {
+        if !zdotdir.is_empty() {
+            return format!("{zdotdir}/.zshrc");
+        }
+    }
+    format!("{}/.zshrc", home_dir_path())
+}
+
+pub(crate) fn default_bashrc_path() -> String {
+    format!("{}/.bashrc", home_dir_path())
+}
+
+fn home_dir_path() -> String {
+    if let Ok(h) = std::env::var("HOME") {
+        if !h.is_empty() {
+            return h;
+        }
+    }
+    // Termux fallback: $TERMUX_PREFIX/../home
+    if let Ok(prefix) = std::env::var("TERMUX_PREFIX") {
+        let termux_home = std::path::Path::new(&prefix)
+            .parent()
+            .and_then(|p| p.join("home").to_str().map(str::to_owned));
+        if let Some(h) = termux_home {
+            tracing::debug!("HOME unset; using Termux home: {h}");
+            return h;
+        }
+    }
+    tracing::warn!("HOME is unset and TERMUX_PREFIX fallback failed; RC path will be empty");
+    String::new()
+}
+
 pub async fn default_user_shell_with_override(shell_override: Option<&ShellConfig>) -> Shell {
-    if let Some(shell_config) = shell_override {
-        Shell::Generic(GenericShell {
+    let Some(shell_config) = shell_override else {
+        return default_user_shell().await;
+    };
+    match shell_basename(&shell_config.path).as_str() {
+        "zsh" => Shell::Zsh(ZshShell {
+            shell_path: shell_config.path.clone(),
+            zshrc_path: shell_config.rc_path.clone()
+                .unwrap_or_else(default_zshrc_path),
+        }),
+        "bash" => Shell::Bash(BashShell {
+            shell_path: shell_config.path.clone(),
+            bashrc_path: shell_config.rc_path.clone()
+                .unwrap_or_else(default_bashrc_path),
+        }),
+        "pwsh" | "powershell" => Shell::PowerShell(PowerShellConfig {
+            exe: shell_config.path.clone(),
+            bash_exe_fallback: None,
+        }),
+        _ => Shell::Generic(GenericShell {
             command: std::iter::once(shell_config.path.clone())
                 .chain(shell_config.args.clone())
                 .collect(),
             script_style: shell_config.script_style,
-        })
-    } else {
-        default_user_shell().await
+        }),
     }
 }
 
@@ -849,5 +947,17 @@ mod tests_windows {
                 Some(expected_cmd.iter().map(|s| (*s).to_string()).collect())
             );
         }
+    }
+
+    #[test]
+    fn shell_basename_handles_versioned_paths() {
+        assert_eq!(shell_basename("/usr/local/bin/bash-5.2"), "bash");
+        assert_eq!(shell_basename("/opt/homebrew/bin/zsh-5.9.1"), "zsh");
+        assert_eq!(shell_basename("fish.exe"), "fish");
+        assert_eq!(shell_basename(r#""zsh""#), "zsh");
+        assert_eq!(shell_basename("oil-shell"), "oil-shell");
+        assert_eq!(shell_basename("/data/data/com.termux/files/usr/bin/bash"), "bash");
+        assert_eq!(shell_basename("ZSH"), "zsh");
+        assert_eq!(shell_basename("/usr/bin/env"), "env");
     }
 }

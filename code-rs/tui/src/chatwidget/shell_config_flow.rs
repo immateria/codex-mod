@@ -140,6 +140,7 @@ impl ChatWidget<'_> {
             script_style,
             command_safety,
             dangerous_command_detection,
+            rc_path: None,
         }
     }
 

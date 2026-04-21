@@ -17,6 +17,9 @@ pub enum CommandSafetyShellFamily {
     Cmd,
     Nushell,
     Elvish,
+    Fish,
+    Xonsh,
+    Oil,
     Unknown,
 }
 
@@ -95,6 +98,15 @@ fn infer_shell_family_from_token(token: &str) -> Option<CommandSafetyShellFamily
     }
     if matches!(base.as_str(), "elvish" | "elvish.exe") {
         return Some(CommandSafetyShellFamily::Elvish);
+    }
+    if matches!(base.as_str(), "fish" | "fish.exe") {
+        return Some(CommandSafetyShellFamily::Fish);
+    }
+    if matches!(base.as_str(), "xonsh" | "xonsh.exe") {
+        return Some(CommandSafetyShellFamily::Xonsh);
+    }
+    if matches!(base.as_str(), "osh" | "osh.exe" | "oil" | "oil.exe") {
+        return Some(CommandSafetyShellFamily::Oil);
     }
     if is_shell_like_executable(trimmed) {
         return Some(CommandSafetyShellFamily::PosixLike);

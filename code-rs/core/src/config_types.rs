@@ -708,6 +708,10 @@ pub struct ShellConfig {
     pub args: Vec<String>,
     #[serde(default)]
     pub script_style: Option<ShellScriptStyle>,
+    /// Optional override for the shell's RC file path. When set, overrides
+    /// `$ZDOTDIR/.zshrc` (for zsh) or `~/.bashrc` (for bash) detection.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub rc_path: Option<String>,
     /// Command-safety overrides for this shell.
     #[serde(default)]
     pub command_safety: CommandSafetyProfileConfig,
@@ -734,6 +738,12 @@ pub enum ShellScriptStyle {
     #[serde(alias = "nu")]
     Nushell,
     Elvish,
+    #[serde(alias = "fish-shell")]
+    Fish,
+    #[serde(alias = "xon.sh")]
+    Xonsh,
+    #[serde(alias = "osh", alias = "oils-for-unix")]
+    Oil,
 }
 
 impl ShellScriptStyle {
@@ -746,19 +756,23 @@ impl ShellScriptStyle {
             "cmd" | "cmd.exe" => Some(Self::Cmd),
             "nushell" | "nu" => Some(Self::Nushell),
             "elvish" => Some(Self::Elvish),
+            "fish" | "fish-shell" => Some(Self::Fish),
+            "xonsh" | "xon.sh" => Some(Self::Xonsh),
+            "oil" | "osh" | "oils-for-unix" => Some(Self::Oil),
             _ => None,
         }
     }
 
+    pub fn all_variant_names() -> &'static [&'static str] {
+        &[
+            "posix-sh", "bash-zsh-compatible", "zsh", "powershell", "cmd",
+            "nushell", "elvish", "fish", "xonsh", "oil",
+        ]
+    }
+
     pub fn infer_from_shell_program(program: &str) -> Option<Self> {
-        let shell_name = std::path::Path::new(program)
-            .file_name()
-            .and_then(|name| name.to_str())
-            .unwrap_or(program)
-            .trim_matches('"')
-            .trim_matches('\'')
-            .to_ascii_lowercase();
-        let shell_name = shell_name.strip_suffix(".exe").unwrap_or(shell_name.as_str());
+        let shell_name = crate::shell::shell_basename(program);
+        let shell_name = shell_name.as_str();
 
         match shell_name {
             "sh" | "dash" | "ash" => Some(Self::PosixSh),
@@ -768,6 +782,9 @@ impl ShellScriptStyle {
             "cmd" => Some(Self::Cmd),
             "nu" => Some(Self::Nushell),
             "elvish" => Some(Self::Elvish),
+            "fish" => Some(Self::Fish),
+            "xonsh" => Some(Self::Xonsh),
+            "osh" | "oil" => Some(Self::Oil),
             _ => None,
         }
     }
@@ -794,6 +811,21 @@ impl ShellScriptStyle {
             }
             Self::Elvish => {
                 "When writing shell code, use Elvish syntax and idioms. Avoid Bash/Zsh-only constructs like `[[ ... ]]` and `$VAR` expansions."
+            }
+            Self::Fish => {
+                "When writing shell code, use Fish shell syntax. Use `and`/`or` instead of \
+                 `&&`/`||`; use `set VAR value` not `export VAR=value`; use `(cmd)` for \
+                 command substitution not `$(cmd)`; use `for x in ... end` loops; use \
+                 `status` not `$?`. Fish does not support `-lc` — only `-c`."
+            }
+            Self::Xonsh => {
+                "When writing shell code, use Xonsh syntax. Xonsh is Python-based: use \
+                 Python f-strings, Python control flow, and `@(expr)` for subexpressions. \
+                 Avoid bash `&&`/`||` — use Python `and`/`or`."
+            }
+            Self::Oil => {
+                "When writing shell code, use OSH/Oil syntax. OSH is a POSIX-compatible \
+                 subset of bash. Prefer OSH-specific extensions (ysh) over bash-isms."
             }
         }
     }

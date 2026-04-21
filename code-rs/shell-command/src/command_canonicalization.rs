@@ -7,6 +7,9 @@ use crate::invocation::Invocation;
 const CANONICAL_SHELL_SCRIPT_PREFIX: &str = "__code_shell_script__";
 const CANONICAL_NUSHELL_SCRIPT_PREFIX: &str = "__code_nushell_script__";
 const CANONICAL_ELVISH_SCRIPT_PREFIX: &str = "__code_elvish_script__";
+const CANONICAL_FISH_SCRIPT_PREFIX: &str = "__code_fish_script__";
+const CANONICAL_XONSH_SCRIPT_PREFIX: &str = "__code_xonsh_script__";
+const CANONICAL_OIL_SCRIPT_PREFIX: &str = "__code_oil_script__";
 const CANONICAL_CMD_SCRIPT_PREFIX: &str = "__code_cmd_script__";
 const CANONICAL_POWERSHELL_SCRIPT_PREFIX: &str = "__code_powershell_script__";
 
@@ -20,6 +23,12 @@ pub enum CanonicalApprovalCommandKind {
     NushellScript,
     /// An Elvish wrapper command where we canonicalize to the script text.
     ElvishScript,
+    /// A Fish wrapper command where we canonicalize to the script text.
+    FishScript,
+    /// A Xonsh wrapper command where we canonicalize to the script text.
+    XonshScript,
+    /// An Oil/Osh wrapper command where we canonicalize to the script text.
+    OilScript,
     /// A CMD wrapper command where we canonicalize to the script text.
     CmdScript,
     /// A `PowerShell` wrapper command where we canonicalize to the script text.
@@ -32,6 +41,9 @@ pub fn canonical_approval_command_kind(canonical: &[String]) -> CanonicalApprova
         Some(CANONICAL_SHELL_SCRIPT_PREFIX) => CanonicalApprovalCommandKind::ShellScript,
         Some(CANONICAL_NUSHELL_SCRIPT_PREFIX) => CanonicalApprovalCommandKind::NushellScript,
         Some(CANONICAL_ELVISH_SCRIPT_PREFIX) => CanonicalApprovalCommandKind::ElvishScript,
+        Some(CANONICAL_FISH_SCRIPT_PREFIX) => CanonicalApprovalCommandKind::FishScript,
+        Some(CANONICAL_XONSH_SCRIPT_PREFIX) => CanonicalApprovalCommandKind::XonshScript,
+        Some(CANONICAL_OIL_SCRIPT_PREFIX) => CanonicalApprovalCommandKind::OilScript,
         Some(CANONICAL_CMD_SCRIPT_PREFIX) => CanonicalApprovalCommandKind::CmdScript,
         Some(CANONICAL_POWERSHELL_SCRIPT_PREFIX) => CanonicalApprovalCommandKind::PowerShellScript,
         _ => CanonicalApprovalCommandKind::Argv,
@@ -62,6 +74,9 @@ pub fn canonicalize_command_for_approval(command: &[String]) -> Vec<String> {
                     ScriptWrapperFamily::PosixLike => CANONICAL_SHELL_SCRIPT_PREFIX,
                     ScriptWrapperFamily::Nushell => CANONICAL_NUSHELL_SCRIPT_PREFIX,
                     ScriptWrapperFamily::Elvish => CANONICAL_ELVISH_SCRIPT_PREFIX,
+                    ScriptWrapperFamily::Fish => CANONICAL_FISH_SCRIPT_PREFIX,
+                    ScriptWrapperFamily::Xonsh => CANONICAL_XONSH_SCRIPT_PREFIX,
+                    ScriptWrapperFamily::Oil => CANONICAL_OIL_SCRIPT_PREFIX,
                 };
                 vec![prefix.to_owned(), mode_flag.clone(), script.clone()]
             }
@@ -102,6 +117,9 @@ pub fn normalize_command_for_persistence(command: &[String]) -> Vec<String> {
         CanonicalApprovalCommandKind::ShellScript
         | CanonicalApprovalCommandKind::NushellScript
         | CanonicalApprovalCommandKind::ElvishScript
+        | CanonicalApprovalCommandKind::FishScript
+        | CanonicalApprovalCommandKind::XonshScript
+        | CanonicalApprovalCommandKind::OilScript
         | CanonicalApprovalCommandKind::CmdScript => {
             let mode = rest.get(1).cloned().unwrap_or_default();
             let script = rest.get(2).cloned().unwrap_or_default();

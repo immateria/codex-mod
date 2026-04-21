@@ -24,6 +24,9 @@ pub(crate) enum ScriptWrapperFamily {
     PosixLike,
     Nushell,
     Elvish,
+    Fish,
+    Xonsh,
+    Oil,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

@@ -43,7 +43,10 @@ impl ShellProfilesSettingsView {
             ShellScriptStyle::PowerShell => ShellScriptStyle::Cmd,
             ShellScriptStyle::Cmd => ShellScriptStyle::Nushell,
             ShellScriptStyle::Nushell => ShellScriptStyle::Elvish,
-            ShellScriptStyle::Elvish => ShellScriptStyle::PosixSh,
+            ShellScriptStyle::Elvish => ShellScriptStyle::Fish,
+            ShellScriptStyle::Fish => ShellScriptStyle::Xonsh,
+            ShellScriptStyle::Xonsh => ShellScriptStyle::Oil,
+            ShellScriptStyle::Oil => ShellScriptStyle::PosixSh,
         };
         self.load_fields_for_style(self.selected_style);
         self.status = None;

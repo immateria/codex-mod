@@ -24,6 +24,7 @@ fn shell(path: &str) -> ShellConfig {
         script_style: None,
         command_safety: code_core::config_types::CommandSafetyProfileConfig::default(),
         dangerous_command_detection: None,
+        rc_path: None,
     }
 }
 

@@ -104,6 +104,7 @@ fn status_includes_shell_override_problem() {
         script_style: None,
         command_safety: Default::default(),
         dangerous_command_detection: None,
+        rc_path: None,
     };
 
     let view = ShellEscalationSettingsView::new(

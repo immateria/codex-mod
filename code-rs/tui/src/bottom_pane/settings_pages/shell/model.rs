@@ -391,7 +391,10 @@ impl ShellSelectionView {
             Some(ShellScriptStyle::PowerShell) => Some(ShellScriptStyle::Cmd),
             Some(ShellScriptStyle::Cmd) => Some(ShellScriptStyle::Nushell),
             Some(ShellScriptStyle::Nushell) => Some(ShellScriptStyle::Elvish),
-            Some(ShellScriptStyle::Elvish) => None,
+            Some(ShellScriptStyle::Elvish) => Some(ShellScriptStyle::Fish),
+            Some(ShellScriptStyle::Fish) => Some(ShellScriptStyle::Xonsh),
+            Some(ShellScriptStyle::Xonsh) => Some(ShellScriptStyle::Oil),
+            Some(ShellScriptStyle::Oil) => None,
         };
     }
 

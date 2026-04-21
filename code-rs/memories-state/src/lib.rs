@@ -121,6 +121,9 @@ pub enum MemoryShellStyle {
     Cmd,
     Nushell,
     Elvish,
+    Fish,
+    Xonsh,
+    Oil,
     Unknown,
 }
 
@@ -134,6 +137,9 @@ impl MemoryShellStyle {
             Self::Cmd => "cmd",
             Self::Nushell => "nushell",
             Self::Elvish => "elvish",
+            Self::Fish => "fish",
+            Self::Xonsh => "xonsh",
+            Self::Oil => "oil",
             Self::Unknown => "unknown",
         }
     }
@@ -147,6 +153,9 @@ impl MemoryShellStyle {
             "cmd" => Self::Cmd,
             "nushell" => Self::Nushell,
             "elvish" => Self::Elvish,
+            "fish" => Self::Fish,
+            "xonsh" => Self::Xonsh,
+            "oil" => Self::Oil,
             _ => Self::Unknown,
         }
     }

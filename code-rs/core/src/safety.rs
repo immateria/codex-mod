@@ -44,6 +44,9 @@ fn default_dangerous_command_detection_for_style(style: Option<ShellScriptStyle>
                 | ShellScriptStyle::Cmd
                 | ShellScriptStyle::Nushell
                 | ShellScriptStyle::Elvish
+                | ShellScriptStyle::Fish
+                | ShellScriptStyle::Xonsh
+                | ShellScriptStyle::Oil
         )
     )
 }
@@ -748,6 +751,7 @@ mod tests {
             script_style: None,
             command_safety: crate::config_types::CommandSafetyProfileConfig::default(),
             dangerous_command_detection: None,
+            rc_path: None,
         };
 
         // PowerShell defaults to detection enabled (it's in the default list)
@@ -797,6 +801,7 @@ mod tests {
             script_style: Some(ShellScriptStyle::Zsh),
             command_safety: crate::config_types::CommandSafetyProfileConfig::default(),
             dangerous_command_detection: None,
+            rc_path: None,
         };
 
         // 1) shell

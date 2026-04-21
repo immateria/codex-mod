@@ -54,5 +54,15 @@ pub fn is_shell_like_executable(token: &str) -> bool {
             | "dash.exe"
             | "ksh"
             | "ksh.exe"
+            | "fish"
+            | "fish.exe"
+            | "nu"
+            | "nu.exe"
+            | "elvish"
+            | "elvish.exe"
+            | "xonsh"
+            | "xonsh.exe"
+            | "osh"
+            | "osh.exe"
     )
 }
