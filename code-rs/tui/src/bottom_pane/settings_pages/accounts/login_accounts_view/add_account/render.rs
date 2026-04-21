@@ -56,7 +56,7 @@ pub(super) fn render(state: &LoginAddAccountState, area: Rect, buf: &mut Buffer)
             let header_lines = vec![Line::from("Choose how you’d like to add an account:")];
             let footer_lines = footer_status_and_shortcuts(state, &[
                 hint_nav(" navigate"),
-                hint_enter(" select"),
+                hint_enter(" activate"),
                 hint_esc(" back"),
             ]);
             let page = SettingsMenuPage::new(

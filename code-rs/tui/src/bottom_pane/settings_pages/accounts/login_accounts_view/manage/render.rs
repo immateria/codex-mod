@@ -109,8 +109,7 @@ impl LoginAccountsState {
         let mut lines = Vec::new();
         lines.push(shortcut_line(&[
             hint_nav(" navigate"),
-            hint_enter(" select"),
-            KeyHint::new("a", " re-auth"),
+            hint_enter(" activate"),
             KeyHint::new("d", " disconnect"),
             KeyHint::new("p", " paths"),
             hint_esc(" close"),

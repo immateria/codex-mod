@@ -4,7 +4,7 @@ use crate::app_event::{AppEvent, AutoDriveSettingsUpdate};
 use code_core::config_types::default_auto_drive_model_routing_entries;
 
 impl AutoDriveSettingsView {
-    pub(super) const PANEL_TITLE: &'static str = "Auto Drive Settings";
+    pub(super) const PANEL_TITLE: &'static str = "Auto Drive";
 
     pub fn new(init: AutoDriveSettingsInit) -> Self {
         let AutoDriveSettingsInit {

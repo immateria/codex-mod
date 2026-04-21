@@ -43,7 +43,7 @@ impl ReviewSettingsView {
 
     pub(super) fn page(&self) -> SettingsMenuPage<'static> {
         SettingsMenuPage::new(
-            "Review Settings",
+            "Review",
             SettingsPanelStyle::bottom_pane(),
             self.render_header_lines(),
             self.render_footer_lines(),

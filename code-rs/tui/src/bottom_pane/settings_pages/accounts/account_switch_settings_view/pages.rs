@@ -72,7 +72,7 @@ impl AccountSwitchSettingsView {
             }
             _ => "Where Code stores CLI auth credentials (auth.json payload).",
         };
-        let mut store = SettingsMenuRow::new(2usize, "Credential store")
+        let mut store = SettingsMenuRow::new(2usize, "Credential Store")
             .with_value(StyledText::new(
                 format!("[{store_mode}]"),
                 Style::new().fg(colors::primary()).bold(),
@@ -141,7 +141,7 @@ impl AccountSwitchSettingsView {
         ];
 
         SettingsMenuPage::new(
-            "Credential store",
+            "Credential Store",
             SettingsPanelStyle::bottom_pane().with_margin(Margin::new(0, 0)),
             header_lines,
             Vec::new(),

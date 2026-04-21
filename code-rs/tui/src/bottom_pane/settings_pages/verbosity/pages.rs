@@ -25,7 +25,7 @@ impl VerbositySelectionView {
         ];
 
         SettingsMenuPage::new(
-            "Text verbosity",
+            "Text Verbosity",
             SettingsPanelStyle::bottom_pane().with_margin(Margin::new(0, 0)),
             header_lines,
             Vec::new(),

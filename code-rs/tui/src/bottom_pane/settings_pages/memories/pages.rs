@@ -550,8 +550,7 @@ impl MemoriesSettingsView {
 
         let mut hints: Vec<KeyHint<'static>> = vec![
             hint_nav(" navigate"),
-            hint_enter(" edit"),
-            KeyHint::new("n", " new"),
+            hint_enter(" activate"),
         ];
         if list.pending_delete.is_none() && total > 0 {
             hints.push(KeyHint::new("d", " delete"));

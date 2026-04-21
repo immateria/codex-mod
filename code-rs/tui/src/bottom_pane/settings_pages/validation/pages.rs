@@ -41,7 +41,7 @@ impl ValidationSettingsView {
 
     pub(super) fn page(&self) -> SettingsMenuPage<'static> {
         SettingsMenuPage::new(
-            "Validation Settings",
+            "Validation",
             SettingsPanelStyle::bottom_pane(),
             self.render_header_lines(),
             self.render_footer_lines(),

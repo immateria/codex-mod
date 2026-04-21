@@ -360,7 +360,7 @@ impl PluginsSettingsView {
             crate::bottom_pane::settings_ui::hints::ShortcutPlacement::Bottom,
             vec![
                 hint_nav(" navigate"),
-                hint_enter(" edit"),
+                hint_enter(" activate"),
                 KeyHint::new("a", " add repo"),
                 KeyHint::new("Del", " remove"),
                 KeyHint::new("r", " refresh"),

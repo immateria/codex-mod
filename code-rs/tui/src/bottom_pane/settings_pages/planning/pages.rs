@@ -12,7 +12,7 @@ use super::PlanningSettingsView;
 impl PlanningSettingsView {
     pub(super) fn page(&self) -> SettingsMenuPage<'static> {
         SettingsMenuPage::new(
-            "Planning Settings",
+            "Planning",
             SettingsPanelStyle::bottom_pane().with_margin(Margin::new(0, 0)),
             vec![
                 Line::from(Span::styled(

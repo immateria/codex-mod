@@ -409,7 +409,7 @@ impl ShellProfilesSettingsView {
         vec![shortcut_line(&[
             hint_nav(" navigate"),
             KeyHint::new("Space/Enter", " toggle"),
-            KeyHint::new("Ctrl+S", " save"),
+            KeyHint::new("Ctrl+S", " apply"),
             hint_esc(" cancel"),
         ])]
     }
