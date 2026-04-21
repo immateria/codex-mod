@@ -76,6 +76,10 @@ impl ReplSettingsView {
                         self.state.page_down(total, self.visible_budget(total));
                         true
                     }
+                    KeyCode::Char('s') if key_event.modifiers.contains(KeyModifiers::CONTROL) => {
+                        self.activate_row(RowKind::Apply);
+                        true
+                    }
                     _ => false,
                 };
 

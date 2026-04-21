@@ -228,6 +228,14 @@ impl NetworkSettingsView {
                 self.is_complete = true;
                 true
             }
+            KeyEvent {
+                code: KeyCode::Char('s'),
+                modifiers,
+                ..
+            } if modifiers.contains(KeyModifiers::CONTROL) => {
+                self.apply_settings();
+                true
+            }
             _ => false,
         };
 

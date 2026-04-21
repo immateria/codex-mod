@@ -28,7 +28,7 @@ impl InterfaceSettingsView {
             hint_nav(" navigate"),
             hint_enter(" activate"),
             hint_nav_horizontal(" adjust"),
-            KeyHint::new(key_ctrl("S"), " save"),
+            KeyHint::new(key_ctrl("S"), " apply"),
             hint_esc(" close"),
         ];
         let footer_lines = vec![self.main_footer_line_for_row(selected_row)];

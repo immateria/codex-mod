@@ -86,7 +86,7 @@ impl ExecLimitsSettingsView {
             hint_enter(" edit/toggle"),
             KeyHint::new("a", " auto"),
             KeyHint::new("d", " disable"),
-            KeyHint::new(crate::bottom_pane::settings_ui::hints::key_ctrl("S"), " save"),
+            KeyHint::new(crate::bottom_pane::settings_ui::hints::key_ctrl("S"), " apply"),
             hint_esc(" close"),
         ])]
     }

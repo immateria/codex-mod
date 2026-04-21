@@ -175,6 +175,10 @@ impl ExecLimitsSettingsView {
                 );
                 true
             }
+            KeyCode::Char('s') if key_event.modifiers.contains(KeyModifiers::CONTROL) => {
+                self.activate_row(RowKind::Apply);
+                true
+            }
             _ => false,
         };
 
