@@ -15,7 +15,7 @@ impl ShellSelectionView {
             EditAction::Resolve => {
                 let _ = self.resolve_custom_shell_path_in_place();
             }
-            EditAction::Style => self.cycle_custom_style_override(),
+            EditAction::Style => self.cycle_custom_style_override_next(),
             EditAction::Back => {
                 self.custom_input_mode = false;
                 self.custom_field.set_text("");
@@ -42,12 +42,17 @@ impl ShellSelectionView {
                 (KeyCode::Enter, _) => {
                     match self.edit_focus {
                         EditFocus::Field => self.submit_custom_path(),
+                        EditFocus::Style => self.cycle_custom_style_override_next(),
                         EditFocus::Actions => self.activate_edit_action(self.selected_action),
                     }
                     true
                 }
-                (KeyCode::Char(' '), _) if matches!(self.edit_focus, EditFocus::Actions) => {
-                    self.activate_edit_action(self.selected_action);
+                (KeyCode::Char(' '), _) if matches!(self.edit_focus, EditFocus::Actions | EditFocus::Style) => {
+                    match self.edit_focus {
+                        EditFocus::Style => self.cycle_custom_style_override_next(),
+                        EditFocus::Actions => self.activate_edit_action(self.selected_action),
+                        EditFocus::Field => {}
+                    }
                     true
                 }
                 (KeyCode::Char('o'), mods) if mods.contains(KeyModifiers::CONTROL) => {
@@ -58,7 +63,8 @@ impl ShellSelectionView {
                 }
                 (KeyCode::Tab, _) => {
                     self.edit_focus = match self.edit_focus {
-                        EditFocus::Field => EditFocus::Actions,
+                        EditFocus::Field => EditFocus::Style,
+                        EditFocus::Style => EditFocus::Actions,
                         EditFocus::Actions => EditFocus::Field,
                     };
                     true
@@ -71,7 +77,15 @@ impl ShellSelectionView {
                     self.resolve_custom_shell_path_in_place()
                 }
                 (KeyCode::Char('t'), KeyModifiers::CONTROL) => {
-                    self.cycle_custom_style_override();
+                    self.cycle_custom_style_override_next();
+                    true
+                }
+                (KeyCode::Left, _) if matches!(self.edit_focus, EditFocus::Style) => {
+                    self.cycle_custom_style_override_prev();
+                    true
+                }
+                (KeyCode::Right, _) if matches!(self.edit_focus, EditFocus::Style) => {
+                    self.cycle_custom_style_override_next();
                     true
                 }
                 (KeyCode::Left, _) if matches!(self.edit_focus, EditFocus::Actions) => {
@@ -97,7 +111,7 @@ impl ShellSelectionView {
                 }
                 _ => match self.edit_focus {
                     EditFocus::Field => self.custom_field.handle_key(key_event),
-                    EditFocus::Actions => false,
+                    EditFocus::Style | EditFocus::Actions => false,
                 },
             };
         }

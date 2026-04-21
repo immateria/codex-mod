@@ -16,6 +16,7 @@ mod tests;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum EditFocus {
     Field,
+    Style,
     Actions,
 }
 

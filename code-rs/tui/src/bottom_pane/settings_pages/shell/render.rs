@@ -52,12 +52,13 @@ impl ShellSelectionView {
             layout.body.width,
             3,
         );
-        let style_inner = BorderedField::new("Script style", false).render_block(style_outer, buf);
+        let style_focused = matches!(self.edit_focus, EditFocus::Style);
+        let style_inner = BorderedField::new("Script style", style_focused).render_block(style_outer, buf);
         let inferred = {
             let (path, _args) = split_command_and_args(self.custom_field.text());
             ShellScriptStyle::infer_from_shell_program(&path)
         };
-        let (style_text, style_style) = match (self.custom_style_override, inferred) {
+        let (mut style_text, style_style) = match (self.custom_style_override, inferred) {
             (Some(style), _) => (
                 format!("{style} (explicit)"),
                 Style::new().fg(colors::primary()).bold(),
@@ -68,6 +69,9 @@ impl ShellSelectionView {
             ),
             (None, None) => ("auto".to_owned(), Style::new().fg(colors::text_dim())),
         };
+        if style_focused {
+            style_text.push_str("  ←/→ cycle");
+        }
         Paragraph::new(Line::from(Span::styled(style_text, style_style)))
             .render(style_inner, buf);
     }

@@ -65,6 +65,9 @@ impl ShellProfilesSettingsView {
             ShellScriptStyle::Cmd,
             ShellScriptStyle::Nushell,
             ShellScriptStyle::Elvish,
+            ShellScriptStyle::Fish,
+            ShellScriptStyle::Xonsh,
+            ShellScriptStyle::Oil,
         ] {
             let (summary, references, skill_roots, skills, disabled_skills, include, exclude) =
                 if let Some(profile) = self.shell_style_profiles.get(&style) {

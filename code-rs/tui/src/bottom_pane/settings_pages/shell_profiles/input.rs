@@ -90,8 +90,11 @@ pub(super) fn handle_key_event_direct(view: &mut ShellProfilesSettingsView, key:
                 code: KeyCode::Left,
                 modifiers: KeyModifiers::NONE,
                 ..
+            } if view.selected_row() == RowKind::Style => {
+                view.cycle_style_prev();
+                true
             }
-            | KeyEvent {
+            KeyEvent {
                 code: KeyCode::Right,
                 modifiers: KeyModifiers::NONE,
                 ..

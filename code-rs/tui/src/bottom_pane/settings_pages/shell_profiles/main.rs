@@ -36,17 +36,22 @@ impl ShellProfilesSettingsView {
 
     pub(super) fn cycle_style_next(&mut self) {
         self.stage_pending_profile_from_fields();
-        self.selected_style = match self.selected_style {
-            ShellScriptStyle::PosixSh => ShellScriptStyle::BashZshCompatible,
-            ShellScriptStyle::BashZshCompatible => ShellScriptStyle::Zsh,
-            ShellScriptStyle::Zsh => ShellScriptStyle::PowerShell,
-            ShellScriptStyle::PowerShell => ShellScriptStyle::Cmd,
-            ShellScriptStyle::Cmd => ShellScriptStyle::Nushell,
-            ShellScriptStyle::Nushell => ShellScriptStyle::Elvish,
-            ShellScriptStyle::Elvish => ShellScriptStyle::Fish,
-            ShellScriptStyle::Fish => ShellScriptStyle::Xonsh,
-            ShellScriptStyle::Xonsh => ShellScriptStyle::Oil,
-            ShellScriptStyle::Oil => ShellScriptStyle::PosixSh,
+        let styles = relevant_styles_for_shell(self.active_shell_path.as_deref());
+        self.selected_style = match styles.iter().position(|&s| s == self.selected_style) {
+            Some(i) => styles[(i + 1) % styles.len()],
+            None => styles[0],
+        };
+        self.load_fields_for_style(self.selected_style);
+        self.status = None;
+    }
+
+    pub(super) fn cycle_style_prev(&mut self) {
+        self.stage_pending_profile_from_fields();
+        let styles = relevant_styles_for_shell(self.active_shell_path.as_deref());
+        self.selected_style = match styles.iter().position(|&s| s == self.selected_style) {
+            Some(0) => styles[styles.len() - 1],
+            Some(i) => styles[i - 1],
+            None => styles[0],
         };
         self.load_fields_for_style(self.selected_style);
         self.status = None;
@@ -404,6 +409,61 @@ impl ShellProfilesSettingsView {
         }
     }
 
+}
+
+const ALL_STYLES: &[ShellScriptStyle] = &[
+    ShellScriptStyle::PosixSh,
+    ShellScriptStyle::BashZshCompatible,
+    ShellScriptStyle::Zsh,
+    ShellScriptStyle::PowerShell,
+    ShellScriptStyle::Cmd,
+    ShellScriptStyle::Nushell,
+    ShellScriptStyle::Elvish,
+    ShellScriptStyle::Fish,
+    ShellScriptStyle::Xonsh,
+    ShellScriptStyle::Oil,
+];
+
+/// Returns the script styles relevant to the given shell path.
+///
+/// Filters based on which styles could realistically be active for that shell
+/// (e.g., zsh supports POSIX, bash-zsh-compat, and zsh-idiomatic; nu only supports nushell).
+/// Unknown or absent shell paths fall back to the full list.
+fn relevant_styles_for_shell(shell_path: Option<&str>) -> &'static [ShellScriptStyle] {
+    static ZSH_STYLES: &[ShellScriptStyle] = &[
+        ShellScriptStyle::PosixSh,
+        ShellScriptStyle::BashZshCompatible,
+        ShellScriptStyle::Zsh,
+    ];
+    static BASH_STYLES: &[ShellScriptStyle] = &[
+        ShellScriptStyle::PosixSh,
+        ShellScriptStyle::BashZshCompatible,
+    ];
+    static POSIX_STYLES: &[ShellScriptStyle] = &[ShellScriptStyle::PosixSh];
+    static POWERSHELL_STYLES: &[ShellScriptStyle] = &[ShellScriptStyle::PowerShell];
+    static CMD_STYLES: &[ShellScriptStyle] = &[ShellScriptStyle::Cmd];
+    static NUSHELL_STYLES: &[ShellScriptStyle] = &[ShellScriptStyle::Nushell];
+    static ELVISH_STYLES: &[ShellScriptStyle] = &[ShellScriptStyle::Elvish];
+    static FISH_STYLES: &[ShellScriptStyle] = &[ShellScriptStyle::Fish];
+    static XONSH_STYLES: &[ShellScriptStyle] = &[ShellScriptStyle::Xonsh];
+    static OIL_STYLES: &[ShellScriptStyle] = &[ShellScriptStyle::Oil];
+
+    let Some(path) = shell_path else {
+        return ALL_STYLES;
+    };
+    match code_core::shell::shell_basename(path).as_str() {
+        "zsh" => ZSH_STYLES,
+        "bash" | "mksh" => BASH_STYLES,
+        "sh" | "dash" | "ash" | "ksh" => POSIX_STYLES,
+        "powershell" | "pwsh" => POWERSHELL_STYLES,
+        "cmd" => CMD_STYLES,
+        "nu" => NUSHELL_STYLES,
+        "elvish" => ELVISH_STYLES,
+        "fish" => FISH_STYLES,
+        "xonsh" => XONSH_STYLES,
+        "osh" | "oil" => OIL_STYLES,
+        _ => ALL_STYLES,
+    }
 }
 
 #[cfg(test)]

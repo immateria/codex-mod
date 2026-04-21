@@ -372,7 +372,7 @@ impl ShellSelectionView {
         true
     }
 
-    pub(super) fn cycle_custom_style_override(&mut self) {
+    pub(super) fn cycle_custom_style_override_next(&mut self) {
         self.custom_style_override = match self.custom_style_override {
             None => Some(ShellScriptStyle::PosixSh),
             Some(ShellScriptStyle::PosixSh) => Some(ShellScriptStyle::BashZshCompatible),
@@ -385,6 +385,22 @@ impl ShellSelectionView {
             Some(ShellScriptStyle::Fish) => Some(ShellScriptStyle::Xonsh),
             Some(ShellScriptStyle::Xonsh) => Some(ShellScriptStyle::Oil),
             Some(ShellScriptStyle::Oil) => None,
+        };
+    }
+
+    pub(super) fn cycle_custom_style_override_prev(&mut self) {
+        self.custom_style_override = match self.custom_style_override {
+            None => Some(ShellScriptStyle::Oil),
+            Some(ShellScriptStyle::Oil) => Some(ShellScriptStyle::Xonsh),
+            Some(ShellScriptStyle::Xonsh) => Some(ShellScriptStyle::Fish),
+            Some(ShellScriptStyle::Fish) => Some(ShellScriptStyle::Elvish),
+            Some(ShellScriptStyle::Elvish) => Some(ShellScriptStyle::Nushell),
+            Some(ShellScriptStyle::Nushell) => Some(ShellScriptStyle::Cmd),
+            Some(ShellScriptStyle::Cmd) => Some(ShellScriptStyle::PowerShell),
+            Some(ShellScriptStyle::PowerShell) => Some(ShellScriptStyle::Zsh),
+            Some(ShellScriptStyle::Zsh) => Some(ShellScriptStyle::BashZshCompatible),
+            Some(ShellScriptStyle::BashZshCompatible) => Some(ShellScriptStyle::PosixSh),
+            Some(ShellScriptStyle::PosixSh) => None,
         };
     }
 

@@ -92,6 +92,22 @@ impl ShellSelectionView {
                         return focus_changed || handled;
                     }
 
+                    let style_outer =
+                        Rect::new(layout.body.x, layout.body.y.saturating_add(3), layout.body.width, 3);
+                    if style_outer.contains(ratatui::layout::Position {
+                        x: mouse_event.column,
+                        y: mouse_event.row,
+                    }) {
+                        let focus_changed = self.edit_focus != EditFocus::Style;
+                        self.edit_focus = EditFocus::Style;
+                        self.hovered_action = None;
+                        if !focus_changed {
+                            // Second click cycles the style.
+                            self.cycle_custom_style_override_next();
+                        }
+                        return true;
+                    }
+
                     false
                 }
                 _ => false,

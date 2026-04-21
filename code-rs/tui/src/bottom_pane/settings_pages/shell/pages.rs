@@ -151,7 +151,7 @@ impl ShellSelectionView {
 
     pub(super) fn edit_buttons(&self) -> Vec<StandardButtonSpec<EditAction>> {
         let focused = match self.edit_focus {
-            EditFocus::Field => None,
+            EditFocus::Field | EditFocus::Style => None,
             EditFocus::Actions => Some(self.selected_action),
         };
         standard_button_specs(self.edit_action_items(), focused, self.hovered_action)
