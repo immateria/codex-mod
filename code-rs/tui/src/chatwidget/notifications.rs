@@ -44,6 +44,38 @@ impl ChatWidget<'_> {
         self.refresh_settings_overview_rows();
     }
 
+    pub(crate) fn set_prevent_idle_sleep(&mut self, enabled: bool) {
+        self.config.tui.prevent_idle_sleep = enabled;
+        self.config.prevent_idle_sleep = enabled;
+        self.turn_sleep_inhibitor.set_enabled(enabled);
+
+        if let Ok(home) = find_code_home() {
+            match code_core::config::set_tui_prevent_idle_sleep(&home, enabled) {
+                Ok(()) => {
+                    let msg = format!(
+                        "Prevent sleep while running: {}",
+                        if enabled { "enabled" } else { "disabled" }
+                    );
+                    self.push_background_tail(msg);
+                }
+                Err(err) => {
+                    let msg = format!(
+                        "WARN: Failed to persist prevent-idle-sleep setting: {err}"
+                    );
+                    self.history_push_plain_state(history_cell::new_error_event(msg));
+                }
+            }
+        } else {
+            let msg = format!(
+                "Prevent sleep while running: {} (not persisted: CODE_HOME/CODEX_HOME not found)",
+                if enabled { "enabled" } else { "disabled" }
+            );
+            self.push_background_tail(msg);
+        }
+
+        self.refresh_settings_overview_rows();
+    }
+
     pub(super) fn emit_turn_complete_notification(&self, last_agent_message: Option<String>) {
         if !self.should_emit_tui_notification("agent-turn-complete") {
             return;

@@ -23,7 +23,6 @@ pub(crate) use self::contents::{
     AppsSettingsContent,
     AutoDriveSettingsContent,
     ExecLimitsSettingsContent,
-    ExperimentalFeaturesSettingsContent,
     InterfaceSettingsContent,
     ReplSettingsContent,
     MemoriesSettingsContent,
@@ -68,7 +67,6 @@ pub(crate) struct SettingsOverlayView {
     personality_content: Option<PersonalitySettingsContent>,
     theme_content: Option<ThemeSettingsContent>,
     interface_content: Option<InterfaceSettingsContent>,
-    experimental_features_content: Option<ExperimentalFeaturesSettingsContent>,
     shell_content: Option<ShellSettingsContent>,
     shell_escalation_content: Option<ShellEscalationSettingsContent>,
     shell_profiles_content: Option<ShellProfilesSettingsContent>,
@@ -145,7 +143,6 @@ impl SettingsOverlayView {
             personality_content: None,
             theme_content: None,
             interface_content: None,
-            experimental_features_content: None,
             shell_content: None,
             shell_escalation_content: None,
             shell_profiles_content: None,
@@ -316,13 +313,6 @@ impl SettingsOverlayView {
 
     pub(crate) fn set_interface_content(&mut self, content: InterfaceSettingsContent) {
         self.interface_content = Some(content);
-    }
-
-    pub(crate) fn set_experimental_features_content(
-        &mut self,
-        content: ExperimentalFeaturesSettingsContent,
-    ) {
-        self.experimental_features_content = Some(content);
     }
 
     pub(crate) fn set_shell_content(&mut self, content: ShellSettingsContent) {
@@ -536,10 +526,6 @@ impl SettingsOverlayView {
                 .interface_content
                 .as_ref()
                 .map(|content| content as &dyn SettingsContent),
-            SettingsSection::Experimental => self
-                .experimental_features_content
-                .as_ref()
-                .map(|content| content as &dyn SettingsContent),
             SettingsSection::Shell => self
                 .shell_content
                 .as_ref()
@@ -657,10 +643,6 @@ impl SettingsOverlayView {
                 .map(|content| content as &mut dyn SettingsContent),
             SettingsSection::Interface => self
                 .interface_content
-                .as_mut()
-                .map(|content| content as &mut dyn SettingsContent),
-            SettingsSection::Experimental => self
-                .experimental_features_content
                 .as_mut()
                 .map(|content| content as &mut dyn SettingsContent),
             SettingsSection::Shell => self

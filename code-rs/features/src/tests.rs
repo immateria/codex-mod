@@ -53,18 +53,8 @@ fn use_linux_sandbox_bwrap_is_removed_and_disabled_by_default() {
 }
 
 #[test]
-fn repl_is_experimental_and_user_toggleable() {
-    let spec = Feature::Repl.info();
-    let stage = spec.stage;
-
-    assert!(matches!(stage, Stage::Experimental { .. }));
-    assert_eq!(stage.experimental_menu_name(), Some("REPL"));
-    assert_eq!(
-        stage.experimental_menu_description().map(str::to_owned),
-        Some(
-            "Enable a persistent REPL for interactive code execution (Node, Deno, or Python). Requires Node >= v22.22.0, Deno, or Python 3 installed.".to_owned()
-        )
-    );
+fn repl_feature_key_is_removed_and_disabled_by_default() {
+    assert_eq!(Feature::Repl.stage(), Stage::Removed);
     assert_eq!(Feature::Repl.default_enabled(), false);
 }
 
@@ -76,23 +66,6 @@ fn code_mode_only_requires_code_mode() {
 
     assert_eq!(features.enabled(Feature::CodeModeOnly), true);
     assert_eq!(features.enabled(Feature::CodeMode), true);
-}
-
-#[test]
-fn guardian_approval_is_experimental_and_user_toggleable() {
-    let spec = Feature::GuardianApproval.info();
-    let stage = spec.stage;
-
-    assert!(matches!(stage, Stage::Experimental { .. }));
-    assert_eq!(stage.experimental_menu_name(), Some("Guardian Approvals"));
-    assert_eq!(
-        stage.experimental_menu_description().map(str::to_owned),
-        Some(
-            "When Codex needs approval for higher-risk actions (e.g. sandbox escapes or blocked network access), route eligible approval requests to a carefully-prompted security reviewer subagent rather than blocking the agent on your input. This can consume significantly more tokens because it runs a subagent on every approval request.".to_string()
-        )
-    );
-    assert_eq!(stage.experimental_announcement(), None);
-    assert_eq!(Feature::GuardianApproval.default_enabled(), false);
 }
 
 #[test]

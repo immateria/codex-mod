@@ -19,6 +19,7 @@ pub(crate) enum NotificationsMode {
 
 pub(crate) struct NotificationsSettingsView {
     mode: NotificationsMode,
+    prevent_idle_sleep: bool,
     app_event_tx: AppEventSender,
     ticket: BackgroundOrderTicket,
     state: ScrollState,
@@ -30,6 +31,7 @@ crate::bottom_pane::chrome_view::impl_chrome_view!(NotificationsSettingsView);
 impl NotificationsSettingsView {
     pub fn new(
         mode: NotificationsMode,
+        prevent_idle_sleep: bool,
         app_event_tx: AppEventSender,
         ticket: BackgroundOrderTicket,
     ) -> Self {
@@ -37,6 +39,7 @@ impl NotificationsSettingsView {
         state.clamp_selection(Self::ROW_COUNT);
         Self {
             mode,
+            prevent_idle_sleep,
             app_event_tx,
             ticket,
             state,

@@ -29,6 +29,7 @@ use windows_inhibitor as imp;
 #[derive(Debug)]
 pub struct SleepInhibitor {
     enabled: bool,
+    turn_running: bool,
     platform: imp::SleepInhibitor,
 }
 
@@ -36,18 +37,31 @@ impl SleepInhibitor {
     pub fn new(enabled: bool) -> Self {
         Self {
             enabled,
+            turn_running: false,
             platform: imp::SleepInhibitor::new(),
         }
     }
 
     /// Update the active turn state; turns sleep prevention on/off as needed.
     pub fn set_turn_running(&mut self, turn_running: bool) {
+        self.turn_running = turn_running;
         if !self.enabled {
             self.release();
             return;
         }
 
         if turn_running {
+            self.acquire();
+        } else {
+            self.release();
+        }
+    }
+
+    /// Enable or disable idle sleep inhibition while preserving the current
+    /// turn-running state.
+    pub fn set_enabled(&mut self, enabled: bool) {
+        self.enabled = enabled;
+        if self.enabled && self.turn_running {
             self.acquire();
         } else {
             self.release();

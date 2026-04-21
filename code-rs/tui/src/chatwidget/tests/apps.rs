@@ -75,8 +75,8 @@ fn apps_picker_is_gated_when_apps_feature_disabled() {
         "expected notice cell to mention disabled apps, got:\n{notice_text}"
     );
     assert!(
-        notice_text.contains("Enable in Settings -> Experimental."),
-        "expected notice cell to mention Experimental settings, got:\n{notice_text}"
+        notice_text.contains("Enable `features.apps` in config.toml to turn them back on."),
+        "expected notice cell to mention config-based enablement, got:\n{notice_text}"
     );
 }
 
@@ -212,4 +212,3 @@ fn apps_directory_loaded_does_not_open_picker_when_closed() {
         assert!(!chat.bottom_pane.is_list_selection_open("apps_picker"));
     });
 }
-

@@ -7,9 +7,6 @@ impl SettingsSection {
             "skill" | "skills" => Some(SettingsSection::Skills),
             "theme" | "themes" => Some(SettingsSection::Theme),
             "ui" | "interface" | "layout" | "settings-ui" => Some(SettingsSection::Interface),
-            "experimental" | "experiments" | "feature" | "features" => {
-                Some(SettingsSection::Experimental)
-            }
             "shell" | "shells" => Some(SettingsSection::Shell),
             "shell-escalation" | "shell_escalation" | "escalation" | "zsh-fork" | "zsh_fork"
             | "shell-zsh-fork" | "shell_zsh_fork" => Some(SettingsSection::ShellEscalation),

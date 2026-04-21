@@ -10,7 +10,6 @@ impl ChatWidget<'_> {
                     SettingsSection::Model         => self.settings_summary_model(),
                     SettingsSection::Theme         => self.settings_summary_theme(),
                     SettingsSection::Interface     => self.settings_summary_interface(),
-                    SettingsSection::Experimental  => self.settings_summary_experimental(),
                     SettingsSection::Shell         => self.settings_summary_shell(),
                     SettingsSection::ShellEscalation => self.settings_summary_shell_escalation(),
                     SettingsSection::ShellProfiles => self.settings_summary_shell_profiles(),
@@ -41,26 +40,6 @@ impl ChatWidget<'_> {
                 SettingsOverviewRow::new(section, summary)
             })
             .collect()
-    }
-
-    pub(super) fn settings_summary_experimental(&self) -> Option<String> {
-        let mut total = 0usize;
-        let mut enabled = 0usize;
-        for spec in code_features::FEATURES {
-            let code_features::Stage::Experimental { .. } = spec.stage else {
-                continue;
-            };
-            total = total.saturating_add(1);
-            if self
-                .config
-                .features_effective
-                .get_bool(spec.key)
-                .unwrap_or(spec.default_enabled)
-            {
-                enabled = enabled.saturating_add(1);
-            }
-        }
-        Some(format!("Enabled: {enabled}/{total}"))
     }
 
     pub(super) fn settings_summary_shell_escalation(&self) -> Option<String> {
@@ -534,12 +513,14 @@ impl ChatWidget<'_> {
     }
 
     pub(super) fn settings_summary_notifications(&self) -> Option<String> {
-        match &self.config.tui.notifications {
-            Notifications::Enabled(enabled) => {
-                Some(format!("Desktop alerts: {}", Self::on_off_label(*enabled)))
-            }
-            Notifications::Custom(entries) => Some(format!("Custom rules: {}", entries.len())),
-        }
+        let alerts = match &self.config.tui.notifications {
+            Notifications::Enabled(enabled) => format!("Desktop alerts: {}", Self::on_off_label(*enabled)),
+            Notifications::Custom(entries) => format!("Custom rules: {}", entries.len()),
+        };
+        Some(format!(
+            "{alerts} · Prevent sleep: {}",
+            Self::on_off_label(self.config.prevent_idle_sleep)
+        ))
     }
 
     pub(super) fn settings_summary_prompts(&self) -> Option<String> {

@@ -2401,6 +2401,11 @@ pub struct Tui {
     #[serde(default)]
     pub notifications: Notifications,
 
+    /// Keep the machine awake while a turn is running.
+    /// Defaults to `false`.
+    #[serde(default)]
+    pub prevent_idle_sleep: bool,
+
     /// Optional custom upgrade command for `/update` and the Upgrade settings UI.
     ///
     /// When set, Code uses this command in place of installer inference (npm/bun/Homebrew).
@@ -2631,6 +2636,7 @@ impl Default for Tui {
             stream: StreamConfig::default(),
             spinner: SpinnerSelection::default(),
             notifications: Notifications::default(),
+            prevent_idle_sleep: false,
             upgrade_command: Vec::new(),
             alternate_screen: true,
             review_auto_resolve: true,

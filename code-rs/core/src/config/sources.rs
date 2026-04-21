@@ -1759,6 +1759,30 @@ pub fn set_tui_notifications(
     Ok(())
 }
 
+/// Persist the TUI sleep-inhibitor preference into `CODEX_HOME/config.toml` at
+/// `[tui].prevent_idle_sleep`.
+pub fn set_tui_prevent_idle_sleep(code_home: &Path, enabled: bool) -> anyhow::Result<()> {
+    let config_path = code_home.join(CONFIG_TOML_FILE);
+    let read_path = resolve_code_path_for_read(code_home, Path::new(CONFIG_TOML_FILE));
+    let mut doc = read_config_doc(&read_path)?;
+
+    doc["tui"]["prevent_idle_sleep"] = toml_edit::value(enabled);
+
+    if let Some(features_table) = doc["features"].as_table_mut() {
+        features_table.remove("prevent_idle_sleep");
+        if features_table.is_empty() {
+            doc.as_table_mut().remove("features");
+        }
+    }
+
+    std::fs::create_dir_all(code_home)?;
+    let tmp_file = NamedTempFile::new_in(code_home)?;
+    std::fs::write(tmp_file.path(), doc.to_string())?;
+    tmp_file.persist(config_path)?;
+
+    Ok(())
+}
+
 /// Persist split status-line layout into `CODEX_HOME/config.toml`.
 ///
 /// - top lane: `[tui].status_line_top`
@@ -3899,68 +3923,78 @@ pub fn set_repl_settings(
     let read_path = resolve_code_path_for_read(code_home, Path::new(CONFIG_TOML_FILE));
     let mut doc = read_config_doc(&read_path)?;
 
-    let tools_table = doc["tools"]
-        .or_insert(TomlItem::Table(TomlTable::new()))
-        .as_table_mut()
-        .ok_or_else(|| anyhow::anyhow!("`tools` must be a TOML table"))?;
-
-    tools_table["repl"] = toml_edit::value(settings.enabled);
-    tools_table["repl_node_enabled"] = toml_edit::value(settings.node_enabled);
-    tools_table["repl_deno_enabled"] = toml_edit::value(settings.deno_enabled);
-    tools_table["repl_python_enabled"] = toml_edit::value(settings.python_enabled);
-
-    let runtime = settings.runtime.label();
-    tools_table["repl_runtime"] = toml_edit::value(runtime);
-
-    // Clean up legacy flat fields if present.
-    tools_table.remove("repl_runtime_path");
-    tools_table.remove("repl_runtime_args");
-    tools_table.remove("repl_node_path");
-    tools_table.remove("repl_node_args");
-    tools_table.remove("repl_deno_path");
-    tools_table.remove("repl_deno_args");
-    tools_table.remove("repl_python_path");
-    tools_table.remove("repl_python_args");
-    tools_table.remove("repl_node_module_dirs");
-
-    tools_table.remove("repl_runtimes");
-    let mut runtime_tables = TomlTable::new();
-    runtime_tables.set_implicit(true);
-    for &kind in super::ReplRuntimeKindToml::ALL {
-        let Some(spec) = settings.runtimes.get(&kind) else {
-            continue;
-        };
-        if spec.path.is_none() && spec.args.is_empty() && spec.module_dirs.is_empty() {
-            continue;
-        }
-
-        let mut runtime_table = TomlTable::new();
-        runtime_table.set_implicit(false);
-        if let Some(path) = spec.path.as_ref() {
-            runtime_table["path"] = toml_edit::value(path.to_string_lossy().trim().to_owned());
-        }
-        let _ = write_exact_string_array(&mut runtime_table, "args", &spec.args)?;
-        let _ = write_path_array(&mut runtime_table, "module_dirs", &spec.module_dirs)?;
-        runtime_tables[kind.label()] = TomlItem::Table(runtime_table);
-    }
-    if !runtime_tables.is_empty() {
-        tools_table["repl_runtimes"] = TomlItem::Table(runtime_tables);
-    }
-
-    // Persist Deno permissions as an inline table.
     {
-        let dp = &settings.deno_permissions;
-        let mut perm_table = toml_edit::InlineTable::new();
-        perm_table.insert("allow_read", dp.allow_read.into());
-        perm_table.insert("allow_write", dp.allow_write.into());
-        perm_table.insert("allow_net", dp.allow_net.into());
-        perm_table.insert("allow_env", dp.allow_env.into());
-        perm_table.insert("allow_run", dp.allow_run.into());
-        perm_table.insert("allow_sys", dp.allow_sys.into());
-        perm_table.insert("allow_ffi", dp.allow_ffi.into());
-        perm_table.insert("allow_all", dp.allow_all.into());
-        tools_table["repl_deno_permissions"] =
-            toml_edit::value(toml_edit::Value::InlineTable(perm_table));
+        let tools_table = doc["tools"]
+            .or_insert(TomlItem::Table(TomlTable::new()))
+            .as_table_mut()
+            .ok_or_else(|| anyhow::anyhow!("`tools` must be a TOML table"))?;
+
+        tools_table["repl"] = toml_edit::value(settings.enabled);
+        tools_table["repl_node_enabled"] = toml_edit::value(settings.node_enabled);
+        tools_table["repl_deno_enabled"] = toml_edit::value(settings.deno_enabled);
+        tools_table["repl_python_enabled"] = toml_edit::value(settings.python_enabled);
+
+        let runtime = settings.runtime.label();
+        tools_table["repl_runtime"] = toml_edit::value(runtime);
+
+        // Clean up legacy flat fields if present.
+        tools_table.remove("repl_runtime_path");
+        tools_table.remove("repl_runtime_args");
+        tools_table.remove("repl_node_path");
+        tools_table.remove("repl_node_args");
+        tools_table.remove("repl_deno_path");
+        tools_table.remove("repl_deno_args");
+        tools_table.remove("repl_python_path");
+        tools_table.remove("repl_python_args");
+        tools_table.remove("repl_node_module_dirs");
+
+        tools_table.remove("repl_runtimes");
+        let mut runtime_tables = TomlTable::new();
+        runtime_tables.set_implicit(true);
+        for &kind in super::ReplRuntimeKindToml::ALL {
+            let Some(spec) = settings.runtimes.get(&kind) else {
+                continue;
+            };
+            if spec.path.is_none() && spec.args.is_empty() && spec.module_dirs.is_empty() {
+                continue;
+            }
+
+            let mut runtime_table = TomlTable::new();
+            runtime_table.set_implicit(false);
+            if let Some(path) = spec.path.as_ref() {
+                runtime_table["path"] = toml_edit::value(path.to_string_lossy().trim().to_owned());
+            }
+            let _ = write_exact_string_array(&mut runtime_table, "args", &spec.args)?;
+            let _ = write_path_array(&mut runtime_table, "module_dirs", &spec.module_dirs)?;
+            runtime_tables[kind.label()] = TomlItem::Table(runtime_table);
+        }
+        if !runtime_tables.is_empty() {
+            tools_table["repl_runtimes"] = TomlItem::Table(runtime_tables);
+        }
+
+        // Persist Deno permissions as an inline table.
+        {
+            let dp = &settings.deno_permissions;
+            let mut perm_table = toml_edit::InlineTable::new();
+            perm_table.insert("allow_read", dp.allow_read.into());
+            perm_table.insert("allow_write", dp.allow_write.into());
+            perm_table.insert("allow_net", dp.allow_net.into());
+            perm_table.insert("allow_env", dp.allow_env.into());
+            perm_table.insert("allow_run", dp.allow_run.into());
+            perm_table.insert("allow_sys", dp.allow_sys.into());
+            perm_table.insert("allow_ffi", dp.allow_ffi.into());
+            perm_table.insert("allow_all", dp.allow_all.into());
+            tools_table["repl_deno_permissions"] =
+                toml_edit::value(toml_edit::Value::InlineTable(perm_table));
+        }
+    }
+
+    if let Some(features_table) = doc["features"].as_table_mut() {
+        features_table.remove("repl");
+        features_table.remove("repl_tools_only");
+        if features_table.is_empty() {
+            doc.as_table_mut().remove("features");
+        }
     }
 
     std::fs::create_dir_all(code_home)?;
@@ -3985,6 +4019,10 @@ mod repl_settings_persistence_tests {
 repl_node_path = "/legacy/node"
 repl_node_args = ["--legacy"]
 repl_node_module_dirs = ["/legacy/node_modules"]
+
+[features]
+repl = true
+repl_tools_only = true
 "#,
         )?;
 
@@ -4026,6 +4064,7 @@ repl_node_module_dirs = ["/legacy/node_modules"]
         assert!(!written.contains("repl_node_module_dirs"));
 
         let parsed: ConfigToml = toml::from_str(&written)?;
+        assert!(parsed.features.is_none());
         let tools = parsed.tools.expect("tools table");
         let runtimes = tools.repl_runtimes.expect("repl runtimes");
         assert_eq!(
@@ -4048,6 +4087,35 @@ repl_node_module_dirs = ["/legacy/node_modules"]
                 .unwrap_or_default(),
             vec!["-X".to_string(), "dev".to_string()]
         );
+
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tui_settings_persistence_tests {
+    use super::*;
+    use crate::config::ConfigToml;
+
+    #[test]
+    fn set_tui_prevent_idle_sleep_persists_new_key_and_cleans_legacy_feature() -> anyhow::Result<()>
+    {
+        let code_home = tempfile::tempdir()?;
+        std::fs::write(
+            code_home.path().join(CONFIG_TOML_FILE),
+            r#"
+[features]
+prevent_idle_sleep = true
+"#,
+        )?;
+
+        set_tui_prevent_idle_sleep(code_home.path(), true)?;
+
+        let written = std::fs::read_to_string(code_home.path().join(CONFIG_TOML_FILE))?;
+        assert!(!written.contains("[features]"));
+
+        let parsed: ConfigToml = toml::from_str(&written)?;
+        assert!(parsed.tui.expect("tui table").prevent_idle_sleep);
 
         Ok(())
     }

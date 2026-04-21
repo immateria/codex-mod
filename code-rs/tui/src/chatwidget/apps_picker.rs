@@ -29,7 +29,7 @@ impl ChatWidget<'_> {
                 Line::from(""),
                 Line::from("Apps are disabled."),
                 Line::from(Span::styled(
-                    "Enable in Settings -> Experimental.",
+                    "Enable `features.apps` in config.toml to turn them back on.",
                     Style::new().fg(crate::colors::text_dim()),
                 )),
             ];

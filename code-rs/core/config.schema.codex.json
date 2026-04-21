@@ -2965,6 +2965,11 @@
           ],
           "description": "Enable desktop notifications from the TUI when the terminal is unfocused. Defaults to `false`."
         },
+        "prevent_idle_sleep": {
+          "default": false,
+          "description": "Keep the machine awake while a turn is running. Defaults to `false`.",
+          "type": "boolean"
+        },
         "review_auto_resolve": {
           "default": true,
           "description": "Remember whether Auto Resolve is enabled for `/review` flows.",

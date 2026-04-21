@@ -78,8 +78,6 @@ Notes
 - `/skills`: manage skills.
 - `/apps`: browse and use apps (connectors). Installed apps can be inserted as
   `$<app>` mentions.
-- `/experimental`: toggle experimental feature flags (opens Settings →
-  Experimental).
 - `/status`: show current session configuration and token usage.
 - `/statusline [primary|secondary|top|bottom]`: choose and reorder built-in
   status fields. Uses the configured primary lane by default and supports

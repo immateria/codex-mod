@@ -132,6 +132,7 @@ pub use sources::{
     set_tui_limits_layout_mode,
     set_tui_icon_mode,
     set_tui_notifications,
+    set_tui_prevent_idle_sleep,
     set_tui_settings_menu,
     set_tui_status_line_layout,
     set_tui_review_auto_resolve,
@@ -617,7 +618,7 @@ pub struct Config {
 
     /// Experimental: enable discovery and injection of skills.
     pub skills_enabled: bool,
-    /// Experimental: prevent idle sleep while a turn is running (platform dependent).
+    /// Prevent idle sleep while a turn is running (platform dependent).
     pub prevent_idle_sleep: bool,
     /// Filesystem-backed memories runtime settings.
     pub memories: MemoriesConfig,
@@ -2297,10 +2298,6 @@ impl Config {
             memories.use_memories = false;
         }
 
-        let prevent_idle_sleep = features_effective
-            .get_bool("prevent_idle_sleep")
-            .unwrap_or(false);
-
         let env_ctx_v2_flag = *crate::flags::CTX_UI;
 
         // Determine auth mode early so defaults like model selection can depend on it.
@@ -2634,6 +2631,12 @@ impl Config {
         );
 
         let mut tui_config = cfg.tui.clone().unwrap_or_default();
+        let legacy_prevent_idle_sleep = features_effective
+            .get_bool("prevent_idle_sleep")
+            .unwrap_or(false);
+        if tui_config.prevent_idle_sleep || legacy_prevent_idle_sleep {
+            tui_config.prevent_idle_sleep = true;
+        }
         if let Some(presets_path) = tui_config.shell_presets_file.as_ref() {
             match Self::load_shell_presets_from_file(presets_path, &resolved_cwd) {
                 Ok(mut file_presets) => {
@@ -2645,6 +2648,8 @@ impl Config {
                 }
             }
         }
+
+        let prevent_idle_sleep = tui_config.prevent_idle_sleep;
 
         let config = Self {
             model,
@@ -5418,7 +5423,10 @@ mod notifications_tests {
 
     #[derive(Deserialize, Debug, PartialEq)]
     struct TuiTomlTest {
+        #[serde(default)]
         notifications: Notifications,
+        #[serde(default)]
+        prevent_idle_sleep: bool,
     }
 
     #[derive(Deserialize, Debug, PartialEq)]
@@ -5451,6 +5459,17 @@ mod notifications_tests {
             parsed.tui.notifications,
             Notifications::Custom(ref v) if v == &vec!["foo".to_string()]
         ));
+    }
+
+    #[test]
+    fn test_tui_prevent_idle_sleep_true() {
+        let toml = r#"
+            [tui]
+            prevent_idle_sleep = true
+        "#;
+        let parsed: RootTomlTest =
+            toml::from_str(toml).or_panic("deserialize prevent_idle_sleep=true");
+        assert!(parsed.tui.prevent_idle_sleep);
     }
 }
 

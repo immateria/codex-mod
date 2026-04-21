@@ -621,7 +621,6 @@ const SECTION_ICONS: &[SectionIcon] = &[
     SectionIcon { name: "Model",            nerd: "\u{f108} ", unicode: "⌂ " },
     SectionIcon { name: "Theme",            nerd: "\u{f1fc} ", unicode: "◆ " },
     SectionIcon { name: "Interface",        nerd: "\u{f085} ", unicode: "⚙ " },
-    SectionIcon { name: "Experimental",     nerd: "\u{f0c3} ", unicode: "◇ " },
     SectionIcon { name: "Shell",            nerd: "\u{f120} ", unicode: "❯ " },
     SectionIcon { name: "Shell escalation", nerd: "\u{f132} ", unicode: "▲ " },
     SectionIcon { name: "Shell profiles",   nerd: "\u{f2c1} ", unicode: "◈ " },

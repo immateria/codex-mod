@@ -266,7 +266,7 @@
 
     {
         let chat = harness.chat();
-        chat.show_settings_overlay(Some(SettingsSection::Experimental));
+        chat.show_settings_overlay(Some(SettingsSection::Notifications));
     }
     harness.flush_into_widget();
 
@@ -285,8 +285,8 @@
     // Default focus is content. Home should not switch sections while content is focused.
     let output_before = render(&mut harness);
     assert!(
-        output_before.contains("Experimental Features") && output_before.contains("focus: Content"),
-        "expected Experimental settings with content focus, got:\n{output_before}",
+        output_before.contains("Notifications") && output_before.contains("focus: Content"),
+        "expected Notifications settings with content focus, got:\n{output_before}",
     );
 
     harness.with_chat(|chat| {
@@ -295,7 +295,7 @@
     });
     let output_after_home = render(&mut harness);
     assert!(
-        output_after_home.contains("Experimental Features"),
+        output_after_home.contains("Notifications"),
         "expected Home to not switch sections while content is focused, got:\n{output_after_home}",
     );
 
@@ -346,7 +346,7 @@
             overlay_min_width: 100,
         });
         chat.layout.last_frame_width.set(120);
-        chat.show_settings_overlay(Some(SettingsSection::Experimental));
+        chat.show_settings_overlay(Some(SettingsSection::Notifications));
         assert!(
             chat.settings.overlay.is_some(),
             "expected overlay settings at wide width",
@@ -376,7 +376,7 @@
             .expect("expected overlay settings after widening width");
         assert_eq!(
             overlay.active_section(),
-            SettingsSection::Experimental,
+            SettingsSection::Notifications,
             "expected active settings section to be preserved across mode switches",
         );
         assert!(

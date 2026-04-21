@@ -37,6 +37,18 @@ impl NotificationsSettingsView {
         }
     }
 
+    fn prevent_sleep_status_line(&self) -> Line<'static> {
+        let mut status = toggle::enabled_word_warning_off(self.prevent_idle_sleep);
+        status.style = status.style.bold();
+        Line::from(vec![
+            Span::styled(
+                "Prevent sleep while running: ",
+                Style::new().fg(colors::text_dim()),
+            ),
+            Span::styled(status.text, status.style),
+        ])
+    }
+
     pub(super) fn page(&self) -> SettingsMenuPage<'static> {
         let (footer_lines, shortcuts) = match &self.mode {
             NotificationsMode::Toggle { .. } => (Vec::new(), vec![
@@ -45,20 +57,35 @@ impl NotificationsSettingsView {
                 hint_enter(" activate"),
                 hint_esc(" close"),
             ]),
-            NotificationsMode::Custom { .. } => (vec![Line::from(vec![
-                Span::styled("Edit ", Style::new().fg(colors::text_dim())),
-                Span::styled("[tui].notifications", Style::new().fg(colors::info())),
-                Span::styled(
-                    " in config.toml to adjust filters.",
-                    Style::new().fg(colors::text_dim()),
-                ),
-            ])], Vec::new()),
+            NotificationsMode::Custom { .. } => (
+                vec![Line::from(vec![
+                    Span::styled("Edit ", Style::new().fg(colors::text_dim())),
+                    Span::styled("[tui].notifications", Style::new().fg(colors::info())),
+                    Span::styled(
+                        " in config.toml to adjust filters.",
+                        Style::new().fg(colors::text_dim()),
+                    ),
+                ])],
+                vec![
+                    hint_nav(" navigate"),
+                    KeyHint::new(
+                        format!("{lr}/Space", lr = crate::icons::nav_left_right()),
+                        " toggle",
+                    ),
+                    hint_enter(" activate"),
+                    hint_esc(" close"),
+                ],
+            ),
         };
 
         SettingsMenuPage::new(
             "Notifications",
             SettingsPanelStyle::bottom_pane().with_margin(Margin::new(0, 0)),
-            vec![self.status_line(), Line::from("")],
+            vec![
+                self.status_line(),
+                self.prevent_sleep_status_line(),
+                Line::from(""),
+            ],
             footer_lines,
         )
         .with_shortcuts(crate::bottom_pane::settings_ui::hints::ShortcutPlacement::Bottom, shortcuts)

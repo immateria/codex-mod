@@ -49,18 +49,6 @@ impl ChatWidget<'_> {
         InterfaceSettingsContent::new(self.build_interface_settings_view())
     }
 
-    pub(super) fn build_experimental_features_settings_view(&self) -> ExperimentalFeaturesSettingsView {
-        ExperimentalFeaturesSettingsView::new(
-            self.config.active_profile.clone(),
-            self.config.features_effective.clone(),
-            self.app_event_tx.clone(),
-        )
-    }
-
-    pub(super) fn build_experimental_features_settings_content(&self) -> ExperimentalFeaturesSettingsContent {
-        ExperimentalFeaturesSettingsContent::new(self.build_experimental_features_settings_view())
-    }
-
     pub(super) fn build_shell_settings_content(&self) -> ShellSettingsContent {
         let presets = self.available_shell_presets();
         let view = ShellSelectionView::new(self.config.shell.clone(), presets, self.app_event_tx.clone());
@@ -112,7 +100,12 @@ impl ChatWidget<'_> {
             Notifications::Custom(entries) => NotificationsMode::Custom { entries: entries.clone() },
         };
         let ticket = self.make_background_tail_ticket();
-        NotificationsSettingsView::new(mode, self.app_event_tx.clone(), ticket)
+        NotificationsSettingsView::new(
+            mode,
+            self.config.prevent_idle_sleep,
+            self.app_event_tx.clone(),
+            ticket,
+        )
     }
 
     pub(super) fn build_notifications_settings_content(&mut self) -> NotificationsSettingsContent {

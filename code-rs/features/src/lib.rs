@@ -3,8 +3,6 @@
 //! This crate defines the feature registry plus the logic used to resolve an
 //! effective feature set from config-like inputs.
 
-use code_login::AuthManager;
-use code_login::CodexAuth;
 use code_otel::SessionTelemetry;
 use code_protocol::protocol::Event;
 use code_protocol::protocol::EventMsg;
@@ -25,7 +23,7 @@ pub use legacy::legacy_feature_keys;
 pub enum Stage {
     /// Features that are still under development, not ready for external use
     UnderDevelopment,
-    /// Experimental features made available to users through the `/experimental` menu
+    /// User-facing experiments that may be surfaced in dedicated UI.
     Experimental {
         name: &'static str,
         menu_description: &'static str,
@@ -76,14 +74,15 @@ pub enum Feature {
     /// Enable the default shell tool.
     ShellTool,
 
-    // Experimental
-    /// Enable REPL tools backed by persistent runtime kernels.
+    // Compatibility / rollout flags.
+    /// Legacy REPL feature key kept for backward compatibility.
+    /// Real REPL enablement now lives under `[tools].repl`.
     Repl,
     /// Enable a minimal JavaScript mode backed by Node's built-in vm runtime.
     CodeMode,
     /// Restrict model-visible tools to code mode entrypoints (`exec`, `wait`).
     CodeModeOnly,
-    /// Only expose `repl` tools directly to the model.
+    /// Legacy REPL-only exposure flag kept for backward compatibility.
     ReplToolsOnly,
     /// Use the single unified PTY-backed exec tool.
     UnifiedExec,
@@ -157,8 +156,6 @@ pub enum Feature {
     Steer,
     /// Allow `request_user_input` in Default collaboration mode.
     DefaultModeRequestUserInput,
-    /// Enable automatic review for approval prompts.
-    GuardianApproval,
     /// Enable collaboration modes (Plan, Default).
     /// Kept for config backward compatibility; behavior is always collaboration-modes-enabled.
     CollaborationModes,
@@ -174,9 +171,8 @@ pub enum Feature {
     VoiceTranscription,
     /// Enable experimental realtime voice conversation mode in the TUI.
     RealtimeConversation,
-    /// Route interactive startup to the app-server-backed TUI implementation.
-    TuiAppServer,
-    /// Prevent idle system sleep while a turn is actively running.
+    /// Legacy feature key kept for backward compatibility.
+    /// The real preference now lives under `[tui].prevent_idle_sleep`.
     PreventIdleSleep,
     /// Legacy rollout flag for Responses API WebSocket transport experiments.
     ResponsesWebsockets,
@@ -271,7 +267,7 @@ impl Features {
         self.enabled.contains(&f)
     }
 
-    pub fn apps_enabled(&self, auth_manager: Option<&AuthManager>) -> bool {
+    pub fn apps_enabled(&self, auth_manager: Option<&code_login::AuthManager>) -> bool {
         if !self.enabled(Feature::Apps) {
             return false;
         }
@@ -283,12 +279,12 @@ impl Features {
         self.apps_enabled_for_auth(auth.as_ref())
     }
 
-    pub fn apps_enabled_cached(&self, auth_manager: Option<&AuthManager>) -> bool {
+    pub fn apps_enabled_cached(&self, auth_manager: Option<&code_login::AuthManager>) -> bool {
         let auth = auth_manager.and_then(code_login::AuthManager::auth);
         self.apps_enabled_for_auth(auth.as_ref())
     }
 
-    pub fn apps_enabled_for_auth(&self, auth: Option<&CodexAuth>) -> bool {
+    pub fn apps_enabled_for_auth(&self, auth: Option<&code_login::CodexAuth>) -> bool {
         self.enabled(Feature::Apps) && auth.is_some_and(|auth| auth.mode.is_chatgpt())
     }
 
@@ -547,11 +543,7 @@ pub const FEATURES: &[FeatureSpec] = &[
     FeatureSpec {
         id: Feature::Repl,
         key: "repl",
-        stage: Stage::Experimental {
-            name: "REPL",
-            menu_description: "Enable a persistent REPL for interactive code execution (Node, Deno, or Python). Requires Node >= v22.22.0, Deno, or Python 3 installed.",
-            announcement: "NEW: REPL is now available in /experimental. Enable it, then start a new chat or restart Codex to use it.",
-        },
+        stage: Stage::Removed,
         default_enabled: false,
     },
     FeatureSpec {
@@ -569,7 +561,7 @@ pub const FEATURES: &[FeatureSpec] = &[
     FeatureSpec {
         id: Feature::ReplToolsOnly,
         key: "repl_tools_only",
-        stage: Stage::UnderDevelopment,
+        stage: Stage::Removed,
         default_enabled: false,
     },
     FeatureSpec {
@@ -590,7 +582,6 @@ pub const FEATURES: &[FeatureSpec] = &[
         stage: Stage::Removed,
         default_enabled: false,
     },
-    // Experimental program. Rendered in the `/experimental` menu for users.
     FeatureSpec {
         id: Feature::CodexGitCommit,
         key: "codex_git_commit",
@@ -714,11 +705,7 @@ pub const FEATURES: &[FeatureSpec] = &[
     FeatureSpec {
         id: Feature::Apps,
         key: "apps",
-        stage: Stage::Experimental {
-            name: "Apps",
-            menu_description: "Use a connected ChatGPT App using \"$\". Install and browse Apps via /apps, and manage connector-source accounts in Settings -> Apps.",
-            announcement: "NEW: Use ChatGPT Apps (Connectors) in Codex via $ mentions. Enable in /experimental!",
-        },
+        stage: Stage::Stable,
         default_enabled: true,
     },
     FeatureSpec {
@@ -764,16 +751,6 @@ pub const FEATURES: &[FeatureSpec] = &[
         default_enabled: false,
     },
     FeatureSpec {
-        id: Feature::GuardianApproval,
-        key: "guardian_approval",
-        stage: Stage::Experimental {
-            name: "Guardian Approvals",
-            menu_description: "When Codex needs approval for higher-risk actions (e.g. sandbox escapes or blocked network access), route eligible approval requests to a carefully-prompted security reviewer subagent rather than blocking the agent on your input. This can consume significantly more tokens because it runs a subagent on every approval request.",
-            announcement: "",
-        },
-        default_enabled: false,
-    },
-    FeatureSpec {
         id: Feature::CollaborationModes,
         key: "collaboration_modes",
         stage: Stage::Removed,
@@ -816,31 +793,9 @@ pub const FEATURES: &[FeatureSpec] = &[
         default_enabled: false,
     },
     FeatureSpec {
-        id: Feature::TuiAppServer,
-        key: "tui_app_server",
-        stage: Stage::Experimental {
-            name: "App-server TUI",
-            menu_description: "Use the app-server-backed TUI implementation.",
-            announcement: "",
-        },
-        default_enabled: false,
-    },
-    FeatureSpec {
         id: Feature::PreventIdleSleep,
         key: "prevent_idle_sleep",
-        stage: if cfg!(any(
-            target_os = "macos",
-            target_os = "linux",
-            target_os = "windows"
-        )) {
-            Stage::Experimental {
-                name: "Prevent sleep while running",
-                menu_description: "Keep your computer awake while Codex is running a thread.",
-                announcement: "NEW: Prevent sleep while running is now available in /experimental.",
-            }
-        } else {
-            Stage::UnderDevelopment
-        },
+        stage: Stage::Removed,
         default_enabled: false,
     },
     FeatureSpec {

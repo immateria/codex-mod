@@ -74,6 +74,7 @@ impl<'a> SettingsMenuPage<'a> {
         self
     }
 
+    #[cfg(test)]
     pub(crate) fn with_detail_pane(mut self) -> Self {
         self.render_detail_pane = true;
         self

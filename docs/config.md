@@ -990,6 +990,9 @@ notifications = [ "agent-turn-complete", "approval-requested" ]
 
 # Enable desktop notifications for approval requests only
 notifications = [ "approval-requested" ]
+
+# Keep the machine awake while a turn is running.
+prevent_idle_sleep = true
 ```
 
 > [!NOTE]
@@ -1133,6 +1136,7 @@ Project commands appear in the TUI via `/cmd <name>` and run through the standar
 | `file_opener` | `vscode` \| `vscode-insiders` \| `windsurf` \| `cursor` \| `none` | URI scheme for clickable citations (default: `vscode`). |
 | `tui` | table | TUI‑specific options. |
 | `tui.notifications` | boolean \| array<string> | Enable desktop notifications in the tui (default: false). |
+| `tui.prevent_idle_sleep` | boolean | Keep the machine awake while a turn is running (default: false). |
 | `tui.shell_presets` | array<table> | Additional shell picker presets (`id`, `command`, `display_name`, `description`, optional `default_args`, `script_style`). |
 | `tui.shell_presets_file` | string (path) | Optional TOML file that contributes additional `[[shell_presets]]` entries. |
 | `hide_agent_reasoning` | boolean | Hide model reasoning events. |

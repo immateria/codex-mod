@@ -37,10 +37,12 @@ impl NotificationsSettingsView {
         );
 
         if matches!(outcome.result, SelectableListMouseResult::Activated) {
-            if self.selected_row() == 0 {
-                self.toggle();
-            } else {
-                self.is_complete = true;
+            match self.selected_row() {
+                0 => self.toggle_notifications(),
+                1 => self.toggle_prevent_idle_sleep(),
+                _ => {
+                    self.is_complete = true;
+                }
             }
         }
         outcome.changed

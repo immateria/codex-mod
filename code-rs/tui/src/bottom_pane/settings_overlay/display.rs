@@ -6,7 +6,6 @@ impl SettingsSection {
             SettingsSection::Model => "Model",
             SettingsSection::Theme => "Theme",
             SettingsSection::Interface => "Interface",
-            SettingsSection::Experimental => "Experimental",
             SettingsSection::Shell => "Shell",
             SettingsSection::ShellEscalation => "Shell escalation",
             SettingsSection::ShellProfiles => "Shell profiles",
@@ -41,9 +40,6 @@ impl SettingsSection {
             SettingsSection::Model => "Choose the language model used for new completions.",
             SettingsSection::Theme => "Switch between preset color palettes and adjust contrast.",
             SettingsSection::Interface => "Control Settings UI routing and other layout preferences.",
-            SettingsSection::Experimental => {
-                "Toggle experimental features (saved to config.toml and applied after session reconfigure)."
-            }
             SettingsSection::Shell => "Select the shell used for tool execution.",
             SettingsSection::ShellEscalation => {
                 "Configure zsh-fork shell escalation (interactive approvals for blocked subcommands)."
@@ -98,7 +94,6 @@ impl SettingsSection {
             SettingsSection::Model => "Select Model & Reasoning",
             SettingsSection::Theme => "Theme Settings",
             SettingsSection::Interface => "Interface",
-            SettingsSection::Experimental => "Experimental Features",
             SettingsSection::Shell => "Shell Selection",
             SettingsSection::ShellEscalation => "Shell Escalation",
             SettingsSection::ShellProfiles => "Shell Profiles",
@@ -133,7 +128,6 @@ impl SettingsSection {
             SettingsSection::Model => "Model settings coming soon.",
             SettingsSection::Theme => "Theme settings coming soon.",
             SettingsSection::Interface => "Control Settings UI routing (overlay vs bottom pane).",
-            SettingsSection::Experimental => "Toggle experimental features.",
             SettingsSection::Shell => "Select the shell used for tool execution.",
             SettingsSection::ShellEscalation => {
                 "Configure zsh-fork shell escalation for sandboxed shell tool calls."

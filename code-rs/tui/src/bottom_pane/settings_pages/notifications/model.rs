@@ -8,7 +8,7 @@ use crate::colors;
 use super::{NotificationsMode, NotificationsSettingsView};
 
 impl NotificationsSettingsView {
-    pub(super) const ROW_COUNT: usize = 2;
+    pub(super) const ROW_COUNT: usize = 3;
 
     pub(super) fn menu_rows(&self) -> Vec<SettingsMenuRow<'static, usize>> {
         let notifications_row = match &self.mode {
@@ -28,11 +28,22 @@ impl NotificationsSettingsView {
                         "Custom filter".to_owned(),
                         Style::new().fg(colors::info()).bold(),
                     ))
-                    .with_detail(StyledText::new(filters, Style::new().fg(colors::dim())))
+                .with_detail(StyledText::new(filters, Style::new().fg(colors::dim())))
             }
         };
 
-        vec![notifications_row, SettingsMenuRow::new(1usize, "Close")]
+        let prevent_sleep_row = SettingsMenuRow::new(1usize, "Prevent sleep while running")
+            .with_value(toggle::enabled_word_warning_off(self.prevent_idle_sleep))
+            .with_detail(StyledText::new(
+                "Keep the machine awake while a turn is running.".to_owned(),
+                Style::new().fg(colors::text_dim()),
+            ));
+
+        vec![
+            notifications_row,
+            prevent_sleep_row,
+            SettingsMenuRow::new(2usize, "Close"),
+        ]
     }
 
     pub(super) fn selected_row(&self) -> usize {

@@ -19,6 +19,7 @@ fn make_view(enabled: bool) -> NotificationsSettingsView {
     let (tx, _rx) = channel();
     NotificationsSettingsView::new(
         NotificationsMode::Toggle { enabled },
+        false,
         AppEventSender::new(tx),
         BackgroundOrderTicket::test_ticket(1),
     )
@@ -47,4 +48,26 @@ fn content_only_mouse_uses_content_geometry_not_framed_geometry() {
     assert!(view.handle_mouse_event_direct_content_only(click, area));
     assert_eq!(view.state.selected_idx, Some(0));
     assert!(matches!(view.mode, NotificationsMode::Toggle { enabled: true }));
+}
+
+#[test]
+fn space_on_prevent_sleep_row_sends_update_event() {
+    let (tx, rx) = channel();
+    let mut view = NotificationsSettingsView::new(
+        NotificationsMode::Toggle { enabled: false },
+        false,
+        AppEventSender::new(tx),
+        BackgroundOrderTicket::test_ticket(2),
+    );
+
+    view.state.selected_idx = Some(1);
+    assert!(view.handle_key_event_direct(crossterm::event::KeyEvent::new(
+        crossterm::event::KeyCode::Char(' '),
+        KeyModifiers::NONE,
+    )));
+
+    match rx.try_recv().expect("UpdatePreventIdleSleep") {
+        crate::app_event::AppEvent::UpdatePreventIdleSleep(enabled) => assert!(enabled),
+        other => panic!("unexpected app event: {other:?}"),
+    }
 }

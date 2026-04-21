@@ -5,7 +5,7 @@ use crate::app_event::AppEvent;
 use super::{NotificationsMode, NotificationsSettingsView};
 
 impl NotificationsSettingsView {
-    pub(super) fn toggle(&mut self) {
+    pub(super) fn toggle_notifications(&mut self) {
         match &mut self.mode {
             NotificationsMode::Toggle { enabled } => {
                 *enabled = !*enabled;
@@ -28,6 +28,12 @@ impl NotificationsSettingsView {
                 );
             }
         }
+    }
+
+    pub(super) fn toggle_prevent_idle_sleep(&mut self) {
+        self.prevent_idle_sleep = !self.prevent_idle_sleep;
+        self.app_event_tx
+            .send(AppEvent::UpdatePreventIdleSleep(self.prevent_idle_sleep));
     }
 
     fn process_key_event(&mut self, key_event: KeyEvent) -> bool {
@@ -85,8 +91,10 @@ impl NotificationsSettingsView {
                 modifiers: KeyModifiers::NONE,
                 ..
             } => {
-                if self.selected_row() == 0 {
-                    self.toggle();
+                match self.selected_row() {
+                    0 => self.toggle_notifications(),
+                    1 => self.toggle_prevent_idle_sleep(),
+                    _ => {}
                 }
                 true
             }
@@ -95,10 +103,12 @@ impl NotificationsSettingsView {
                 modifiers: KeyModifiers::NONE,
                 ..
             } => {
-                if self.selected_row() == 0 {
-                    self.toggle();
-                } else {
-                    self.is_complete = true;
+                match self.selected_row() {
+                    0 => self.toggle_notifications(),
+                    1 => self.toggle_prevent_idle_sleep(),
+                    _ => {
+                        self.is_complete = true;
+                    }
                 }
                 true
             }

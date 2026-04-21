@@ -3,7 +3,6 @@ pub(crate) enum SettingsSection {
     Model,
     Theme,
     Interface,
-    Experimental,
     Shell,
     ShellEscalation,
     ShellProfiles,
@@ -38,7 +37,6 @@ impl SettingsSection {
         SettingsSection::Model,
         SettingsSection::Theme,
         SettingsSection::Interface,
-        SettingsSection::Experimental,
         SettingsSection::Shell,
         SettingsSection::ShellEscalation,
         SettingsSection::ShellProfiles,
@@ -72,7 +70,6 @@ impl SettingsSection {
         SettingsSection::Model,
         SettingsSection::Theme,
         SettingsSection::Interface,
-        SettingsSection::Experimental,
         SettingsSection::Shell,
         SettingsSection::ShellEscalation,
         SettingsSection::ShellProfiles,
@@ -99,15 +96,8 @@ impl SettingsSection {
         SettingsSection::Limits,
     ];
 
-    /// Whether this section should appear in the settings sidebar given the
-    /// current feature flags. Sections tied to experimental features are hidden
-    /// when the feature is disabled — the user can enable them via the
-    /// Experimental settings page, after which the section appears.
-    pub(crate) fn is_visible(self, features: &code_core::config_types::FeaturesToml) -> bool {
-        match self {
-            SettingsSection::Repl => features.enabled("repl"),
-            SettingsSection::Apps => features.enabled("apps"),
-            _ => true,
-        }
+    /// Whether this section should appear in the settings sidebar.
+    pub(crate) fn is_visible(self, _features: &code_core::config_types::FeaturesToml) -> bool {
+        true
     }
 }

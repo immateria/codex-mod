@@ -66,6 +66,13 @@
                     self.config.tui.notifications = Notifications::Enabled(enabled);
                     self.config.tui_notifications = Notifications::Enabled(enabled);
                 }
+                AppEvent::UpdatePreventIdleSleep(enabled) => {
+                    if let AppState::Chat { widget } = &mut self.app_state {
+                        widget.set_prevent_idle_sleep(enabled);
+                    }
+                    self.config.tui.prevent_idle_sleep = enabled;
+                    self.config.prevent_idle_sleep = enabled;
+                }
                 AppEvent::UpdateValidationTool { name, enable } => {
                     if let AppState::Chat { widget } = &mut self.app_state {
                         widget.toggle_validation_tool(&name, enable);
