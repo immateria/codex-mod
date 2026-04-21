@@ -11,7 +11,7 @@ use crate::util::is_shell_like_executable;
 ///
 /// Strips directory components, `.exe` suffix, trailing version suffixes
 /// (e.g. `-5.2`), and leading/trailing quotes, then lowercases.
-pub(crate) fn shell_basename(path: &str) -> String {
+pub fn shell_basename(path: &str) -> String {
     let trimmed = path.trim_matches('"').trim_matches('\'');
     let base = std::path::Path::new(trimmed)
         .file_name()

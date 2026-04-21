@@ -45,6 +45,7 @@ code-connectors = { path = "../connectors" }
 code-core = { path = "../core" }
 code-features = { path = "../features" }
 code-secrets = { workspace = true }
+code-shell-command = { workspace = true }
 code-utils-absolute-path = { workspace = true }
 code-utils-rustls-provider = { workspace = true }
 code-utils-sleep-inhibitor = { workspace = true }

@@ -1,5 +1,3 @@
-use std::path::Path;
-
 use shlex::Shlex;
 
 pub(super) fn format_inline_shell_for_display(command_escaped: &str) -> Option<String> {
@@ -35,26 +33,12 @@ fn is_shell_invocation_token(token: &str) -> bool {
 }
 
 fn is_shell_executable(token: &str) -> bool {
-    let trimmed = token.trim_matches(|c| c == '\'' || c == '"');
-    let lowered = Path::new(trimmed)
-        .file_name()
-        .and_then(|s| s.to_str())
-        .unwrap_or(trimmed)
-        .to_ascii_lowercase();
-    matches!(
-        lowered.as_str(),
-        "bash"
-            | "bash.exe"
-            | "sh"
-            | "sh.exe"
-            | "dash"
-            | "dash.exe"
-            | "zsh"
-            | "zsh.exe"
-            | "ksh"
-            | "ksh.exe"
-            | "busybox",
-    )
+    code_shell_command::is_shell_like_executable(token)
+        || token
+            .trim_matches(|c| c == '\'' || c == '"')
+            .rsplit(['/', '\\'])
+            .next()
+            .is_some_and(|b| b.eq_ignore_ascii_case("busybox"))
 }
 
 fn format_shell_script(tokens: &[String], script_idx: usize, script: &str) -> Option<String> {

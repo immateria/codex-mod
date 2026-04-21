@@ -91,26 +91,13 @@ fn split_token(input: &str) -> Option<(&str, &str)> {
 }
 
 fn looks_like_shell(token: &str) -> bool {
-    let trimmed = token.trim_matches('"').trim_matches('\'');
-    let basename = trimmed
-        .rsplit('/')
-        .next()
-        .unwrap_or(trimmed)
-        .to_ascii_lowercase();
-    matches!(
-        basename.as_str(),
-        "bash"
-            | "bash.exe"
-            | "sh"
-            | "sh.exe"
-            | "zsh"
-            | "zsh.exe"
-            | "dash"
-            | "dash.exe"
-            | "ksh"
-            | "ksh.exe"
-            | "busybox"
-    )
+    code_shell_command::is_shell_like_executable(token)
+        || token
+            .trim_matches('"')
+            .trim_matches('\'')
+            .rsplit('/')
+            .next()
+            .is_some_and(|b| b.eq_ignore_ascii_case("busybox"))
 }
 
 /// Normalize common TTY overwrite sequences within a text block so that

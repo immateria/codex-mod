@@ -123,18 +123,8 @@ impl ShellSelectionView {
     }
 
     pub(super) fn current_matches_preset(current: &ShellConfig, preset: &ShellPreset) -> bool {
-        Self::normalized_command_name(&current.path) == Self::normalized_command_name(&preset.command)
-    }
-
-    fn normalized_command_name(command: &str) -> String {
-        let raw = command
-            .rsplit(['/', '\\'])
-            .next()
-            .unwrap_or(command)
-            .trim_matches('"')
-            .trim_matches('\'')
-            .to_ascii_lowercase();
-        raw.strip_suffix(".exe").unwrap_or(raw.as_str()).to_owned()
+        code_core::shell::shell_basename(&current.path)
+            == code_core::shell::shell_basename(&preset.command)
     }
 
     pub(super) fn display_shell(shell: &ShellConfig) -> String {

@@ -64,5 +64,7 @@ pub fn is_shell_like_executable(token: &str) -> bool {
             | "xonsh.exe"
             | "osh"
             | "osh.exe"
+            | "oil"
+            | "oil.exe"
     )
 }

@@ -688,8 +688,8 @@ fn unwrap_shell_script(command: &[String]) -> Option<String> {
 }
 
 fn is_shell_like(token: &str) -> bool {
-    filter_command_name(token)
-        .is_some_and(|name| matches!(name.as_str(), "bash" | "sh" | "dash" | "zsh" | "ksh" | "busybox"))
+    code_shell_command::is_shell_like_executable(token)
+        || filter_command_name(token).is_some_and(|name| name == "busybox")
 }
 
 fn looks_like_line_filter(cmd: &str) -> bool {
