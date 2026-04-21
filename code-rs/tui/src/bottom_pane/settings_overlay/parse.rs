@@ -23,6 +23,10 @@ impl SettingsSection {
             "app" | "apps" | "connector" | "connectors" => Some(SettingsSection::Apps),
             "agent" | "agents" => Some(SettingsSection::Agents),
             "memory" | "memories" => Some(SettingsSection::Memories),
+            "prompt" | "prompts" | "custom-prompt" | "custom_prompt" => {
+                Some(SettingsSection::Prompts)
+            }
+            "personality" | "tone" | "persona" => Some(SettingsSection::Personality),
             "auto" | "autodrive" | "drive" => Some(SettingsSection::AutoDrive),
             "review" | "reviews" => Some(SettingsSection::Review),
             "validation" | "validate" => Some(SettingsSection::Validation),

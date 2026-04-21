@@ -26,9 +26,10 @@ Notes
   `code secrets set OPENAI_API_KEY` to store your key in `CODE_HOME` (encrypted
   at rest). Use `--scope env` for per-repo secrets.
 - `/settings [section]`: open the settings panel. Optional section argument
-  jumps directly to `model`, `theme`, `interface`, `experimental`, `accounts`,
-  `apps`, `agents`, `memories`, `prompts`, `skills`, `plugins`, `auto`,
-  `review`, `validation`, `limits`, `chrome`, `mcp`, `network`, or
+  jumps directly to `model`, `theme`, `interface`, `shell`, `shell-escalation`,
+  `shell-profiles`, `exec`, `updates`, `accounts`, `secrets`, `apps`, `agents`,
+  `memories`, `prompts`, `personality`, `skills`, `plugins`, `auto`, `review`,
+  `planning`, `validation`, `limits`, `chrome`, `mcp`, `repl`, `network`,
   `notifications`.
 - `/memories [status|refresh|clear|settings]`: inspect effective Memories
   settings and artifact status, rebuild artifacts immediately, clear generated

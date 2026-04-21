@@ -1,21 +1,15 @@
 # Skills
 
-> **Warning:** This is an experimental and non-stable feature. If you depend on it, please expect breaking changes over the coming weeks and understand that there is currently no guarantee that this works well. Use at your own risk!
-
 Codex can automatically discover reusable "skills" you keep on disk. A skill is a small bundle with a name, a short description (what it does and when to use it), and an optional body of instructions you can open when needed. Codex injects only the name, description, and file path into the runtime context; the body stays on disk.
 
 ## Enable skills
 
-Skills are behind the experimental `skills` feature flag and are enabled by default.
+Skills are enabled by default. To disable them, add the following to `$CODEX_HOME/config.toml` (usually `~/.codex/config.toml`) and restart Codex:
 
-- Disable in config (preferred): add the following to `$CODEX_HOME/config.toml` (usually `~/.codex/config.toml`) and restart Codex:
-
-  ```toml
-  [features]
-  skills = false
-  ```
-
-- Override for a single run when disabled in config: launch Codex with `codex --enable skills`
+```toml
+[features]
+skills = false
+```
 
 ## Where skills live
 
