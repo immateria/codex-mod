@@ -275,7 +275,7 @@ impl ChatWidget<'_> {
             #[cfg(feature = "browser-automation")]
             SettingsSection::Chrome => {
                 self.show_chrome_options(None);
-                true
+                false
             }
             SettingsSection::Model
             | SettingsSection::Theme
