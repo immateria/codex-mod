@@ -151,20 +151,30 @@ impl Shell {
                 Some(command)
             }
             Shell::Generic(generic) => {
-                // For generic shells that execute scripts via -c/-lc, pass the
-                // model command as a single script argument.
-                if generic_shell_expects_script_argument(generic.command.as_slice()) {
-                    let script = extract_script_argument(command.as_slice())
-                        .or_else(|| shlex::try_join(command.iter().map(String::as_str)).ok())?;
-                    let mut invocation = generic.command.clone();
-                    invocation.push(script);
-                    return Some(invocation);
+                match generic_shell_script_mode(generic) {
+                    Some(GenericShellScriptMode::SingleScriptArgument) => {
+                        let script = extract_script_argument(command.as_slice())
+                            .or_else(|| shlex::try_join(command.iter().map(String::as_str)).ok())?;
+                        let mut invocation = generic.command.clone();
+                        invocation.push(script);
+                        Some(invocation)
+                    }
+                    Some(GenericShellScriptMode::CommandTail) => {
+                        let mut invocation = generic.command.clone();
+                        if let Some(script) = extract_script_argument(command.as_slice()) {
+                            invocation.push(script);
+                        } else {
+                            invocation.extend(command);
+                        }
+                        Some(invocation)
+                    }
+                    None => {
+                        // Other generic shells execute command/argv directly.
+                        let mut invocation = generic.command.clone();
+                        invocation.extend(command);
+                        Some(invocation)
+                    }
                 }
-
-                // Other generic shells execute command/argv directly.
-                let mut invocation = generic.command.clone();
-                invocation.extend(command);
-                Some(invocation)
             }
             Shell::Unknown => None,
         }
@@ -222,7 +232,15 @@ impl Shell {
                 args.push(command);
                 Some(args)
             }
-            Shell::Generic(_) | Shell::Unknown => None,
+            Shell::Generic(generic) => match generic_shell_script_mode(generic) {
+                Some(_) => {
+                    let mut invocation = generic.command.clone();
+                    invocation.push(command);
+                    Some(invocation)
+                }
+                None => None,
+            },
+            Shell::Unknown => None,
         }
     }
 }
@@ -308,11 +326,32 @@ fn default_shell_script_invocation(command: String, _use_login_shell: bool) -> V
     vec![command]
 }
 
-fn generic_shell_expects_script_argument(shell_command: &[String]) -> bool {
-    matches!(
-        shell_command.last().map(String::as_str),
-        Some("-c" | "-lc")
-    )
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum GenericShellScriptMode {
+    // POSIX-like shells expect a single script string after -c/-lc.
+    SingleScriptArgument,
+    // cmd.exe /c consumes the remaining command tail as a Windows command line.
+    CommandTail,
+}
+
+fn generic_shell_script_mode(shell: &GenericShell) -> Option<GenericShellScriptMode> {
+    let script_style = shell.script_style.or_else(|| {
+        shell
+            .command
+            .first()
+            .and_then(|program| ShellScriptStyle::infer_from_shell_program(program))
+    });
+    let flag = shell.command.last().map(String::as_str)?;
+
+    if matches!(flag, "-c" | "-lc") {
+        return Some(GenericShellScriptMode::SingleScriptArgument);
+    }
+
+    if flag.eq_ignore_ascii_case("/c") && script_style == Some(ShellScriptStyle::Cmd) {
+        return Some(GenericShellScriptMode::CommandTail);
+    }
+
+    None
 }
 
 /// Returns `true` when a script contains characters that break PowerShell's
@@ -523,6 +562,50 @@ mod tests_common {
         // Versioned Windows executables: strip version first, then .exe
         assert_eq!(shell_basename("bash.exe-5.2"), "bash");
         assert_eq!(shell_basename("zsh.exe-6"), "zsh");
+    }
+
+    #[test]
+    fn generic_cmd_shell_wraps_raw_shell_scripts() {
+        let shell = Shell::Generic(GenericShell {
+            command: vec!["cmd.exe".to_string(), "/d".to_string(), "/c".to_string()],
+            script_style: Some(ShellScriptStyle::Cmd),
+        });
+
+        let invocation = shell.format_shell_script_invocation("dir && echo done".to_string(), false);
+
+        assert_eq!(
+            invocation,
+            Some(vec![
+                "cmd.exe".to_string(),
+                "/d".to_string(),
+                "/c".to_string(),
+                "dir && echo done".to_string(),
+            ])
+        );
+    }
+
+    #[test]
+    fn generic_cmd_shell_unwraps_shell_wrappers_before_c() {
+        let shell = Shell::Generic(GenericShell {
+            command: vec!["cmd.exe".to_string(), "/d".to_string(), "/c".to_string()],
+            script_style: Some(ShellScriptStyle::Cmd),
+        });
+
+        let invocation = shell.format_default_shell_invocation(vec![
+            "bash".to_string(),
+            "-lc".to_string(),
+            "dir && echo done".to_string(),
+        ]);
+
+        assert_eq!(
+            invocation,
+            Some(vec![
+                "cmd.exe".to_string(),
+                "/d".to_string(),
+                "/c".to_string(),
+                "dir && echo done".to_string(),
+            ])
+        );
     }
 }
 
