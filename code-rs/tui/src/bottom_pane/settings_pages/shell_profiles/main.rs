@@ -285,7 +285,7 @@ impl ShellProfilesSettingsView {
         use crate::bottom_pane::settings_ui::hints::{hint_enter, hint_esc, shortcut_line, KeyHint};
 
         let shortcut = shortcut_line(&[
-            hint_enter(" edit/cycle/apply"),
+            hint_enter(" activate"),
             KeyHint::new(crate::icons::ctrl_combo("P"), " shell"),
             hint_esc(" close"),
         ]);

@@ -21,7 +21,7 @@ impl VerbositySelectionView {
         let shortcuts = vec![
             hint_nav(" navigate"),
             hint_enter(" select"),
-            hint_esc(" cancel"),
+            hint_esc(" close"),
         ];
 
         SettingsMenuPage::new(

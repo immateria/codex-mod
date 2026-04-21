@@ -146,7 +146,7 @@ impl MemoriesSettingsView {
         vec![shortcut_line(&[
             hint_nav(" navigate"),
             hint_nav_horizontal(" cycle"),
-            hint_enter(" edit/activate"),
+            hint_enter(" activate"),
             KeyHint::new(crate::bottom_pane::settings_ui::hints::key_ctrl("S"), " apply"),
             KeyHint::new(crate::bottom_pane::settings_ui::hints::key_ctrl("R"), " refresh"),
             hint_esc(" close"),

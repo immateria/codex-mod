@@ -83,7 +83,7 @@ impl ExecLimitsSettingsView {
     pub(super) fn render_footer_lines(&self) -> Vec<Line<'static>> {
         vec![shortcut_line(&[
             hint_nav(" navigate"),
-            hint_enter(" edit/toggle"),
+            hint_enter(" activate"),
             KeyHint::new("a", " auto"),
             KeyHint::new("d", " disable"),
             KeyHint::new(crate::bottom_pane::settings_ui::hints::key_ctrl("S"), " apply"),
