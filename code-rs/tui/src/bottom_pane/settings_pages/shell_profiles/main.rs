@@ -8,9 +8,10 @@ use crate::bottom_pane::settings_ui::rows::{KeyValueRow, StyledText, selection_i
 use crate::bottom_pane::settings_ui::selectable_list_mouse::route_scroll_state_mouse_with_hit_test;
 
 impl ShellProfilesSettingsView {
-    pub(super) fn rows() -> [RowKind; 11] {
+    pub(super) fn rows() -> [RowKind; 14] {
         [
             RowKind::Style,
+            RowKind::ApplicableShells,
             RowKind::Summary,
             RowKind::References,
             RowKind::SkillRoots,
@@ -18,6 +19,8 @@ impl ShellProfilesSettingsView {
             RowKind::DisabledSkills,
             RowKind::McpInclude,
             RowKind::McpExclude,
+            RowKind::NewProfile,
+            RowKind::DeleteProfile,
             RowKind::OpenSkills,
             RowKind::Apply,
             RowKind::Close,
@@ -122,6 +125,19 @@ impl ShellProfilesSettingsView {
                     .get(&self.selected_id)
                     .map_or(0, |entry| entry.config.mcp_servers.exclude.len())
             )),
+            RowKind::ApplicableShells => {
+                let shells = self
+                    .shell_style_profiles
+                    .get(&self.selected_id)
+                    .map(|e| e.applicable_shells.as_slice())
+                    .unwrap_or(&[]);
+                if shells.is_empty() {
+                    Some("defaults".to_owned())
+                } else {
+                    Some(shells.join(", "))
+                }
+            }
+            RowKind::NewProfile | RowKind::DeleteProfile => None,
             RowKind::OpenSkills | RowKind::Apply | RowKind::Close => None,
         }
     }
@@ -136,6 +152,9 @@ impl ShellProfilesSettingsView {
             RowKind::DisabledSkills => "Disabled skills",
             RowKind::McpInclude => "MCP include",
             RowKind::McpExclude => "MCP exclude",
+            RowKind::ApplicableShells => "Applicable shells",
+            RowKind::NewProfile => "New profile",
+            RowKind::DeleteProfile => "Delete profile",
             RowKind::OpenSkills => "Manage skills",
             RowKind::Apply => "Apply",
             RowKind::Close => "Close",
@@ -212,10 +231,13 @@ impl ShellProfilesSettingsView {
             RowKind::Summary => self.open_editor(ListTarget::Summary),
             RowKind::References => self.open_editor(ListTarget::References),
             RowKind::SkillRoots => self.open_editor(ListTarget::SkillRoots),
+            RowKind::ApplicableShells => self.open_picker(PickTarget::ApplicableShells),
             RowKind::SkillsAllowlist => self.open_picker(PickTarget::SkillsAllowlist),
             RowKind::DisabledSkills => self.open_picker(PickTarget::DisabledSkills),
             RowKind::McpInclude => self.open_picker(PickTarget::McpInclude),
             RowKind::McpExclude => self.open_picker(PickTarget::McpExclude),
+            RowKind::NewProfile => self.create_profile(),
+            RowKind::DeleteProfile => self.delete_profile(),
             RowKind::OpenSkills => self.open_skills_editor(),
             RowKind::Apply => self.apply_settings(),
             RowKind::Close => self.is_complete = true,
@@ -414,11 +436,56 @@ impl ShellProfilesSettingsView {
     fn selected_hint(row: RowKind) -> Option<&'static str> {
         match row {
             RowKind::Style => Some("Left/Right/Enter cycle"),
+            RowKind::ApplicableShells => Some("Enter to select applicable shells"),
             RowKind::Apply => Some("Persist staged changes"),
             RowKind::Close => Some("Close settings"),
             RowKind::OpenSkills => Some("Open skills settings"),
+            RowKind::NewProfile => Some("Enter to create a new profile"),
+            RowKind::DeleteProfile => Some("Enter to delete this profile"),
             _ => Some("Enter edit/open"),
         }
+    }
+
+    pub(super) fn create_profile(&mut self) {
+        let base = "custom-profile";
+        let mut id = base.to_owned();
+        let mut n = 1u32;
+        while self.shell_style_profiles.contains_key(&id) {
+            id = format!("{base}-{n}");
+            n += 1;
+        }
+        self.stage_pending_profile_from_fields();
+        let default_style = self
+            .active_shell_path
+            .as_deref()
+            .and_then(|p| ShellScriptStyle::infer_from_shell_program(p))
+            .unwrap_or(ShellScriptStyle::BashZshCompatible);
+        self.shell_style_profiles.insert(
+            id.clone(),
+            ShellStyleProfileEntry {
+                style: Some(default_style),
+                applicable_shells: Vec::new(),
+                config: Default::default(),
+            },
+        );
+        self.selected_id = id.clone();
+        self.load_fields_for_style(&id);
+        self.dirty = true;
+        self.status = Some(format!("Created profile '{id}'. Configure and select Apply to save."));
+    }
+
+    pub(super) fn delete_profile(&mut self) {
+        let id = self.selected_id.clone();
+        self.shell_style_profiles.remove(&id);
+        let styles = relevant_styles_for_shell(self.active_shell_path.as_deref());
+        let next_id = styles
+            .first()
+            .map(|s| s.to_string())
+            .unwrap_or_else(|| ShellScriptStyle::BashZshCompatible.to_string());
+        self.selected_id = next_id.clone();
+        self.load_fields_for_style(&next_id);
+        self.dirty = true;
+        self.status = Some(format!("Deleted profile '{id}'. Select Apply to persist."));
     }
 
 }

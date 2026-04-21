@@ -3,6 +3,7 @@ use super::*;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) enum RowKind {
     Style,
+    ApplicableShells,
     Summary,
     References,
     SkillRoots,
@@ -10,6 +11,8 @@ pub(super) enum RowKind {
     DisabledSkills,
     McpInclude,
     McpExclude,
+    NewProfile,
+    DeleteProfile,
     OpenSkills,
     Apply,
     Close,
@@ -24,6 +27,7 @@ pub(super) enum ListTarget {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) enum PickTarget {
+    ApplicableShells,
     SkillsAllowlist,
     DisabledSkills,
     McpInclude,

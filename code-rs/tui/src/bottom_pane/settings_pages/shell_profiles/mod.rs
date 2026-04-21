@@ -2,12 +2,7 @@ use std::cell::Cell;
 use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 
-use code_core::config::{
-    set_shell_style_profile_mcp_servers,
-    set_shell_style_profile_paths,
-    set_shell_style_profile_skills,
-    set_shell_style_profile_summary,
-};
+use code_core::config::set_all_shell_style_profiles;
 use code_core::config_types::{ShellConfig, ShellScriptStyle, ShellStyleProfileConfig, ShellStyleProfileEntry};
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind};
 use ratatui::buffer::Buffer;

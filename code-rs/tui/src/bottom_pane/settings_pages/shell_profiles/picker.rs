@@ -6,6 +6,26 @@ use crate::bottom_pane::settings_ui::sectioned_panel::SettingsSectionedPanelLayo
 use super::model::PickListItem;
 use super::persistence::{normalize_list_key, style_profile_is_empty};
 
+/// Known shell basenames for the applicable-shells picker.
+const ALL_KNOWN_SHELLS: &[(&str, &str)] = &[
+    ("sh",         "POSIX sh"),
+    ("dash",       "Dash (lightweight POSIX sh)"),
+    ("ash",        "Ash (BusyBox sh)"),
+    ("ksh",        "KornShell"),
+    ("bash",       "Bash"),
+    ("mksh",       "MirBSD KornShell"),
+    ("zsh",        "Zsh"),
+    ("powershell", "PowerShell"),
+    ("pwsh",       "PowerShell (pwsh)"),
+    ("cmd",        "Windows CMD"),
+    ("nu",         "Nushell"),
+    ("elvish",     "Elvish"),
+    ("fish",       "Fish"),
+    ("xonsh",      "Xonsh"),
+    ("osh",        "Oil Shell (osh compat mode)"),
+    ("oil",        "Oil Shell"),
+];
+
 impl ShellProfilesSettingsView {
     pub(super) fn picker_values_for_style(
         &self,
@@ -39,6 +59,13 @@ impl ShellProfilesSettingsView {
                 profile
                     .map(|p| p.mcp_servers.include.clone())
                     .unwrap_or_default(),
+            ),
+            PickTarget::ApplicableShells => (
+                self.shell_style_profiles
+                    .get(&self.selected_id)
+                    .map(|e| e.applicable_shells.clone())
+                    .unwrap_or_default(),
+                Vec::new(),
             ),
         }
     }
@@ -79,6 +106,20 @@ impl ShellProfilesSettingsView {
                     items.push(PickListItem {
                         name: server.clone(),
                         description: None,
+                        is_unknown: false,
+                        is_no_filter_option: false,
+                    });
+                }
+            }
+            PickTarget::ApplicableShells => {
+                for (name, description) in ALL_KNOWN_SHELLS {
+                    let key = normalize_list_key(name);
+                    if !seen.insert(key) {
+                        continue;
+                    }
+                    items.push(PickListItem {
+                        name: name.to_string(),
+                        description: Some(description.to_string()),
                         is_unknown: false,
                         is_no_filter_option: false,
                     });
@@ -172,6 +213,7 @@ impl ShellProfilesSettingsView {
 
     pub(super) fn picker_conflict_label(target: PickTarget) -> &'static str {
         match target {
+            PickTarget::ApplicableShells => "",
             PickTarget::SkillsAllowlist => "disabled",
             PickTarget::DisabledSkills => "allowlisted",
             PickTarget::McpInclude => "excluded",
@@ -181,6 +223,7 @@ impl ShellProfilesSettingsView {
 
     pub(super) fn picker_title(target: PickTarget) -> &'static str {
         match target {
+            PickTarget::ApplicableShells => "Applicable shells",
             PickTarget::SkillsAllowlist => "Skills allowlist",
             PickTarget::DisabledSkills => "Disabled skills",
             PickTarget::McpInclude => "MCP include",
@@ -200,6 +243,9 @@ impl ShellProfilesSettingsView {
             .or_insert_with(Default::default);
 
         match target {
+            PickTarget::ApplicableShells => {
+                entry.applicable_shells = selection;
+            }
             PickTarget::SkillsAllowlist => {
                 entry.config.skills = selection;
                 let selected_set: HashSet<String> =
@@ -254,6 +300,19 @@ impl ShellProfilesSettingsView {
             }
         }
 
+        if let PickTarget::ApplicableShells = target {
+            // applicable_shells is meaningful even when config is empty; only
+            // remove the entry if both applicable_shells and config are empty
+            // and this is a custom profile (style.is_some() means it was
+            // explicitly created, style.is_none() means built-in key).
+            let can_remove = style_profile_is_empty(&entry.config)
+                && entry.applicable_shells.is_empty()
+                && entry.style.is_none();
+            if can_remove {
+                self.shell_style_profiles.remove(&selected_id);
+            }
+            return;
+        }
         let is_empty = style_profile_is_empty(&entry.config);
         if is_empty {
             self.shell_style_profiles.remove(&selected_id);

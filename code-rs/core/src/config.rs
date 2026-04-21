@@ -97,6 +97,7 @@ pub use sources::{
     persist_model_selection,
     persist_shell,
     resolve_code_path_for_read,
+    set_all_shell_style_profiles,
     set_shell_style_profile_mcp_servers,
     set_shell_style_profile_paths,
     set_shell_style_profile_summary,

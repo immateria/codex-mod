@@ -15,6 +15,7 @@ use crate::config_types::{
     SettingsMenuOpenMode,
     ShellConfig,
     ShellScriptStyle,
+    ShellStyleProfileEntry,
     StatusLineLane,
     ThemeColors,
     ThemeName,
@@ -4119,4 +4120,221 @@ prevent_idle_sleep = true
 
         Ok(())
     }
+
+}
+
+/// Write all shell-style profile entries atomically in a single TOML edit.
+///
+/// Handles built-in profiles (keyed by ShellScriptStyle string) and custom
+/// profiles (arbitrary ID + explicit `style` field). Orphaned TOML entries
+/// (profiles removed from the HashMap) are deleted.
+pub fn set_all_shell_style_profiles(
+    code_home: &Path,
+    profiles: &HashMap<String, ShellStyleProfileEntry>,
+) -> anyhow::Result<bool> {
+    let config_path = code_home.join(CONFIG_TOML_FILE);
+    let read_path = resolve_code_path_for_read(code_home, Path::new(CONFIG_TOML_FILE));
+    let mut doc = read_config_doc(&read_path)?;
+    let mut changed = false;
+
+    // If no profiles, remove the table entirely.
+    if profiles.is_empty() {
+        if doc.as_table_mut().remove("shell_style_profiles").is_some() {
+            changed = true;
+        }
+        if changed {
+            std::fs::create_dir_all(code_home)?;
+            let tmp_path = config_path.with_extension("tmp");
+            std::fs::write(&tmp_path, doc.to_string())?;
+            std::fs::rename(&tmp_path, &config_path)?;
+        }
+        return Ok(changed);
+    }
+
+    // Ensure the top-level table exists.
+    {
+        let root = doc.as_table_mut();
+        match root.get("shell_style_profiles") {
+            Some(item) if item.as_table().is_none() => {
+                return Err(anyhow::anyhow!("`shell_style_profiles` must be a TOML table"));
+            }
+            None => {
+                let mut table = TomlTable::new();
+                table.set_implicit(true);
+                root.insert("shell_style_profiles", TomlItem::Table(table));
+                changed = true;
+            }
+            _ => {}
+        }
+    }
+
+    let mut written_toml_keys: HashSet<String> = HashSet::new();
+
+    let profiles_became_empty = {
+        let root = doc.as_table_mut();
+        let profiles_table = root
+            .get_mut("shell_style_profiles")
+            .and_then(|item| item.as_table_mut())
+            .ok_or_else(|| anyhow::anyhow!("failed to prepare shell_style_profiles table"))?;
+
+        for (id, entry) in profiles {
+            // Determine the TOML key: use alias-resolution for built-in styles,
+            // the raw id for custom profiles.
+            let toml_key = if let Some(style) = ShellScriptStyle::parse(id) {
+                find_shell_style_profile_key(profiles_table, style)?
+                    .unwrap_or_else(|| id.clone())
+            } else {
+                id.clone()
+            };
+
+            // Ensure the per-profile subtable exists.
+            if profiles_table.get(toml_key.as_str()).is_none() {
+                let mut style_table = TomlTable::new();
+                style_table.set_implicit(false);
+                profiles_table.insert(toml_key.as_str(), TomlItem::Table(style_table));
+                changed = true;
+            } else if profiles_table
+                .get(toml_key.as_str())
+                .and_then(|i| i.as_table())
+                .is_none()
+            {
+                return Err(anyhow::anyhow!(
+                    "`shell_style_profiles.{toml_key}` must be a TOML table"
+                ));
+            }
+
+            let style_table = profiles_table
+                .get_mut(toml_key.as_str())
+                .and_then(|item| item.as_table_mut())
+                .ok_or_else(|| {
+                    anyhow::anyhow!(
+                        "failed to get mutable shell style profile table for '{toml_key}'"
+                    )
+                })?;
+
+            // Write `style` for custom profiles (remove for built-in ones).
+            if let Some(style) = entry.style {
+                let style_str = style.to_string();
+                let current = style_table
+                    .get("style")
+                    .and_then(|v| v.as_str())
+                    .map(str::to_owned);
+                if current.as_deref() != Some(style_str.as_str()) {
+                    style_table["style"] = toml_edit::value(style_str);
+                    changed = true;
+                }
+            } else if style_table.remove("style").is_some() {
+                changed = true;
+            }
+
+            // Write `applicable_shells`.
+            changed |=
+                write_string_array(style_table, "applicable_shells", &entry.applicable_shells)?;
+
+            // Write config fields.
+            changed |= write_string_array(style_table, "skills", &entry.config.skills)?;
+            changed |=
+                write_string_array(style_table, "disabled_skills", &entry.config.disabled_skills)?;
+
+            let references_strs: Vec<String> = entry
+                .config
+                .references
+                .iter()
+                .map(|p| p.to_string_lossy().into_owned())
+                .collect();
+            let skill_roots_strs: Vec<String> = entry
+                .config
+                .skill_roots
+                .iter()
+                .map(|p| p.to_string_lossy().into_owned())
+                .collect();
+            changed |= write_string_array(style_table, "references", &references_strs)?;
+            changed |= write_string_array(style_table, "skill_roots", &skill_roots_strs)?;
+
+            // Write `summary`.
+            let summary = entry
+                .config
+                .summary
+                .as_deref()
+                .map(str::trim)
+                .filter(|v| !v.is_empty());
+            let existing_summary = style_table
+                .get("summary")
+                .and_then(|item| item.as_str())
+                .map(str::trim)
+                .filter(|v| !v.is_empty());
+            if existing_summary != summary {
+                match summary {
+                    Some(value) => style_table["summary"] = toml_edit::value(value),
+                    None => {
+                        style_table.remove("summary");
+                    }
+                }
+                changed = true;
+            }
+
+            // Write `mcp_servers` subtable.
+            let include = &entry.config.mcp_servers.include;
+            let exclude = &entry.config.mcp_servers.exclude;
+            let mcp_key = "mcp_servers";
+            if include.is_empty() && exclude.is_empty() {
+                if style_table.remove(mcp_key).is_some() {
+                    changed = true;
+                }
+            } else {
+                if style_table.get(mcp_key).is_none() {
+                    let mut mcp_table = TomlTable::new();
+                    mcp_table.set_implicit(false);
+                    style_table.insert(mcp_key, TomlItem::Table(mcp_table));
+                    changed = true;
+                } else if style_table.get(mcp_key).and_then(|i| i.as_table()).is_none() {
+                    return Err(anyhow::anyhow!(
+                        "`shell_style_profiles.{toml_key}.mcp_servers` must be a TOML table"
+                    ));
+                }
+                let mcp_table = style_table
+                    .get_mut(mcp_key)
+                    .and_then(|item| item.as_table_mut())
+                    .ok_or_else(|| {
+                        anyhow::anyhow!(
+                            "failed to get mutable mcp_servers table for '{toml_key}'"
+                        )
+                    })?;
+                changed |= write_string_array(mcp_table, "include", include)?;
+                changed |= write_string_array(mcp_table, "exclude", exclude)?;
+                if mcp_table.is_empty() {
+                    style_table.remove(mcp_key);
+                    changed = true;
+                }
+            }
+
+            written_toml_keys.insert(toml_key);
+        }
+
+        // Remove orphaned TOML keys (profiles deleted from the HashMap).
+        let orphaned: Vec<String> = profiles_table
+            .iter()
+            .map(|(k, _)| k.to_owned())
+            .filter(|k| !written_toml_keys.contains(k))
+            .collect();
+        for key in orphaned {
+            profiles_table.remove(key.as_str());
+            changed = true;
+        }
+
+        profiles_table.is_empty()
+    };
+
+    if profiles_became_empty {
+        doc.as_table_mut().remove("shell_style_profiles");
+    }
+
+    if changed {
+        std::fs::create_dir_all(code_home)?;
+        let tmp_path = config_path.with_extension("tmp");
+        std::fs::write(&tmp_path, doc.to_string())?;
+        std::fs::rename(&tmp_path, &config_path)?;
+    }
+
+    Ok(changed)
 }

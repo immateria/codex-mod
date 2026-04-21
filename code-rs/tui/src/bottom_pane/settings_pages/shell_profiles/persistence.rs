@@ -47,8 +47,10 @@ impl ShellProfilesSettingsView {
         entry.config.summary = summary;
         entry.config.references = references;
         entry.config.skill_roots = skill_roots;
-        let is_empty = style_profile_is_empty(&entry.config);
-        if is_empty {
+        let can_remove = style_profile_is_empty(&entry.config)
+            && entry.applicable_shells.is_empty()
+            && entry.style.is_none();
+        if can_remove {
             self.shell_style_profiles.remove(&selected_id);
         }
     }
@@ -57,84 +59,13 @@ impl ShellProfilesSettingsView {
         self.stage_pending_profile_from_fields();
 
         let was_dirty = self.dirty;
-        let mut changed_any = false;
-
-        for style in [
-            ShellScriptStyle::PosixSh,
-            ShellScriptStyle::BashZshCompatible,
-            ShellScriptStyle::Zsh,
-            ShellScriptStyle::PowerShell,
-            ShellScriptStyle::Cmd,
-            ShellScriptStyle::Nushell,
-            ShellScriptStyle::Elvish,
-            ShellScriptStyle::Fish,
-            ShellScriptStyle::Xonsh,
-            ShellScriptStyle::Oil,
-        ] {
-            let id = style.to_string();
-            let (summary, references, skill_roots, skills, disabled_skills, include, exclude) =
-                if let Some(entry) = self.shell_style_profiles.get(&id) {
-                    let p = &entry.config;
-                    (
-                        p.summary.clone(),
-                        p.references.clone(),
-                        p.skill_roots.clone(),
-                        p.skills.clone(),
-                        p.disabled_skills.clone(),
-                        p.mcp_servers.include.clone(),
-                        p.mcp_servers.exclude.clone(),
-                    )
-                } else {
-                    (
-                        None,
-                        Vec::new(),
-                        Vec::new(),
-                        Vec::new(),
-                        Vec::new(),
-                        Vec::new(),
-                        Vec::new(),
-                    )
-                };
-
-            match set_shell_style_profile_paths(&self.code_home, style, &references, &skill_roots)
-            {
-                Ok(changed) => changed_any |= changed,
-                Err(err) => {
-                    self.status = Some(format!("Failed to persist style paths: {err}"));
-                    return;
-                }
+        let changed_any = match set_all_shell_style_profiles(&self.code_home, &self.shell_style_profiles) {
+            Ok(changed) => changed,
+            Err(err) => {
+                self.status = Some(format!("Failed to persist shell profiles: {err}"));
+                return;
             }
-
-            match set_shell_style_profile_summary(&self.code_home, style, summary.as_deref()) {
-                Ok(changed) => changed_any |= changed,
-                Err(err) => {
-                    self.status = Some(format!("Failed to persist summary: {err}"));
-                    return;
-                }
-            }
-
-            match set_shell_style_profile_skills(
-                &self.code_home,
-                style,
-                &skills,
-                &disabled_skills,
-            ) {
-                Ok(changed) => changed_any |= changed,
-                Err(err) => {
-                    self.status = Some(format!("Failed to persist style skills: {err}"));
-                    return;
-                }
-            }
-
-            match set_shell_style_profile_mcp_servers(&self.code_home, style, &include, &exclude)
-            {
-                Ok(changed) => changed_any |= changed,
-                Err(err) => {
-                    self.status = Some(format!("Failed to persist MCP filters: {err}"));
-                    return;
-                }
-            }
-        }
+        };
 
         if changed_any || was_dirty {
             self.app_event_tx.send(AppEvent::UpdateShellStyleProfiles {
