@@ -13,10 +13,7 @@ impl ReplSettingsView {
 
     fn cycle_runtime(&mut self) {
         self.settings.runtime = self.settings.runtime.next();
-        // Reset runtime-specific fields so the old runtime's path/args
-        // aren't accidentally applied to the new one.
-        self.settings.runtime_path = None;
-        self.settings.runtime_args = Vec::new();
+        self.settings.runtimes.entry(self.settings.runtime).or_default();
         self.dirty = true;
     }
 
@@ -24,14 +21,14 @@ impl ReplSettingsView {
         let mut field = FormTextField::new_single_line();
         match target {
             TextTarget::RuntimePath => {
+                let spec = self.current_runtime_spec();
                 let placeholder = format!(
                     "{exe} (or /path/to/{exe})",
                     exe = self.settings.runtime.default_executable()
                 );
                 field.set_placeholder(&placeholder);
                 field.set_text(
-                    self.settings
-                        .runtime_path
+                    spec.path
                         .as_ref()
                         .map(|path| path.to_string_lossy().into_owned())
                         .unwrap_or_default()
@@ -46,14 +43,15 @@ impl ReplSettingsView {
         let mut field = FormTextField::new_multi_line();
         match target {
             ListTarget::RuntimeArgs => {
+                let spec = self.current_runtime_spec();
                 field.set_placeholder("--flag (one per line)");
-                field.set_text(&self.settings.runtime_args.join("\n"));
+                field.set_text(&spec.args.join("\n"));
             }
-            ListTarget::NodeModuleDirs => {
+            ListTarget::ModuleDirs => {
+                let spec = self.current_runtime_spec();
                 field.set_placeholder("/path/to/node_modules (one per line)");
-                let lines = self
-                    .settings
-                    .node_module_dirs
+                let lines = spec
+                    .module_dirs
                     .iter()
                     .map(|path| path.to_string_lossy().into_owned())
                     .collect::<Vec<_>>()
@@ -73,9 +71,9 @@ impl ReplSettingsView {
             TextTarget::RuntimePath => {
                 let raw = field.text().trim();
                 if raw.is_empty() {
-                    self.settings.runtime_path = None;
+                    self.current_runtime_spec_mut().path = None;
                 } else {
-                    self.settings.runtime_path = Some(PathBuf::from(raw));
+                    self.current_runtime_spec_mut().path = Some(PathBuf::from(raw));
                 }
             }
         }
@@ -103,10 +101,11 @@ impl ReplSettingsView {
 
         match target {
             ListTarget::RuntimeArgs => {
-                self.settings.runtime_args = lines;
+                self.current_runtime_spec_mut().args = lines;
             }
-            ListTarget::NodeModuleDirs => {
-                self.settings.node_module_dirs = lines.into_iter().map(PathBuf::from).collect();
+            ListTarget::ModuleDirs => {
+                self.current_runtime_spec_mut().module_dirs =
+                    lines.into_iter().map(PathBuf::from).collect();
             }
         }
         self.dirty = true;
@@ -124,7 +123,7 @@ impl ReplSettingsView {
         let result = pick_path(NativePickerKind::File, "Select repl runtime executable");
         match result {
             Ok(Some(path)) => {
-                self.settings.runtime_path = Some(path);
+                self.current_runtime_spec_mut().path = Some(path);
                 self.dirty = true;
             }
             Ok(None) => {}
@@ -138,11 +137,11 @@ impl ReplSettingsView {
     }
 
     fn clear_runtime_path(&mut self) {
-        self.settings.runtime_path = None;
+        self.current_runtime_spec_mut().path = None;
         self.dirty = true;
     }
 
-    fn add_node_module_dir(&mut self) {
+    fn add_module_dir(&mut self) {
         if !crate::platform_caps::supports_native_picker() {
             self.app_event_tx.send_background_event_with_ticket(
                 &self.ticket,
@@ -154,13 +153,13 @@ impl ReplSettingsView {
         match result {
             Ok(Some(path)) => {
                 let rendered = path.to_string_lossy().into_owned();
-                if !self
-                    .settings
-                    .node_module_dirs
+                let spec = self.current_runtime_spec_mut();
+                if !spec
+                    .module_dirs
                     .iter()
                     .any(|existing| existing.to_string_lossy() == rendered)
                 {
-                    self.settings.node_module_dirs.push(path);
+                    spec.module_dirs.push(path);
                     self.dirty = true;
                 }
             }
@@ -204,8 +203,8 @@ impl ReplSettingsView {
             RowKind::PickRuntimePath => self.pick_runtime_path(),
             RowKind::ClearRuntimePath => self.clear_runtime_path(),
             RowKind::RuntimeArgs => self.open_list_editor(ListTarget::RuntimeArgs),
-            RowKind::NodeModuleDirs => self.open_list_editor(ListTarget::NodeModuleDirs),
-            RowKind::AddNodeModuleDir => self.add_node_module_dir(),
+            RowKind::ModuleDirs => self.open_list_editor(ListTarget::ModuleDirs),
+            RowKind::AddModuleDir => self.add_module_dir(),
             RowKind::DenoPermRead => self.toggle_deno_perm(|dp| &mut dp.allow_read),
             RowKind::DenoPermWrite => self.toggle_deno_perm(|dp| &mut dp.allow_write),
             RowKind::DenoPermNet => self.toggle_deno_perm(|dp| &mut dp.allow_net),

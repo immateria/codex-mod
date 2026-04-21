@@ -165,17 +165,18 @@ impl ChatWidget<'_> {
     pub(super) fn build_repl_settings_view(&mut self) -> ReplSettingsView {
         let ticket = self.make_background_tail_ticket();
         let rt = self.config.repl_default_runtime;
-        let rt_cfg = self.config.repl_runtime_config(rt);
+        let mut runtimes = self.config.repl_runtimes.clone();
+        for &kind in code_core::config::ReplRuntimeKindToml::ALL {
+            runtimes.entry(kind).or_default();
+        }
         let settings = code_core::config::ReplSettingsToml {
             enabled: self.config.tools_repl,
             node_enabled: self.config.repl_node_enabled,
             deno_enabled: self.config.repl_deno_enabled,
             python_enabled: self.config.repl_python_enabled,
             runtime: rt,
-            runtime_path: rt_cfg.runtime_path,
-            runtime_args: rt_cfg.runtime_args,
-            node_module_dirs: rt_cfg.module_dirs,
-            deno_permissions: rt_cfg.deno_permissions,
+            runtimes,
+            deno_permissions: self.config.repl_deno_permissions.clone(),
         };
         let network_enabled = cfg!(feature = "managed-network-proxy")
             && self.config.network.as_ref().is_some_and(|net| net.enabled);

@@ -106,7 +106,11 @@ pub struct ExecParams {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct DeferredShellScript {
     pub command: String,
-    pub use_login_shell: bool,
+    /// Explicitly source the user's shell RC file (for example `.bashrc` or `.zshrc`)
+    /// before running the script.
+    pub source_user_rc: bool,
+    /// Use login-shell command semantics (`-lc`) instead of plain `-c`.
+    pub login_shell: bool,
 }
 
 impl ExecParams {

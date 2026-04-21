@@ -763,33 +763,40 @@ impl Config {
         self.repl_node_enabled = settings.node_enabled;
         self.repl_deno_enabled = settings.deno_enabled;
         self.repl_python_enabled = settings.python_enabled;
-
-        // Update registry map.
-        let spec = self.repl_runtimes.entry(settings.runtime).or_default();
-        spec.path.clone_from(&settings.runtime_path);
-        spec.args.clone_from(&settings.runtime_args);
-        spec.module_dirs.clone_from(&settings.node_module_dirs);
+        self.repl_runtimes.clone_from(&settings.runtimes);
+        for &kind in ReplRuntimeKindToml::ALL {
+            self.repl_runtimes.entry(kind).or_default();
+        }
 
         // Always sync Deno permissions regardless of active runtime so they
         // aren't lost when the user switches away from Deno.
         self.repl_deno_permissions = settings.deno_permissions.clone();
 
         // Keep flat fields in sync for backward compat during transition.
-        match settings.runtime {
-            ReplRuntimeKindToml::Node => {
-                self.repl_node_path.clone_from(&settings.runtime_path);
-                self.repl_node_args.clone_from(&settings.runtime_args);
-            }
-            ReplRuntimeKindToml::Deno => {
-                self.repl_deno_path.clone_from(&settings.runtime_path);
-                self.repl_deno_args.clone_from(&settings.runtime_args);
-            }
-            ReplRuntimeKindToml::Python => {
-                self.repl_python_path.clone_from(&settings.runtime_path);
-                self.repl_python_args.clone_from(&settings.runtime_args);
-            }
-        }
-        self.repl_node_module_dirs.clone_from(&settings.node_module_dirs);
+        let node = self
+            .repl_runtimes
+            .get(&ReplRuntimeKindToml::Node)
+            .cloned()
+            .unwrap_or_default();
+        self.repl_node_path = node.path;
+        self.repl_node_args = node.args;
+        self.repl_node_module_dirs = node.module_dirs;
+
+        let deno = self
+            .repl_runtimes
+            .get(&ReplRuntimeKindToml::Deno)
+            .cloned()
+            .unwrap_or_default();
+        self.repl_deno_path = deno.path;
+        self.repl_deno_args = deno.args;
+
+        let python = self
+            .repl_runtimes
+            .get(&ReplRuntimeKindToml::Python)
+            .cloned()
+            .unwrap_or_default();
+        self.repl_python_path = python.path;
+        self.repl_python_args = python.args;
     }
 }
 
@@ -1386,7 +1393,8 @@ impl DenoPermissions {
 /// resolved settings in this struct.  The resolved [`Config`] carries a
 /// `BTreeMap<ReplRuntimeKindToml, ReplRuntimeSpec>` so that adding a new
 /// runtime only requires adding an enum variant — no new flat fields.
-#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[schemars(deny_unknown_fields)]
 pub struct ReplRuntimeSpec {
     /// Optional path to the runtime executable.  When `None`, the
     /// runtime's [`ReplRuntimeKindToml::default_executable`] is used.
@@ -1421,14 +1429,8 @@ pub struct ReplSettingsToml {
     /// Runtime kind used for `repl` (default: `node`).
     pub runtime: ReplRuntimeKindToml,
 
-    /// Optional explicit path to the runtime executable (otherwise resolved from PATH).
-    pub runtime_path: Option<PathBuf>,
-
-    /// Additional args passed to the runtime process.
-    pub runtime_args: Vec<String>,
-
-    /// Extra directories to search for packages when using the Node runtime.
-    pub node_module_dirs: Vec<PathBuf>,
+    /// Per-runtime settings registry keyed by runtime label.
+    pub runtimes: std::collections::BTreeMap<ReplRuntimeKindToml, ReplRuntimeSpec>,
 
     /// Deno sandbox permission toggles.  Only used when `runtime` is `deno`.
     pub deno_permissions: DenoPermissions,
@@ -1465,6 +1467,10 @@ pub struct ToolsToml {
     /// Select the default runtime used by `repl` (default: `node`).
     #[serde(default)]
     pub repl_runtime: Option<ReplRuntimeKindToml>,
+
+    /// Canonical per-runtime configuration.
+    #[serde(default)]
+    pub repl_runtimes: Option<std::collections::BTreeMap<ReplRuntimeKindToml, ReplRuntimeSpec>>,
 
     /// Legacy: path to the default runtime executable. Prefer per-runtime
     /// fields (`repl_node_path`, `repl_deno_path`) instead.
@@ -2142,81 +2148,102 @@ impl Config {
             .as_ref()
             .and_then(|t| t.repl_runtime)
             .unwrap_or_default();
-        // Per-runtime path/args: prefer explicit per-runtime fields, fall back
-        // to the legacy flat fields when they match the default runtime.
+        // Per-runtime path/args: prefer the canonical `[tools.repl_runtimes]`
+        // table. Fall back to legacy flat fields only when a runtime has no
+        // explicit table entry.
         let tools_ref = cfg.tools.as_ref();
+        let configured_repl_runtimes = tools_ref
+            .and_then(|t| t.repl_runtimes.clone())
+            .unwrap_or_default();
         let legacy_path = tools_ref.and_then(|t| t.repl_runtime_path.clone());
         let legacy_args = tools_ref
             .and_then(|t| t.repl_runtime_args.clone())
             .unwrap_or_default();
-        let repl_node_path = tools_ref
-            .and_then(|t| t.repl_node_path.clone())
-            .or_else(|| {
-                if repl_default_runtime == ReplRuntimeKindToml::Node {
-                    legacy_path.clone()
-                } else {
-                    None
-                }
-            });
-        let repl_node_args = tools_ref
-            .and_then(|t| t.repl_node_args.clone())
-            .unwrap_or_else(|| {
-                if repl_default_runtime == ReplRuntimeKindToml::Node {
-                    legacy_args.clone()
-                } else {
-                    Vec::new()
-                }
-            });
-        let repl_deno_path = tools_ref
-            .and_then(|t| t.repl_deno_path.clone())
-            .or_else(|| {
-                if repl_default_runtime == ReplRuntimeKindToml::Deno {
-                    legacy_path
-                } else {
-                    None
-                }
-            });
-        let repl_deno_args = tools_ref
-            .and_then(|t| t.repl_deno_args.clone())
-            .unwrap_or_else(|| {
-                if repl_default_runtime == ReplRuntimeKindToml::Deno {
-                    legacy_args
-                } else {
-                    Vec::new()
-                }
-            });
         let repl_deno_permissions = tools_ref
             .and_then(|t| t.repl_deno_permissions.clone())
             .unwrap_or_default();
-        let repl_python_path = tools_ref
-            .and_then(|t| t.repl_python_path.clone());
-        let repl_python_args = tools_ref
-            .and_then(|t| t.repl_python_args.clone())
-            .unwrap_or_default();
-        let repl_node_module_dirs = tools_ref
-            .and_then(|t| t.repl_node_module_dirs.clone())
-            .unwrap_or_default();
-
-        // Build the runtime registry from the resolved flat fields.
-        let repl_runtimes = {
-            let mut map = std::collections::BTreeMap::new();
-            map.insert(ReplRuntimeKindToml::Node, ReplRuntimeSpec {
-                path: repl_node_path.clone(),
-                args: repl_node_args.clone(),
-                module_dirs: repl_node_module_dirs.clone(),
-            });
-            map.insert(ReplRuntimeKindToml::Deno, ReplRuntimeSpec {
-                path: repl_deno_path.clone(),
-                args: repl_deno_args.clone(),
-                module_dirs: Vec::new(),
-            });
-            map.insert(ReplRuntimeKindToml::Python, ReplRuntimeSpec {
-                path: repl_python_path.clone(),
-                args: repl_python_args.clone(),
-                module_dirs: Vec::new(),
-            });
-            map
+        let repl_node_legacy = ReplRuntimeSpec {
+            path: tools_ref
+                .and_then(|t| t.repl_node_path.clone())
+                .or_else(|| {
+                    if repl_default_runtime == ReplRuntimeKindToml::Node {
+                        legacy_path.clone()
+                    } else {
+                        None
+                    }
+                }),
+            args: tools_ref
+                .and_then(|t| t.repl_node_args.clone())
+                .unwrap_or_else(|| {
+                    if repl_default_runtime == ReplRuntimeKindToml::Node {
+                        legacy_args.clone()
+                    } else {
+                        Vec::new()
+                    }
+                }),
+            module_dirs: tools_ref
+                .and_then(|t| t.repl_node_module_dirs.clone())
+                .unwrap_or_default(),
         };
+        let repl_deno_legacy = ReplRuntimeSpec {
+            path: tools_ref
+                .and_then(|t| t.repl_deno_path.clone())
+                .or_else(|| {
+                    if repl_default_runtime == ReplRuntimeKindToml::Deno {
+                        legacy_path.clone()
+                    } else {
+                        None
+                    }
+                }),
+            args: tools_ref
+                .and_then(|t| t.repl_deno_args.clone())
+                .unwrap_or_else(|| {
+                    if repl_default_runtime == ReplRuntimeKindToml::Deno {
+                        legacy_args.clone()
+                    } else {
+                        Vec::new()
+                    }
+                }),
+            module_dirs: Vec::new(),
+        };
+        let repl_python_legacy = ReplRuntimeSpec {
+            path: tools_ref.and_then(|t| t.repl_python_path.clone()),
+            args: tools_ref
+                .and_then(|t| t.repl_python_args.clone())
+                .unwrap_or_default(),
+            module_dirs: Vec::new(),
+        };
+
+        let mut repl_runtimes = configured_repl_runtimes;
+        repl_runtimes
+            .entry(ReplRuntimeKindToml::Node)
+            .or_insert(repl_node_legacy);
+        repl_runtimes
+            .entry(ReplRuntimeKindToml::Deno)
+            .or_insert(repl_deno_legacy);
+        repl_runtimes
+            .entry(ReplRuntimeKindToml::Python)
+            .or_insert(repl_python_legacy);
+
+        let repl_node = repl_runtimes
+            .get(&ReplRuntimeKindToml::Node)
+            .cloned()
+            .unwrap_or_default();
+        let repl_deno = repl_runtimes
+            .get(&ReplRuntimeKindToml::Deno)
+            .cloned()
+            .unwrap_or_default();
+        let repl_python = repl_runtimes
+            .get(&ReplRuntimeKindToml::Python)
+            .cloned()
+            .unwrap_or_default();
+        let repl_node_path = repl_node.path.clone();
+        let repl_node_args = repl_node.args.clone();
+        let repl_node_module_dirs = repl_node.module_dirs.clone();
+        let repl_deno_path = repl_deno.path.clone();
+        let repl_deno_args = repl_deno.args.clone();
+        let repl_python_path = repl_python.path.clone();
+        let repl_python_args = repl_python.args.clone();
 
         let tools_web_search_allowed_domains = cfg
             .tools
@@ -4327,6 +4354,101 @@ script_style = "zsh"
         assert_eq!(
             resolved.shell.and_then(|shell| shell.script_style),
             Some(crate::config_types::ShellScriptStyle::Zsh)
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn test_repl_runtime_registry_loads_from_nested_tools_table() -> std::io::Result<()> {
+        let fixture = create_test_fixture()?;
+        let cfg: ConfigToml = toml::from_str(
+            r#"
+[tools]
+repl = true
+repl_runtime = "python"
+
+[tools.repl_runtimes.node]
+path = "/custom/node"
+args = ["--inspect"]
+module_dirs = ["/app/node_modules"]
+
+[tools.repl_runtimes.python]
+path = "/custom/python"
+args = ["-X", "dev"]
+"#,
+        )
+        .or_panic("deserialize repl_runtimes table");
+
+        let resolved = Config::load_from_base_config_with_overrides(
+            cfg,
+            ConfigOverrides {
+                cwd: Some(fixture.cwd()),
+                ..Default::default()
+            },
+            fixture.code_home(),
+        )?;
+
+        assert_eq!(resolved.repl_default_runtime, ReplRuntimeKindToml::Python);
+        assert_eq!(
+            resolved.repl_runtime_config(ReplRuntimeKindToml::Node).runtime_path,
+            Some(PathBuf::from("/custom/node"))
+        );
+        assert_eq!(
+            resolved.repl_runtime_config(ReplRuntimeKindToml::Node).runtime_args,
+            vec!["--inspect".to_string()]
+        );
+        assert_eq!(
+            resolved.repl_runtime_config(ReplRuntimeKindToml::Node).module_dirs,
+            vec![PathBuf::from("/app/node_modules")]
+        );
+        assert_eq!(
+            resolved.repl_runtime_config(ReplRuntimeKindToml::Python).runtime_path,
+            Some(PathBuf::from("/custom/python"))
+        );
+        assert_eq!(
+            resolved.repl_runtime_config(ReplRuntimeKindToml::Python).runtime_args,
+            vec!["-X".to_string(), "dev".to_string()]
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn test_repl_runtime_registry_prefers_nested_table_over_legacy_fields() -> std::io::Result<()> {
+        let fixture = create_test_fixture()?;
+        let cfg: ConfigToml = toml::from_str(
+            r#"
+[tools]
+repl_runtime = "node"
+repl_node_path = "/legacy/node"
+repl_node_args = ["--legacy"]
+repl_node_module_dirs = ["/legacy/node_modules"]
+
+[tools.repl_runtimes.node]
+path = "/nested/node"
+args = ["--nested"]
+module_dirs = ["/nested/node_modules"]
+"#,
+        )
+        .or_panic("deserialize mixed repl runtime config");
+
+        let resolved = Config::load_from_base_config_with_overrides(
+            cfg,
+            ConfigOverrides {
+                cwd: Some(fixture.cwd()),
+                ..Default::default()
+            },
+            fixture.code_home(),
+        )?;
+
+        let node = resolved.repl_runtime_config(ReplRuntimeKindToml::Node);
+        assert_eq!(node.runtime_path, Some(PathBuf::from("/nested/node")));
+        assert_eq!(node.runtime_args, vec!["--nested".to_string()]);
+        assert_eq!(node.module_dirs, vec![PathBuf::from("/nested/node_modules")]);
+        assert_eq!(resolved.repl_node_path, Some(PathBuf::from("/nested/node")));
+        assert_eq!(resolved.repl_node_args, vec!["--nested".to_string()]);
+        assert_eq!(
+            resolved.repl_node_module_dirs,
+            vec![PathBuf::from("/nested/node_modules")]
         );
         Ok(())
     }

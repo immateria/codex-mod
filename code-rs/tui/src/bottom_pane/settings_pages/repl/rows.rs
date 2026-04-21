@@ -16,13 +16,13 @@ impl ReplSettingsView {
             count += 1;
         }
         // Optional: clear runtime path.
-        if self.settings.runtime_path.is_some() {
+        if self.current_runtime_spec().path.is_some() {
             count += 1;
         }
         // Runtime args.
         count += 1;
-        // Node-only: module dirs.
-        if matches!(self.settings.runtime, ReplRuntimeKindToml::Node) {
+        // Runtime-specific module dirs.
+        if self.settings.runtime.capabilities().uses_node_module_dirs {
             count += 1;
             // Optional: add module dir picker.
             if crate::platform_caps::supports_native_picker() {
@@ -69,15 +69,15 @@ impl ReplSettingsView {
         if crate::platform_caps::supports_native_picker() {
             rows.push(RowKind::PickRuntimePath);
         }
-        if self.settings.runtime_path.is_some() {
+        if self.current_runtime_spec().path.is_some() {
             rows.push(RowKind::ClearRuntimePath);
         }
 
         rows.push(RowKind::RuntimeArgs);
-        if matches!(self.settings.runtime, ReplRuntimeKindToml::Node) {
-            rows.push(RowKind::NodeModuleDirs);
+        if self.settings.runtime.capabilities().uses_node_module_dirs {
+            rows.push(RowKind::ModuleDirs);
             if crate::platform_caps::supports_native_picker() {
-                rows.push(RowKind::AddNodeModuleDir);
+                rows.push(RowKind::AddModuleDir);
             }
         }
 
@@ -103,19 +103,19 @@ impl ReplSettingsView {
     pub(super) fn main_row_specs(&self, rows: &[RowKind]) -> Vec<KeyValueRow<'static>> {
         let nf = crate::icons::nerd_fonts_enabled();
         let runtime_label = Self::runtime_label(self.settings.runtime);
-        let runtime_path = self
-            .settings
-            .runtime_path
+        let spec = self.current_runtime_spec();
+        let runtime_path = spec
+            .path
             .as_ref().map_or_else(|| "auto (PATH)".to_owned(), |path| path.to_string_lossy().into_owned());
-        let runtime_args = if self.settings.runtime_args.is_empty() {
+        let runtime_args = if spec.args.is_empty() {
             "(none)".to_owned()
         } else {
-            format!("{} entries", self.settings.runtime_args.len())
+            format!("{} entries", spec.args.len())
         };
-        let module_dirs = if self.settings.node_module_dirs.is_empty() {
+        let module_dirs = if spec.module_dirs.is_empty() {
             "(none)".to_owned()
         } else {
-            format!("{} entries", self.settings.node_module_dirs.len())
+            format!("{} entries", spec.module_dirs.len())
         };
         let apply_suffix = if self.dirty { " *" } else { "" };
         let dp = &self.settings.deno_permissions;
@@ -176,13 +176,13 @@ impl ReplSettingsView {
                         crate::colors::style_text_dim(),
                     ),
                 ),
-                RowKind::NodeModuleDirs => KeyValueRow::new("  Module dirs").with_value(
+                RowKind::ModuleDirs => KeyValueRow::new("  Module dirs").with_value(
                     StyledText::new(
                         module_dirs.clone(),
                         crate::colors::style_text_dim(),
                     ),
                 ),
-                RowKind::AddNodeModuleDir => {
+                RowKind::AddModuleDir => {
                     KeyValueRow::new("  Add module dir (folder picker)")
                 }
                 RowKind::DenoPermRead => KeyValueRow::new("  allow-read")

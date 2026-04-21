@@ -1979,6 +1979,31 @@
       ],
       "type": "string"
     },
+    "ReplRuntimeSpec": {
+      "additionalProperties": false,
+      "description": "Per-runtime configuration for the REPL tool.\n\nEach supported runtime (Node, Deno, future Python/Ruby) stores its resolved settings in this struct.  The resolved [`Config`] carries a `BTreeMap<ReplRuntimeKindToml, ReplRuntimeSpec>` so that adding a new runtime only requires adding an enum variant — no new flat fields.",
+      "properties": {
+        "args": {
+          "description": "Additional command-line arguments passed to the runtime process.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "module_dirs": {
+          "description": "Extra module/package search directories.\n\nFor Node this is `node_modules` parent dirs; for Python it could be virtualenv paths.  Runtimes that don't use module dirs leave this empty.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "path": {
+          "description": "Optional path to the runtime executable.  When `None`, the runtime's [`ReplRuntimeKindToml::default_executable`] is used.",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
     "SandboxMode": {
       "enum": [
         "read-only",
@@ -2772,6 +2797,14 @@
           "default": null,
           "description": "Legacy: path to the default runtime executable. Prefer per-runtime fields (`repl_node_path`, `repl_deno_path`) instead.",
           "type": "string"
+        },
+        "repl_runtimes": {
+          "additionalProperties": {
+            "$ref": "#/definitions/ReplRuntimeSpec"
+          },
+          "default": null,
+          "description": "Canonical per-runtime configuration.",
+          "type": "object"
         },
         "search_tool": {
           "default": null,

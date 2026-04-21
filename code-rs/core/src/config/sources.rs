@@ -3912,34 +3912,40 @@ pub fn set_repl_settings(
     let runtime = settings.runtime.label();
     tools_table["repl_runtime"] = toml_edit::value(runtime);
 
-    // Write path/args to the per-runtime TOML keys based on selected runtime.
-    let rt_label = settings.runtime.label();
-    let path_key = format!("repl_{rt_label}_path");
-    let args_key = format!("repl_{rt_label}_args");
-    match settings.runtime_path.as_ref() {
-        Some(path) => {
-            tools_table[&path_key] =
-                toml_edit::value(path.to_string_lossy().trim().to_owned());
-        }
-        None => {
-            tools_table.remove(&path_key);
-        }
-    }
-
-    let _ = write_exact_string_array(
-        tools_table,
-        &args_key,
-        &settings.runtime_args,
-    )?;
-
     // Clean up legacy flat fields if present.
     tools_table.remove("repl_runtime_path");
     tools_table.remove("repl_runtime_args");
-    let _ = write_path_array(
-        tools_table,
-        "repl_node_module_dirs",
-        &settings.node_module_dirs,
-    )?;
+    tools_table.remove("repl_node_path");
+    tools_table.remove("repl_node_args");
+    tools_table.remove("repl_deno_path");
+    tools_table.remove("repl_deno_args");
+    tools_table.remove("repl_python_path");
+    tools_table.remove("repl_python_args");
+    tools_table.remove("repl_node_module_dirs");
+
+    tools_table.remove("repl_runtimes");
+    let mut runtime_tables = TomlTable::new();
+    runtime_tables.set_implicit(true);
+    for &kind in super::ReplRuntimeKindToml::ALL {
+        let Some(spec) = settings.runtimes.get(&kind) else {
+            continue;
+        };
+        if spec.path.is_none() && spec.args.is_empty() && spec.module_dirs.is_empty() {
+            continue;
+        }
+
+        let mut runtime_table = TomlTable::new();
+        runtime_table.set_implicit(false);
+        if let Some(path) = spec.path.as_ref() {
+            runtime_table["path"] = toml_edit::value(path.to_string_lossy().trim().to_owned());
+        }
+        let _ = write_exact_string_array(&mut runtime_table, "args", &spec.args)?;
+        let _ = write_path_array(&mut runtime_table, "module_dirs", &spec.module_dirs)?;
+        runtime_tables[kind.label()] = TomlItem::Table(runtime_table);
+    }
+    if !runtime_tables.is_empty() {
+        tools_table["repl_runtimes"] = TomlItem::Table(runtime_tables);
+    }
 
     // Persist Deno permissions as an inline table.
     {
@@ -3962,4 +3968,87 @@ pub fn set_repl_settings(
     std::fs::write(tmp_file.path(), doc.to_string())?;
     tmp_file.persist(config_path)?;
     Ok(())
+}
+
+#[cfg(test)]
+mod repl_settings_persistence_tests {
+    use super::*;
+    use crate::config::{ConfigToml, DenoPermissions, ReplRuntimeKindToml, ReplRuntimeSpec, ReplSettingsToml};
+
+    #[test]
+    fn set_repl_settings_persists_nested_runtime_tables_and_cleans_legacy_keys() -> anyhow::Result<()> {
+        let code_home = tempfile::tempdir()?;
+        std::fs::write(
+            code_home.path().join(CONFIG_TOML_FILE),
+            r#"
+[tools]
+repl_node_path = "/legacy/node"
+repl_node_args = ["--legacy"]
+repl_node_module_dirs = ["/legacy/node_modules"]
+"#,
+        )?;
+
+        let mut runtimes = std::collections::BTreeMap::new();
+        runtimes.insert(
+            ReplRuntimeKindToml::Node,
+            ReplRuntimeSpec {
+                path: Some(PathBuf::from("/custom/node")),
+                args: vec!["--inspect".to_string()],
+                module_dirs: vec![PathBuf::from("/app/node_modules")],
+            },
+        );
+        runtimes.insert(
+            ReplRuntimeKindToml::Python,
+            ReplRuntimeSpec {
+                path: Some(PathBuf::from("/custom/python")),
+                args: vec!["-X".to_string(), "dev".to_string()],
+                module_dirs: Vec::new(),
+            },
+        );
+
+        let settings = ReplSettingsToml {
+            enabled: true,
+            node_enabled: true,
+            deno_enabled: false,
+            python_enabled: true,
+            runtime: ReplRuntimeKindToml::Python,
+            runtimes,
+            deno_permissions: DenoPermissions::default(),
+        };
+
+        set_repl_settings(code_home.path(), &settings)?;
+
+        let written = std::fs::read_to_string(code_home.path().join(CONFIG_TOML_FILE))?;
+        assert!(written.contains("[tools.repl_runtimes.node]"));
+        assert!(written.contains("[tools.repl_runtimes.python]"));
+        assert!(!written.contains("repl_node_path"));
+        assert!(!written.contains("repl_node_args"));
+        assert!(!written.contains("repl_node_module_dirs"));
+
+        let parsed: ConfigToml = toml::from_str(&written)?;
+        let tools = parsed.tools.expect("tools table");
+        let runtimes = tools.repl_runtimes.expect("repl runtimes");
+        assert_eq!(
+            runtimes
+                .get(&ReplRuntimeKindToml::Node)
+                .and_then(|spec| spec.path.clone()),
+            Some(PathBuf::from("/custom/node"))
+        );
+        assert_eq!(
+            runtimes
+                .get(&ReplRuntimeKindToml::Node)
+                .map(|spec| spec.module_dirs.clone())
+                .unwrap_or_default(),
+            vec![PathBuf::from("/app/node_modules")]
+        );
+        assert_eq!(
+            runtimes
+                .get(&ReplRuntimeKindToml::Python)
+                .map(|spec| spec.args.clone())
+                .unwrap_or_default(),
+            vec!["-X".to_string(), "dev".to_string()]
+        );
+
+        Ok(())
+    }
 }

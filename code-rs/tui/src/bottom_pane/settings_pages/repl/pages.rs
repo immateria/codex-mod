@@ -80,7 +80,7 @@ impl ReplSettingsView {
     fn list_edit_title(target: ListTarget) -> &'static str {
         match target {
             ListTarget::RuntimeArgs => " REPL: Runtime Args ",
-            ListTarget::NodeModuleDirs => " REPL: Node Module Dirs ",
+            ListTarget::ModuleDirs => " REPL: Module Dirs ",
         }
     }
 
@@ -103,7 +103,7 @@ impl ReplSettingsView {
     pub(super) fn list_edit_page(target: ListTarget) -> SettingsEditorPage<'static> {
         let field_title = match target {
             ListTarget::RuntimeArgs => "Runtime args",
-            ListTarget::NodeModuleDirs => "Node module dirs",
+            ListTarget::ModuleDirs => "Module dirs",
         };
         SettingsEditorPage::new(
             Self::list_edit_title(target),

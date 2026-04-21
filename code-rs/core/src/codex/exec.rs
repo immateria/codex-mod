@@ -256,8 +256,11 @@ pub struct ExecInvokeArgs<'a> {
 
 fn materialize_shell_script(user_shell: &crate::shell::Shell, mut params: ExecParams) -> ExecParams {
     if let Some(shell_script) = params.shell_script.take() {
-        params.command = user_shell
-            .shell_script_invocation_or_default(shell_script.command, shell_script.use_login_shell);
+        params.command = user_shell.shell_script_invocation_or_default(
+            shell_script.command,
+            shell_script.source_user_rc,
+            shell_script.login_shell,
+        );
     }
     params
 }
@@ -992,7 +995,8 @@ mod tests {
         let mut params = base_params(command);
         params.shell_script = Some(DeferredShellScript {
             command: command.to_string(),
-            use_login_shell: true,
+            source_user_rc: false,
+            login_shell: true,
         });
 
         let materialized = materialize_shell_script(&shell, params);
@@ -1016,7 +1020,8 @@ mod tests {
         let mut params = base_params("printf hello");
         params.shell_script = Some(DeferredShellScript {
             command: "printf hello".to_string(),
-            use_login_shell: false,
+            source_user_rc: false,
+            login_shell: false,
         });
 
         let materialized = materialize_shell_script(&shell, params);
@@ -1027,6 +1032,37 @@ mod tests {
                 "/bin/bash".to_string(),
                 "-c".to_string(),
                 "printf hello".to_string(),
+            ]
+        );
+    }
+
+    #[test]
+    fn materialize_shell_script_can_source_rc_without_login_shell() {
+        let temp_home = tempfile::tempdir().expect("temp home");
+        let bashrc_path = temp_home.path().join(".bashrc");
+        std::fs::write(&bashrc_path, "echo sourced").expect("write bashrc");
+        let shell = Shell::Bash(BashShell {
+            shell_path: "/bin/bash".to_string(),
+            bashrc_path: bashrc_path.to_string_lossy().into_owned(),
+        });
+        let mut params = base_params("printf hello");
+        params.shell_script = Some(DeferredShellScript {
+            command: "printf hello".to_string(),
+            source_user_rc: true,
+            login_shell: false,
+        });
+
+        let materialized = materialize_shell_script(&shell, params);
+
+        assert_eq!(
+            materialized.command,
+            vec![
+                "/bin/bash".to_string(),
+                "-c".to_string(),
+                format!(
+                    "source {} && (printf hello)",
+                    bashrc_path.to_string_lossy()
+                ),
             ]
         );
     }

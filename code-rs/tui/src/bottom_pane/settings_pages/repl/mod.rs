@@ -27,7 +27,7 @@ enum TextTarget {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum ListTarget {
     RuntimeArgs,
-    NodeModuleDirs,
+    ModuleDirs,
 }
 
 #[derive(Debug)]
@@ -49,8 +49,8 @@ enum RowKind {
     PickRuntimePath,
     ClearRuntimePath,
     RuntimeArgs,
-    NodeModuleDirs,
-    AddNodeModuleDir,
+    ModuleDirs,
+    AddModuleDir,
     DenoPermRead,
     DenoPermWrite,
     DenoPermNet,
@@ -98,11 +98,14 @@ impl ReplSettingsView {
     }
 
     pub(crate) fn new(
-        settings: ReplSettingsToml,
+        mut settings: ReplSettingsToml,
         network_enabled: bool,
         app_event_tx: AppEventSender,
         ticket: BackgroundOrderTicket,
     ) -> Self {
+        for &kind in ReplRuntimeKindToml::ALL {
+            settings.runtimes.entry(kind).or_default();
+        }
         let state = ScrollState::with_first_selected();
         Self {
             settings,
@@ -123,5 +126,17 @@ impl ReplSettingsView {
 
     pub(crate) fn has_back_navigation(&self) -> bool {
         !matches!(self.mode, ViewMode::Main)
+    }
+
+    fn current_runtime_spec(&self) -> code_core::config::ReplRuntimeSpec {
+        self.settings
+            .runtimes
+            .get(&self.settings.runtime)
+            .cloned()
+            .unwrap_or_default()
+    }
+
+    fn current_runtime_spec_mut(&mut self) -> &mut code_core::config::ReplRuntimeSpec {
+        self.settings.runtimes.entry(self.settings.runtime).or_default()
     }
 }
