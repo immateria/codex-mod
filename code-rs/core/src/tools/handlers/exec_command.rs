@@ -24,23 +24,18 @@ pub(crate) struct ExecCommandToolHandler;
 /// alternative shells only support `-c`. PowerShell uses a different mechanism
 /// entirely and is rejected here.
 fn shell_command_flag(shell: &str, login: bool) -> Option<&'static str> {
-    let lower = shell.to_ascii_lowercase();
-    let base = std::path::Path::new(&lower)
-        .file_name()
-        .and_then(|s| s.to_str())
-        .unwrap_or(&lower);
+    let base = crate::shell::shell_basename(shell);
 
     if base.contains("powershell") || base.contains("pwsh") {
         return None;
     }
 
     // Fish does not support -lc, only -c.
-    if base == "fish" || base == "fish.exe" {
+    if base == "fish" {
         return Some("-c");
     }
     // Nushell, elvish, xonsh, osh/oil only support -c.
-    if matches!(base, "nu" | "nu.exe" | "elvish" | "elvish.exe"
-        | "xonsh" | "xonsh.exe" | "osh" | "osh.exe" | "oil" | "oil.exe") {
+    if matches!(base.as_str(), "nu" | "elvish" | "xonsh" | "osh" | "oil") {
         return Some("-c");
     }
 

@@ -2132,6 +2132,10 @@
         "path": {
           "type": "string"
         },
+        "rc_path": {
+          "description": "Optional override for the shell's RC file path. When set, overrides `$ZDOTDIR/.zshrc` (for zsh) or `~/.bashrc` (for bash) detection.",
+          "type": "string"
+        },
         "script_style": {
           "allOf": [
             {
@@ -2256,11 +2260,15 @@
         "power-shell",
         "cmd",
         "nushell",
-        "elvish"
+        "elvish",
+        "fish",
+        "xonsh",
+        "oil"
       ],
       "type": "string"
     },
     "ShellStyleMcpConfig": {
+      "description": "Controls which MCP servers are active for a particular shell style profile.\n\n`include` and `exclude` matching is **case-insensitive**: `\"Bash-Zsh\"` and `\"bash-zsh\"` are treated as the same name.",
       "properties": {
         "exclude": {
           "default": [],

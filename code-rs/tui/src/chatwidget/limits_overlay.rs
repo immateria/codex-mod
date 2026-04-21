@@ -115,13 +115,9 @@ impl LimitsOverlay {
         }
         let current = self.selected_tab();
         let next = (current + 1) % count;
-        if next == current {
-            false
-        } else {
-            self.selected_tab.set(next);
-            self.scroll.set(0);
-            true
-        }
+        self.selected_tab.set(next);
+        self.scroll.set(0);
+        true
     }
 
     pub(crate) fn select_prev_tab(&self) -> bool {
@@ -131,13 +127,9 @@ impl LimitsOverlay {
         }
         let current = self.selected_tab();
         let prev = if current == 0 { count - 1 } else { current - 1 };
-        if prev == current {
-            false
-        } else {
-            self.selected_tab.set(prev);
-            self.scroll.set(0);
-            true
-        }
+        self.selected_tab.set(prev);
+        self.scroll.set(0);
+        true
     }
 
     pub(crate) fn tabs(&self) -> Option<&[LimitsTab]> {

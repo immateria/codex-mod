@@ -357,15 +357,16 @@ fn detect_default_user_shell() -> Shell {
                 .to_string_lossy()
                 .into_owned();
             let home_path = CStr::from_ptr((*pw).pw_dir).to_string_lossy().into_owned();
+            let base = shell_basename(&shell_path);
 
-            if shell_basename(&shell_path) == "zsh" {
+            if base == "zsh" {
                 return Shell::Zsh(ZshShell {
                     shell_path,
                     zshrc_path: format!("{home_path}/.zshrc"),
                 });
             }
 
-            if shell_basename(&shell_path) == "bash" {
+            if base == "bash" {
                 return Shell::Bash(BashShell {
                     shell_path,
                     bashrc_path: format!("{home_path}/.bashrc"),
@@ -375,43 +376,19 @@ fn detect_default_user_shell() -> Shell {
             // For non-Bash/Zsh shells, prefer a generic `-c` invocation with a
             // best-effort script style so downstream UX (instructions, safety)
             // can be shell-aware.
-            if matches!(
-                shell_basename(&shell_path).as_str(),
-                "sh" | "dash" | "ash" | "ksh"
-            ) {
+            let style = match base.as_str() {
+                "sh" | "dash" | "ash" | "ksh" => Some(ShellScriptStyle::PosixSh),
+                "nu" => Some(ShellScriptStyle::Nushell),
+                "elvish" => Some(ShellScriptStyle::Elvish),
+                "fish" => Some(ShellScriptStyle::Fish),
+                "xonsh" => Some(ShellScriptStyle::Xonsh),
+                "osh" | "oil" => Some(ShellScriptStyle::Oil),
+                _ => None,
+            };
+            if let Some(script_style) = style {
                 return Shell::Generic(GenericShell {
                     command: vec![shell_path, "-c".to_owned()],
-                    script_style: Some(ShellScriptStyle::PosixSh),
-                });
-            }
-            if shell_basename(&shell_path) == "nu" {
-                return Shell::Generic(GenericShell {
-                    command: vec![shell_path, "-c".to_owned()],
-                    script_style: Some(ShellScriptStyle::Nushell),
-                });
-            }
-            if shell_basename(&shell_path) == "elvish" {
-                return Shell::Generic(GenericShell {
-                    command: vec![shell_path, "-c".to_owned()],
-                    script_style: Some(ShellScriptStyle::Elvish),
-                });
-            }
-            if shell_basename(&shell_path) == "fish" {
-                return Shell::Generic(GenericShell {
-                    command: vec![shell_path, "-c".to_owned()],
-                    script_style: Some(ShellScriptStyle::Fish),
-                });
-            }
-            if shell_basename(&shell_path) == "xonsh" {
-                return Shell::Generic(GenericShell {
-                    command: vec![shell_path, "-c".to_owned()],
-                    script_style: Some(ShellScriptStyle::Xonsh),
-                });
-            }
-            if matches!(shell_basename(&shell_path).as_str(), "osh" | "oil") {
-                return Shell::Generic(GenericShell {
-                    command: vec![shell_path, "-c".to_owned()],
-                    script_style: Some(ShellScriptStyle::Oil),
+                    script_style: Some(script_style),
                 });
             }
         }
@@ -795,7 +772,7 @@ mod macos_tests {
                 vec![
                     shell_path,
                     "-lc",
-                    "source ZSHRC_PATH && (bash -c \"echo 'single' \\\"double\\\"\")",
+                    "source ZSHRC_PATH && (echo 'single' \"double\")",
                 ],
                 Some("single double\n"),
             ),

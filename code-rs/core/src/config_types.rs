@@ -3722,7 +3722,18 @@ mod tests {
             ShellScriptStyle::infer_from_shell_program("elvish"),
             Some(ShellScriptStyle::Elvish)
         );
-        assert_eq!(ShellScriptStyle::infer_from_shell_program("fish"), None);
+        assert_eq!(
+            ShellScriptStyle::infer_from_shell_program("fish"),
+            Some(ShellScriptStyle::Fish)
+        );
+        assert_eq!(
+            ShellScriptStyle::infer_from_shell_program("xonsh"),
+            Some(ShellScriptStyle::Xonsh)
+        );
+        assert_eq!(
+            ShellScriptStyle::infer_from_shell_program("osh"),
+            Some(ShellScriptStyle::Oil)
+        );
     }
 
     #[test]
