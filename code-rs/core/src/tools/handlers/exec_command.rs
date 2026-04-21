@@ -17,9 +17,34 @@ use std::path::PathBuf;
 
 pub(crate) struct ExecCommandToolHandler;
 
-fn shell_supports_lc(shell: &str) -> bool {
+/// Returns the command flag to use for a given shell executable, or `None` if
+/// the shell is not supported for script-mode invocation.
+///
+/// Most POSIX-like shells support `-lc` (login + command). Fish and some
+/// alternative shells only support `-c`. PowerShell uses a different mechanism
+/// entirely and is rejected here.
+fn shell_command_flag(shell: &str, login: bool) -> Option<&'static str> {
     let lower = shell.to_ascii_lowercase();
-    !(lower.contains("powershell") || lower.contains("pwsh"))
+    let base = std::path::Path::new(&lower)
+        .file_name()
+        .and_then(|s| s.to_str())
+        .unwrap_or(&lower);
+
+    if base.contains("powershell") || base.contains("pwsh") {
+        return None;
+    }
+
+    // Fish does not support -lc, only -c.
+    if base == "fish" || base == "fish.exe" {
+        return Some("-c");
+    }
+    // Nushell, elvish, xonsh, osh/oil only support -c.
+    if matches!(base, "nu" | "nu.exe" | "elvish" | "elvish.exe"
+        | "xonsh" | "xonsh.exe" | "osh" | "osh.exe" | "oil" | "oil.exe") {
+        return Some("-c");
+    }
+
+    if login { Some("-lc") } else { Some("-c") }
 }
 
 #[async_trait]
@@ -87,16 +112,21 @@ impl ToolHandler for ExecCommandToolHandler {
                     }
                     params.workdir = Some(effective_workdir.to_string_lossy().into_owned());
 
-                    // If shell isn't explicitly set, default to the session shell when it is bash/zsh.
+                    // If shell isn't explicitly set, default to the session shell.
                     if !shell_was_provided {
                         match sess.user_shell() {
                             crate::shell::Shell::Zsh(zsh) => params.shell = zsh.shell_path.clone(),
                             crate::shell::Shell::Bash(bash) => params.shell = bash.shell_path.clone(),
+                            crate::shell::Shell::Generic(g) => {
+                                if let Some(exe) = g.command.first() {
+                                    params.shell = exe.clone();
+                                }
+                            }
                             _ => {}
                         }
                     }
 
-                    if !shell_supports_lc(&params.shell) {
+                    let Some(mode_flag) = shell_command_flag(&params.shell, params.login) else {
                         return unsupported_tool_call_output(
                             &call_id,
                             false,
@@ -105,10 +135,8 @@ impl ToolHandler for ExecCommandToolHandler {
                                 params.shell
                             ),
                         );
-                    }
-
+                    };
                     // Intercept apply_patch-style commands invoked via exec_command.
-                    let mode_flag = if params.login { "-lc" } else { "-c" };
                     let wrapper =
                         vec![params.shell.clone(), mode_flag.to_owned(), params.cmd.clone()];
                     match code_apply_patch::maybe_parse_apply_patch_verified(&wrapper, &effective_workdir)

@@ -866,6 +866,10 @@ pub struct CommandSafetyProfileConfig {
     pub os: CommandSafetyOsProfileConfig,
 }
 
+/// Controls which MCP servers are active for a particular shell style profile.
+///
+/// `include` and `exclude` matching is **case-insensitive**: `"Bash-Zsh"` and
+/// `"bash-zsh"` are treated as the same name.
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Default, JsonSchema)]
 pub struct ShellStyleMcpConfig {
     #[serde(default)]

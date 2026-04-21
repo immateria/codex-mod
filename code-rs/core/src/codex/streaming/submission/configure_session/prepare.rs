@@ -273,14 +273,34 @@ impl Runner<'_> {
                 }
             }
 
+            const REFERENCE_FILE_MAX_BYTES: u64 = 1024 * 1024; // 1 MB
+
             for reference in profile.references {
                 let full_path = if reference.is_relative() {
                     updated_config.cwd.join(&reference)
                 } else {
                     reference.clone()
                 };
-                match std::fs::read_to_string(&full_path) {
-                    Ok(contents) => {
+                match tokio::fs::File::open(&full_path).await {
+                    Ok(mut file) => {
+                        use tokio::io::AsyncReadExt;
+                        let size = file.metadata().await.map(|m| m.len()).unwrap_or(0);
+                        let mut contents = String::new();
+                        let mut limited = (&mut file).take(REFERENCE_FILE_MAX_BYTES + 1);
+                        if let Err(err) = limited.read_to_string(&mut contents).await {
+                            warn!(
+                                "failed to read shell style reference {}: {err}",
+                                full_path.display()
+                            );
+                            continue;
+                        }
+                        if size > REFERENCE_FILE_MAX_BYTES {
+                            contents.truncate(REFERENCE_FILE_MAX_BYTES as usize);
+                            warn!(
+                                "shell style reference {} truncated at 1 MB ({size} bytes total)",
+                                full_path.display()
+                            );
+                        }
                         let trimmed = contents.trim();
                         if !trimmed.is_empty() {
                             shell_style_profile_messages.push(format!(

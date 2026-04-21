@@ -104,7 +104,7 @@ impl Shell {
             ),
             Shell::PowerShell(ps) => {
                 // If model generated a bash command, prefer a detected bash fallback
-                if let Some(script) = strip_bash_lc(command.as_slice()) {
+                if let Some(script) = extract_script_argument(command.as_slice()) {
                     return match &ps.bash_exe_fallback {
                         Some(bash) => Some(vec![
                             bash.to_string_lossy().into_owned(),
@@ -128,25 +128,22 @@ impl Shell {
                 // turn it into a PowerShell command.
                 let first = command.first().map(String::as_str);
                 if first != Some(ps.exe.as_str()) {
-                    // If any argument contains newlines, use -EncodedCommand which
-                    // accepts a Base64-encoded UTF-16LE script string. This safely
-                    // transports multiline scripts, embedded quotes, and all
-                    // special characters without shell escaping issues.
-                    if command.iter().any(|a| a.contains('\n') || a.contains('\r')) {
-                        let script = shlex::try_join(command.iter().map(String::as_str))
-                            .unwrap_or_else(|_| command.join(" "));
+                    let script = shlex::try_join(command.iter().map(String::as_str))
+                        .unwrap_or_else(|_| command.join(" "));
+                    // Use -EncodedCommand for scripts containing characters that
+                    // break PowerShell's -Command argument parser: newlines,
+                    // dollar signs (variable expansion), backticks (PS escape),
+                    // double quotes, and non-ASCII.
+                    if needs_powershell_encoding(&script) {
                         return Some(encode_powershell_command(&ps.exe, &script));
                     }
 
-                    let joined = shlex::try_join(command.iter().map(String::as_str)).ok();
-                    return joined.map(|arg| {
-                        vec![
-                            ps.exe.clone(),
-                            "-NoProfile".to_owned(),
-                            "-Command".to_owned(),
-                            arg,
-                        ]
-                    });
+                    return Some(vec![
+                        ps.exe.clone(),
+                        "-NoProfile".to_owned(),
+                        "-Command".to_owned(),
+                        script,
+                    ]);
                 }
 
                 // Model generated a PowerShell command. Run it.
@@ -156,7 +153,7 @@ impl Shell {
                 // For generic shells that execute scripts via -c/-lc, pass the
                 // model command as a single script argument.
                 if generic_shell_expects_script_argument(generic.command.as_slice()) {
-                    let script = strip_bash_lc(command.as_slice())
+                    let script = extract_script_argument(command.as_slice())
                         .or_else(|| shlex::try_join(command.iter().map(String::as_str)).ok())?;
                     let mut invocation = generic.command.clone();
                     invocation.push(script);
@@ -234,7 +231,7 @@ fn format_shell_invocation_with_rc(
     shell_path: &str,
     rc_path: &str,
 ) -> Option<Vec<String>> {
-    let joined = strip_bash_lc(command)
+    let joined = extract_script_argument(command)
         .or_else(|| shlex::try_join(command.iter().map(String::as_str)).ok())?;
 
     let rc_command = if std::path::Path::new(rc_path).exists() {
@@ -246,12 +243,13 @@ fn format_shell_invocation_with_rc(
     Some(vec![shell_path.to_owned(), "-lc".to_owned(), rc_command])
 }
 
-fn strip_bash_lc(command: &[String]) -> Option<String> {
+/// Extract the script text from a shell invocation of the form
+/// `[shell, "-c"|"-lc", script]` where `shell` is any recognized shell
+/// executable.
+fn extract_script_argument(command: &[String]) -> Option<String> {
     match command {
-        // exactly three items
-        [first, second, third]
-            // first two must be "bash", "-lc"
-            if is_bash_like(first) && second == "-lc" =>
+        [first, flag, third]
+            if is_bash_like(first) && matches!(flag.as_str(), "-c" | "-lc") =>
         {
             Some(third.clone())
         }
@@ -314,6 +312,13 @@ fn generic_shell_expects_script_argument(shell_command: &[String]) -> bool {
         shell_command.last().map(String::as_str),
         Some("-c" | "-lc")
     )
+}
+
+/// Returns `true` when a script contains characters that break PowerShell's
+/// `-Command` argument parser and should use `-EncodedCommand` instead.
+fn needs_powershell_encoding(script: &str) -> bool {
+    script.bytes().any(|b| matches!(b, b'\n' | b'\r' | b'$' | b'`' | b'"'))
+        || !script.is_ascii()
 }
 
 /// Encode a PowerShell script as a `-EncodedCommand` invocation.

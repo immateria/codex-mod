@@ -195,4 +195,18 @@ mod tests {
         let merged = merge_shell_presets(user);
         assert!(merged.iter().any(|p| p.id == "custom"));
     }
+
+    #[test]
+    fn preset_script_style_strings_are_parseable() {
+        use code_core::config_types::ShellScriptStyle;
+        for preset in builtin_shell_presets() {
+            if let Some(style_str) = &preset.script_style {
+                assert!(
+                    ShellScriptStyle::parse(style_str).is_some(),
+                    "preset `{}` has script_style `{style_str}` that ShellScriptStyle::parse cannot parse",
+                    preset.id,
+                );
+            }
+        }
+    }
 }

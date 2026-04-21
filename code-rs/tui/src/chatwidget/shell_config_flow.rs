@@ -96,7 +96,8 @@ impl ChatWidget<'_> {
                 ShellScriptStyle::parse(style_value.as_str())
                     .ok_or_else(|| {
                         format!(
-                            "unknown style `{style_value}` (expected one of: posix-sh, bash-zsh-compatible, zsh)",
+                            "unknown style `{style_value}` (expected one of: {})",
+                            ShellScriptStyle::all_variant_names().join(", "),
                         )
                     })?,
             )
@@ -131,8 +132,18 @@ impl ChatWidget<'_> {
         script_style: Option<ShellScriptStyle>,
         current_shell: Option<&ShellConfig>,
     ) -> ShellConfig {
-        let (command_safety, dangerous_command_detection) = current_shell
-            .map_or_else(|| (code_core::config_types::CommandSafetyProfileConfig::default(), None), |shell| (shell.command_safety.clone(), shell.dangerous_command_detection));
+        // Only preserve safety overrides when the shell executable hasn't
+        // changed. Per-shell safety rules (e.g. "always allow `rm`" under
+        // bash) should not silently carry over to a different shell.
+        let shell_path_changed = current_shell.map_or(true, |s| s.path != path);
+        let (command_safety, dangerous_command_detection) = if shell_path_changed {
+            (code_core::config_types::CommandSafetyProfileConfig::default(), None)
+        } else {
+            current_shell.map_or_else(
+                || (code_core::config_types::CommandSafetyProfileConfig::default(), None),
+                |shell| (shell.command_safety.clone(), shell.dangerous_command_detection),
+            )
+        };
 
         ShellConfig {
             path,

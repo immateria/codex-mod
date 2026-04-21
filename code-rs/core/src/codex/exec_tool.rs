@@ -2186,9 +2186,11 @@ fn compute_zsh_fork_exec_config(
     argv: &[String],
 ) -> Option<ZshForkExecConfig> {
     if !cfg!(unix) {
+        tracing::debug!("zsh-fork skipped: not Unix");
         return None;
     }
     if sandbox_type == SandboxType::None {
+        tracing::debug!("zsh-fork skipped: sandbox disabled");
         return None;
     }
     if !sess
@@ -2200,11 +2202,16 @@ fn compute_zsh_fork_exec_config(
         return None;
     }
     if !shell_program_is_zsh(sess.user_shell()) {
+        tracing::debug!("zsh-fork skipped: session shell is not zsh");
         return None;
     }
 
-    let zsh_path = sess.client.config().zsh_path.clone()?;
+    let zsh_path = sess.client.config().zsh_path.clone().or_else(|| {
+        tracing::debug!("zsh-fork skipped: zsh_path not configured");
+        None
+    })?;
     if !zsh_path.is_absolute() {
+        tracing::debug!("zsh-fork skipped: zsh_path is not absolute");
         return None;
     }
     if !zsh_path.is_file() {

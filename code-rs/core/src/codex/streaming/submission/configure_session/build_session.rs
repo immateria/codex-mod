@@ -429,7 +429,13 @@ impl Runner<'_> {
                     Some((program, args)) => (Some(program.clone()), args.to_vec()),
                     None => (None, Vec::new()),
                 },
-                crate::shell::Shell::Unknown => (None, Vec::new()),
+                crate::shell::Shell::Unknown => {
+                    tracing::warn!(
+                        "Could not detect a supported shell. Commands will use the \
+                         default /bin/bash fallback, which may not match your environment."
+                    );
+                    (None, Vec::new())
+                }
             },
         };
 
