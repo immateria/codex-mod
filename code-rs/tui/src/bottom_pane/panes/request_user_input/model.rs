@@ -34,6 +34,7 @@ impl RequestUserInputView {
                 }
                 AnswerState {
                     option_state,
+                    checked_options: Default::default(),
                     hover_option_idx: None,
                     freeform: String::new(),
                 }
@@ -100,6 +101,10 @@ impl RequestUserInputView {
         self.current_options_len() > 0
     }
 
+    pub(super) fn current_allows_multiple(&self) -> bool {
+        self.current_question().is_some_and(|question| question.allow_multiple)
+    }
+
     pub(super) fn current_accepts_freeform(&self) -> bool {
         if self.current_options_len() == 0 {
             return true;
@@ -107,10 +112,15 @@ impl RequestUserInputView {
         let Some(other_idx) = self.current_other_index() else {
             return false;
         };
-        let selected_idx = self
-            .current_answer()
-            .and_then(|answer| answer.option_state.selected_idx);
-        selected_idx == Some(other_idx)
+        let Some(answer) = self.current_answer() else {
+            return false;
+        };
+        if self.current_allows_multiple() {
+            answer.option_state.selected_idx == Some(other_idx)
+                && answer.checked_options.contains(&other_idx)
+        } else {
+            answer.option_state.selected_idx == Some(other_idx)
+        }
     }
 
     pub(super) fn move_selection(&mut self, up: bool) {
@@ -158,19 +168,65 @@ impl RequestUserInputView {
         }
     }
 
+    pub(super) fn toggle_current_option(&mut self) {
+        let options_len = self.current_total_options_len();
+        if options_len == 0 {
+            return;
+        }
+        let allows_multiple = self.current_allows_multiple();
+        let Some(answer) = self.current_answer_mut() else {
+            return;
+        };
+        let idx = answer.option_state.selected_idx.unwrap_or(0).min(options_len - 1);
+        answer.option_state.selected_idx = Some(idx);
+        if allows_multiple {
+            if !answer.checked_options.insert(idx) {
+                answer.checked_options.remove(&idx);
+            }
+        }
+        answer
+            .option_state
+            .ensure_visible(options_len, options_len.clamp(1, 6));
+    }
+
     pub(super) fn select_current_option_by_label(&mut self, desired_label: &str) -> bool {
         let idx = self
             .current_question()
             .and_then(|question| question.options.as_ref())
             .and_then(|options| options.iter().position(|opt| opt.label.trim() == desired_label));
+        let allows_multiple = self.current_allows_multiple();
         let Some(answer) = self.current_answer_mut() else {
             return false;
         };
         if let Some(idx) = idx {
             answer.option_state.selected_idx = Some(idx);
+            if allows_multiple {
+                answer.checked_options.insert(idx);
+            }
             return true;
         }
         false
+    }
+
+    pub(super) fn select_option_at_index(&mut self, idx: usize) -> bool {
+        let options_len = self.current_total_options_len();
+        if idx >= options_len {
+            return false;
+        }
+        let allows_multiple = self.current_allows_multiple();
+        let Some(answer) = self.current_answer_mut() else {
+            return false;
+        };
+        answer.option_state.selected_idx = Some(idx);
+        answer
+            .option_state
+            .ensure_visible(options_len, options_len.clamp(1, 6));
+        if allows_multiple {
+            if !answer.checked_options.insert(idx) {
+                answer.checked_options.remove(&idx);
+            }
+        }
+        true
     }
 
     pub(super) fn option_hit_test(&self, area: Rect, x: u16, y: u16) -> Option<usize> {
@@ -279,16 +335,32 @@ impl RequestUserInputView {
             let mut answer_list = Vec::new();
 
             if let Some(options) = options {
-                let selected_idx = answer_state.option_state.selected_idx;
                 let other_idx = (question.is_other && !options.is_empty()).then_some(options.len());
-                if other_idx.is_some_and(|idx| selected_idx == Some(idx)) {
-                    let value = answer_state.freeform.trim_end();
-                    answer_list.push(value.to_owned());
-                } else if let Some(label) = selected_idx
-                    .and_then(|i| options.get(i))
-                    .map(|opt| opt.label.clone())
-                {
-                    answer_list.push(label);
+                if question.allow_multiple {
+                    for (idx, option) in options.iter().enumerate() {
+                        if answer_state.checked_options.contains(&idx) {
+                            answer_list.push(option.label.clone());
+                        }
+                    }
+                    if other_idx.is_some_and(|idx| answer_state.checked_options.contains(&idx)) {
+                        let value = answer_state.freeform.trim_end();
+                        if !value.is_empty() {
+                            answer_list.push(value.to_owned());
+                        }
+                    }
+                } else {
+                    let selected_idx = answer_state.option_state.selected_idx;
+                    if other_idx.is_some_and(|idx| selected_idx == Some(idx)) {
+                        let value = answer_state.freeform.trim_end();
+                        if !value.is_empty() {
+                            answer_list.push(value.to_owned());
+                        }
+                    } else if let Some(label) = selected_idx
+                        .and_then(|i| options.get(i))
+                        .map(|opt| opt.label.clone())
+                    {
+                        answer_list.push(label);
+                    }
                 }
             } else {
                 let value = answer_state.freeform.trim_end();
@@ -313,5 +385,127 @@ impl RequestUserInputView {
         // This prevents a race where the composer becomes active while
         // `pending_request_user_input` is still set.
         self.submitting = true;
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::sync::mpsc::channel;
+
+    use code_protocol::request_user_input::RequestUserInputQuestion;
+    use code_protocol::request_user_input::RequestUserInputQuestionOption;
+
+    use crate::app_event::AppEvent;
+    use crate::app_event_sender::AppEventSender;
+
+    use super::RequestUserInputView;
+
+    fn make_view(question: RequestUserInputQuestion) -> (RequestUserInputView, std::sync::mpsc::Receiver<AppEvent>) {
+        let (tx, rx) = channel();
+        (
+            RequestUserInputView::new(
+                "turn-1".to_owned(),
+                "call-1".to_owned(),
+                vec![question],
+                AppEventSender::new(tx),
+            ),
+            rx,
+        )
+    }
+
+    #[test]
+    fn submit_multiselect_returns_checked_labels_in_order() {
+        let (mut view, rx) = make_view(RequestUserInputQuestion {
+            id: "terminals".to_owned(),
+            header: "Terminals".to_owned(),
+            question: "Select supported terminals".to_owned(),
+            is_other: true,
+            is_secret: false,
+            allow_multiple: true,
+            options: Some(vec![
+                RequestUserInputQuestionOption {
+                    label: "Termux".to_owned(),
+                    description: "Android terminal".to_owned(),
+                },
+                RequestUserInputQuestionOption {
+                    label: "WezTerm".to_owned(),
+                    description: "Desktop terminal".to_owned(),
+                },
+            ]),
+        });
+
+        view.toggle_current_option();
+        view.move_selection(false);
+        view.toggle_current_option();
+        view.move_selection(false);
+        view.toggle_current_option();
+        for ch in "Custom shell".chars() {
+            view.push_freeform_char(ch);
+        }
+        view.submit();
+
+        let AppEvent::RequestUserInputAnswer { response, .. } = rx.recv().expect("answer event") else {
+            panic!("expected request_user_input answer event");
+        };
+        assert_eq!(
+            response.answers["terminals"].answers,
+            vec![
+                "Termux".to_owned(),
+                "WezTerm".to_owned(),
+                "Custom shell".to_owned(),
+            ]
+        );
+    }
+
+    #[test]
+    fn freeform_only_question_submits_typed_answer() {
+        let (mut view, rx) = make_view(RequestUserInputQuestion {
+            id: "name".to_owned(),
+            header: "Name".to_owned(),
+            question: "Type a name".to_owned(),
+            is_other: false,
+            is_secret: false,
+            allow_multiple: false,
+            options: None,
+        });
+
+        for ch in "Ali".chars() {
+            view.push_freeform_char(ch);
+        }
+        view.submit();
+
+        let AppEvent::RequestUserInputAnswer { response, .. } = rx.recv().expect("answer event") else {
+            panic!("expected request_user_input answer event");
+        };
+        assert_eq!(response.answers["name"].answers, vec!["Ali".to_owned()]);
+    }
+
+    #[test]
+    fn submit_multiselect_omits_blank_other_answer() {
+        let (mut view, rx) = make_view(RequestUserInputQuestion {
+            id: "terminals".to_owned(),
+            header: "Terminals".to_owned(),
+            question: "Select supported terminals".to_owned(),
+            is_other: true,
+            is_secret: false,
+            allow_multiple: true,
+            options: Some(vec![RequestUserInputQuestionOption {
+                label: "Termux".to_owned(),
+                description: "Android terminal".to_owned(),
+            }]),
+        });
+
+        view.toggle_current_option();
+        view.move_selection(false);
+        view.toggle_current_option();
+        view.submit();
+
+        let AppEvent::RequestUserInputAnswer { response, .. } = rx.recv().expect("answer event") else {
+            panic!("expected request_user_input answer event");
+        };
+        assert_eq!(
+            response.answers["terminals"].answers,
+            vec!["Termux".to_owned()]
+        );
     }
 }

@@ -25,13 +25,26 @@ fn fuse_hint_key_labels() -> bool {
 /// `enabled`, restoring the prior value on return.
 #[cfg(test)]
 pub(crate) fn with_test_fuse_hint_key_labels<F: FnOnce()>(enabled: bool, f: F) {
-    use std::sync::Mutex;
-    static LOCK: Mutex<()> = Mutex::new(());
-    let _guard = LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    use std::sync::{Mutex, OnceLock};
+
+    static TEST_FUSE_HINT_KEY_LABELS_LOCK: OnceLock<Mutex<()>> = OnceLock::new();
+    let _guard = TEST_FUSE_HINT_KEY_LABELS_LOCK
+        .get_or_init(|| Mutex::new(()))
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+
+    struct RestoreFuseHintKeyLabels(bool);
+
+    impl Drop for RestoreFuseHintKeyLabels {
+        fn drop(&mut self) {
+            set_fuse_hint_key_labels(self.0);
+        }
+    }
+
     let prev = fuse_hint_key_labels();
+    let _restore = RestoreFuseHintKeyLabels(prev);
     set_fuse_hint_key_labels(enabled);
     f();
-    set_fuse_hint_key_labels(prev);
 }
 
 /// If a hint's single-char key (or the last char of a `Ctrl+X`-style key)
@@ -584,5 +597,39 @@ mod tests {
 
         assert_eq!(bar.line_count_for_width(5), 1);
         assert_eq!(bar.lines_for_width(5).len(), 1);
+    }
+
+    #[test]
+    fn with_test_fuse_hint_key_labels_restores_state_after_panic() {
+        fn second_span_for_refresh() -> String {
+            shortcut_line(&[KeyHint::new("r", " refresh")]).spans[1]
+                .content
+                .to_string()
+        }
+
+        struct RestoreFuseHints(bool);
+
+        impl Drop for RestoreFuseHints {
+            fn drop(&mut self) {
+                set_fuse_hint_key_labels(self.0);
+            }
+        }
+
+        let _restore = RestoreFuseHints(fuse_hint_key_labels());
+        set_fuse_hint_key_labels(true);
+        assert_eq!(second_span_for_refresh(), "efresh");
+
+        let _ = std::panic::catch_unwind(|| {
+            with_test_fuse_hint_key_labels(false, || {
+                assert_eq!(second_span_for_refresh(), " refresh");
+                panic!("intentional test panic");
+            });
+        });
+
+        assert_eq!(
+            second_span_for_refresh(),
+            "efresh",
+            "test helper should restore global fuse setting even when the closure panics",
+        );
     }
 }

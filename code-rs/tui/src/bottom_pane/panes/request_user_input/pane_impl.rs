@@ -69,6 +69,28 @@ impl BottomPaneView<'_> for RequestUserInputView {
                     self.pop_freeform_char();
                 }
             }
+            KeyCode::Char(' ') => {
+                if key_event
+                    .modifiers
+                    .intersects(KeyModifiers::CONTROL | KeyModifiers::ALT)
+                {
+                    return;
+                }
+                if self.current_has_options() && self.current_allows_multiple() {
+                    let can_append_space =
+                        self.current_accepts_freeform()
+                            && self
+                                .current_answer()
+                                .is_some_and(|answer| !answer.freeform.is_empty());
+                    if can_append_space {
+                        self.push_freeform_char(' ');
+                    } else {
+                        self.toggle_current_option();
+                    }
+                } else if self.current_accepts_freeform() {
+                    self.push_freeform_char(' ');
+                }
+            }
             KeyCode::Char(ch) => {
                 if self.current_accepts_freeform()
                     && !key_event
@@ -99,12 +121,13 @@ impl BottomPaneView<'_> for RequestUserInputView {
                 let Some(hit_idx) = self.option_hit_test(area, x, y) else {
                     return ConditionalUpdate::NoRedraw;
                 };
-                let Some(answer) = self.current_answer_mut() else {
+                let was_selected = self
+                    .current_answer()
+                    .and_then(|answer| answer.option_state.selected_idx);
+                if !self.select_option_at_index(hit_idx) {
                     return ConditionalUpdate::NoRedraw;
-                };
-                let prev = answer.option_state.selected_idx;
-                answer.option_state.selected_idx = Some(hit_idx);
-                if prev == Some(hit_idx) {
+                }
+                if !self.current_allows_multiple() && was_selected == Some(hit_idx) {
                     self.go_next_or_submit();
                 }
                 ConditionalUpdate::NeedsRedraw

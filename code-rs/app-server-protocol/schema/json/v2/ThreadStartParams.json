@@ -72,7 +72,10 @@
       "enum": [
         "none",
         "friendly",
-        "pragmatic"
+        "pragmatic",
+        "concise",
+        "enthusiastic",
+        "mentor"
       ],
       "type": "string"
     },
@@ -81,6 +84,16 @@
         "read-only",
         "workspace-write",
         "danger-full-access"
+      ],
+      "type": "string"
+    },
+    "Tone": {
+      "enum": [
+        "neutral",
+        "formal",
+        "casual",
+        "direct",
+        "encouraging"
       ],
       "type": "string"
     }
@@ -158,6 +171,17 @@
           "type": "null"
         }
       ]
+    },
+    "tone": {
+      "anyOf": [
+        {
+          "$ref": "#/definitions/Tone"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Override the response tone."
     }
   },
   "title": "ThreadStartParams",

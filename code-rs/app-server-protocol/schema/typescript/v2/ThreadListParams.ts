@@ -14,7 +14,7 @@ cursor?: string | null,
  */
 limit?: number | null, 
 /**
- * Optional sort key; defaults to created_at.
+ * Optional sort key; defaults to `created_at`.
  */
 sortKey?: ThreadSortKey | null, 
 /**

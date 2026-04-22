@@ -2,7 +2,7 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "definitions": {
     "AbsolutePathBuf": {
-      "description": "A path that is guaranteed to be absolute and normalized (though it is not guaranteed to be canonicalized or exist on the filesystem).\n\nIMPORTANT: When deserializing an `AbsolutePathBuf`, a base path must be set using [AbsolutePathBufGuard::new]. If no base path is set, the deserialization will fail unless the path being deserialized is already absolute.",
+      "description": "A path that is guaranteed to be absolute and normalized (though it is not guaranteed to be canonicalized or exist on the filesystem).\n\nIMPORTANT: When deserializing an `AbsolutePathBuf`, a base path must be set using [`AbsolutePathBufGuard::new`]. If no base path is set, the deserialization will fail unless the path being deserialized is already absolute.",
       "type": "string"
     },
     "Account": {
@@ -141,6 +141,48 @@
       },
       "type": "object"
     },
+    "AppBranding": {
+      "description": "EXPERIMENTAL - app metadata returned by app-list APIs.",
+      "properties": {
+        "category": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "developer": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "isDiscoverableApp": {
+          "type": "boolean"
+        },
+        "privacyPolicy": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "termsOfService": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "website": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "isDiscoverableApp"
+      ],
+      "type": "object"
+    },
     "AppConfig": {
       "properties": {
         "disabled_reason": {
@@ -170,6 +212,26 @@
     "AppInfo": {
       "description": "EXPERIMENTAL - app metadata returned by app-list APIs.",
       "properties": {
+        "appMetadata": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/AppMetadata"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "branding": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/AppBranding"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
         "description": {
           "type": [
             "string",
@@ -200,6 +262,15 @@
           "description": "Whether this app is enabled in config.toml. Example: ```toml [apps.bad_app] enabled = false ```",
           "type": "boolean"
         },
+        "labels": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "type": [
+            "object",
+            "null"
+          ]
+        },
         "logoUrl": {
           "type": [
             "string",
@@ -214,6 +285,13 @@
         },
         "name": {
           "type": "string"
+        },
+        "pluginDisplayNames": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
         }
       },
       "required": [
@@ -237,6 +315,130 @@
         "data"
       ],
       "title": "AppListUpdatedNotification",
+      "type": "object"
+    },
+    "AppMetadata": {
+      "properties": {
+        "categories": {
+          "items": {
+            "type": "string"
+          },
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "developer": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "firstPartyRequiresInstall": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "firstPartyType": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "review": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/AppReview"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "screenshots": {
+          "items": {
+            "$ref": "#/definitions/AppScreenshot"
+          },
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "seoDescription": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "showInComposerWhenUnlinked": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "subCategories": {
+          "items": {
+            "type": "string"
+          },
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "version": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "versionId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "versionNotes": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "type": "object"
+    },
+    "AppReview": {
+      "properties": {
+        "status": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "status"
+      ],
+      "type": "object"
+    },
+    "AppScreenshot": {
+      "properties": {
+        "fileId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "url": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "userPrompt": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "userPrompt"
+      ],
       "type": "object"
     },
     "AppSummary": {
@@ -395,21 +597,21 @@
       "description": "Authentication mode for OpenAI-backed providers.",
       "oneOf": [
         {
-          "description": "OpenAI API key provided by the caller and stored by Codex.",
+          "description": "`OpenAI` API key provided by the caller and stored by Codex.",
           "enum": [
             "apikey"
           ],
           "type": "string"
         },
         {
-          "description": "ChatGPT OAuth managed by Codex (tokens persisted and refreshed by Codex).",
+          "description": "`ChatGPT` OAuth managed by Codex (tokens persisted and refreshed by Codex).",
           "enum": [
             "chatgpt"
           ],
           "type": "string"
         },
         {
-          "description": "[UNSTABLE] FOR OPENAI INTERNAL USE ONLY - DO NOT USE.\n\nChatGPT auth tokens are supplied by an external host app and are only stored in memory. Token refresh must be handled by the external host app.",
+          "description": "[UNSTABLE] FOR OPENAI INTERNAL USE ONLY - DO NOT USE.\n\n`ChatGPT` auth tokens are supplied by an external host app and are only stored in memory. Token refresh must be handled by the external host app.",
           "enum": [
             "chatgptAuthTokens"
           ],
@@ -1913,7 +2115,7 @@
           "type": "object"
         },
         {
-          "description": "DEPRECATED in favor of GetAccount",
+          "description": "DEPRECATED in favor of `GetAccount`",
           "properties": {
             "id": {
               "$ref": "#/definitions/RequestId"
@@ -2937,7 +3139,7 @@
           "type": "object"
         },
         {
-          "description": "User config layer from $CODEX_HOME/config.toml. This layer is special in that it is expected to be: - writable by the user - generally outside the workspace directory",
+          "description": "User config layer from $`CODEX_HOME/config.toml`. This layer is special in that it is expected to be: - writable by the user - generally outside the workspace directory",
           "properties": {
             "file": {
               "allOf": [
@@ -4123,7 +4325,7 @@
       ]
     },
     "FunctionCallOutputContentItem": {
-      "description": "Responses API compatible content items that can be returned by a tool call. This is a subset of ContentItem with the types we support as function call outputs.",
+      "description": "Responses API compatible content items that can be returned by a tool call. This is a subset of `ContentItem` with the types we support as function call outputs.",
       "oneOf": [
         {
           "properties": {
@@ -4178,7 +4380,7 @@
       ]
     },
     "FunctionCallOutputPayload": {
-      "description": "The payload we send back to OpenAI when reporting a tool call result.\n\n`body` serializes directly as the wire value for `function_call_output.output`. `success` remains internal metadata for downstream handling.",
+      "description": "The payload we send back to `OpenAI` when reporting a tool call result.\n\n`body` serializes directly as the wire value for `function_call_output.output`. `success` remains internal metadata for downstream handling.",
       "properties": {
         "body": {
           "$ref": "#/definitions/FunctionCallOutputBody"
@@ -5044,7 +5246,7 @@
           "type": "object"
         },
         {
-          "description": "[UNSTABLE] FOR OPENAI INTERNAL USE ONLY - DO NOT USE. The access token must contain the same scopes that Codex-managed ChatGPT auth tokens have.",
+          "description": "[UNSTABLE] FOR OPENAI INTERNAL USE ONLY - DO NOT USE. The access token must contain the same scopes that Codex-managed `ChatGPT` auth tokens have.",
           "properties": {
             "accessToken": {
               "description": "Access token (JWT) supplied by the client. This token is used for backend API requests and email extraction.",
@@ -5830,7 +6032,10 @@
       "enum": [
         "none",
         "friendly",
-        "pragmatic"
+        "pragmatic",
+        "concise",
+        "enthusiastic",
+        "mentor"
       ],
       "type": "string"
     },
@@ -6488,7 +6693,7 @@
       "type": "string"
     },
     "ReasoningEffort": {
-      "description": "See https://platform.openai.com/docs/guides/reasoning?api-mode=responses#get-started-with-reasoning",
+      "description": "See <https://platform.openai.com/docs/guides/reasoning?api-mode=responses#get-started-with-reasoning>",
       "enum": [
         "none",
         "minimal",
@@ -6583,7 +6788,7 @@
       ]
     },
     "ReasoningSummary": {
-      "description": "A summary of the reasoning performed by the model. This can be useful for debugging and understanding the model's reasoning process. See https://platform.openai.com/docs/guides/reasoning?api-mode=responses#reasoning-summaries",
+      "description": "A summary of the reasoning performed by the model. This can be useful for debugging and understanding the model's reasoning process. See <https://platform.openai.com/docs/guides/reasoning?api-mode=responses#reasoning-summaries>",
       "oneOf": [
         {
           "enum": [
@@ -7076,6 +7281,12 @@
           "properties": {
             "call_id": {
               "type": "string"
+            },
+            "name": {
+              "type": [
+                "string",
+                "null"
+              ]
             },
             "output": {
               "$ref": "#/definitions/FunctionCallOutputPayload"
@@ -8767,7 +8978,7 @@
           "$ref": "#/definitions/SkillScope"
         },
         "shortDescription": {
-          "description": "Legacy short_description from SKILL.md. Prefer SKILL.json interface.short_description.",
+          "description": "Legacy `short_description` from SKILL.md. Prefer SKILL.json `interface.short_description`.",
           "type": [
             "string",
             "null"
@@ -9179,7 +9390,7 @@
               "$ref": "#/definitions/SessionSource"
             }
           ],
-          "description": "Origin of the thread (CLI, VSCode, codex exec, codex app-server, etc.)."
+          "description": "Origin of the thread (CLI, `VSCode`, codex exec, codex app-server, etc.)."
         },
         "turns": {
           "description": "Only populated on `thread/resume`, `thread/rollback`, `thread/fork`, and `thread/read` (when `includeTurns` is true) responses. For all other responses and notifications returning a Thread, the turns field will be an empty list.",
@@ -9278,7 +9489,7 @@
     },
     "ThreadForkParams": {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "description": "There are two ways to fork a thread: 1. By thread_id: load the thread from disk by thread_id and fork it into a new thread. 2. By path: load the thread from disk by path and fork it into a new thread.\n\nIf using path, the thread_id param will be ignored.\n\nPrefer using thread_id whenever possible.",
+      "description": "There are two ways to fork a thread: 1. By `thread_id`: load the thread from disk by `thread_id` and fork it into a new thread. 2. By path: load the thread from disk by path and fork it into a new thread.\n\nIf using path, the `thread_id` param will be ignored.\n\nPrefer using `thread_id` whenever possible.",
       "properties": {
         "approvalPolicy": {
           "anyOf": [
@@ -9547,7 +9758,7 @@
               "type": "string"
             },
             "commandActions": {
-              "description": "A best-effort parsing of the command to understand the action(s) it will perform. This returns a list of CommandAction objects because a single shell command may be composed of many commands piped together.",
+              "description": "A best-effort parsing of the command to understand the action(s) it will perform. This returns a list of `CommandAction` objects because a single shell command may be composed of many commands piped together.",
               "items": {
                 "$ref": "#/definitions/CommandAction"
               },
@@ -9945,7 +10156,7 @@
               "type": "null"
             }
           ],
-          "description": "Optional sort key; defaults to created_at."
+          "description": "Optional sort key; defaults to `created_at`."
         },
         "sourceKinds": {
           "description": "Optional source filter; when set, only sessions from these source kinds are returned. When omitted or empty, defaults to interactive sources.",
@@ -10306,7 +10517,7 @@
     },
     "ThreadResumeParams": {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "description": "There are three ways to resume a thread: 1. By thread_id: load the thread from disk by thread_id and resume it. 2. By history: instantiate the thread from memory and resume it. 3. By path: load the thread from disk by path and resume it.\n\nThe precedence is: history > path > thread_id. If using history or path, the thread_id param will be ignored.\n\nPrefer using thread_id whenever possible.",
+      "description": "There are three ways to resume a thread: 1. By `thread_id`: load the thread from disk by `thread_id` and resume it. 2. By history: instantiate the thread from memory and resume it. 3. By path: load the thread from disk by path and resume it.\n\nThe precedence is: history > path > `thread_id`. If using history or path, the `thread_id` param will be ignored.\n\nPrefer using `thread_id` whenever possible.",
       "properties": {
         "approvalPolicy": {
           "anyOf": [
@@ -10378,6 +10589,17 @@
         },
         "threadId": {
           "type": "string"
+        },
+        "tone": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/Tone"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Override the response tone."
         }
       },
       "required": [
@@ -10458,7 +10680,7 @@
               "$ref": "#/definitions/Thread"
             }
           ],
-          "description": "The updated thread after applying the rollback, with `turns` populated.\n\nThe ThreadItems stored in each Turn are lossy since we explicitly do not persist all agent interactions, such as command executions. This is the same behavior as `thread/resume`."
+          "description": "The updated thread after applying the rollback, with `turns` populated.\n\nThe `ThreadItems` stored in each Turn are lossy since we explicitly do not persist all agent interactions, such as command executions. This is the same behavior as `thread/resume`."
         }
       },
       "required": [
@@ -10609,6 +10831,17 @@
               "type": "null"
             }
           ]
+        },
+        "tone": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/Tone"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Override the response tone."
         }
       },
       "title": "ThreadStartParams",
@@ -10909,6 +11142,16 @@
         "totalTokens"
       ],
       "type": "object"
+    },
+    "Tone": {
+      "enum": [
+        "neutral",
+        "formal",
+        "casual",
+        "direct",
+        "encouraging"
+      ],
+      "type": "string"
     },
     "Tool": {
       "description": "Definition for a tool the client can call.",
@@ -11222,6 +11465,17 @@
         },
         "threadId": {
           "type": "string"
+        },
+        "tone": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/Tone"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Override the response tone for this turn and subsequent turns."
         }
       },
       "required": [
@@ -11429,7 +11683,7 @@
       ]
     },
     "Verbosity": {
-      "description": "Controls output length/detail on GPT-5 models via the Responses API. Serialized with lowercase values to match the OpenAI API.",
+      "description": "Controls output length/detail on GPT-5 models via the Responses API. Serialized with lowercase values to match the `OpenAI` API.",
       "enum": [
         "low",
         "medium",

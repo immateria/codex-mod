@@ -1559,6 +1559,7 @@ fn request_user_input_picker_allows_selection_and_typing() {
                     question: "Select a color:".into(),
                     is_other: false,
                     is_secret: false,
+                    allow_multiple: false,
                     options: Some(vec![
                         RequestUserInputQuestionOption {
                             label: "Blue (Recommended)".into(),
@@ -1576,6 +1577,7 @@ fn request_user_input_picker_allows_selection_and_typing() {
                     question: "Type a short display name (freeform):".into(),
                     is_other: false,
                     is_secret: false,
+                    allow_multiple: false,
                     options: None,
                 },
             ],
@@ -1632,6 +1634,7 @@ fn request_user_input_auto_drive_auto_answers_without_modal() {
                 question: "Proceed?".into(),
                 is_other: false,
                 is_secret: false,
+                allow_multiple: false,
                 options: Some(vec![
                     RequestUserInputQuestionOption {
                         label: "Yes (Recommended)".into(),
@@ -1654,6 +1657,57 @@ fn request_user_input_auto_drive_auto_answers_without_modal() {
     assert!(
         !frame.contains("User input"),
         "request_user_input modal should not appear in Auto Drive"
+    );
+}
+
+#[test]
+fn request_user_input_picker_supports_multiselect_checkboxes() {
+    let mut harness = ChatWidgetHarness::new();
+
+    let mut event_seq = 0u64;
+    let mut order_seq = 0u64;
+    push_ordered_event(
+        &mut harness,
+        &mut event_seq,
+        &mut order_seq,
+        EventMsg::RequestUserInput(RequestUserInputEvent {
+            call_id: "call-3".into(),
+            turn_id: "turn-3".into(),
+            questions: vec![RequestUserInputQuestion {
+                id: "terminals".into(),
+                header: "Terminals".into(),
+                question: "Select every terminal app you use:".into(),
+                is_other: false,
+                is_secret: false,
+                allow_multiple: true,
+                options: Some(vec![
+                    RequestUserInputQuestionOption {
+                        label: "Termux (Recommended)".into(),
+                        description: "Android shell.".into(),
+                    },
+                    RequestUserInputQuestionOption {
+                        label: "WezTerm".into(),
+                        description: "Desktop terminal.".into(),
+                    },
+                ]),
+            }],
+        }),
+    );
+
+    let before = normalize_output(render_chat_widget_to_vt100(&mut harness, 90, 24));
+    assert!(
+        before.contains("Space toggle"),
+        "multiselect footer hint did not render"
+    );
+
+    harness.send_key(make_key(KeyCode::Char(' '), KeyModifiers::NONE));
+    harness.send_key(make_key(KeyCode::Down, KeyModifiers::NONE));
+    harness.send_key(make_key(KeyCode::Char(' '), KeyModifiers::NONE));
+
+    let frame = normalize_output(render_chat_widget_to_vt100(&mut harness, 90, 24));
+    assert!(
+        frame != before,
+        "multiselect interactions did not change the rendered picker state"
     );
 }
 

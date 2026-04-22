@@ -427,6 +427,233 @@
     }
 
     #[test]
+    fn history_exec_output_fold_skips_short_exec_without_foldable_output() {
+        let _guard = enter_test_runtime_guard();
+        let mut harness = ChatWidgetHarness::new();
+        let cwd = std::env::temp_dir();
+
+        harness.with_chat(reset_history);
+
+        let mk_stdout = |prefix: &str| -> String {
+            let mut out = String::new();
+            for i in 0..50 {
+                out.push_str(&format!("{prefix}-{i}\n"));
+            }
+            out
+        };
+
+        harness.handle_event(Event {
+            id: "exec-a-begin".to_string(),
+            event_seq: 0,
+            msg: EventMsg::ExecCommandBegin(ExecCommandBeginEvent {
+                call_id: "exec-a".to_string(),
+                command: vec!["bash".into(), "-lc".into(), "echo a".into()],
+                cwd: cwd.clone(),
+                parsed_cmd: Vec::new(),
+                parent_call_id: None,
+            }),
+            order: Some(OrderMeta {
+                request_ordinal: 1,
+                output_index: Some(0),
+                sequence_number: Some(1),
+            }),
+        });
+        harness.handle_event(Event {
+            id: "exec-a-end".to_string(),
+            event_seq: 1,
+            msg: EventMsg::ExecCommandEnd(code_core::protocol::ExecCommandEndEvent {
+                call_id: "exec-a".to_string(),
+                stdout: mk_stdout("a"),
+                stderr: String::new(),
+                exit_code: 0,
+                duration: std::time::Duration::from_millis(10),
+            }),
+            order: Some(OrderMeta {
+                request_ordinal: 1,
+                output_index: Some(0),
+                sequence_number: Some(2),
+            }),
+        });
+
+        harness.handle_event(Event {
+            id: "exec-b-begin".to_string(),
+            event_seq: 0,
+            msg: EventMsg::ExecCommandBegin(ExecCommandBeginEvent {
+                call_id: "exec-b".to_string(),
+                command: vec!["bash".into(), "-lc".into(), "echo b".into()],
+                cwd,
+                parsed_cmd: Vec::new(),
+                parent_call_id: None,
+            }),
+            order: Some(OrderMeta {
+                request_ordinal: 1,
+                output_index: Some(0),
+                sequence_number: Some(3),
+            }),
+        });
+        harness.handle_event(Event {
+            id: "exec-b-end".to_string(),
+            event_seq: 1,
+            msg: EventMsg::ExecCommandEnd(code_core::protocol::ExecCommandEndEvent {
+                call_id: "exec-b".to_string(),
+                stdout: "b-short\n".to_string(),
+                stderr: String::new(),
+                exit_code: 0,
+                duration: std::time::Duration::from_millis(10),
+            }),
+            order: Some(OrderMeta {
+                request_ordinal: 1,
+                output_index: Some(0),
+                sequence_number: Some(4),
+            }),
+        });
+
+        {
+            use crate::test_backend::VT100Backend;
+            use ratatui::Terminal;
+
+            let chat = harness.chat();
+            let mut terminal = Terminal::new(VT100Backend::new(80, 18)).expect("terminal");
+            terminal
+                .draw(|frame| frame.render_widget_ref(&*chat, frame.area()))
+                .expect("draw");
+        }
+
+        let (a_before, b_before) = harness.with_chat(|chat| {
+            let a = chat
+                .history_cells
+                .iter()
+                .find_map(|cell| (cell.call_id() == Some("exec-a")).then_some(cell.desired_height(80)));
+            let b = chat
+                .history_cells
+                .iter()
+                .find_map(|cell| (cell.call_id() == Some("exec-b")).then_some(cell.desired_height(80)));
+            (a.expect("expected exec-a cell"), b.expect("expected exec-b cell"))
+        });
+
+        harness.with_chat(|chat| {
+            use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+            chat.handle_key_event(KeyEvent::new(KeyCode::Char('['), KeyModifiers::NONE));
+        });
+
+        let (a_after, b_after) = harness.with_chat(|chat| {
+            let a = chat
+                .history_cells
+                .iter()
+                .find_map(|cell| (cell.call_id() == Some("exec-a")).then_some(cell.desired_height(80)));
+            let b = chat
+                .history_cells
+                .iter()
+                .find_map(|cell| (cell.call_id() == Some("exec-b")).then_some(cell.desired_height(80)));
+            (a.expect("expected exec-a cell"), b.expect("expected exec-b cell"))
+        });
+
+        assert_ne!(
+            a_after, a_before,
+            "expected fold hotkey to skip short exec-b and toggle exec-a output"
+        );
+        assert_eq!(
+            b_after, b_before,
+            "expected short exec-b output to remain unchanged because it has no output fold"
+        );
+    }
+
+    #[test]
+    fn history_click_fold_compacts_short_exec_cell() {
+        let _guard = enter_test_runtime_guard();
+        let mut harness = ChatWidgetHarness::new();
+
+        harness.with_chat(reset_history);
+
+        let idx = harness.with_chat(|chat| {
+            let cell = crate::history_cell::new_completed_exec_command(
+                vec!["echo".to_owned(), "hi".to_owned()],
+                Vec::new(),
+                crate::history_cell::CommandOutput {
+                    exit_code: 0,
+                    stdout: "hi".to_owned(),
+                    stderr: String::new(),
+                },
+            );
+            let key = chat.next_req_key_top();
+            chat.history_insert_with_key_global(Box::new(cell), key)
+        });
+
+        let before_height = harness.with_chat(|chat| chat.history_cells[idx].desired_height(80));
+
+        harness.with_chat(|chat| chat.toggle_fold_at_index(idx));
+
+        let (after_height, collapsed) = harness.with_chat(|chat| {
+            let cell = chat.history_cells[idx]
+                .as_any()
+                .downcast_ref::<crate::history_cell::ExecCell>()
+                .expect("expected exec cell");
+            (cell.desired_height(80), cell.is_collapsed())
+        });
+
+        assert!(collapsed, "expected chevron fold to collapse short exec cell");
+        assert!(
+            after_height < before_height,
+            "expected short exec cell to shrink when folded"
+        );
+    }
+
+    #[test]
+    fn history_click_fold_compacts_short_tool_cell() {
+        let _guard = enter_test_runtime_guard();
+        let mut harness = ChatWidgetHarness::new();
+
+        harness.with_chat(reset_history);
+
+        let idx = harness.with_chat(|chat| {
+            use crate::history_cell::ToolCallCell;
+            use code_core::history::state::{
+                ArgumentValue,
+                HistoryId,
+                ToolArgument,
+                ToolCallState,
+                ToolStatus,
+            };
+
+            let state = ToolCallState {
+                id: HistoryId::ZERO,
+                call_id: Some("tool-short".to_string()),
+                status: ToolStatus::Success,
+                title: "Tool".to_string(),
+                duration: None,
+                arguments: vec![ToolArgument {
+                    name: "path".to_string(),
+                    value: ArgumentValue::Text("/tmp/example.txt".to_string()),
+                }],
+                result_preview: None,
+                error_message: None,
+            };
+
+            let cell = ToolCallCell::new(state);
+            let key = chat.next_req_key_top();
+            chat.history_insert_with_key_global(Box::new(cell), key)
+        });
+
+        let before_height = harness.with_chat(|chat| chat.history_cells[idx].desired_height(80));
+
+        harness.with_chat(|chat| chat.toggle_fold_at_index(idx));
+
+        let (after_height, collapsed) = harness.with_chat(|chat| {
+            let cell = chat.history_cells[idx]
+                .as_any()
+                .downcast_ref::<crate::history_cell::ToolCallCell>()
+                .expect("expected tool cell");
+            (cell.desired_height(80), cell.is_collapsed())
+        });
+
+        assert!(collapsed, "expected chevron fold to collapse short tool cell");
+        assert!(
+            after_height < before_height,
+            "expected short tool cell to shrink when folded"
+        );
+    }
+
+    #[test]
     fn history_repl_code_fold_targets_visible_js_cell_when_scrolled() {
         let _guard = enter_test_runtime_guard();
         let mut harness = ChatWidgetHarness::new();

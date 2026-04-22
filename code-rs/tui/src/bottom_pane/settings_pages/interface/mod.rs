@@ -182,6 +182,7 @@ enum ViewMode {
 
 pub(crate) struct InterfaceSettingsView {
     settings: SettingsMenuConfig,
+    settings_baseline: SettingsMenuConfig,
     hotkeys: TuiHotkeysConfig,
     hotkey_scope: HotkeyScope,
     icon_mode: code_core::config_types::IconMode,
@@ -201,11 +202,15 @@ crate::bottom_pane::chrome_view::impl_chrome_view!(InterfaceSettingsView);
 
 impl Drop for InterfaceSettingsView {
     fn drop(&mut self) {
-        self.revert_unapplied_icon_mode_preview();
+        self.revert_unapplied_live_previews();
     }
 }
 
 impl InterfaceSettingsView {
+    pub(crate) fn refresh_settings_dirty_state(&mut self) {
+        self.dirty_settings = self.settings != self.settings_baseline;
+    }
+
     pub(super) fn desired_height_impl(&self, _width: u16) -> u16 {
         match &self.mode {
             ViewMode::Main => {
@@ -227,8 +232,10 @@ impl InterfaceSettingsView {
         app_event_tx: AppEventSender,
     ) -> Self {
         let state = ScrollState::with_first_selected();
+        let settings_baseline = settings.clone();
         Self {
             settings,
+            settings_baseline,
             hotkeys,
             hotkey_scope: HotkeyScope::Global,
             icon_mode,
@@ -263,15 +270,29 @@ impl InterfaceSettingsView {
         !matches!(self.mode, ViewMode::Main)
     }
 
-    pub(crate) fn revert_unapplied_icon_mode_preview(&mut self) {
-        if self.icon_mode == self.icon_mode_baseline {
-            return;
+    pub(crate) fn revert_unapplied_live_previews(&mut self) {
+        let mut reverted_any = false;
+
+        if self.icon_mode != self.icon_mode_baseline {
+            self.icon_mode = self.icon_mode_baseline;
+            // Defensive: ensure the global matches baseline even though cycling
+            // no longer mutates it. Costs nothing and guards against future
+            // regressions that might re-introduce live preview.
+            crate::icons::set_icon_mode(self.icon_mode_baseline);
+            reverted_any = true;
         }
-        self.icon_mode = self.icon_mode_baseline;
-        // Defensive: ensure the global matches baseline even though cycling
-        // no longer mutates it.  Costs nothing and guards against future
-        // regressions that might re-introduce live preview.
-        crate::icons::set_icon_mode(self.icon_mode_baseline);
-        self.status = None;
+
+        if self.settings.fuse_hint_key_labels != self.settings_baseline.fuse_hint_key_labels {
+            self.settings.fuse_hint_key_labels = self.settings_baseline.fuse_hint_key_labels;
+            crate::bottom_pane::settings_ui::hints::set_fuse_hint_key_labels(
+                self.settings_baseline.fuse_hint_key_labels,
+            );
+            reverted_any = true;
+        }
+
+        self.refresh_settings_dirty_state();
+        if reverted_any {
+            self.status = None;
+        }
     }
 }

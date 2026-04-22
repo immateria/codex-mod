@@ -7,16 +7,16 @@ import type { SandboxMode } from "./SandboxMode";
 
 /**
  * There are two ways to fork a thread:
- * 1. By thread_id: load the thread from disk by thread_id and fork it into a new thread.
+ * 1. By `thread_id`: load the thread from disk by `thread_id` and fork it into a new thread.
  * 2. By path: load the thread from disk by path and fork it into a new thread.
  *
- * If using path, the thread_id param will be ignored.
+ * If using path, the `thread_id` param will be ignored.
  *
- * Prefer using thread_id whenever possible.
+ * Prefer using `thread_id` whenever possible.
  */
 export type ThreadForkParams = {threadId: string, /**
  * [UNSTABLE] Specify the rollout path to fork from.
- * If specified, the thread_id param will be ignored.
+ * If specified, the `thread_id` param will be ignored.
  */
 path?: string | null, /**
  * Configuration overrides for the forked thread, if any.

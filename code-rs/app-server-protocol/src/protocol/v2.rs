@@ -5212,6 +5212,8 @@ pub struct ToolRequestUserInputQuestion {
     pub is_other: bool,
     #[serde(default)]
     pub is_secret: bool,
+    #[serde(default)]
+    pub allow_multiple: bool,
     pub options: Option<Vec<ToolRequestUserInputOption>>,
 }
 

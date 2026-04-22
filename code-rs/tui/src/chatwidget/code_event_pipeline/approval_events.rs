@@ -69,7 +69,11 @@ impl ChatWidget<'_> {
             let question_text = &question.question;
             lines.push(format!("\n{header} ({id})\n{question_text}"));
             if let Some(options) = &question.options {
-                lines.push("Options:".to_owned());
+                if question.allow_multiple {
+                    lines.push("Options (select multiple):".to_owned());
+                } else {
+                    lines.push("Options:".to_owned());
+                }
                 for option in options {
                     let label = &option.label;
                     let description = &option.description;
@@ -209,6 +213,7 @@ impl ChatWidget<'_> {
                     question: message.to_owned(),
                     is_other: false,
                     is_secret: false,
+                    allow_multiple: false,
                     options: Some(vec![
                         RequestUserInputQuestionOption {
                             label: "Accept".to_owned(),
@@ -292,19 +297,29 @@ impl ChatWidget<'_> {
         );
     }
 
-    fn choose_option_label(question: &RequestUserInputQuestion) -> Option<String> {
-        let options = question.options.as_ref()?;
+    fn choose_option_labels(question: &RequestUserInputQuestion) -> Vec<String> {
+        let Some(options) = question.options.as_ref() else {
+            return Vec::new();
+        };
         if options.is_empty() {
-            return None;
+            return Vec::new();
         }
 
-        let recommended = options.iter().position(|opt| {
-            opt.label.contains("(Recommended)")
-                || opt.label.contains("Recommended")
-                || opt.label.contains("recommended")
-        });
-        let idx = recommended.unwrap_or(0);
-        options.get(idx).map(|opt| opt.label.clone())
+        let mut labels = options
+            .iter()
+            .filter(|opt| {
+                opt.label.contains("(Recommended)")
+                    || opt.label.contains("Recommended")
+                    || opt.label.contains("recommended")
+            })
+            .map(|opt| opt.label.clone())
+            .collect::<Vec<_>>();
+        if labels.is_empty() {
+            labels.push(options[0].label.clone());
+        } else if !question.allow_multiple {
+            labels.truncate(1);
+        }
+        labels
     }
 
     fn choose_freeform_value(question: &RequestUserInputQuestion) -> String {
@@ -323,10 +338,11 @@ impl ChatWidget<'_> {
     ) -> RequestUserInputResponse {
         let mut answers = std::collections::HashMap::new();
         for question in questions {
-            let answer_value = if let Some(label) = Self::choose_option_label(question) {
-                vec![label]
-            } else {
+            let option_labels = Self::choose_option_labels(question);
+            let answer_value = if option_labels.is_empty() {
                 vec![Self::choose_freeform_value(question)]
+            } else {
+                option_labels
             };
             answers.insert(
                 question.id.clone(),
@@ -347,14 +363,15 @@ impl ChatWidget<'_> {
             let label = response
                 .answers
                 .get(&question.id)
-                .and_then(|a| a.answers.first())
-                .map_or("(skipped)", String::as_str);
+                .map_or("(skipped)".to_owned(), |answer| {
+                    Self::format_request_user_input_answer_values(question, answer.answers.as_slice())
+                });
             if questions.len() == 1 {
-                parts.push(label.to_owned());
+                parts.push(label);
             } else {
                 let header = question.header.trim();
                 if header.is_empty() {
-                    parts.push(label.to_owned());
+                    parts.push(label);
                 } else {
                     parts.push(format!("{header}: {label}"));
                 }

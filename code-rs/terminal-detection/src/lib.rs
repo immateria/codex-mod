@@ -29,6 +29,12 @@ pub enum TerminalName {
     Ghostty,
     /// iTerm2 terminal emulator.
     Iterm2,
+    /// Hyper terminal emulator.
+    Hyper,
+    /// Tabby terminal emulator.
+    Tabby,
+    /// Rio terminal emulator.
+    Rio,
     /// Warp terminal emulator.
     WarpTerminal,
     /// Visual Studio Code integrated terminal.
@@ -39,12 +45,22 @@ pub enum TerminalName {
     Kitty,
     /// Alacritty terminal emulator.
     Alacritty,
+    /// foot terminal emulator.
+    Foot,
+    /// Black Box terminal emulator.
+    BlackBox,
+    /// Tilix terminal emulator.
+    Tilix,
     /// KDE Konsole terminal emulator.
     Konsole,
     /// GNOME Terminal emulator.
     GnomeTerminal,
+    /// GNOME Console (`kgx`) terminal emulator.
+    GnomeConsole,
     /// VTE backend terminal.
     Vte,
+    /// Termux terminal emulator on Android.
+    Termux,
     /// Windows Terminal emulator.
     WindowsTerminal,
     /// Dumb terminal (TERM=dumb).
@@ -145,8 +161,15 @@ impl TerminalInfo {
 
     /// Creates terminal metadata from a `TERM` capability value.
     fn from_term(term: String, multiplexer: Option<Multiplexer>) -> Self {
-        let name = if term == "dumb" {
+        let normalized = term.trim().to_ascii_lowercase();
+        let name = if normalized == "dumb" {
             TerminalName::Dumb
+        } else if normalized.contains("kitty") {
+            TerminalName::Kitty
+        } else if normalized == "alacritty" {
+            TerminalName::Alacritty
+        } else if normalized == "foot" || normalized.starts_with("foot-") {
+            TerminalName::Foot
         } else {
             TerminalName::Unknown
         };
@@ -186,6 +209,9 @@ impl TerminalInfo {
                 }
                 TerminalName::Ghostty => format_terminal_version("Ghostty", self.version.as_deref()),
                 TerminalName::Iterm2 => format_terminal_version("iTerm.app", self.version.as_deref()),
+                TerminalName::Hyper => format_terminal_version("Hyper", self.version.as_deref()),
+                TerminalName::Tabby => format_terminal_version("Tabby", self.version.as_deref()),
+                TerminalName::Rio => format_terminal_version("Rio", self.version.as_deref()),
                 TerminalName::WarpTerminal => {
                     format_terminal_version("WarpTerminal", self.version.as_deref())
                 }
@@ -193,9 +219,14 @@ impl TerminalInfo {
                 TerminalName::WezTerm => format_terminal_version("WezTerm", self.version.as_deref()),
                 TerminalName::Kitty => "kitty".to_owned(),
                 TerminalName::Alacritty => "Alacritty".to_owned(),
+                TerminalName::Foot => "foot".to_owned(),
+                TerminalName::BlackBox => format_terminal_version("BlackBox", self.version.as_deref()),
+                TerminalName::Tilix => format_terminal_version("Tilix", self.version.as_deref()),
                 TerminalName::Konsole => format_terminal_version("Konsole", self.version.as_deref()),
                 TerminalName::GnomeTerminal => "gnome-terminal".to_owned(),
+                TerminalName::GnomeConsole => format_terminal_version("kgx", self.version.as_deref()),
                 TerminalName::Vte => format_terminal_version("VTE", self.version.as_deref()),
+                TerminalName::Termux => format_terminal_version("Termux", self.version.as_deref()),
                 TerminalName::WindowsTerminal => "WindowsTerminal".to_owned(),
                 TerminalName::Dumb => "dumb".to_owned(),
                 TerminalName::Unknown => "unknown".to_owned(),
@@ -272,10 +303,13 @@ pub fn terminal_info() -> TerminalInfo {
 /// - If `TERM_PROGRAM=tmux`, the tmux client term type/name are used instead. The client term
 ///   type is split on whitespace to extract a program name plus optional version (for example,
 ///   `ghostty 1.2.3`), while the client term name becomes the `TERM` capability string.
-/// - Otherwise, `TERM_PROGRAM` (plus `TERM_PROGRAM_VERSION`) drives the detected terminal name.
+/// - Otherwise, `TERM_PROGRAM` drives the detected terminal name and prefers
+///   `TERM_PROGRAM_VERSION`, with select per-terminal version fallbacks such as
+///   `TERMUX_VERSION`, `WEZTERM_VERSION`, `KONSOLE_VERSION`, and `VTE_VERSION`.
 ///   This means `TERM_PROGRAM` can mask later probes (for example `WT_SESSION`).
-/// - Next, terminal-specific variables (WEZTERM, iTerm2, Apple Terminal, kitty, etc.) are checked.
-/// - Finally, `TERM` is used as the capability fallback with `TerminalName::Unknown`.
+/// - Next, terminal-specific variables (`TERMUX_VERSION`, `FOOT`, `TILIX_ID`,
+///   `WEZTERM_VERSION`, iTerm2, Apple Terminal, kitty, etc.) are checked.
+/// - Finally, `TERM` is used as the capability fallback.
 ///
 /// tmux client term info is only consulted when a tmux multiplexer is detected, and it is
 /// derived from `tmux display-message` to surface the underlying terminal program instead of
@@ -292,9 +326,37 @@ fn detect_terminal_info_from_env(env: &dyn Environment) -> TerminalInfo {
             return terminal;
         }
 
-        let version = env.var_non_empty("TERM_PROGRAM_VERSION");
         let name = terminal_name_from_term_program(&term_program).unwrap_or(TerminalName::Unknown);
+        let version = terminal_version_from_env(env, name);
         return TerminalInfo::from_term_program(name, term_program, version, multiplexer);
+    }
+
+    if env.has_non_empty("TERMUX_VERSION") {
+        return TerminalInfo::from_name(
+            TerminalName::Termux,
+            env.var_non_empty("TERMUX_VERSION"),
+            multiplexer,
+        );
+    }
+
+    let foot_term = env.var_non_empty("TERM").filter(|term| {
+        let normalized = term.trim().to_ascii_lowercase();
+        normalized == "foot" || normalized.starts_with("foot-")
+    });
+
+    if env.has_non_empty("FOOT") {
+        if let Some(term) = foot_term {
+            return TerminalInfo::from_term(term, multiplexer);
+        }
+        return TerminalInfo::from_name(TerminalName::Foot, /*version*/ None, multiplexer);
+    }
+
+    if let Some(term) = foot_term {
+        return TerminalInfo::from_term(term, multiplexer);
+    }
+
+    if env.has_non_empty("TILIX_ID") {
+        return TerminalInfo::from_name(TerminalName::Tilix, /*version*/ None, multiplexer);
     }
 
     if env.has("WEZTERM_VERSION") {
@@ -365,6 +427,16 @@ fn detect_terminal_info_from_env(env: &dyn Environment) -> TerminalInfo {
     }
 
     TerminalInfo::unknown(multiplexer)
+}
+
+fn terminal_version_from_env(env: &dyn Environment, name: TerminalName) -> Option<String> {
+    env.var_non_empty("TERM_PROGRAM_VERSION").or_else(|| match name {
+        TerminalName::WezTerm => env.var_non_empty("WEZTERM_VERSION"),
+        TerminalName::Konsole => env.var_non_empty("KONSOLE_VERSION"),
+        TerminalName::Vte => env.var_non_empty("VTE_VERSION"),
+        TerminalName::Termux => env.var_non_empty("TERMUX_VERSION"),
+        _ => None,
+    })
 }
 
 fn detect_multiplexer(env: &dyn Environment) -> Option<Multiplexer> {
@@ -473,14 +545,22 @@ fn terminal_name_from_term_program(value: &str) -> Option<TerminalName> {
         "appleterminal" => Some(TerminalName::AppleTerminal),
         "ghostty" => Some(TerminalName::Ghostty),
         "iterm" | "iterm2" | "itermapp" => Some(TerminalName::Iterm2),
+        "hyper" => Some(TerminalName::Hyper),
+        "tabby" => Some(TerminalName::Tabby),
+        "rio" => Some(TerminalName::Rio),
         "warp" | "warpterminal" => Some(TerminalName::WarpTerminal),
         "vscode" => Some(TerminalName::VsCode),
         "wezterm" => Some(TerminalName::WezTerm),
         "kitty" => Some(TerminalName::Kitty),
         "alacritty" => Some(TerminalName::Alacritty),
+        "foot" => Some(TerminalName::Foot),
+        "blackbox" => Some(TerminalName::BlackBox),
+        "tilix" => Some(TerminalName::Tilix),
         "konsole" => Some(TerminalName::Konsole),
         "gnometerminal" => Some(TerminalName::GnomeTerminal),
+        "kgx" | "gnomeconsole" => Some(TerminalName::GnomeConsole),
         "vte" => Some(TerminalName::Vte),
+        "termux" => Some(TerminalName::Termux),
         "windowsterminal" => Some(TerminalName::WindowsTerminal),
         "dumb" => Some(TerminalName::Dumb),
         _ => None,

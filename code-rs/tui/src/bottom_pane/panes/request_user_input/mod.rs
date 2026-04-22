@@ -1,3 +1,5 @@
+use std::collections::BTreeSet;
+
 mod model;
 mod pane_impl;
 mod render;
@@ -10,6 +12,7 @@ use crate::components::scroll_state::ScrollState;
 #[derive(Debug, Clone)]
 struct AnswerState {
     option_state: ScrollState,
+    checked_options: BTreeSet<usize>,
     hover_option_idx: Option<usize>,
     freeform: String,
 }

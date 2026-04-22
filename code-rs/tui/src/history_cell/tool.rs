@@ -22,6 +22,7 @@ const TOOL_DETAILS_PREVIEW_RESULT_LINES: usize = 1;
 pub(crate) struct ToolCallCell {
     state: ToolCallState,
     pub(crate) parent_call_id: Option<String>,
+    cell_collapsed: Cell<bool>,
     collapsed_details: Cell<bool>,
 }
 
@@ -35,6 +36,7 @@ impl ToolCallCell {
         Self {
             state,
             parent_call_id: None,
+            cell_collapsed: Cell::new(false),
             collapsed_details: Cell::new(collapse_by_default),
         }
     }
@@ -44,6 +46,7 @@ impl ToolCallCell {
         Self {
             state,
             parent_call_id: None,
+            cell_collapsed: Cell::new(false),
             collapsed_details: Cell::new(collapse_by_default),
         }
     }
@@ -68,9 +71,40 @@ impl ToolCallCell {
         self.collapsed_details.set(!self.collapsed_details.get());
     }
 
+    pub(crate) fn toggle_cell_collapsed(&self) {
+        self.cell_collapsed.set(!self.cell_collapsed.get());
+    }
+
+    pub(crate) fn has_foldable_details(&self) -> bool {
+        let args_count = self.state.arguments.len();
+        let result_count = self.state.result_preview.as_ref().map_or(0, |result| {
+            result.lines.len().saturating_add(usize::from(result.truncated))
+        });
+        let error_count = usize::from(
+            self.state
+                .error_message
+                .as_ref()
+                .is_some_and(|error| !error.is_empty()),
+        );
+        let shown_count = args_count.min(TOOL_DETAILS_PREVIEW_ARGS)
+            .saturating_add(result_count.min(TOOL_DETAILS_PREVIEW_RESULT_LINES))
+            .saturating_add(error_count);
+        let hidden_count = args_count
+            .saturating_add(result_count)
+            .saturating_add(error_count)
+            .saturating_sub(shown_count);
+        let expanded_count = args_count
+            .saturating_add(usize::from(result_count > 0))
+            .saturating_add(result_count)
+            .saturating_add(usize::from(error_count > 0))
+            .saturating_add(error_count);
+
+        hidden_count > 0 || shown_count != expanded_count
+    }
+
     pub(crate) fn retint(&self, _old: &crate::theme::Theme, _new: &crate::theme::Theme) {}
 
-    fn header_line(&self) -> Line<'static> {
+    fn header_line(&self, summarize_details: bool) -> Line<'static> {
         let s_text_dim = crate::colors::style_text_dim();
         let mut spans: Vec<Span<'static>> = Vec::with_capacity(5);
         let mut style = Style::default().add_modifier(Modifier::BOLD);
@@ -88,7 +122,7 @@ impl ToolCallCell {
         }
 
         // When collapsed, append a compact invocation hint so you rarely need to expand.
-        if self.details_collapsed() {
+        if summarize_details {
             if let Some(hint) = self.compact_invocation_hint() {
                 spans.push(Span::styled(
                     format!(" ({hint})"),
@@ -182,6 +216,10 @@ impl ToolCallCell {
         )]
     }
 
+    fn collapsed_summary_lines(&self) -> Vec<Line<'static>> {
+        vec![self.header_line(true)]
+    }
+
     fn expanded_detail_lines(&self) -> Vec<Line<'static>> {
         let arg_count = self.state.arguments.len();
         let result_count = self.state.result_preview.as_ref().map_or(0, |r| r.lines.len());
@@ -216,13 +254,25 @@ impl ToolCallCell {
             },
         )
     }
+
+    fn expanded_display_lines(&self) -> Vec<Line<'static>> {
+        let mut lines: Vec<Line<'static>> = Vec::new();
+        lines.push(self.header_line(self.details_collapsed()));
+        if self.details_collapsed() {
+            lines.extend(self.collapsed_detail_lines());
+        } else {
+            lines.extend(self.expanded_detail_lines());
+        }
+        lines.push(Line::from(""));
+        lines
+    }
 }
 
 impl HistoryCell for ToolCallCell {
     impl_as_any!();
 
     fn is_fold_toggleable(&self) -> bool {
-        true
+        trim_empty_lines(self.expanded_display_lines()).len() > self.collapsed_summary_lines().len()
     }
 
     fn kind(&self) -> HistoryCellType {
@@ -239,17 +289,19 @@ impl HistoryCell for ToolCallCell {
         self.parent_call_id.as_deref()
     }
 
-    fn display_lines(&self) -> Vec<Line<'static>> {
-        let mut lines: Vec<Line<'static>> = Vec::new();
-        lines.push(self.header_line());
-        if self.details_collapsed() {
-            lines.extend(self.collapsed_detail_lines());
-        } else {
-            lines.extend(self.expanded_detail_lines());
-        }
+    fn is_collapsed(&self) -> bool {
+        self.cell_collapsed.get()
+    }
 
-        lines.push(Line::from(""));
-        lines
+    fn collapsed_display_lines(&self, _ctx: &super::CollapsedContext) -> Vec<Line<'static>> {
+        self.collapsed_summary_lines()
+    }
+
+    fn display_lines(&self) -> Vec<Line<'static>> {
+        if self.cell_collapsed.get() {
+            return self.collapsed_summary_lines();
+        }
+        self.expanded_display_lines()
     }
 }
 
@@ -257,6 +309,7 @@ pub(crate) struct RunningToolCallCell {
     state: RunningToolState,
     start_clock: Instant,
     pub(crate) parent_call_id: Option<String>,
+    cell_collapsed: Cell<bool>,
     collapsed_details: Cell<bool>,
 }
 
@@ -268,6 +321,7 @@ impl RunningToolCallCell {
             state,
             start_clock: Instant::now(),
             parent_call_id: None,
+            cell_collapsed: Cell::new(false),
             collapsed_details: Cell::new(false),
         }
     }
@@ -277,6 +331,7 @@ impl RunningToolCallCell {
             state,
             start_clock: Instant::now(),
             parent_call_id: None,
+            cell_collapsed: Cell::new(false),
             collapsed_details: Cell::new(false),
         }
     }
@@ -299,6 +354,14 @@ impl RunningToolCallCell {
 
     pub(crate) fn toggle_details_collapsed(&self) {
         self.collapsed_details.set(!self.collapsed_details.get());
+    }
+
+    pub(crate) fn toggle_cell_collapsed(&self) {
+        self.cell_collapsed.set(!self.cell_collapsed.get());
+    }
+
+    pub(crate) fn has_foldable_arguments(&self) -> bool {
+        self.state.arguments.len() > TOOL_DETAILS_PREVIEW_ARGS
     }
 
     #[cfg(any(test, feature = "test-helpers"))]
@@ -550,13 +613,20 @@ impl RunningToolCallCell {
         );
         shown
     }
+
+    fn collapsed_summary_lines(&self) -> Vec<Line<'static>> {
+        trim_empty_lines(self.render_lines())
+            .into_iter()
+            .take(1)
+            .collect()
+    }
 }
 
 impl HistoryCell for RunningToolCallCell {
     impl_as_any!();
 
     fn is_fold_toggleable(&self) -> bool {
-        true
+        trim_empty_lines(self.render_lines()).len() > self.collapsed_summary_lines().len()
     }
 
     fn kind(&self) -> HistoryCellType {
@@ -571,6 +641,14 @@ impl HistoryCell for RunningToolCallCell {
 
     fn parent_call_id(&self) -> Option<&str> {
         self.parent_call_id.as_deref()
+    }
+
+    fn is_collapsed(&self) -> bool {
+        self.cell_collapsed.get()
+    }
+
+    fn collapsed_display_lines(&self, _ctx: &super::CollapsedContext) -> Vec<Line<'static>> {
+        self.collapsed_summary_lines()
     }
 
     fn gutter_symbol(&self) -> Option<&'static str> {
@@ -590,6 +668,15 @@ impl HistoryCell for RunningToolCallCell {
     }
 
     fn display_lines(&self) -> Vec<Line<'static>> {
+        if self.cell_collapsed.get() {
+            return self.collapsed_summary_lines();
+        }
+        self.render_lines()
+    }
+}
+
+impl RunningToolCallCell {
+    fn render_lines(&self) -> Vec<Line<'static>> {
         let elapsed = self.elapsed_duration();
         let mut lines: Vec<Line<'static>> = Vec::new();
         if self.state.title == "Waiting" {
@@ -657,4 +744,134 @@ fn render_argument(arg: &ToolArgument) -> Line<'static> {
     };
     spans.push(value_span);
     Line::from(spans)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::history::state::{HistoryId, ToolResultPreview};
+    use std::time::SystemTime;
+
+    fn text_arg(name: &str, value: &str) -> ToolArgument {
+        ToolArgument {
+            name: name.to_owned(),
+            value: ArgumentValue::Text(value.to_owned()),
+        }
+    }
+
+    #[test]
+    fn single_argument_tool_chevron_collapse_reduces_height() {
+        let cell = ToolCallCell::new(ToolCallState {
+            id: HistoryId::ZERO,
+            call_id: Some("tool-1".to_owned()),
+            status: HistoryToolStatus::Success,
+            title: "Tool".to_owned(),
+            duration: None,
+            arguments: vec![text_arg("path", "/tmp/example.txt")],
+            result_preview: None,
+            error_message: None,
+        });
+
+        let before = cell.desired_height(80);
+        assert!(cell.is_fold_toggleable());
+
+        cell.toggle_cell_collapsed();
+
+        assert!(cell.is_collapsed());
+        assert!(
+            cell.desired_height(80) < before,
+            "chevron collapse should visibly reduce short tool cells"
+        );
+    }
+
+    #[test]
+    fn tool_cell_collapse_reports_trait_state() {
+        let cell = ToolCallCell::new(ToolCallState {
+            id: HistoryId::ZERO,
+            call_id: Some("tool-2".to_owned()),
+            status: HistoryToolStatus::Success,
+            title: "Tool".to_owned(),
+            duration: None,
+            arguments: vec![text_arg("path", "/tmp/example.txt")],
+            result_preview: Some(ToolResultPreview {
+                lines: vec!["line 1".to_owned(), "line 2".to_owned()],
+                truncated: false,
+            }),
+            error_message: None,
+        });
+
+        assert!(cell.is_fold_toggleable());
+        assert!(!cell.is_collapsed());
+
+        cell.toggle_cell_collapsed();
+
+        assert!(cell.is_collapsed());
+        assert_eq!(cell.collapsed_display_lines(&CollapsedContext { reply_number: 1 }), cell.display_lines_trimmed());
+    }
+
+    #[test]
+    fn running_tool_chevron_collapse_reduces_height() {
+        let cell = RunningToolCallCell::new(RunningToolState {
+            id: HistoryId::ZERO,
+            call_id: Some("tool-3".to_owned()),
+            title: "Running".to_owned(),
+            started_at: SystemTime::UNIX_EPOCH,
+            wait_cap_ms: None,
+            wait_has_target: false,
+            wait_has_call_id: false,
+            arguments: vec![
+                text_arg("path", "/tmp/example.txt"),
+                text_arg("mode", "fast"),
+            ],
+        });
+
+        let before = cell.desired_height(80);
+        assert!(cell.is_fold_toggleable());
+
+        cell.toggle_cell_collapsed();
+
+        assert!(cell.is_collapsed());
+        assert!(
+            cell.desired_height(80) < before,
+            "chevron collapse should visibly reduce running tool cells"
+        );
+    }
+
+    #[test]
+    fn tool_without_details_does_not_advertise_fold_toggle() {
+        let cell = ToolCallCell::new(ToolCallState {
+            id: HistoryId::ZERO,
+            call_id: Some("tool-empty".to_owned()),
+            status: HistoryToolStatus::Success,
+            title: "Tool".to_owned(),
+            duration: None,
+            arguments: Vec::new(),
+            result_preview: None,
+            error_message: None,
+        });
+
+        assert!(
+            !cell.is_fold_toggleable(),
+            "single-line tool cells should not render a chevron"
+        );
+    }
+
+    #[test]
+    fn running_tool_without_arguments_does_not_advertise_fold_toggle() {
+        let cell = RunningToolCallCell::new(RunningToolState {
+            id: HistoryId::ZERO,
+            call_id: Some("tool-empty-running".to_owned()),
+            title: "Waiting".to_owned(),
+            started_at: SystemTime::UNIX_EPOCH,
+            wait_cap_ms: None,
+            wait_has_target: false,
+            wait_has_call_id: false,
+            arguments: Vec::new(),
+        });
+
+        assert!(
+            !cell.is_fold_toggleable(),
+            "single-line running tool cells should not render a chevron"
+        );
+    }
 }

@@ -344,6 +344,7 @@
         chat.apply_tui_settings_menu(SettingsMenuConfig {
             open_mode: SettingsMenuOpenMode::Auto,
             overlay_min_width: 100,
+            ..SettingsMenuConfig::default()
         });
         chat.layout.last_frame_width.set(120);
         chat.show_settings_overlay(Some(SettingsSection::Notifications));
@@ -398,6 +399,7 @@
             chat.apply_tui_settings_menu(SettingsMenuConfig {
                 open_mode: SettingsMenuOpenMode::Overlay,
                 overlay_min_width: 100,
+                ..SettingsMenuConfig::default()
             });
             chat.layout.last_frame_width.set(120);
             chat.show_settings_overlay(Some(SettingsSection::Interface));
@@ -412,6 +414,7 @@
             chat.apply_tui_settings_menu(SettingsMenuConfig {
                 open_mode: SettingsMenuOpenMode::Bottom,
                 overlay_min_width: 100,
+                ..SettingsMenuConfig::default()
             });
             assert!(
                 chat.settings.overlay.is_none(),
@@ -433,6 +436,7 @@
             chat.apply_tui_settings_menu(SettingsMenuConfig {
                 open_mode: SettingsMenuOpenMode::Overlay,
                 overlay_min_width: 100,
+                ..SettingsMenuConfig::default()
             });
             assert!(
                 chat.settings.overlay.is_some(),
@@ -457,6 +461,7 @@
             chat.apply_tui_settings_menu(SettingsMenuConfig {
                 open_mode: SettingsMenuOpenMode::Auto,
                 overlay_min_width: 100,
+                ..SettingsMenuConfig::default()
             });
             chat.layout.last_frame_width.set(120);
             chat.show_settings_overlay(Some(SettingsSection::Accounts));
@@ -497,6 +502,7 @@
         chat.apply_tui_settings_menu(SettingsMenuConfig {
             open_mode: SettingsMenuOpenMode::Overlay,
             overlay_min_width: 80,
+            ..SettingsMenuConfig::default()
         });
         chat.show_settings_overlay(None);
     }
@@ -554,6 +560,7 @@
         chat.apply_tui_settings_menu(SettingsMenuConfig {
             open_mode: SettingsMenuOpenMode::Overlay,
             overlay_min_width: 80,
+            ..SettingsMenuConfig::default()
         });
         chat.show_settings_overlay(None);
     }
@@ -595,6 +602,7 @@
         chat.apply_tui_settings_menu(SettingsMenuConfig {
             open_mode: SettingsMenuOpenMode::Overlay,
             overlay_min_width: 80,
+            ..SettingsMenuConfig::default()
         });
         chat.show_settings_overlay(Some(SettingsSection::Plugins));
     }
@@ -628,6 +636,7 @@
         chat.apply_tui_settings_menu(SettingsMenuConfig {
             open_mode: SettingsMenuOpenMode::Overlay,
             overlay_min_width: 80,
+            ..SettingsMenuConfig::default()
         });
         chat.show_settings_overlay(None);
     }

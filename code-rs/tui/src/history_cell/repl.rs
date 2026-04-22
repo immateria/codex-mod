@@ -3,6 +3,8 @@ use std::collections::HashSet;
 use std::time::Instant;
 
 use ratatui::prelude::*;
+use ratatui::text::Text;
+use ratatui::widgets::{Paragraph, Wrap};
 use unicode_width::UnicodeWidthStr as _;
 
 use crate::history::state::ExecRecord;
@@ -49,6 +51,7 @@ pub(crate) struct ReplCell {
     pub(crate) start_time: Option<Instant>,
     /// When true the code block shows only the first non-empty line + "…".
     pub(crate) code_collapsed: Cell<bool>,
+    cell_collapsed: Cell<bool>,
     /// When true the output block is capped at `OUTPUT_FOLD_THRESHOLD` lines.
     pub(crate) collapsed_output: Cell<bool>,
     child_call_ids: HashSet<String>,
@@ -76,6 +79,7 @@ impl ReplCell {
             stream_preview: None,
             start_time: Some(Instant::now()),
             code_collapsed: Cell::new(collapse_code_by_default),
+            cell_collapsed: Cell::new(false),
             collapsed_output: Cell::new(false),
             child_call_ids: HashSet::new(),
             last_child_call_id: None,
@@ -102,6 +106,16 @@ impl ReplCell {
     pub(crate) fn toggle_output_collapsed(&self) {
         self.collapsed_output.set(!self.collapsed_output.get());
         self.layout_cache.invalidate();
+    }
+
+    pub(crate) fn toggle_cell_collapsed(&self) {
+        self.cell_collapsed.set(!self.cell_collapsed.get());
+    }
+
+    pub(crate) fn has_foldable_output(&self) -> bool {
+        self.output
+            .as_ref()
+            .is_some_and(|_| output_lines(self.output.as_ref(), false, false).len() > OUTPUT_FOLD_THRESHOLD)
     }
 
     /// Update output data from an `ExecRecord` produced by the history domain.
@@ -199,6 +213,13 @@ impl ReplCell {
         }
 
         lines
+    }
+
+    fn collapsed_summary_lines(&self) -> Vec<Line<'static>> {
+        trim_empty_lines(self.build_display_lines())
+            .into_iter()
+            .take(1)
+            .collect()
     }
 
     fn header_line(&self) -> Line<'static> {
@@ -404,18 +425,39 @@ impl HistoryCell for ReplCell {
     }
 
     fn is_fold_toggleable(&self) -> bool {
+        // build_display_lines always emits header + code + ≥1 output line
+        // when output is present, so the expanded view always exceeds the
+        // 1-line collapsed summary. No need to build lines just to confirm.
         self.output.is_some()
     }
 
+    fn is_collapsed(&self) -> bool {
+        self.cell_collapsed.get()
+    }
+
+    fn collapsed_display_lines(&self, _ctx: &super::CollapsedContext) -> Vec<Line<'static>> {
+        self.collapsed_summary_lines()
+    }
+
     fn has_custom_render(&self) -> bool {
-        true
+        !self.cell_collapsed.get()
     }
 
     fn desired_height(&self, width: u16) -> u16 {
+        if self.cell_collapsed.get() {
+            return Paragraph::new(Text::from(self.collapsed_summary_lines()))
+                .wrap(Wrap { trim: false })
+                .line_count(width)
+                .try_into()
+                .unwrap_or(0);
+        }
         self.layout_for_width(width).total
     }
 
     fn display_lines(&self) -> Vec<Line<'static>> {
+        if self.cell_collapsed.get() {
+            return self.collapsed_summary_lines();
+        }
         self.build_display_lines()
     }
 
@@ -451,5 +493,103 @@ impl HistoryCell for ReplCell {
             }
             write_line(buf, area.x, y, area.width, line, bg_style);
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::history_cell::CollapsedContext;
+    use crate::history::state::{ExecAction, HistoryId};
+    use std::time::SystemTime;
+
+    fn record() -> ExecRecord {
+        ExecRecord {
+            id: HistoryId::ZERO,
+            call_id: Some("repl-1".to_owned()),
+            command: vec!["node".to_owned()],
+            parsed: Vec::new(),
+            action: ExecAction::Run,
+            status: ExecStatus::Success,
+            stdout_chunks: Vec::new(),
+            stderr_chunks: Vec::new(),
+            exit_code: Some(0),
+            wait_total: None,
+            wait_active: false,
+            wait_notes: Vec::new(),
+            started_at: SystemTime::UNIX_EPOCH,
+            completed_at: Some(SystemTime::UNIX_EPOCH),
+            working_dir: None,
+            env: Vec::new(),
+            tags: Vec::new(),
+        }
+    }
+
+    fn output_with_lines(count: usize) -> CommandOutput {
+        CommandOutput {
+            exit_code: 0,
+            stdout: (0..count)
+                .map(|idx| format!("line {idx}"))
+                .collect::<Vec<_>>()
+                .join("\n"),
+            stderr: String::new(),
+        }
+    }
+
+    fn repl_with_output(count: usize) -> ReplCell {
+        let mut cell = ReplCell::new_active(
+            record(),
+            "console.log('hi');".to_owned(),
+            "node".to_owned(),
+            "20.11.0".to_owned(),
+        );
+        cell.record.status = ExecStatus::Success;
+        cell.record.completed_at = Some(SystemTime::UNIX_EPOCH);
+        cell.output = Some(output_with_lines(count));
+        cell.start_time = None;
+        cell.collapsed_output.set(count > OUTPUT_FOLD_THRESHOLD);
+        cell
+    }
+
+    #[test]
+    fn repl_cell_without_output_does_not_advertise_fold_toggle() {
+        let cell = ReplCell::new_active(
+            record(),
+            "console.log('hi');".to_owned(),
+            "node".to_owned(),
+            "20.11.0".to_owned(),
+        );
+        assert!(
+            !cell.is_fold_toggleable(),
+            "repl cell without output must not advertise fold toggle"
+        );
+    }
+
+    #[test]
+    fn short_repl_output_chevron_collapse_reduces_height() {
+        let cell = repl_with_output(2);
+        let before = cell.desired_height(80);
+        assert!(cell.is_fold_toggleable());
+
+        cell.toggle_cell_collapsed();
+
+        assert!(cell.is_collapsed());
+        assert!(
+            cell.desired_height(80) < before,
+            "chevron collapse should visibly reduce short repl cells"
+        );
+    }
+
+    #[test]
+    fn repl_cell_collapse_reports_trait_state() {
+        let cell = repl_with_output(OUTPUT_FOLD_THRESHOLD + 1);
+
+        assert!(cell.is_fold_toggleable());
+        assert!(!cell.is_collapsed());
+
+        cell.toggle_cell_collapsed();
+
+        assert!(cell.is_collapsed());
+        assert_eq!(cell.collapsed_display_lines(&CollapsedContext { reply_number: 1 }), cell.display_lines_trimmed());
     }
 }

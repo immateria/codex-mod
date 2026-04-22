@@ -79,7 +79,7 @@
       ]
     },
     "FunctionCallOutputContentItem": {
-      "description": "Responses API compatible content items that can be returned by a tool call. This is a subset of ContentItem with the types we support as function call outputs.",
+      "description": "Responses API compatible content items that can be returned by a tool call. This is a subset of `ContentItem` with the types we support as function call outputs.",
       "oneOf": [
         {
           "properties": {
@@ -134,7 +134,7 @@
       ]
     },
     "FunctionCallOutputPayload": {
-      "description": "The payload we send back to OpenAI when reporting a tool call result.\n\n`body` serializes directly as the wire value for `function_call_output.output`. `success` remains internal metadata for downstream handling.",
+      "description": "The payload we send back to `OpenAI` when reporting a tool call result.\n\n`body` serializes directly as the wire value for `function_call_output.output`. `success` remains internal metadata for downstream handling.",
       "properties": {
         "body": {
           "$ref": "#/definitions/FunctionCallOutputBody"

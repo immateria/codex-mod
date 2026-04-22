@@ -9,8 +9,8 @@ use code_core::protocol::McpInvocation;
 use mcp_types::{EmbeddedResourceResource, ResourceLink};
 use ratatui::prelude::{Buffer, Rect};
 use ratatui::style::{Modifier, Style, Stylize};
-use ratatui::text::{Line, Span};
-use ratatui::widgets::{Block, Borders, Padding, Widget};
+use ratatui::text::{Line, Span, Text};
+use ratatui::widgets::{Block, Borders, Padding, Paragraph, Widget, Wrap};
 use sha2::{Digest, Sha256};
 use tracing::error;
 
@@ -505,6 +505,7 @@ pub(crate) fn new_completed_web_fetch_tool_call(
     WebFetchToolCell {
         pre_lines,
         body_lines,
+        cell_collapsed: Cell::new(false),
         collapsed_body: Cell::new(collapse_by_default),
         state: if success {
             ToolCellStatus::Success
@@ -529,6 +530,7 @@ layout_build_counter!(
 pub(crate) struct WebFetchToolCell {
     pre_lines: Vec<Line<'static>>,  // header/invocation
     body_lines: Vec<Line<'static>>, // bordered, dim preview
+    cell_collapsed: Cell<bool>,
     collapsed_body: Cell<bool>,
     state: ToolCellStatus,
     pub(crate) parent_call_id: Option<String>,
@@ -554,6 +556,14 @@ impl WebFetchToolCell {
         self.layout_cache.invalidate();
     }
 
+    pub(crate) fn toggle_cell_collapsed(&self) {
+        self.cell_collapsed.set(!self.cell_collapsed.get());
+    }
+
+    pub(crate) fn has_foldable_body(&self) -> bool {
+        trim_empty_lines(self.body_lines.clone()).len() > WEB_FETCH_COLLAPSED_PREVIEW_LINES
+    }
+
     fn folded_body_lines(&self) -> Vec<Line<'static>> {
         let mut body = trim_empty_lines(self.body_lines.clone());
         if body.is_empty() {
@@ -565,6 +575,20 @@ impl WebFetchToolCell {
             &super::formatting::FoldConfig::with_threshold(WEB_FETCH_COLLAPSED_PREVIEW_LINES),
         );
         body
+    }
+
+    fn collapsed_summary_lines(&self) -> Vec<Line<'static>> {
+        trim_empty_lines(self.pre_lines.clone())
+            .into_iter()
+            .take(2)
+            .collect()
+    }
+
+    fn expanded_display_lines(&self) -> Vec<Line<'static>> {
+        let mut lines = Vec::new();
+        lines.extend(self.pre_lines.clone());
+        lines.extend(self.folded_body_lines());
+        lines
     }
 
     fn layout_for_width(&self, width: u16) -> std::cell::Ref<'_, WebFetchLayout> {
@@ -604,7 +628,7 @@ impl HistoryCell for WebFetchToolCell {
     impl_as_any!();
 
     fn is_fold_toggleable(&self) -> bool {
-        true
+        trim_empty_lines(self.expanded_display_lines()).len() > self.collapsed_summary_lines().len()
     }
 
     fn kind(&self) -> HistoryCellType {
@@ -615,17 +639,31 @@ impl HistoryCell for WebFetchToolCell {
         self.parent_call_id.as_deref()
     }
 
+    fn is_collapsed(&self) -> bool {
+        self.cell_collapsed.get()
+    }
+
+    fn collapsed_display_lines(&self, _ctx: &super::CollapsedContext) -> Vec<Line<'static>> {
+        self.collapsed_summary_lines()
+    }
+
     fn display_lines(&self) -> Vec<Line<'static>> {
-        // Fallback textual representation used only for measurement outside custom render
-        let mut v = Vec::new();
-        v.extend(self.pre_lines.clone());
-        v.extend(self.folded_body_lines());
-        v
+        if self.cell_collapsed.get() {
+            return self.collapsed_summary_lines();
+        }
+        self.expanded_display_lines()
     }
     fn has_custom_render(&self) -> bool {
-        true
+        !self.cell_collapsed.get()
     }
     fn desired_height(&self, width: u16) -> u16 {
+        if self.cell_collapsed.get() {
+            return Paragraph::new(Text::from(self.collapsed_summary_lines()))
+                .wrap(Wrap { trim: false })
+                .line_count(width)
+                .try_into()
+                .unwrap_or(0);
+        }
         self.layout_for_width(width).total_rows
     }
     fn custom_render_with_skip(&self, area: Rect, buf: &mut Buffer, skip_rows: u16) {
@@ -1278,4 +1316,87 @@ fn format_mcp_invocation(invocation: McpInvocation) -> Line<'static> {
             .fg(crate::colors::text_dim())
             .add_modifier(Modifier::ITALIC),
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::history_cell::CollapsedContext;
+    use code_core::config::{ConfigOverrides, ConfigToml};
+
+    fn test_config() -> Config {
+        Config::load_from_base_config_with_overrides(
+            ConfigToml::default(),
+            ConfigOverrides::default(),
+            std::env::temp_dir(),
+        )
+        .expect("test config")
+    }
+
+    fn joined_lines(count: usize) -> String {
+        (0..count)
+            .map(|idx| format!("line {idx}"))
+            .collect::<Vec<_>>()
+            .join("\n")
+    }
+
+    #[test]
+    fn short_web_fetch_chevron_collapse_reduces_height() {
+        let cfg = test_config();
+        let cell = new_completed_web_fetch_tool_call(
+            &cfg,
+            None,
+            Duration::from_millis(10),
+            true,
+            joined_lines(2),
+        );
+
+        let before = cell.desired_height(80);
+        assert!(cell.is_fold_toggleable());
+
+        cell.toggle_cell_collapsed();
+
+        assert!(cell.is_collapsed());
+        assert!(
+            cell.desired_height(80) < before,
+            "chevron collapse should visibly reduce short web_fetch cells"
+        );
+    }
+
+    #[test]
+    fn web_fetch_cell_collapse_reports_trait_state() {
+        let cfg = test_config();
+        let cell = new_completed_web_fetch_tool_call(
+            &cfg,
+            None,
+            Duration::from_millis(10),
+            true,
+            joined_lines(9),
+        );
+
+        assert!(cell.is_fold_toggleable());
+        assert!(!cell.is_collapsed());
+
+        cell.toggle_cell_collapsed();
+
+        assert!(cell.is_collapsed());
+        assert_eq!(cell.collapsed_display_lines(&CollapsedContext { reply_number: 1 }), cell.display_lines_trimmed());
+    }
+
+    #[test]
+    fn empty_web_fetch_does_not_advertise_fold_toggle() {
+        let cfg = test_config();
+        let cell = new_completed_web_fetch_tool_call(
+            &cfg,
+            None,
+            Duration::from_millis(10),
+            true,
+            String::new(),
+        );
+
+        assert!(
+            !cell.is_fold_toggleable(),
+            "web_fetch cells without body content should not render a chevron"
+        );
+    }
 }

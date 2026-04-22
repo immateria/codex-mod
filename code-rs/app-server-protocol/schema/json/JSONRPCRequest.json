@@ -21,7 +21,8 @@
     "method": {
       "type": "string"
     },
-    "params": true
+    "params": true,
+    "trace": true
   },
   "required": [
     "id",

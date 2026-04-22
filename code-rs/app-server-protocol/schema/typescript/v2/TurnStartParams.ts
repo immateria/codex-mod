@@ -5,6 +5,7 @@ import type { CollaborationMode } from "../CollaborationMode";
 import type { Personality } from "../Personality";
 import type { ReasoningEffort } from "../ReasoningEffort";
 import type { ReasoningSummary } from "../ReasoningSummary";
+import type { Tone } from "../Tone";
 import type { JsonValue } from "../serde_json/JsonValue";
 import type { AskForApproval } from "./AskForApproval";
 import type { SandboxPolicy } from "./SandboxPolicy";
@@ -32,11 +33,14 @@ summary?: ReasoningSummary | null, /**
  * Override the personality for this turn and subsequent turns.
  */
 personality?: Personality | null, /**
+ * Override the response tone for this turn and subsequent turns.
+ */
+tone?: Tone | null, /**
  * Optional JSON Schema used to constrain the final assistant message for this turn.
  */
 outputSchema?: JsonValue | null, /**
  * EXPERIMENTAL - Set a pre-set collaboration mode.
- * Takes precedence over model, reasoning_effort, and developer instructions if set.
+ * Takes precedence over model, `reasoning_effort`, and developer instructions if set.
  *
  * For `collaboration_mode.settings.developer_instructions`, `null` means
  * "use the built-in instructions for the selected mode".

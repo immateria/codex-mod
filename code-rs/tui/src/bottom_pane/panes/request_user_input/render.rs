@@ -141,12 +141,28 @@ impl RequestUserInputView {
                     .map(|answer| answer.option_state)
                     .unwrap_or_default();
                 let selected = state.selected_idx;
+                let checked_options = self
+                    .current_answer()
+                    .map(|answer| answer.checked_options.clone())
+                    .unwrap_or_default();
                 let hovered = self.current_answer().and_then(|answer| answer.hover_option_idx);
+                let allows_multiple = self.current_allows_multiple();
                 let mut rows = options
                     .iter()
                     .enumerate()
                     .map(|(idx, opt)| {
-                        let prefix = if selected.is_some_and(|sel| sel == idx) {
+                        let is_selected = if allows_multiple {
+                            checked_options.contains(&idx)
+                        } else {
+                            selected.is_some_and(|sel| sel == idx)
+                        };
+                        let prefix = if allows_multiple {
+                            if is_selected {
+                                crate::icons::checkbox_on()
+                            } else {
+                                crate::icons::checkbox_off()
+                            }
+                        } else if is_selected {
                             "(x)"
                         } else {
                             "( )"
@@ -162,7 +178,11 @@ impl RequestUserInputView {
                     .collect::<Vec<_>>();
                 if self.current_is_other() {
                     let other_idx = options.len();
-                    let is_selected = selected.is_some_and(|sel| sel == other_idx);
+                    let is_selected = if allows_multiple {
+                        checked_options.contains(&other_idx)
+                    } else {
+                        selected.is_some_and(|sel| sel == other_idx)
+                    };
                     let other_value = self
                         .current_answer()
                         .map_or("", |answer| answer.freeform.trim_end());
@@ -176,7 +196,17 @@ impl RequestUserInputView {
                     } else {
                         "Other".to_owned()
                     };
-                    let prefix = if is_selected { "(x)" } else { "( )" };
+                    let prefix = if allows_multiple {
+                        if is_selected {
+                            crate::icons::checkbox_on()
+                        } else {
+                            crate::icons::checkbox_off()
+                        }
+                    } else if is_selected {
+                        "(x)"
+                    } else {
+                        "( )"
+                    };
                     rows.push(GenericDisplayRow {
                         name: format!("{prefix} {other_label}"),
                         description: Some("Provide a custom answer".to_owned()),
@@ -209,7 +239,19 @@ impl RequestUserInputView {
         let is_last = question_count > 0 && self.current_idx + 1 >= question_count;
         let enter_label = if is_last { "submit" } else { "next" };
         let footer = if has_options {
-            if accepts_freeform {
+            if self.current_allows_multiple() {
+                if accepts_freeform {
+                    format!(
+                        "{ud} move | Space toggle | Type other answer | Enter {enter_label} | Esc type in composer | PgUp/PgDn prev/next",
+                        ud = crate::icons::nav_up_down(),
+                    )
+                } else {
+                    format!(
+                        "{ud} move | Space toggle | Enter {enter_label} | Esc type in composer | PgUp/PgDn prev/next",
+                        ud = crate::icons::nav_up_down(),
+                    )
+                }
+            } else if accepts_freeform {
                 format!(
                     "{ud} select | Type other answer | Enter {enter_label} | Esc type in composer | PgUp/PgDn prev/next",
                     ud = crate::icons::nav_up_down(),
@@ -240,4 +282,3 @@ impl RequestUserInputView {
         matches!(key_event.kind, KeyEventKind::Press | KeyEventKind::Repeat)
     }
 }
-

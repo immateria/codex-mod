@@ -178,6 +178,41 @@ fn detects_ghostty() {
 }
 
 #[test]
+fn detects_additional_term_program_terminals() {
+    let cases = [
+        ("Hyper", "4.0.0", TerminalName::Hyper, "Hyper/4.0.0"),
+        ("Tabby", "1.0.215", TerminalName::Tabby, "Tabby/1.0.215"),
+        ("Rio", "0.1.14", TerminalName::Rio, "Rio/0.1.14"),
+        ("BlackBox", "0.15.0", TerminalName::BlackBox, "BlackBox/0.15.0"),
+        ("Tilix", "1.9.6", TerminalName::Tilix, "Tilix/1.9.6"),
+        ("kgx", "47.0", TerminalName::GnomeConsole, "kgx/47.0"),
+    ];
+
+    for (term_program, version, expected_name, expected_user_agent) in cases {
+        let env = FakeEnvironment::new()
+            .with_var("TERM_PROGRAM", term_program)
+            .with_var("TERM_PROGRAM_VERSION", version);
+        let terminal = detect_terminal_info_from_env(&env);
+        assert_eq!(
+            terminal,
+            terminal_info(
+                expected_name,
+                Some(term_program),
+                Some(version),
+                None,
+                None,
+            ),
+            "additional_term_program_info_{term_program}"
+        );
+        assert_eq!(
+            terminal.user_agent_token(),
+            expected_user_agent,
+            "additional_term_program_user_agent_{term_program}"
+        );
+    }
+}
+
+#[test]
 fn detects_vscode() {
     let env = FakeEnvironment::new()
         .with_var("TERM_PROGRAM", "vscode")
@@ -393,6 +428,27 @@ fn detects_wezterm() {
         "WezTerm",
         "wezterm_empty_user_agent"
     );
+
+    let env = FakeEnvironment::new()
+        .with_var("TERM_PROGRAM", "WezTerm")
+        .with_var("WEZTERM_VERSION", "2024.2");
+    let terminal = detect_terminal_info_from_env(&env);
+    assert_eq!(
+        terminal,
+        terminal_info(
+            TerminalName::WezTerm,
+            Some("WezTerm"),
+            Some("2024.2"),
+            None,
+            None,
+        ),
+        "wezterm_term_program_version_fallback_info"
+    );
+    assert_eq!(
+        terminal.user_agent_token(),
+        "WezTerm/2024.2",
+        "wezterm_term_program_version_fallback_user_agent"
+    );
 }
 
 #[test]
@@ -545,6 +601,27 @@ fn detects_konsole() {
         "Konsole",
         "konsole_empty_user_agent"
     );
+
+    let env = FakeEnvironment::new()
+        .with_var("TERM_PROGRAM", "Konsole")
+        .with_var("KONSOLE_VERSION", "230800");
+    let terminal = detect_terminal_info_from_env(&env);
+    assert_eq!(
+        terminal,
+        terminal_info(
+            TerminalName::Konsole,
+            Some("Konsole"),
+            Some("230800"),
+            None,
+            None,
+        ),
+        "konsole_term_program_version_fallback_info"
+    );
+    assert_eq!(
+        terminal.user_agent_token(),
+        "Konsole/230800",
+        "konsole_term_program_version_fallback_user_agent"
+    );
 }
 
 #[test]
@@ -622,6 +699,91 @@ fn detects_vte() {
         "vte_empty_info"
     );
     assert_eq!(terminal.user_agent_token(), "VTE", "vte_empty_user_agent");
+
+    let env = FakeEnvironment::new()
+        .with_var("TERM_PROGRAM", "VTE")
+        .with_var("VTE_VERSION", "7000");
+    let terminal = detect_terminal_info_from_env(&env);
+    assert_eq!(
+        terminal,
+        terminal_info(TerminalName::Vte, Some("VTE"), Some("7000"), None, None),
+        "vte_term_program_version_fallback_info"
+    );
+    assert_eq!(
+        terminal.user_agent_token(),
+        "VTE/7000",
+        "vte_term_program_version_fallback_user_agent"
+    );
+}
+
+#[test]
+fn detects_termux() {
+    let env = FakeEnvironment::new()
+        .with_var("TERM_PROGRAM", "Termux")
+        .with_var("TERMUX_VERSION", "0.119.1");
+    let terminal = detect_terminal_info_from_env(&env);
+    assert_eq!(
+        terminal,
+        terminal_info(
+            TerminalName::Termux,
+            Some("Termux"),
+            Some("0.119.1"),
+            None,
+            None,
+        ),
+        "termux_term_program_info"
+    );
+    assert_eq!(
+        terminal.user_agent_token(),
+        "Termux/0.119.1",
+        "termux_term_program_user_agent"
+    );
+
+    let env = FakeEnvironment::new().with_var("TERMUX_VERSION", "0.119.1");
+    let terminal = detect_terminal_info_from_env(&env);
+    assert_eq!(
+        terminal,
+        terminal_info(TerminalName::Termux, None, Some("0.119.1"), None, None),
+        "termux_env_fallback_info"
+    );
+    assert_eq!(
+        terminal.user_agent_token(),
+        "Termux/0.119.1",
+        "termux_env_fallback_user_agent"
+    );
+}
+
+#[test]
+fn detects_foot() {
+    let env = FakeEnvironment::new().with_var("FOOT", "1");
+    let terminal = detect_terminal_info_from_env(&env);
+    assert_eq!(
+        terminal,
+        terminal_info(TerminalName::Foot, None, None, None, None),
+        "foot_env_info"
+    );
+    assert_eq!(terminal.user_agent_token(), "foot", "foot_env_user_agent");
+
+    let env = FakeEnvironment::new().with_var("TERM", "foot-extra");
+    let terminal = detect_terminal_info_from_env(&env);
+    assert_eq!(
+        terminal,
+        terminal_info(TerminalName::Foot, None, None, Some("foot-extra"), None),
+        "foot_term_info"
+    );
+    assert_eq!(terminal.user_agent_token(), "foot-extra", "foot_term_user_agent");
+}
+
+#[test]
+fn detects_tilix() {
+    let env = FakeEnvironment::new().with_var("TILIX_ID", "2");
+    let terminal = detect_terminal_info_from_env(&env);
+    assert_eq!(
+        terminal,
+        terminal_info(TerminalName::Tilix, None, None, None, None),
+        "tilix_env_info"
+    );
+    assert_eq!(terminal.user_agent_token(), "Tilix", "tilix_env_user_agent");
 }
 
 #[test]

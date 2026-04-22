@@ -80,6 +80,7 @@ pub(crate) fn mcp_access_question(
         question,
         is_other: false,
         is_secret: false,
+        allow_multiple: false,
         options: Some(mcp_access_prompt_options(style_active)),
     }
 }

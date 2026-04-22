@@ -167,6 +167,72 @@
     }
 
     #[test]
+    fn request_user_input_tool_supports_freeform_and_multiselect_questions() {
+        let OpenAiTool::Function(tool_spec) = super::builtin_tools::create_request_user_input_tool()
+        else {
+            panic!("request_user_input should be a function tool");
+        };
+
+        let JsonSchema::Object { properties, .. } = &tool_spec.parameters else {
+            panic!("request_user_input parameters should be an object schema");
+        };
+        let Some(JsonSchema::Array { items, .. }) = properties.get("questions") else {
+            panic!("request_user_input should expose a questions array");
+        };
+        let JsonSchema::Object {
+            properties: question_props,
+            required,
+            ..
+        } = items.as_ref()
+        else {
+            panic!("request_user_input questions should be object schemas");
+        };
+
+        assert_eq!(
+            required.as_ref(),
+            Some(&vec![
+                "id".to_owned(),
+                "header".to_owned(),
+                "question".to_owned(),
+            ])
+        );
+        assert!(question_props.contains_key("options"));
+        assert!(question_props.contains_key("allow_freeform"));
+        assert!(question_props.contains_key("allow_multiple"));
+    }
+
+    #[test]
+    fn request_user_input_multiselect_schema_explains_that_options_are_required() {
+        let OpenAiTool::Function(tool_spec) = super::builtin_tools::create_request_user_input_tool()
+        else {
+            panic!("request_user_input should be a function tool");
+        };
+
+        let JsonSchema::Object { properties, .. } = &tool_spec.parameters else {
+            panic!("request_user_input parameters should be an object schema");
+        };
+        let Some(JsonSchema::Array { items, .. }) = properties.get("questions") else {
+            panic!("request_user_input should expose a questions array");
+        };
+        let JsonSchema::Object {
+            properties: question_props,
+            ..
+        } = items.as_ref()
+        else {
+            panic!("request_user_input questions should be object schemas");
+        };
+        let Some(JsonSchema::Boolean { description }) = question_props.get("allow_multiple") else {
+            panic!("request_user_input should expose allow_multiple");
+        };
+
+        let description = description.as_deref().unwrap_or_default();
+        assert!(
+            description.contains("Requires `options`"),
+            "allow_multiple schema description should explain that options are required"
+        );
+    }
+
+    #[test]
     fn test_web_search_defaults_to_external_access_enabled() {
         let model_family = model_family_or_panic("o3");
         let mut config = ToolsConfig::new(ToolsConfigParams {

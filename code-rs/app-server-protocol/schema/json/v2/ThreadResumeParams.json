@@ -129,7 +129,7 @@
       ]
     },
     "FunctionCallOutputContentItem": {
-      "description": "Responses API compatible content items that can be returned by a tool call. This is a subset of ContentItem with the types we support as function call outputs.",
+      "description": "Responses API compatible content items that can be returned by a tool call. This is a subset of `ContentItem` with the types we support as function call outputs.",
       "oneOf": [
         {
           "properties": {
@@ -184,7 +184,7 @@
       ]
     },
     "FunctionCallOutputPayload": {
-      "description": "The payload we send back to OpenAI when reporting a tool call result.\n\n`body` serializes directly as the wire value for `function_call_output.output`. `success` remains internal metadata for downstream handling.",
+      "description": "The payload we send back to `OpenAI` when reporting a tool call result.\n\n`body` serializes directly as the wire value for `function_call_output.output`. `success` remains internal metadata for downstream handling.",
       "properties": {
         "body": {
           "$ref": "#/definitions/FunctionCallOutputBody"
@@ -315,7 +315,10 @@
       "enum": [
         "none",
         "friendly",
-        "pragmatic"
+        "pragmatic",
+        "concise",
+        "enthusiastic",
+        "mentor"
       ],
       "type": "string"
     },
@@ -873,6 +876,16 @@
       ],
       "type": "string"
     },
+    "Tone": {
+      "enum": [
+        "neutral",
+        "formal",
+        "casual",
+        "direct",
+        "encouraging"
+      ],
+      "type": "string"
+    },
     "WebSearchAction": {
       "oneOf": [
         {
@@ -975,7 +988,7 @@
       ]
     }
   },
-  "description": "There are three ways to resume a thread: 1. By thread_id: load the thread from disk by thread_id and resume it. 2. By history: instantiate the thread from memory and resume it. 3. By path: load the thread from disk by path and resume it.\n\nThe precedence is: history > path > thread_id. If using history or path, the thread_id param will be ignored.\n\nPrefer using thread_id whenever possible.",
+  "description": "There are three ways to resume a thread: 1. By `thread_id`: load the thread from disk by `thread_id` and resume it. 2. By history: instantiate the thread from memory and resume it. 3. By path: load the thread from disk by path and resume it.\n\nThe precedence is: history > path > `thread_id`. If using history or path, the `thread_id` param will be ignored.\n\nPrefer using `thread_id` whenever possible.",
   "properties": {
     "approvalPolicy": {
       "anyOf": [
@@ -1047,6 +1060,17 @@
     },
     "threadId": {
       "type": "string"
+    },
+    "tone": {
+      "anyOf": [
+        {
+          "$ref": "#/definitions/Tone"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Override the response tone."
     }
   },
   "required": [

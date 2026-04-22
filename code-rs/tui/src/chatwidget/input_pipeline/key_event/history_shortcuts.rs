@@ -73,7 +73,7 @@ impl ChatWidget<'_> {
             let cell_box = &self.history_cells[idx];
             let cell = cell_box.as_ref();
             if let Some(exec_cell) = cell.as_any().downcast_ref::<ExecCell>()
-                && exec_cell.output.is_some()
+                && exec_cell.has_foldable_output()
             {
                 #[cfg(feature = "test-helpers")]
                 if std::env::var("CODE_TUI_TEST_MODE").is_ok() {
@@ -85,7 +85,7 @@ impl ChatWidget<'_> {
                 return;
             }
             if let Some(js_cell) = cell.as_any().downcast_ref::<ReplCell>()
-                && js_cell.output.is_some()
+                && js_cell.has_foldable_output()
             {
                 #[cfg(feature = "test-helpers")]
                 if std::env::var("CODE_TUI_TEST_MODE").is_ok() {
@@ -96,7 +96,9 @@ impl ChatWidget<'_> {
                 self.request_redraw();
                 return;
             }
-            if let Some(tool_cell) = cell.as_any().downcast_ref::<ToolCallCell>() {
+            if let Some(tool_cell) = cell.as_any().downcast_ref::<ToolCallCell>()
+                && tool_cell.has_foldable_details()
+            {
                 #[cfg(feature = "test-helpers")]
                 if std::env::var("CODE_TUI_TEST_MODE").is_ok() {
                     tracing::debug!("toggle_bottommost_exec_fold: tool idx={idx} call_id={:?}", cell.call_id());
@@ -106,7 +108,9 @@ impl ChatWidget<'_> {
                 self.request_redraw();
                 return;
             }
-            if let Some(tool_cell) = cell.as_any().downcast_ref::<RunningToolCallCell>() {
+            if let Some(tool_cell) = cell.as_any().downcast_ref::<RunningToolCallCell>()
+                && tool_cell.has_foldable_arguments()
+            {
                 #[cfg(feature = "test-helpers")]
                 if std::env::var("CODE_TUI_TEST_MODE").is_ok() {
                     tracing::debug!("toggle_bottommost_exec_fold: running tool idx={idx} call_id={:?}", cell.call_id());
@@ -116,7 +120,9 @@ impl ChatWidget<'_> {
                 self.request_redraw();
                 return;
             }
-            if let Some(web_fetch_cell) = cell.as_any().downcast_ref::<WebFetchToolCell>() {
+            if let Some(web_fetch_cell) = cell.as_any().downcast_ref::<WebFetchToolCell>()
+                && web_fetch_cell.has_foldable_body()
+            {
                 #[cfg(feature = "test-helpers")]
                 if std::env::var("CODE_TUI_TEST_MODE").is_ok() {
                     tracing::debug!("toggle_bottommost_exec_fold: web idx={idx} call_id={:?}", cell.call_id());
@@ -144,15 +150,15 @@ impl ChatWidget<'_> {
         let Some(cell_box) = self.history_cells.get(idx) else { return };
         let cell = cell_box.as_ref();
         if let Some(exec_cell) = cell.as_any().downcast_ref::<ExecCell>() {
-            exec_cell.toggle_output_collapsed();
+            exec_cell.toggle_cell_collapsed();
         } else if let Some(js_cell) = cell.as_any().downcast_ref::<ReplCell>() {
-            js_cell.toggle_output_collapsed();
+            js_cell.toggle_cell_collapsed();
         } else if let Some(tool_cell) = cell.as_any().downcast_ref::<ToolCallCell>() {
-            tool_cell.toggle_details_collapsed();
+            tool_cell.toggle_cell_collapsed();
         } else if let Some(tool_cell) = cell.as_any().downcast_ref::<RunningToolCallCell>() {
-            tool_cell.toggle_details_collapsed();
+            tool_cell.toggle_cell_collapsed();
         } else if let Some(web_fetch_cell) = cell.as_any().downcast_ref::<WebFetchToolCell>() {
-            web_fetch_cell.toggle_body_collapsed();
+            web_fetch_cell.toggle_cell_collapsed();
         } else if let Some(assistant_cell) = cell.as_any().downcast_ref::<AssistantMarkdownCell>() {
             assistant_cell.toggle_body_collapsed();
         } else if let Some(plain_cell) = cell.as_any().downcast_ref::<PlainHistoryCell>() {

@@ -89,7 +89,7 @@ impl InterfaceSettingsView {
                             SettingsMenuOpenMode::Overlay => SettingsMenuOpenMode::Auto,
                             SettingsMenuOpenMode::Bottom => SettingsMenuOpenMode::Overlay,
                         };
-                        self.dirty_settings = true;
+                        self.refresh_settings_dirty_state();
                     }
                     Some(RowKind::OverlayMinWidth) => self.adjust_min_width(-5),
                     Some(RowKind::NerdFonts) => self.cycle_icon_mode_prev(),

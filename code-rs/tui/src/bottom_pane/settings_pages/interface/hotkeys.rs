@@ -33,13 +33,13 @@ const HOTKEY_ROWS: [HotkeyRow; 8] = [
 impl HotkeyRow {
     fn field_name(self) -> &'static str {
         match self {
-            Self::ModelSelector => "model_selector",
-            Self::ReasoningEffort => "reasoning_effort",
-            Self::ShellSelector => "shell_selector",
-            Self::NetworkSettings => "network_settings",
-            Self::ExecOutputFold => "exec_output_fold",
-            Self::ReplCodeFold => "repl_code_fold",
-            Self::JumpToParentCall => "jump_to_parent_call",
+            Self::ModelSelector         => "model_selector",
+            Self::ReasoningEffort       => "reasoning_effort",
+            Self::ShellSelector         => "shell_selector",
+            Self::NetworkSettings       => "network_settings",
+            Self::ExecOutputFold        => "exec_output_fold",
+            Self::ReplCodeFold          => "repl_code_fold",
+            Self::JumpToParentCall      => "jump_to_parent_call",
             Self::JumpToLatestChildCall => "jump_to_latest_child_call",
         }
     }
@@ -56,39 +56,39 @@ impl HotkeyRow {
 
     fn hotkey_value(self, hotkeys: &TuiHotkeysConfig) -> TuiHotkey {
         match self {
-            Self::ModelSelector => hotkeys.model_selector,
-            Self::ReasoningEffort => hotkeys.reasoning_effort,
-            Self::ShellSelector => hotkeys.shell_selector,
-            Self::NetworkSettings => hotkeys.network_settings,
-            Self::ExecOutputFold => hotkeys.exec_output_fold,
-            Self::ReplCodeFold => hotkeys.repl_code_fold,
-            Self::JumpToParentCall => hotkeys.jump_to_parent_call,
+            Self::ModelSelector         => hotkeys.model_selector,
+            Self::ReasoningEffort       => hotkeys.reasoning_effort,
+            Self::ShellSelector         => hotkeys.shell_selector,
+            Self::NetworkSettings       => hotkeys.network_settings,
+            Self::ExecOutputFold        => hotkeys.exec_output_fold,
+            Self::ReplCodeFold          => hotkeys.repl_code_fold,
+            Self::JumpToParentCall      => hotkeys.jump_to_parent_call,
             Self::JumpToLatestChildCall => hotkeys.jump_to_latest_child_call,
         }
     }
 
     fn hotkey_field_mut(self, hotkeys: &mut TuiHotkeysConfig) -> &mut TuiHotkey {
         match self {
-            Self::ModelSelector => &mut hotkeys.model_selector,
-            Self::ReasoningEffort => &mut hotkeys.reasoning_effort,
-            Self::ShellSelector => &mut hotkeys.shell_selector,
-            Self::NetworkSettings => &mut hotkeys.network_settings,
-            Self::ExecOutputFold => &mut hotkeys.exec_output_fold,
-            Self::ReplCodeFold => &mut hotkeys.repl_code_fold,
-            Self::JumpToParentCall => &mut hotkeys.jump_to_parent_call,
+            Self::ModelSelector         => &mut hotkeys.model_selector,
+            Self::ReasoningEffort       => &mut hotkeys.reasoning_effort,
+            Self::ShellSelector         => &mut hotkeys.shell_selector,
+            Self::NetworkSettings       => &mut hotkeys.network_settings,
+            Self::ExecOutputFold        => &mut hotkeys.exec_output_fold,
+            Self::ReplCodeFold          => &mut hotkeys.repl_code_fold,
+            Self::JumpToParentCall      => &mut hotkeys.jump_to_parent_call,
             Self::JumpToLatestChildCall => &mut hotkeys.jump_to_latest_child_call,
         }
     }
 
     fn override_value(self, overrides: &TuiHotkeysOverrides) -> Option<TuiHotkey> {
         match self {
-            Self::ModelSelector => overrides.model_selector,
-            Self::ReasoningEffort => overrides.reasoning_effort,
-            Self::ShellSelector => overrides.shell_selector,
-            Self::NetworkSettings => overrides.network_settings,
-            Self::ExecOutputFold => overrides.exec_output_fold,
-            Self::ReplCodeFold => overrides.repl_code_fold,
-            Self::JumpToParentCall => overrides.jump_to_parent_call,
+            Self::ModelSelector         => overrides.model_selector,
+            Self::ReasoningEffort       => overrides.reasoning_effort,
+            Self::ShellSelector         => overrides.shell_selector,
+            Self::NetworkSettings       => overrides.network_settings,
+            Self::ExecOutputFold        => overrides.exec_output_fold,
+            Self::ReplCodeFold          => overrides.repl_code_fold,
+            Self::JumpToParentCall      => overrides.jump_to_parent_call,
             Self::JumpToLatestChildCall => overrides.jump_to_latest_child_call,
         }
     }
@@ -98,26 +98,26 @@ impl HotkeyRow {
         overrides: &mut TuiHotkeysOverrides,
     ) -> &mut Option<TuiHotkey> {
         match self {
-            Self::ModelSelector => &mut overrides.model_selector,
-            Self::ReasoningEffort => &mut overrides.reasoning_effort,
-            Self::ShellSelector => &mut overrides.shell_selector,
-            Self::NetworkSettings => &mut overrides.network_settings,
-            Self::ExecOutputFold => &mut overrides.exec_output_fold,
-            Self::ReplCodeFold => &mut overrides.repl_code_fold,
-            Self::JumpToParentCall => &mut overrides.jump_to_parent_call,
+            Self::ModelSelector         => &mut overrides.model_selector,
+            Self::ReasoningEffort       => &mut overrides.reasoning_effort,
+            Self::ShellSelector         => &mut overrides.shell_selector,
+            Self::NetworkSettings       => &mut overrides.network_settings,
+            Self::ExecOutputFold        => &mut overrides.exec_output_fold,
+            Self::ReplCodeFold          => &mut overrides.repl_code_fold,
+            Self::JumpToParentCall      => &mut overrides.jump_to_parent_call,
             Self::JumpToLatestChildCall => &mut overrides.jump_to_latest_child_call,
         }
     }
 
     fn resolved_value(self, resolved: &ResolvedTuiHotkeys) -> TuiHotkey {
         match self {
-            Self::ModelSelector => resolved.model_selector,
-            Self::ReasoningEffort => resolved.reasoning_effort,
-            Self::ShellSelector => resolved.shell_selector,
-            Self::NetworkSettings => resolved.network_settings,
-            Self::ExecOutputFold => resolved.exec_output_fold,
-            Self::ReplCodeFold => resolved.repl_code_fold,
-            Self::JumpToParentCall => resolved.jump_to_parent_call,
+            Self::ModelSelector         => resolved.model_selector,
+            Self::ReasoningEffort       => resolved.reasoning_effort,
+            Self::ShellSelector         => resolved.shell_selector,
+            Self::NetworkSettings       => resolved.network_settings,
+            Self::ExecOutputFold        => resolved.exec_output_fold,
+            Self::ReplCodeFold          => resolved.repl_code_fold,
+            Self::JumpToParentCall      => resolved.jump_to_parent_call,
             Self::JumpToLatestChildCall => resolved.jump_to_latest_child_call,
         }
     }
@@ -126,15 +126,15 @@ impl HotkeyRow {
 impl RowKind {
     fn as_hotkey_row(self) -> Option<HotkeyRow> {
         match self {
-            Self::ModelSelectorHotkey => Some(HotkeyRow::ModelSelector),
-            Self::ReasoningEffortHotkey => Some(HotkeyRow::ReasoningEffort),
-            Self::ShellSelectorHotkey => Some(HotkeyRow::ShellSelector),
-            Self::NetworkSettingsHotkey => Some(HotkeyRow::NetworkSettings),
-            Self::ExecOutputFoldHotkey => Some(HotkeyRow::ExecOutputFold),
-            Self::ReplCodeFoldHotkey => Some(HotkeyRow::ReplCodeFold),
-            Self::JumpToParentCallHotkey => Some(HotkeyRow::JumpToParentCall),
+            Self::ModelSelectorHotkey         => Some(HotkeyRow::ModelSelector),
+            Self::ReasoningEffortHotkey       => Some(HotkeyRow::ReasoningEffort),
+            Self::ShellSelectorHotkey         => Some(HotkeyRow::ShellSelector),
+            Self::NetworkSettingsHotkey       => Some(HotkeyRow::NetworkSettings),
+            Self::ExecOutputFoldHotkey        => Some(HotkeyRow::ExecOutputFold),
+            Self::ReplCodeFoldHotkey          => Some(HotkeyRow::ReplCodeFold),
+            Self::JumpToParentCallHotkey      => Some(HotkeyRow::JumpToParentCall),
             Self::JumpToLatestChildCallHotkey => Some(HotkeyRow::JumpToLatestChildCall),
-            _ => None,
+            _                                 => None,
         }
     }
 
@@ -149,15 +149,15 @@ impl RowKind {
 
     pub(super) fn hotkey_capture_label(self) -> Option<&'static str> {
         match self {
-            Self::ModelSelectorHotkey => Some("Hotkey: model selector"),
-            Self::ReasoningEffortHotkey => Some("Hotkey: reasoning effort"),
-            Self::ShellSelectorHotkey => Some("Hotkey: shell selector"),
-            Self::NetworkSettingsHotkey => Some("Hotkey: network settings"),
-            Self::ExecOutputFoldHotkey => Some("Hotkey: fold output/details"),
-            Self::ReplCodeFoldHotkey => Some("Hotkey: fold REPL code"),
-            Self::JumpToParentCallHotkey => Some("Hotkey: jump to parent call"),
+            Self::ModelSelectorHotkey         => Some("Hotkey: model selector"),
+            Self::ReasoningEffortHotkey       => Some("Hotkey: reasoning effort"),
+            Self::ShellSelectorHotkey         => Some("Hotkey: shell selector"),
+            Self::NetworkSettingsHotkey       => Some("Hotkey: network settings"),
+            Self::ExecOutputFoldHotkey        => Some("Hotkey: fold output/details"),
+            Self::ReplCodeFoldHotkey          => Some("Hotkey: fold REPL code"),
+            Self::JumpToParentCallHotkey      => Some("Hotkey: jump to parent call"),
             Self::JumpToLatestChildCallHotkey => Some("Hotkey: jump to child call"),
-            _ => None,
+            _                                 => None,
         }
     }
 
@@ -179,7 +179,7 @@ impl InterfaceSettingsView {
             SettingsMenuOpenMode::Overlay => SettingsMenuOpenMode::Bottom,
             SettingsMenuOpenMode::Bottom => SettingsMenuOpenMode::Auto,
         };
-        self.dirty_settings = true;
+        self.refresh_settings_dirty_state();
     }
 
     pub(super) fn adjust_min_width(&mut self, delta: i16) {
@@ -189,7 +189,7 @@ impl InterfaceSettingsView {
                 as u16;
         if next != self.settings.overlay_min_width {
             self.settings.overlay_min_width = next;
-            self.dirty_settings = true;
+            self.refresh_settings_dirty_state();
         }
     }
 
@@ -212,7 +212,7 @@ impl InterfaceSettingsView {
         // Keep sane bounds so accidental paste doesn't make it unusable.
         let clamped = parsed.clamp(OVERLAY_MIN_WIDTH_MIN, OVERLAY_MIN_WIDTH_MAX);
         self.settings.overlay_min_width = clamped;
-        self.dirty_settings = true;
+        self.refresh_settings_dirty_state();
         Ok(())
     }
 
@@ -446,14 +446,14 @@ impl InterfaceSettingsView {
         self.validate_hotkeys_for_env("global", HotkeyScope::Global.env(), global_max)?;
 
         for (label, scope, has_overrides) in [
-            ("macos", HotkeyScope::Macos, self.hotkeys.macos.is_some()),
+            ("macos",   HotkeyScope::Macos,   self.hotkeys.macos.is_some()),
             ("windows", HotkeyScope::Windows, self.hotkeys.windows.is_some()),
-            ("linux", HotkeyScope::Linux, self.hotkeys.linux.is_some()),
+            ("linux",   HotkeyScope::Linux,   self.hotkeys.linux.is_some()),
             ("android", HotkeyScope::Android, self.hotkeys.android.is_some()),
-            ("termux", HotkeyScope::Termux, self.hotkeys.termux.is_some()),
+            ("termux",  HotkeyScope::Termux,  self.hotkeys.termux.is_some()),
             ("freebsd", HotkeyScope::FreeBsd, self.hotkeys.freebsd.is_some()),
             ("openbsd", HotkeyScope::OpenBsd, self.hotkeys.openbsd.is_some()),
-            ("netbsd", HotkeyScope::NetBsd, self.hotkeys.netbsd.is_some()),
+            ("netbsd",  HotkeyScope::NetBsd,  self.hotkeys.netbsd.is_some()),
             (
                 "dragonfly",
                 HotkeyScope::Dragonfly,
@@ -472,6 +472,7 @@ impl InterfaceSettingsView {
         let saved_settings = if self.dirty_settings {
             self.app_event_tx
                 .send(AppEvent::SetTuiSettingsMenuConfig(self.settings.clone()));
+            self.settings_baseline = self.settings.clone();
             self.dirty_settings = false;
             true
         } else {
@@ -543,7 +544,7 @@ impl InterfaceSettingsView {
         self.icon_mode = self.icon_mode.next();
         // Global icon mode is NOT mutated here — it stays pending until Apply.
         // See apply_settings() for the commit path and
-        // revert_unapplied_icon_mode_preview() for the close/cancel revert.
+        // revert_unapplied_live_previews() for the close/cancel revert.
         self.status = None;
     }
 
@@ -558,7 +559,7 @@ impl InterfaceSettingsView {
         crate::bottom_pane::settings_ui::hints::set_fuse_hint_key_labels(
             self.settings.fuse_hint_key_labels,
         );
-        self.dirty_settings = true;
+        self.refresh_settings_dirty_state();
         self.status = None;
     }
 

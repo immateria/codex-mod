@@ -31,7 +31,7 @@ cwd: string,
 processId: string | null, status: CommandExecutionStatus, 
 /**
  * A best-effort parsing of the command to understand the action(s) it will perform.
- * This returns a list of CommandAction objects because a single shell command may
+ * This returns a list of `CommandAction` objects because a single shell command may
  * be composed of many commands piped together.
  */
 commandActions: Array<CommandAction>, 

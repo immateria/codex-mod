@@ -2,7 +2,7 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "definitions": {
     "ReviewDecision": {
-      "description": "User's decision in response to an ExecApprovalRequest.",
+      "description": "User's decision in response to an `ExecApprovalRequest`.",
       "oneOf": [
         {
           "description": "User has approved this command and the agent should execute it.",

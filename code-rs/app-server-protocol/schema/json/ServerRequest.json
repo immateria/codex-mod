@@ -2,7 +2,7 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "definitions": {
     "AbsolutePathBuf": {
-      "description": "A path that is guaranteed to be absolute and normalized (though it is not guaranteed to be canonicalized or exist on the filesystem).\n\nIMPORTANT: When deserializing an `AbsolutePathBuf`, a base path must be set using [AbsolutePathBufGuard::new]. If no base path is set, the deserialization will fail unless the path being deserialized is already absolute.",
+      "description": "A path that is guaranteed to be absolute and normalized (though it is not guaranteed to be canonicalized or exist on the filesystem).\n\nIMPORTANT: When deserializing an `AbsolutePathBuf`, a base path must be set using [`AbsolutePathBufGuard::new`]. If no base path is set, the deserialization will fail unless the path being deserialized is already absolute.",
       "type": "string"
     },
     "AdditionalFileSystemPermissions": {
@@ -114,7 +114,7 @@
     "ApplyPatchApprovalParams": {
       "properties": {
         "callId": {
-          "description": "Use to correlate this with [codex_core::protocol::PatchApplyBeginEvent] and [codex_core::protocol::PatchApplyEndEvent].",
+          "description": "Use to correlate this with [`codex_core::protocol::PatchApplyBeginEvent`] and [`codex_core::protocol::PatchApplyEndEvent`].",
           "type": "string"
         },
         "conversationId": {
@@ -498,7 +498,7 @@
           ]
         },
         "callId": {
-          "description": "Use to correlate this with [codex_core::protocol::ExecCommandBeginEvent] and [codex_core::protocol::ExecCommandEndEvent].",
+          "description": "Use to correlate this with [`codex_core::protocol::ExecCommandBeginEvent`] and [`codex_core::protocol::ExecCommandEndEvent`].",
           "type": "string"
         },
         "command": {
@@ -1343,7 +1343,7 @@
               "type": "string"
             },
             "path": {
-              "description": "(Best effort) Path to the file being read by the command. When possible, this is an absolute path, though when relative, it should be resolved against the `cwd`` that will be used to run the command to derive the absolute path.",
+              "description": "(Best effort) Path to the file being read by the command. When possible, this is an absolute path, though when relative, it should be resolved against the `cwd` that will be used to run the command to derive the absolute path.",
               "type": "string"
             },
             "type": {
@@ -1513,7 +1513,7 @@
       "type": "string"
     },
     "ToolRequestUserInputOption": {
-      "description": "EXPERIMENTAL. Defines a single selectable option for request_user_input.",
+      "description": "EXPERIMENTAL. Defines a single selectable option for `request_user_input`.",
       "properties": {
         "description": {
           "type": "string"
@@ -1529,7 +1529,7 @@
       "type": "object"
     },
     "ToolRequestUserInputParams": {
-      "description": "EXPERIMENTAL. Params sent with a request_user_input event.",
+      "description": "EXPERIMENTAL. Params sent with a `request_user_input` event.",
       "properties": {
         "itemId": {
           "type": "string"
@@ -1556,8 +1556,12 @@
       "type": "object"
     },
     "ToolRequestUserInputQuestion": {
-      "description": "EXPERIMENTAL. Represents one request_user_input question and its required options.",
+      "description": "EXPERIMENTAL. Represents one `request_user_input` question and its required options.",
       "properties": {
+        "allowMultiple": {
+          "default": false,
+          "type": "boolean"
+        },
         "header": {
           "type": "string"
         },
@@ -1770,7 +1774,7 @@
       "type": "object"
     },
     {
-      "description": "DEPRECATED APIs below Request to approve a patch. This request is used for Turns started via the legacy APIs (i.e. SendUserTurn, SendUserMessage).",
+      "description": "DEPRECATED APIs below Request to approve a patch. This request is used for Turns started via the legacy APIs (i.e. `SendUserTurn`, `SendUserMessage`).",
       "properties": {
         "id": {
           "$ref": "#/definitions/RequestId"
@@ -1795,7 +1799,7 @@
       "type": "object"
     },
     {
-      "description": "Request to exec a command. This request is used for Turns started via the legacy APIs (i.e. SendUserTurn, SendUserMessage).",
+      "description": "Request to exec a command. This request is used for Turns started via the legacy APIs (i.e. `SendUserTurn`, `SendUserMessage`).",
       "properties": {
         "id": {
           "$ref": "#/definitions/RequestId"

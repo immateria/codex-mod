@@ -65,6 +65,7 @@ export type { SessionSource } from "./SessionSource";
 export type { Settings } from "./Settings";
 export type { SubAgentSource } from "./SubAgentSource";
 export type { ThreadId } from "./ThreadId";
+export type { Tone } from "./Tone";
 export type { Tool } from "./Tool";
 export type { Verbosity } from "./Verbosity";
 export type { WebSearchAction } from "./WebSearchAction";

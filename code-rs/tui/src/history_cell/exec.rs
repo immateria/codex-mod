@@ -5,8 +5,8 @@ use code_common::elapsed::format_duration;
 use code_core::parse_command::ParsedCommand;
 use ratatui::prelude::{Buffer, Rect};
 use ratatui::style::{Modifier, Style};
-use ratatui::text::{Line, Span};
-use ratatui::widgets::{Block, Borders, Padding, Widget};
+use ratatui::text::{Line, Span, Text};
+use ratatui::widgets::{Block, Borders, Padding, Paragraph, Widget, Wrap};
 
 use crate::exec_command::strip_bash_lc_and_escape;
 use crate::history::state::{
@@ -81,6 +81,7 @@ pub(crate) struct ExecCell {
     has_bold_command: bool,
     wait_state: std::cell::RefCell<ExecWaitState>,
     layout_cache: super::layout_cache::LayoutCache<ExecRenderLayout>,
+    cell_collapsed: std::cell::Cell<bool>,
     collapsed_output: std::cell::Cell<bool>,
     pub(crate) parent_call_id: Option<String>,
 }
@@ -151,7 +152,18 @@ impl HistoryCell for ExecCell {
     }
 
     fn is_fold_toggleable(&self) -> bool {
+        // exec_command_lines always emits ≥1 pre-line + ≥1 output line when
+        // output is present, so the expanded view always exceeds the 1-line
+        // collapsed summary. No need to build lines just to confirm > 1.
         self.output.is_some()
+    }
+
+    fn is_collapsed(&self) -> bool {
+        self.cell_collapsed.get()
+    }
+
+    fn collapsed_display_lines(&self, _ctx: &super::CollapsedContext) -> Vec<Line<'static>> {
+        self.collapsed_summary_lines()
     }
 
     fn gutter_symbol(&self) -> Option<&'static str> {
@@ -174,21 +186,25 @@ impl HistoryCell for ExecCell {
         }
     }
     fn display_lines(&self) -> Vec<Line<'static>> {
-        exec_command_lines(
-            &self.command,
-            &self.parsed,
-            self.output.as_ref(),
-            self.stream_preview.as_ref(),
-            self.start_time,
-        )
+        if self.cell_collapsed.get() {
+            return self.collapsed_summary_lines();
+        }
+        self.expanded_display_lines()
     }
     fn has_custom_render(&self) -> bool {
-        true
+        !self.cell_collapsed.get()
     }
     fn is_animating(&self) -> bool {
         matches!(self.record.status, ExecStatus::Running) && self.start_time.is_some()
     }
     fn desired_height(&self, width: u16) -> u16 {
+        if self.cell_collapsed.get() {
+            return Paragraph::new(Text::from(self.collapsed_summary_lines()))
+                .wrap(Wrap { trim: false })
+                .line_count(width)
+                .try_into()
+                .unwrap_or(0);
+        }
         let layout = self.layout_for_width(width);
         let mut total = layout.pre_total.saturating_add(layout.out_block_total);
         if self.status_line_for_render().is_some() {
@@ -346,6 +362,7 @@ impl ExecCell {
             has_bold_command,
             wait_state: std::cell::RefCell::new(wait_state),
             layout_cache: super::layout_cache::LayoutCache::new(),
+            cell_collapsed: std::cell::Cell::new(false),
             collapsed_output: std::cell::Cell::new(collapsed_output),
             parent_call_id: None,
         }
@@ -361,6 +378,14 @@ impl ExecCell {
     pub(crate) fn toggle_output_collapsed(&self) {
         self.collapsed_output.set(!self.collapsed_output.get());
         self.layout_cache.invalidate();
+    }
+
+    pub(crate) fn toggle_cell_collapsed(&self) {
+        self.cell_collapsed.set(!self.cell_collapsed.get());
+    }
+
+    pub(crate) fn has_foldable_output(&self) -> bool {
+        should_auto_collapse_output(self.output.as_ref())
     }
 
     fn status_line_for_render(&self) -> Option<Line<'static>> {
@@ -404,6 +429,23 @@ impl ExecCell {
             pre_total,
             out_block_total,
         }
+    }
+
+    fn expanded_display_lines(&self) -> Vec<Line<'static>> {
+        exec_command_lines(
+            &self.command,
+            &self.parsed,
+            self.output.as_ref(),
+            self.stream_preview.as_ref(),
+            self.start_time,
+        )
+    }
+
+    fn collapsed_summary_lines(&self) -> Vec<Line<'static>> {
+        trim_empty_lines(self.expanded_display_lines())
+            .into_iter()
+            .take(1)
+            .collect()
     }
 
     pub(crate) fn set_waiting(&mut self, waiting: bool) {
@@ -893,6 +935,72 @@ fn command_has_bold_token(command: &[String]) -> bool {
         return false;
     }
     trimmed.chars().take_while(|ch| !ch.is_whitespace()).count() > 4
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::history_cell::CollapsedContext;
+
+    fn output_with_lines(count: usize) -> CommandOutput {
+        CommandOutput {
+            exit_code: 0,
+            stdout: (0..count)
+                .map(|idx| format!("stdout {idx}"))
+                .collect::<Vec<_>>()
+                .join("\n"),
+            stderr: String::new(),
+        }
+    }
+
+    #[test]
+    fn exec_cell_without_output_does_not_advertise_fold_toggle() {
+        let cell = new_active_exec_command(
+            vec!["echo".to_owned(), "hi".to_owned()],
+            Vec::new(),
+        );
+        assert!(
+            !cell.is_fold_toggleable(),
+            "exec cell without output must not advertise fold toggle"
+        );
+    }
+
+    #[test]
+    fn short_exec_output_chevron_collapse_reduces_height() {
+        let cell = new_completed_exec_command(
+            vec!["echo".to_owned(), "hi".to_owned()],
+            Vec::new(),
+            output_with_lines(2),
+        );
+
+        let before = cell.desired_height(80);
+        assert!(cell.is_fold_toggleable());
+
+        cell.toggle_cell_collapsed();
+
+        assert!(cell.is_collapsed());
+        assert!(
+            cell.desired_height(80) < before,
+            "chevron collapse should visibly reduce short exec cells"
+        );
+    }
+
+    #[test]
+    fn exec_cell_collapse_reports_trait_state() {
+        let cell = new_completed_exec_command(
+            vec!["bash".to_owned(), "-lc".to_owned(), "seq 45".to_owned()],
+            Vec::new(),
+            output_with_lines(45),
+        );
+
+        assert!(cell.is_fold_toggleable());
+        assert!(!cell.is_collapsed());
+
+        cell.toggle_cell_collapsed();
+
+        assert!(cell.is_collapsed());
+        assert_eq!(cell.collapsed_display_lines(&CollapsedContext { reply_number: 1 }), cell.display_lines_trimmed());
+    }
 }
 
 // ==================== MergedExecCell ====================

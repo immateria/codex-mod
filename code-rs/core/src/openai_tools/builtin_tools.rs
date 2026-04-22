@@ -115,7 +115,7 @@ pub(super) fn create_request_user_input_tool() -> OpenAiTool {
 
     let options_schema = JsonSchema::Array {
         description: Some(
-            "Provide 2-3 mutually exclusive choices. Put the recommended option first and suffix its label with \"(Recommended)\". Do not include an \"Other\" option in this list; the client will add a free-form \"Other\" option automatically.".to_owned(),
+            "Optional selectable choices. For single-select questions, keep choices mutually exclusive. For multi-select questions, make each option an independent toggle. Put recommended options first and suffix their labels with \"(Recommended)\". Do not include an \"Other\" option in this list; the client can add a free-form custom answer automatically.".to_owned(),
         ),
         items: Box::new(JsonSchema::Object {
             properties: option_props,
@@ -146,18 +146,29 @@ pub(super) fn create_request_user_input_tool() -> OpenAiTool {
             allowed_values: None,
         },
     );
+    question_props.insert(
+        "allow_freeform".to_owned(),
+        JsonSchema::Boolean {
+            description: Some(
+                "If true, allow a custom typed answer. Defaults to true; set false for options-only questions.".to_owned(),
+            ),
+        },
+    );
+    question_props.insert(
+        "allow_multiple".to_owned(),
+        JsonSchema::Boolean {
+            description: Some(
+                "If true, render checkbox-style multi-select and return all selected option labels in order. Requires `options` to be provided.".to_owned(),
+            ),
+        },
+    );
     question_props.insert("options".to_owned(), options_schema);
 
     let questions_schema = JsonSchema::Array {
         description: Some("Questions to show the user. Prefer 1 and do not exceed 3".to_owned()),
         items: Box::new(JsonSchema::Object {
             properties: question_props,
-            required: Some(vec![
-                "id".to_owned(),
-                "header".to_owned(),
-                "question".to_owned(),
-                "options".to_owned(),
-            ]),
+            required: Some(vec!["id".to_owned(), "header".to_owned(), "question".to_owned()]),
             additional_properties: Some(false.into()),
         }),
     };
@@ -167,7 +178,7 @@ pub(super) fn create_request_user_input_tool() -> OpenAiTool {
 
     OpenAiTool::Function(ResponsesApiTool {
         name: "request_user_input".to_owned(),
-        description: "Request user input for one to three short questions and wait for the response.".to_owned(),
+        description: "Request user input for one to three short questions and wait for the response. Supports single-choice, checkbox-style multi-select, and freeform questions.".to_owned(),
         strict: false,
         parameters: JsonSchema::Object {
             properties,

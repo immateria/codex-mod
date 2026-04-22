@@ -69,31 +69,48 @@ impl ChatWidget<'_> {
     ) -> String {
         let mut lines = Vec::new();
         for question in questions {
-            let answer: &[String] = response
+            let answer = response
                 .answers
                 .get(&question.id)
-                .map_or(&[], |a| a.answers.as_slice());
-            let value = answer.first().map_or("", String::as_str);
-            let value = if value.trim().is_empty() {
-                "(skipped)"
-            } else if question.is_secret {
-                "[hidden]"
-            } else {
-                value
-            };
+                .map_or(&[][..], |a| a.answers.as_slice());
+            let value = Self::format_request_user_input_answer_values(question, answer);
 
             if questions.len() == 1 {
-                lines.push(value.to_owned());
+                lines.push(value);
             } else {
                 let header = question.header.trim();
                 if header.is_empty() {
-                    lines.push(value.to_owned());
+                    lines.push(value);
                 } else {
                     lines.push(format!("{header}: {value}"));
                 }
             }
         }
         lines.join("\n")
+    }
+
+    pub(in super::super) fn format_request_user_input_answer_values(
+        question: &code_protocol::request_user_input::RequestUserInputQuestion,
+        answers: &[String],
+    ) -> String {
+        if question.is_secret {
+            if answers.iter().all(|answer| answer.trim().is_empty()) {
+                "(skipped)".to_owned()
+            } else {
+                "[hidden]".to_owned()
+            }
+        } else {
+            let values = answers
+                .iter()
+                .map(|answer| answer.trim())
+                .filter(|answer| !answer.is_empty())
+                .collect::<Vec<_>>();
+            if values.is_empty() {
+                "(skipped)".to_owned()
+            } else {
+                values.join(", ")
+            }
+        }
     }
 
     pub(crate) fn on_request_user_input_answer(
@@ -211,6 +228,7 @@ mod tests {
     use code_protocol::approvals::{ElicitationRequest, ElicitationRequestEvent};
     use code_protocol::mcp::RequestId;
     use code_protocol::request_user_input::RequestUserInputAnswer;
+    use code_protocol::request_user_input::RequestUserInputQuestion;
     use code_protocol::request_user_input::RequestUserInputResponse;
     use tokio::sync::mpsc::unbounded_channel;
 
@@ -270,5 +288,31 @@ mod tests {
             }
             other => panic!("unexpected op: {other:?}"),
         }
+    }
+
+    #[test]
+    fn format_request_user_input_display_joins_multiple_answers() {
+        let questions = vec![RequestUserInputQuestion {
+            id: "terminals".to_owned(),
+            header: "Terminals".to_owned(),
+            question: "Select terminals".to_owned(),
+            is_other: false,
+            is_secret: false,
+            allow_multiple: true,
+            options: None,
+        }];
+        let response = RequestUserInputResponse {
+            answers: std::collections::HashMap::from([(
+                "terminals".to_owned(),
+                RequestUserInputAnswer {
+                    answers: vec!["Termux".to_owned(), "WezTerm".to_owned()],
+                },
+            )]),
+        };
+
+        assert_eq!(
+            ChatWidget::format_request_user_input_display(&questions, &response),
+            "Termux, WezTerm"
+        );
     }
 }

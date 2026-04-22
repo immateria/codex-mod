@@ -6,7 +6,7 @@ export type ParsedCommand = { "type": "read_command", cmd: string, } | { "type":
 /**
  * (Best effort) Path to the file being read by the command. When
  * possible, this is an absolute path, though when relative, it should
- * be resolved against the `cwd`` that will be used to run the command
+ * be resolved against the `cwd` that will be used to run the command
  * to derive the absolute path.
  */
 path: string, } | { "type": "list_files", cmd: string, path: string | null, } | { "type": "search", cmd: string, query: string | null, path: string | null, } | { "type": "unknown", cmd: string, };

@@ -12,7 +12,6 @@ impl InterfaceSettingsContent {
 
 impl_settings_content_with_paste!(
     InterfaceSettingsContent,
-    on_close = revert_unapplied_icon_mode_preview,
-    on_deactivate = revert_unapplied_icon_mode_preview
+    on_close = revert_unapplied_live_previews,
+    on_deactivate = revert_unapplied_live_previews
 );
-

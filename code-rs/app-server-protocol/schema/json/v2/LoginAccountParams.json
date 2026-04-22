@@ -38,7 +38,7 @@
       "type": "object"
     },
     {
-      "description": "[UNSTABLE] FOR OPENAI INTERNAL USE ONLY - DO NOT USE. The access token must contain the same scopes that Codex-managed ChatGPT auth tokens have.",
+      "description": "[UNSTABLE] FOR OPENAI INTERNAL USE ONLY - DO NOT USE. The access token must contain the same scopes that Codex-managed `ChatGPT` auth tokens have.",
       "properties": {
         "accessToken": {
           "description": "Access token (JWT) supplied by the client. This token is used for backend API requests and email extraction.",

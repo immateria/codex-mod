@@ -2,7 +2,7 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "definitions": {
     "AbsolutePathBuf": {
-      "description": "A path that is guaranteed to be absolute and normalized (though it is not guaranteed to be canonicalized or exist on the filesystem).\n\nIMPORTANT: When deserializing an `AbsolutePathBuf`, a base path must be set using [AbsolutePathBufGuard::new]. If no base path is set, the deserialization will fail unless the path being deserialized is already absolute.",
+      "description": "A path that is guaranteed to be absolute and normalized (though it is not guaranteed to be canonicalized or exist on the filesystem).\n\nIMPORTANT: When deserializing an `AbsolutePathBuf`, a base path must be set using [`AbsolutePathBufGuard::new`]. If no base path is set, the deserialization will fail unless the path being deserialized is already absolute.",
       "type": "string"
     },
     "AskForApproval": {
@@ -109,12 +109,15 @@
       "enum": [
         "none",
         "friendly",
-        "pragmatic"
+        "pragmatic",
+        "concise",
+        "enthusiastic",
+        "mentor"
       ],
       "type": "string"
     },
     "ReasoningEffort": {
-      "description": "See https://platform.openai.com/docs/guides/reasoning?api-mode=responses#get-started-with-reasoning",
+      "description": "See <https://platform.openai.com/docs/guides/reasoning?api-mode=responses#get-started-with-reasoning>",
       "enum": [
         "none",
         "minimal",
@@ -126,7 +129,7 @@
       "type": "string"
     },
     "ReasoningSummary": {
-      "description": "A summary of the reasoning performed by the model. This can be useful for debugging and understanding the model's reasoning process. See https://platform.openai.com/docs/guides/reasoning?api-mode=responses#reasoning-summaries",
+      "description": "A summary of the reasoning performed by the model. This can be useful for debugging and understanding the model's reasoning process. See <https://platform.openai.com/docs/guides/reasoning?api-mode=responses#reasoning-summaries>",
       "oneOf": [
         {
           "enum": [
@@ -290,6 +293,16 @@
         "byteRange"
       ],
       "type": "object"
+    },
+    "Tone": {
+      "enum": [
+        "neutral",
+        "formal",
+        "casual",
+        "direct",
+        "encouraging"
+      ],
+      "type": "string"
     },
     "UserInput": {
       "oneOf": [
@@ -493,6 +506,17 @@
     },
     "threadId": {
       "type": "string"
+    },
+    "tone": {
+      "anyOf": [
+        {
+          "$ref": "#/definitions/Tone"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Override the response tone for this turn and subsequent turns."
     }
   },
   "required": [

@@ -10,9 +10,13 @@ export type { AdditionalNetworkPermissions } from "./AdditionalNetworkPermission
 export type { AdditionalPermissionProfile } from "./AdditionalPermissionProfile";
 export type { AgentMessageDeltaNotification } from "./AgentMessageDeltaNotification";
 export type { AnalyticsConfig } from "./AnalyticsConfig";
+export type { AppBranding } from "./AppBranding";
 export type { AppDisabledReason } from "./AppDisabledReason";
 export type { AppInfo } from "./AppInfo";
 export type { AppListUpdatedNotification } from "./AppListUpdatedNotification";
+export type { AppMetadata } from "./AppMetadata";
+export type { AppReview } from "./AppReview";
+export type { AppScreenshot } from "./AppScreenshot";
 export type { AppSummary } from "./AppSummary";
 export type { ApprovalsReviewer } from "./ApprovalsReviewer";
 export type { AppsConfig } from "./AppsConfig";
