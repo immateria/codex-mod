@@ -8,10 +8,11 @@ use code_core::config_types::SettingsMenuOpenMode;
 use crate::bottom_pane::settings_ui::menu_rows::SettingsMenuRow;
 use crate::bottom_pane::settings_ui::rows::StyledText;
 
-const MAIN_ROWS: [RowKind; 16] = [
+const MAIN_ROWS: [RowKind; 17] = [
     RowKind::OpenMode,
     RowKind::OverlayMinWidth,
     RowKind::NerdFonts,
+    RowKind::FuseHintKeyLabels,
     RowKind::HotkeyScope,
     RowKind::ModelSelectorHotkey,
     RowKind::ReasoningEffortHotkey,
@@ -44,10 +45,11 @@ impl InterfaceSettingsView {
         }
     }
 
-    const MAIN_ROWS_NO_FILE_MANAGER: [RowKind; 14] = [
+    const MAIN_ROWS_NO_FILE_MANAGER: [RowKind; 15] = [
         RowKind::OpenMode,
         RowKind::OverlayMinWidth,
         RowKind::NerdFonts,
+        RowKind::FuseHintKeyLabels,
         RowKind::HotkeyScope,
         RowKind::ModelSelectorHotkey,
         RowKind::ReasoningEffortHotkey,
@@ -84,6 +86,7 @@ impl InterfaceSettingsView {
                 RowKind::OpenMode => "Settings menu",
                 RowKind::OverlayMinWidth => "Overlay min width",
                 RowKind::NerdFonts => "Icon mode",
+                RowKind::FuseHintKeyLabels => "Compact hints",
                 RowKind::HotkeyScope => "Hotkey scope",
                 RowKind::ShowConfigToml => "Show config.toml",
                 RowKind::ShowCodeHome => "Show CODE_HOME",
@@ -139,6 +142,14 @@ impl InterfaceSettingsView {
                         )),
                         RowKind::NerdFonts => Some(StyledText::new(
                             self.icon_mode.label(),
+                            Style::new().fg(crate::colors::function()),
+                        )),
+                        RowKind::FuseHintKeyLabels => Some(StyledText::new(
+                            if self.settings.fuse_hint_key_labels {
+                                "on"
+                            } else {
+                                "off"
+                            },
                             Style::new().fg(crate::colors::function()),
                         )),
                         RowKind::HotkeyScope => Some(StyledText::new(

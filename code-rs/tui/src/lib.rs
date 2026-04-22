@@ -885,6 +885,10 @@ fn run_ratatui_app(
 
     // Activate icon mode from config.toml [tui].
     icons::init(config.tui.effective_icon_mode(), config.tui.icons.clone());
+    // Activate fused shortcut-hint rendering from config.toml [tui.settings_menu].
+    bottom_pane::settings_ui::hints::set_fuse_hint_key_labels(
+        config.tui.settings_menu.fuse_hint_key_labels,
+    );
 
     let mut app = App::new(app::AppInitArgs {
         config: config.clone(),

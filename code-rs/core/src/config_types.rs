@@ -2306,6 +2306,13 @@ pub struct SettingsMenuConfig {
     /// `open_mode = "auto"`.
     #[serde(default = "default_settings_overlay_min_width")]
     pub overlay_min_width: u16,
+
+    /// When `true` (the default), shortcut hints whose key letter matches the
+    /// first letter of the action description are rendered fused — e.g. `r`
+    /// + ` refresh` becomes `r`+`efresh` with `r` in the key accent colour.
+    /// Disable for improved readability without relying on colour contrast.
+    #[serde(default = "default_true")]
+    pub fuse_hint_key_labels: bool,
 }
 
 impl Default for SettingsMenuConfig {
@@ -2313,6 +2320,7 @@ impl Default for SettingsMenuConfig {
         Self {
             open_mode: SettingsMenuOpenMode::default(),
             overlay_min_width: default_settings_overlay_min_width(),
+            fuse_hint_key_labels: true,
         }
     }
 }

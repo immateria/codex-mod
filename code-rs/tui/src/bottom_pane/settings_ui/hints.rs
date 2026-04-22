@@ -1,4 +1,5 @@
 use std::borrow::Cow;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 use ratatui::style::{Style, Stylize};
 use ratatui::text::{Line, Span};
@@ -7,6 +8,75 @@ use crate::colors;
 use crate::icons;
 
 use super::rows::StyledText;
+
+// ── Global fuse-hint-key-labels toggle ─────────────────────────────────────
+
+static FUSE_HINT_KEY_LABELS: AtomicBool = AtomicBool::new(true);
+
+pub(crate) fn set_fuse_hint_key_labels(enabled: bool) {
+    FUSE_HINT_KEY_LABELS.store(enabled, Ordering::Relaxed);
+}
+
+fn fuse_hint_key_labels() -> bool {
+    FUSE_HINT_KEY_LABELS.load(Ordering::Relaxed)
+}
+
+/// Test helper: run `f` with `fuse_hint_key_labels` temporarily set to
+/// `enabled`, restoring the prior value on return.
+#[cfg(test)]
+pub(crate) fn with_test_fuse_hint_key_labels<F: FnOnce()>(enabled: bool, f: F) {
+    use std::sync::Mutex;
+    static LOCK: Mutex<()> = Mutex::new(());
+    let _guard = LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let prev = fuse_hint_key_labels();
+    set_fuse_hint_key_labels(enabled);
+    f();
+    set_fuse_hint_key_labels(prev);
+}
+
+/// If a hint's single-char key (or the last char of a `Ctrl+X`-style key)
+/// matches the first letter of the description, returns
+/// `(key_prefix, key_char_str, description_suffix)` for fused rendering.
+///
+/// Returns `None` when fusion is not applicable:
+/// - key contains `/` (slash-alternative notation like `Enter/Ctrl+S`)
+/// - no case-insensitive match between key char and first description letter
+fn fuse_key_description<'a>(
+    key: &'a str,
+    description: &'a str,
+) -> Option<(Option<&'a str>, &'a str, &'a str)> {
+    if description.len() < 2 || !description.starts_with(' ') {
+        return None;
+    }
+    if key.contains('/') {
+        return None;
+    }
+    let desc_after_space = &description[1..];
+    let first_desc_char = desc_after_space.chars().next()?;
+    let first_desc_len = first_desc_char.len_utf8();
+
+    // Single char key: "r", "F", "d"
+    if key.chars().count() == 1 {
+        let key_char = key.chars().next()?;
+        if key_char.eq_ignore_ascii_case(&first_desc_char) {
+            return Some((None, key, &desc_after_space[first_desc_len..]));
+        }
+    }
+
+    // Compound key: "Ctrl+S", "Alt+F"
+    if let Some(plus_pos) = key.rfind('+') {
+        let prefix = &key[..=plus_pos];
+        let key_char_str = &key[plus_pos + 1..];
+        if key_char_str.chars().count() == 1 {
+            let key_char = key_char_str.chars().next()?;
+            if key_char.eq_ignore_ascii_case(&first_desc_char) {
+                return Some((Some(prefix), key_char_str, &desc_after_space[first_desc_len..]));
+            }
+        }
+    }
+
+    None
+}
 
 /// Semantic action that a clickable shortcut hint triggers.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -158,15 +228,7 @@ pub(crate) fn shortcut_line(hints: &[KeyHint<'_>]) -> Line<'static> {
         if idx > 0 {
             spans.push(Span::raw("   "));
         }
-        if let Some(key_spans) = &hint.key_spans {
-            spans.extend(key_spans.iter().cloned());
-        } else {
-            spans.push(Span::styled(hint.key.clone().into_owned(), hint.key_style));
-        }
-        spans.push(Span::styled(
-            hint.description.clone().into_owned(),
-            hint.description_style,
-        ));
+        spans.extend(hint_to_spans(hint));
     }
     Line::from(spans)
 }
@@ -200,8 +262,20 @@ pub(crate) fn hit_areas_for_hints(hints: &[KeyHint<'_>], origin_x: u16, y: u16) 
 const HINT_SEPARATOR_WIDTH: u16 = 3; // "   "
 
 /// Approximate display width of a single hint (key + description).
+/// Accounts for fused rendering when `fuse_hint_key_labels()` is active.
 fn hint_display_width(hint: &KeyHint<'_>) -> u16 {
     use unicode_width::UnicodeWidthStr;
+
+    if hint.key_spans.is_none() && fuse_hint_key_labels() {
+        if let Some((prefix, key_char, desc_rest)) =
+            fuse_key_description(&hint.key, &hint.description)
+        {
+            let prefix_w: u16 = prefix.map(|p| UnicodeWidthStr::width(p) as u16).unwrap_or(0);
+            let key_w: u16 = UnicodeWidthStr::width(key_char) as u16;
+            let rest_w: u16 = UnicodeWidthStr::width(desc_rest) as u16;
+            return prefix_w.saturating_add(key_w).saturating_add(rest_w);
+        }
+    }
 
     let key_w: u16 = if let Some(spans) = &hint.key_spans {
         spans
@@ -216,8 +290,30 @@ fn hint_display_width(hint: &KeyHint<'_>) -> u16 {
 }
 
 /// Build the spans for a single hint (without leading separator).
+/// When `fuse_hint_key_labels()` is active and the hint is fuseable, the key
+/// letter is rendered once in accent colour and the description omits the
+/// redundant leading-space + matching first letter.
 fn hint_to_spans(hint: &KeyHint<'_>) -> Vec<Span<'static>> {
-    let mut spans = Vec::with_capacity(3);
+    if hint.key_spans.is_none() && fuse_hint_key_labels() {
+        if let Some((prefix, key_char, desc_rest)) =
+            fuse_key_description(&hint.key, &hint.description)
+        {
+            let mut spans = Vec::with_capacity(3);
+            if let Some(p) = prefix {
+                spans.push(Span::styled(
+                    p.to_owned(),
+                    Style::new().fg(colors::text_dim()),
+                ));
+            }
+            spans.push(Span::styled(key_char.to_owned(), hint.key_style));
+            if !desc_rest.is_empty() {
+                spans.push(Span::styled(desc_rest.to_owned(), hint.description_style));
+            }
+            return spans;
+        }
+    }
+
+    let mut spans = Vec::with_capacity(2);
     if let Some(key_spans) = &hint.key_spans {
         spans.extend(key_spans.iter().cloned());
     } else {

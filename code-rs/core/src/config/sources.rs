@@ -1576,6 +1576,8 @@ pub fn set_tui_settings_menu(
     doc["tui"]["settings_menu"]["open_mode"] = toml_edit::value(open_mode);
     doc["tui"]["settings_menu"]["overlay_min_width"] =
         toml_edit::value(i64::from(settings_menu.overlay_min_width));
+    doc["tui"]["settings_menu"]["fuse_hint_key_labels"] =
+        toml_edit::value(settings_menu.fuse_hint_key_labels);
 
     std::fs::create_dir_all(code_home)?;
     let tmp_file = NamedTempFile::new_in(code_home)?;

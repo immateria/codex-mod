@@ -29,6 +29,7 @@ enum RowKind {
     OpenMode,
     OverlayMinWidth,
     NerdFonts,
+    FuseHintKeyLabels,
     HotkeyScope,
     ModelSelectorHotkey,
     ReasoningEffortHotkey,

@@ -581,6 +581,9 @@ impl ChatWidget<'_> {
         &mut self,
         settings: code_core::config_types::SettingsMenuConfig,
     ) {
+        crate::bottom_pane::settings_ui::hints::set_fuse_hint_key_labels(
+            settings.fuse_hint_key_labels,
+        );
         self.config.tui.settings_menu = settings;
         // If the settings UI is already open, re-route it immediately so the
         // new preference takes effect without requiring the user to close and

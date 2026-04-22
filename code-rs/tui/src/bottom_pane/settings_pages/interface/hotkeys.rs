@@ -552,6 +552,16 @@ impl InterfaceSettingsView {
         self.status = None;
     }
 
+    pub(super) fn toggle_fuse_hint_key_labels(&mut self) {
+        self.settings.fuse_hint_key_labels = !self.settings.fuse_hint_key_labels;
+        // Apply immediately so the hints in the settings pane itself update live.
+        crate::bottom_pane::settings_ui::hints::set_fuse_hint_key_labels(
+            self.settings.fuse_hint_key_labels,
+        );
+        self.dirty_settings = true;
+        self.status = None;
+    }
+
     fn scoped_hotkeys_resolved(&self) -> ResolvedTuiHotkeys {
         self.hotkeys.effective_for_env(self.hotkey_scope.env())
     }

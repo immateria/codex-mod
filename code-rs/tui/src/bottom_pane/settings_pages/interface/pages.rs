@@ -152,6 +152,9 @@ impl InterfaceSettingsView {
             RowKind::NerdFonts => {
                 "Icon rendering mode. NerdFont uses private-use-area glyphs (requires a patched font). Unicode uses standard symbols. ASCII uses plain characters only.".into()
             }
+            RowKind::FuseHintKeyLabels => {
+                "When on, hints whose key letter matches the first letter of the action are shown compactly (e.g. `rRefresh` instead of `r refresh`). Turn off for color-blind accessibility.".into()
+            }
             RowKind::HotkeyScope => {
                 "Choose which scope to edit. Platform scopes write to [tui.hotkeys.<platform>] and can inherit.".into()
             }
