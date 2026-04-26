@@ -44,7 +44,8 @@ pub(crate) fn should_persist_response_item(item: &ResponseItem) -> bool {
 pub(crate) fn should_persist_event_msg(ev: &EventMsg) -> bool {
     !matches!(
         ev,
-        EventMsg::AgentMessageDelta(_)
+        EventMsg::ImageGenerationBegin(_)
+            | EventMsg::AgentMessageDelta(_)
             | EventMsg::AgentReasoningDelta(_)
             | EventMsg::AgentReasoningRawContentDelta(_)
     )

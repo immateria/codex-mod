@@ -3,11 +3,13 @@ use super::MACOS_PATH_TO_SEATBELT_EXECUTABLE;
 use super::MACOS_SEATBELT_BASE_POLICY;
 use super::ProxyPolicyInputs;
 use super::UnixDomainSocketPolicy;
+use super::build_seatbelt_unreadable_glob_policy;
 use super::create_seatbelt_command_args;
 use super::create_seatbelt_command_args_for_legacy_policy;
 use super::dynamic_network_policy;
 use super::macos_dir_params;
 use super::normalize_path_for_sandbox;
+use super::seatbelt_regex_for_unreadable_glob;
 use super::unix_socket_dir_params;
 use super::unix_socket_policy;
 use codex_network_proxy::ConfigReloader;
@@ -24,7 +26,6 @@ use codex_protocol::permissions::FileSystemSandboxEntry;
 use codex_protocol::permissions::FileSystemSandboxPolicy;
 use codex_protocol::permissions::FileSystemSpecialPath;
 use codex_protocol::permissions::NetworkSandboxPolicy;
-use codex_protocol::protocol::ReadOnlyAccess;
 use codex_protocol::protocol::SandboxPolicy;
 use codex_utils_absolute_path::AbsolutePathBuf;
 use pretty_assertions::assert_eq;
@@ -258,6 +259,82 @@ fn explicit_unreadable_paths_are_excluded_from_readable_roots() {
 }
 
 #[test]
+fn unreadable_globstar_slash_matches_zero_or_more_directories() {
+    let regex = seatbelt_regex_for_unreadable_glob("/tmp/repo/**/*.env");
+    assert_eq!(regex.as_deref(), Some(r"^/tmp/repo/(.*/)?[^/]*\.env$"));
+    let regex = regex_lite::Regex::new(regex.as_deref().expect("glob should compile"))
+        .expect("regex should compile");
+
+    assert!(regex.is_match("/tmp/repo/.env"));
+    assert!(regex.is_match("/tmp/repo/app/.env"));
+    assert!(regex.is_match("/tmp/repo/app/config.env"));
+    assert!(!regex.is_match("/tmp/repo/app/config.toml"));
+}
+
+#[test]
+fn unreadable_globs_use_git_style_component_matching() {
+    let regex = seatbelt_regex_for_unreadable_glob("/tmp/repo/*/file[0-9]?.txt");
+    assert_eq!(
+        regex.as_deref(),
+        Some(r"^/tmp/repo/[^/]*/file[0-9][^/]\.txt$")
+    );
+    let regex = regex_lite::Regex::new(regex.as_deref().expect("glob should compile"))
+        .expect("regex should compile");
+
+    assert!(regex.is_match("/tmp/repo/app/file42.txt"));
+    assert!(!regex.is_match("/tmp/repo/app/nested/file42.txt"));
+    assert!(!regex.is_match("/tmp/repo/app/file4.txt"));
+    assert!(!regex.is_match("/tmp/repo/app/fileab.txt"));
+}
+
+#[test]
+fn unreadable_globs_treat_unclosed_character_classes_as_literals() {
+    let regex = seatbelt_regex_for_unreadable_glob("/tmp/repo/[*.env");
+    assert_eq!(regex.as_deref(), Some(r"^/tmp/repo/\[[^/]*\.env$"));
+    let regex = regex_lite::Regex::new(regex.as_deref().expect("glob should compile"))
+        .expect("regex should compile");
+
+    assert!(regex.is_match("/tmp/repo/[local.env"));
+    assert!(regex.is_match("/tmp/repo/[.env"));
+    assert!(!regex.is_match("/tmp/repo/local.env"));
+}
+
+#[cfg(unix)]
+#[test]
+fn unreadable_glob_policy_includes_canonicalized_static_prefix() {
+    use std::os::unix::fs::symlink;
+
+    let temp_dir = TempDir::new().expect("temp dir");
+    let real_root = temp_dir.path().join("real-root");
+    let link_root = temp_dir.path().join("link-root");
+    fs::create_dir(&real_root).expect("create real root");
+    symlink(&real_root, &link_root).expect("create symlinked root");
+
+    let pattern = format!("{}/**/*.env", link_root.display());
+    let canonical_pattern = format!(
+        "{}/**/*.env",
+        real_root
+            .canonicalize()
+            .expect("canonicalize real root")
+            .display()
+    );
+    let expected_regex = seatbelt_regex_for_unreadable_glob(&canonical_pattern)
+        .expect("canonical glob should compile");
+    let mut policy = FileSystemSandboxPolicy::default();
+    policy.entries.push(FileSystemSandboxEntry {
+        path: FileSystemPath::GlobPattern { pattern },
+        access: FileSystemAccessMode::None,
+    });
+
+    let seatbelt_policy = build_seatbelt_unreadable_glob_policy(&policy, temp_dir.path());
+
+    assert!(
+        seatbelt_policy.contains(&format!(r#"(deny file-read* (regex #"{expected_regex}"))"#)),
+        "expected canonicalized glob regex in policy:\n{seatbelt_policy}"
+    );
+}
+
+#[test]
 fn seatbelt_args_without_extension_profile_keep_legacy_preferences_read_access() {
     let cwd = std::env::temp_dir();
     let args = create_seatbelt_command_args_for_legacy_policy(
@@ -270,43 +347,6 @@ fn seatbelt_args_without_extension_profile_keep_legacy_preferences_read_access()
     let policy = &args[1];
     assert!(policy.contains("(allow user-preference-read)"));
     assert!(!policy.contains("(allow user-preference-write)"));
-}
-
-#[test]
-fn seatbelt_legacy_workspace_write_nested_readable_root_stays_writable() {
-    let tmp = TempDir::new().expect("tempdir");
-    let cwd = tmp.path().join("workspace");
-    fs::create_dir_all(cwd.join("docs")).expect("create docs");
-    let docs = AbsolutePathBuf::from_absolute_path(cwd.join("docs")).expect("absolute docs");
-    let args = create_seatbelt_command_args_for_legacy_policy(
-        vec!["/bin/true".to_string()],
-        &SandboxPolicy::WorkspaceWrite {
-            writable_roots: vec![],
-            read_only_access: ReadOnlyAccess::Restricted {
-                include_platform_defaults: true,
-                readable_roots: vec![docs.clone()],
-            },
-            network_access: false,
-            exclude_tmpdir_env_var: true,
-            exclude_slash_tmp: true,
-        },
-        cwd.as_path(),
-        /*enforce_managed_network*/ false,
-        /*network*/ None,
-    );
-
-    assert!(
-        !args
-            .iter()
-            .any(|arg| arg.ends_with(&format!("={}", docs.as_path().display()))),
-        "legacy workspace-write readable roots under cwd should not become seatbelt carveouts:\n{args:#?}",
-    );
-    assert!(
-        args.iter()
-            .any(|arg| arg.starts_with("-DWRITABLE_ROOT_0_EXCLUDED_")
-                && arg.ends_with("/workspace/.codex")),
-        "expected proactive .codex carveout for cwd root: {args:#?}",
-    );
 }
 
 #[test]
@@ -349,7 +389,6 @@ fn dynamic_network_policy_preserves_restricted_policy_when_proxy_config_without_
     let policy = dynamic_network_policy(
         &SandboxPolicy::WorkspaceWrite {
             writable_roots: vec![],
-            read_only_access: Default::default(),
             network_access: true,
             exclude_tmpdir_env_var: false,
             exclude_slash_tmp: false,
@@ -386,7 +425,6 @@ fn dynamic_network_policy_blocks_dns_when_local_binding_has_no_proxy_ports() {
     let policy = dynamic_network_policy(
         &SandboxPolicy::WorkspaceWrite {
             writable_roots: vec![],
-            read_only_access: Default::default(),
             network_access: true,
             exclude_tmpdir_env_var: false,
             exclude_slash_tmp: false,
@@ -415,7 +453,6 @@ fn dynamic_network_policy_preserves_restricted_policy_for_managed_network_withou
     let policy = dynamic_network_policy(
         &SandboxPolicy::WorkspaceWrite {
             writable_roots: vec![],
-            read_only_access: Default::default(),
             network_access: true,
             exclude_tmpdir_env_var: false,
             exclude_slash_tmp: false,
@@ -483,7 +520,7 @@ fn create_seatbelt_args_allowlists_unix_socket_paths() {
 #[test]
 fn create_seatbelt_args_allowlists_explicit_unix_socket_paths_without_proxy() {
     let cwd = TempDir::new().expect("temp cwd");
-    let file_system_policy = FileSystemSandboxPolicy::from_legacy_sandbox_policy(
+    let file_system_policy = FileSystemSandboxPolicy::from_legacy_sandbox_policy_for_cwd(
         &SandboxPolicy::new_read_only_policy(),
         cwd.path(),
     );
@@ -523,7 +560,7 @@ fn create_seatbelt_args_allowlists_explicit_unix_socket_paths_without_proxy() {
 #[tokio::test]
 async fn create_seatbelt_args_merges_proxy_and_explicit_unix_socket_paths() -> anyhow::Result<()> {
     let cwd = TempDir::new().expect("temp cwd");
-    let file_system_policy = FileSystemSandboxPolicy::from_legacy_sandbox_policy(
+    let file_system_policy = FileSystemSandboxPolicy::from_legacy_sandbox_policy_for_cwd(
         &SandboxPolicy::new_read_only_policy(),
         cwd.path(),
     );
@@ -582,7 +619,7 @@ async fn create_seatbelt_args_merges_proxy_and_explicit_unix_socket_paths() -> a
 #[test]
 fn create_seatbelt_args_preserves_full_network_with_explicit_unix_socket_paths() {
     let cwd = TempDir::new().expect("temp cwd");
-    let file_system_policy = FileSystemSandboxPolicy::from_legacy_sandbox_policy(
+    let file_system_policy = FileSystemSandboxPolicy::from_legacy_sandbox_policy_for_cwd(
         &SandboxPolicy::new_read_only_policy(),
         cwd.path(),
     );
@@ -706,7 +743,6 @@ fn create_seatbelt_args_full_network_with_proxy_is_still_proxy_only() {
     let policy = dynamic_network_policy(
         &SandboxPolicy::WorkspaceWrite {
             writable_roots: vec![],
-            read_only_access: Default::default(),
             network_access: true,
             exclude_tmpdir_env_var: false,
             exclude_slash_tmp: false,
@@ -757,7 +793,6 @@ fn create_seatbelt_args_with_read_only_git_and_codex_subpaths() {
             .into_iter()
             .map(|p| p.try_into().unwrap())
             .collect(),
-        read_only_access: Default::default(),
         network_access: false,
         exclude_tmpdir_env_var: true,
         exclude_slash_tmp: true,
@@ -976,7 +1011,6 @@ fn create_seatbelt_args_block_first_time_dot_codex_creation_with_exact_and_desce
     let config_toml = dot_codex.join("config.toml");
     let policy = SandboxPolicy::WorkspaceWrite {
         writable_roots: vec![repo_root.as_path().try_into().expect("absolute repo root")],
-        read_only_access: Default::default(),
         network_access: false,
         exclude_tmpdir_env_var: true,
         exclude_slash_tmp: true,
@@ -1032,7 +1066,6 @@ fn create_seatbelt_args_with_read_only_git_pointer_file() {
 
     let policy = SandboxPolicy::WorkspaceWrite {
         writable_roots: vec![worktree_root.try_into().expect("worktree_root is absolute")],
-        read_only_access: Default::default(),
         network_access: false,
         exclude_tmpdir_env_var: true,
         exclude_slash_tmp: true,
@@ -1128,7 +1161,6 @@ fn create_seatbelt_args_for_cwd_as_git_repo() {
     // `.codex` checks are done properly for cwd.
     let policy = SandboxPolicy::WorkspaceWrite {
         writable_roots: vec![],
-        read_only_access: Default::default(),
         network_access: false,
         exclude_tmpdir_env_var: false,
         exclude_slash_tmp: false,
@@ -1179,6 +1211,7 @@ fn create_seatbelt_args_for_cwd_as_git_repo() {
 (allow file-write*
 (require-all (subpath (param "WRITABLE_ROOT_0")) (require-not (literal (param "WRITABLE_ROOT_0_EXCLUDED_0"))) (require-not (subpath (param "WRITABLE_ROOT_0_EXCLUDED_0"))) (require-not (literal (param "WRITABLE_ROOT_0_EXCLUDED_1"))) (require-not (subpath (param "WRITABLE_ROOT_0_EXCLUDED_1"))) ) (subpath (param "WRITABLE_ROOT_1")){tempdir_policy_entry}
 )
+
 "#,
     );
 

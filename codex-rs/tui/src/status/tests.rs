@@ -1,5 +1,6 @@
 use super::new_status_output;
 use super::new_status_output_with_rate_limits;
+use super::new_status_output_with_rate_limits_handle;
 use super::rate_limit_snapshot_display;
 use crate::history_cell::HistoryCell;
 use crate::legacy_core::config::Config;
@@ -101,7 +102,6 @@ async fn status_snapshot_includes_reasoning_details() {
         .sandbox_policy
         .set(SandboxPolicy::WorkspaceWrite {
             writable_roots: Vec::new(),
-            read_only_access: Default::default(),
             network_access: false,
             exclude_tmpdir_env_var: false,
             exclude_slash_tmp: false,
@@ -138,6 +138,7 @@ async fn status_snapshot_includes_reasoning_details() {
         }),
         credits: None,
         plan_type: None,
+        rate_limit_reached_type: None,
     };
     let rate_display = rate_limit_snapshot_display(&snapshot, captured_at);
 
@@ -186,7 +187,6 @@ async fn status_permissions_non_default_workspace_write_is_custom() {
         .sandbox_policy
         .set(SandboxPolicy::WorkspaceWrite {
             writable_roots: Vec::new(),
-            read_only_access: Default::default(),
             network_access: true,
             exclude_tmpdir_env_var: false,
             exclude_slash_tmp: false,
@@ -321,6 +321,7 @@ async fn status_snapshot_includes_monthly_limit() {
         secondary: None,
         credits: None,
         plan_type: None,
+        rate_limit_reached_type: None,
     };
     let rate_display = rate_limit_snapshot_display(&snapshot, captured_at);
 
@@ -372,6 +373,7 @@ async fn status_snapshot_shows_unlimited_credits() {
             balance: None,
         }),
         plan_type: None,
+        rate_limit_reached_type: None,
     };
     let rate_display = rate_limit_snapshot_display(&snapshot, captured_at);
     let model_slug = crate::legacy_core::test_support::get_model_offline(config.model.as_deref());
@@ -421,6 +423,7 @@ async fn status_snapshot_shows_positive_credits() {
             balance: Some("12.5".to_string()),
         }),
         plan_type: None,
+        rate_limit_reached_type: None,
     };
     let rate_display = rate_limit_snapshot_display(&snapshot, captured_at);
     let model_slug = crate::legacy_core::test_support::get_model_offline(config.model.as_deref());
@@ -470,6 +473,7 @@ async fn status_snapshot_hides_zero_credits() {
             balance: Some("0".to_string()),
         }),
         plan_type: None,
+        rate_limit_reached_type: None,
     };
     let rate_display = rate_limit_snapshot_display(&snapshot, captured_at);
     let model_slug = crate::legacy_core::test_support::get_model_offline(config.model.as_deref());
@@ -517,6 +521,7 @@ async fn status_snapshot_hides_when_has_no_credits_flag() {
             balance: None,
         }),
         plan_type: None,
+        rate_limit_reached_type: None,
     };
     let rate_display = rate_limit_snapshot_display(&snapshot, captured_at);
     let model_slug = crate::legacy_core::test_support::get_model_offline(config.model.as_deref());
@@ -622,6 +627,7 @@ async fn status_snapshot_truncates_in_narrow_terminal() {
         secondary: None,
         credits: None,
         plan_type: None,
+        rate_limit_reached_type: None,
     };
     let rate_display = rate_limit_snapshot_display(&snapshot, captured_at);
 
@@ -703,6 +709,56 @@ async fn status_snapshot_shows_missing_limits_message() {
 }
 
 #[tokio::test]
+async fn status_snapshot_uses_default_reasoning_when_config_empty() {
+    let temp_home = TempDir::new().expect("temp home");
+    let mut config = test_config(&temp_home).await;
+    config.model = Some("gpt-5.1-codex-max".to_string());
+    config.cwd = test_path_buf("/workspace/tests").abs();
+
+    let account_display = test_status_account_display();
+    let usage = TokenUsage {
+        input_tokens: 500,
+        cached_input_tokens: 0,
+        output_tokens: 250,
+        reasoning_output_tokens: 0,
+        total_tokens: 750,
+    };
+
+    let now = chrono::Local
+        .with_ymd_and_hms(2024, 2, 3, 4, 5, 6)
+        .single()
+        .expect("timestamp");
+
+    let model_slug = crate::legacy_core::test_support::get_model_offline(config.model.as_deref());
+    let token_info = token_info_for(&model_slug, &config, &usage);
+    let (composite, _) = new_status_output_with_rate_limits_handle(
+        &config,
+        account_display.as_ref(),
+        Some(&token_info),
+        &usage,
+        &None,
+        /*thread_name*/ None,
+        /*forked_from*/ None,
+        &[],
+        None,
+        now,
+        &model_slug,
+        /*collaboration_mode*/ None,
+        /*reasoning_effort_override*/ Some(Some(ReasoningEffort::Medium)),
+        "<none>".to_string(),
+        /*refreshing_rate_limits*/ false,
+    );
+    let mut rendered_lines = render_lines(&composite.display_lines(/*width*/ 80));
+    if cfg!(windows) {
+        for line in &mut rendered_lines {
+            *line = line.replace('\\', "/");
+        }
+    }
+    let sanitized = sanitize_directory(rendered_lines).join("\n");
+    assert_snapshot!(sanitized);
+}
+
+#[tokio::test]
 async fn status_snapshot_shows_refreshing_limits_notice() {
     let temp_home = TempDir::new().expect("temp home");
     let mut config = test_config(&temp_home).await;
@@ -735,6 +791,7 @@ async fn status_snapshot_shows_refreshing_limits_notice() {
         }),
         credits: None,
         plan_type: None,
+        rate_limit_reached_type: None,
     };
     let rate_display = rate_limit_snapshot_display(&snapshot, captured_at);
 
@@ -805,6 +862,7 @@ async fn status_snapshot_includes_credits_and_limits() {
             balance: Some("37.5".to_string()),
         }),
         plan_type: None,
+        rate_limit_reached_type: None,
     };
     let rate_display = rate_limit_snapshot_display(&snapshot, captured_at);
 
@@ -858,6 +916,7 @@ async fn status_snapshot_shows_unavailable_limits_message() {
         secondary: None,
         credits: None,
         plan_type: None,
+        rate_limit_reached_type: None,
     };
     let captured_at = chrono::Local
         .with_ymd_and_hms(2024, 6, 7, 8, 9, 10)
@@ -914,6 +973,7 @@ async fn status_snapshot_treats_refreshing_empty_limits_as_unavailable() {
         secondary: None,
         credits: None,
         plan_type: None,
+        rate_limit_reached_type: None,
     };
     let captured_at = chrono::Local
         .with_ymd_and_hms(2024, 6, 7, 8, 9, 10)
@@ -984,6 +1044,7 @@ async fn status_snapshot_shows_stale_limits_message() {
         }),
         credits: None,
         plan_type: None,
+        rate_limit_reached_type: None,
     };
     let rate_display = rate_limit_snapshot_display(&snapshot, captured_at);
     let now = captured_at + ChronoDuration::minutes(20);
@@ -1054,6 +1115,7 @@ async fn status_snapshot_cached_limits_hide_credits_without_flag() {
             balance: Some("80".to_string()),
         }),
         plan_type: None,
+        rate_limit_reached_type: None,
     };
     let rate_display = rate_limit_snapshot_display(&snapshot, captured_at);
     let now = captured_at + ChronoDuration::minutes(20);

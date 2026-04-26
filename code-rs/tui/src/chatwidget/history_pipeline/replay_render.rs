@@ -178,6 +178,31 @@ impl ChatWidget<'_> {
                     None,
                 );
             }
+            ResponseItem::ImageGenerationCall { id, status, result, .. } => {
+                let key = self.next_internal_key();
+                let path = ensure_replayed_image_generation_artifact(
+                    &self.config.code_home,
+                    self.session_id,
+                    &id,
+                    &result,
+                );
+                if let Some(record) = path.as_ref().and_then(|path| image_record_from_path(path)) {
+                    let cell = Box::new(history_cell::ImageOutputCell::from_record(record));
+                    let _ = self.history_insert_with_key_global(cell, key);
+                } else {
+                    let state = history_cell::plain_message_state_from_lines(
+                        vec![Line::from(format!(
+                            "Image generation result `{id}` replayed with status `{status}`."
+                        ))],
+                        HistoryCellType::Notice,
+                    );
+                    let _ = self.history_insert_plain_state_with_key(
+                        state,
+                        key,
+                        "image-generation-replay",
+                    );
+                }
+            }
             _ => {
                 // Ignore other item kinds for replay (tool calls, etc.)
             }

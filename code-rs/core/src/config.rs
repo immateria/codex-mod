@@ -151,9 +151,9 @@ pub(crate) use crate::config_constraint::ConstraintError;
 pub(crate) use defaults::merge_with_default_agents;
 pub(crate) use validation::upgrade_legacy_model_slugs;
 
-pub(crate) const OPENAI_DEFAULT_MODEL: &str = "gpt-5.3-codex";
-const OPENAI_DEFAULT_REVIEW_MODEL: &str = "gpt-5.3-codex";
-pub const GPT_5_CODEX_MEDIUM_MODEL: &str = "gpt-5.3-codex";
+pub(crate) const OPENAI_DEFAULT_MODEL: &str = "gpt-5.4";
+const OPENAI_DEFAULT_REVIEW_MODEL: &str = "gpt-5.4";
+pub const GPT_5_CODEX_MEDIUM_MODEL: &str = "gpt-5.4";
 pub(crate) const DEFAULT_SUBAGENT_MAX_DEPTH: i32 = 1;
 
 /// Maximum number of bytes of the documentation that will be embedded. Larger
@@ -238,7 +238,7 @@ pub struct Config {
     /// Whether planning should inherit the chat model instead of using a dedicated override.
     pub planning_use_chat_model: bool,
 
-    /// Model used specifically for review sessions. Defaults to "gpt-5.2-codex".
+    /// Model used specifically for review sessions. Defaults to "gpt-5.4".
     pub review_model: String,
 
     /// Reasoning effort used when running review sessions.
@@ -532,6 +532,7 @@ pub struct Config {
     /// Optional service tier preference for model requests.
     ///
     /// `Some(Fast)` sends `service_tier=priority` to the Responses API.
+    /// `Some(Flex)` sends `service_tier=flex` to the Responses API.
     /// `None` sends no override (legacy standard behavior).
     pub service_tier: Option<ServiceTier>,
 
@@ -2345,6 +2346,7 @@ impl Config {
 
         let service_tier = match config_profile.service_tier.or(cfg.service_tier) {
             Some(ServiceTier::Fast) => Some(ServiceTier::Fast),
+            Some(ServiceTier::Flex) => Some(ServiceTier::Flex),
             Some(ServiceTier::Standard) | None => None,
         };
         let windows_sandbox_level = windows_sandbox_level_from_mode(windows_sandbox_mode);
@@ -5178,6 +5180,23 @@ mod agent_merge_tests {
     }
 
     #[test]
+    fn service_tier_flex_preserves_override() -> anyhow::Result<()> {
+        let code_home = TempDir::new()?;
+        let cfg = toml::from_str::<ConfigToml>(r#"service_tier = "flex""#)?;
+        let config = Config::load_from_base_config_with_overrides(
+            cfg,
+            ConfigOverrides {
+                cwd: Some(code_home.path().to_path_buf()),
+                ..Default::default()
+            },
+            code_home.path().to_path_buf(),
+        )?;
+
+        assert_eq!(config.service_tier, Some(ServiceTier::Flex));
+        Ok(())
+    }
+
+    #[test]
     fn service_tier_standard_disables_override() -> anyhow::Result<()> {
         let code_home = TempDir::new()?;
         let cfg = toml::from_str::<ConfigToml>(r#"service_tier = "standard""#)?;
@@ -5224,6 +5243,30 @@ context_mode = "1m"
         let cfg = toml::from_str::<ConfigToml>(
             r#"
 model = "gpt-5.3-codex"
+context_mode = "1m"
+"#,
+        )?;
+        let config = Config::load_from_base_config_with_overrides(
+            cfg,
+            ConfigOverrides {
+                cwd: Some(code_home.path().to_path_buf()),
+                ..Default::default()
+            },
+            code_home.path().to_path_buf(),
+        )?;
+
+        assert_eq!(config.context_mode, Some(ContextMode::OneM));
+        assert_eq!(config.model_context_window, Some(272_000));
+        assert_eq!(config.model_auto_compact_token_limit, Some(244_800));
+        Ok(())
+    }
+
+    #[test]
+    fn context_mode_one_m_is_inert_for_gpt_5_5() -> anyhow::Result<()> {
+        let code_home = TempDir::new()?;
+        let cfg = toml::from_str::<ConfigToml>(
+            r#"
+model = "gpt-5.5"
 context_mode = "1m"
 "#,
         )?;

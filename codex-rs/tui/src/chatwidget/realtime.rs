@@ -149,7 +149,6 @@ impl ChatWidget {
         }
     }
 
-    #[cfg(test)]
     pub(super) fn pending_steer_compare_key_from_item(
         item: &codex_protocol::items::UserMessageItem,
     ) -> PendingSteerCompareKey {
@@ -356,6 +355,7 @@ impl ChatWidget {
             RealtimeEvent::ConversationItemAdded(_item) => {}
             RealtimeEvent::ConversationItemDone { .. } => {}
             RealtimeEvent::HandoffRequested(_) => {}
+            RealtimeEvent::NoopRequested(_) => {}
             RealtimeEvent::Error(message) => {
                 self.fail_realtime_conversation(format!("Realtime voice error: {message}"));
             }

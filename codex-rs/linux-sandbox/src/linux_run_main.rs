@@ -324,7 +324,7 @@ fn resolve_sandbox_policies(
             })
         }
         (Some(sandbox_policy), None) => Ok(EffectiveSandboxPolicies {
-            file_system_sandbox_policy: FileSystemSandboxPolicy::from_legacy_sandbox_policy(
+            file_system_sandbox_policy: FileSystemSandboxPolicy::from_legacy_sandbox_policy_for_cwd(
                 &sandbox_policy,
                 sandbox_policy_cwd,
             ),
@@ -354,8 +354,14 @@ fn legacy_sandbox_policies_match_semantics(
 ) -> bool {
     NetworkSandboxPolicy::from(provided) == NetworkSandboxPolicy::from(derived)
         && file_system_sandbox_policies_match_semantics(
-            &FileSystemSandboxPolicy::from_legacy_sandbox_policy(provided, sandbox_policy_cwd),
-            &FileSystemSandboxPolicy::from_legacy_sandbox_policy(derived, sandbox_policy_cwd),
+            &FileSystemSandboxPolicy::from_legacy_sandbox_policy_for_cwd(
+                provided,
+                sandbox_policy_cwd,
+            ),
+            &FileSystemSandboxPolicy::from_legacy_sandbox_policy_for_cwd(
+                derived,
+                sandbox_policy_cwd,
+            ),
             sandbox_policy_cwd,
         )
 }
@@ -427,6 +433,7 @@ fn run_bwrap_with_proc_fallback(
     let options = BwrapOptions {
         mount_proc,
         network_mode,
+        ..Default::default()
     };
     let mut bwrap_args = build_bwrap_argv(
         inner,
@@ -547,6 +554,7 @@ fn build_preflight_bwrap_argv(
         BwrapOptions {
             mount_proc: true,
             network_mode,
+            ..Default::default()
         },
     )
 }

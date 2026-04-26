@@ -7,6 +7,30 @@
 
 - (none)
 
+## [0.6.96] - 2026-04-26
+
+- Goals: add persistent thread goals with `/goal` controls, status UI, pause and unpause actions, token budgets, and automatic continuation across app-server, core, and TUI flows. (0ee737ce, 6c874f9b, 32ace07a, 41676286, f1c963d7)
+- TUI: keep slash command popup columns stable while scrolling so command descriptions stop shifting horizontally. (0c785598)
+- App Server: restore the persisted model provider on thread resume so resumed encrypted conversations stay on the correct endpoint. (bce74c70)
+- Updates: wait for npm registry readiness before prompting npm or Bun installs to upgrade. (4e30281a)
+- Core: bypass managed network proxying for explicitly escalated commands and fix Bedrock GPT-5.4 reasoning levels to avoid provider-side failures. (9aaa5d93, d19de6d1)
+
+## [0.6.95] - 2026-04-25
+
+- Models: add GPT-5.5 support and refresh model schema plus GPT agent defaults for more reliable model selection. (bd64cb7d, cea03ccf)
+- ChatGPT: align ChatGPT plan and service-tier behavior, and route backend auth through Codex auth plumbing for more consistent account handling. (dd4f2635, e5b7e04b)
+- Permissions: ship stable Auto Review controls, stricter approval flows, and persistent permission-profile state across TUI, protocol, and app-server sessions. (5e71da14, c6ab6018, 46142c3c, 6ca038bb, 5c239ad7)
+- TUI/Exec: fix interrupt and `/review` exit wedges, keep command output visible until streams fully close, and reduce turn interruption hangs. (3f8c06e4, 491a3058, 11806faf)
+- Plugins: expand remote plugin support with list/read/install flows, marketplace upgrade plumbing, and workspace-level plugin disable controls. (a978e411, 33cc135c, 0d6a90cd, bcc1caa9)
+
+## [0.6.94] - 2026-04-22
+
+- TUI: add `/side` conversations and improve resume context with clearer parent thread status and titles. (95dafbc7, 0dc503ba, b8e78e88, fa8943fe, 43a69c50)
+- TUI: let you change reasoning level temporarily, show bash mode, and queue slash or shell input while commands run. (e502f0b5, ef071cf8, b7fec543, 917a85b0)
+- Plugins: refresh `/plugins` with a tabbed marketplace, inline enablement toggles, and broader manifest/source support. (f017a238, 06f8ec54, 37161bc7, 0e111e08, 26d9894a, cce60023)
+- Core: handle image generation outputs with higher-detail resizing defaults and add a built-in Amazon Bedrock provider. (58cb8a63, 53b15703, 120bbf46, cefcfe43)
+- Sandbox: improve Windows exec support and make permission globs and profile intersections behave more reliably. (8612714a, 799e5041, f8562bd4, 0d0abe83)
+
 ## [0.6.93] - 2026-04-17
 
 - TUI/Core: add task lifecycle visibility routing so task progress is surfaced consistently. (63ea56db)

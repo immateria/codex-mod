@@ -202,6 +202,43 @@ impl ChatWidget<'_> {
                 };
                 tools::web_search_complete(self, ev.call_id, ev.query, event.order.as_ref(), ok);
             }
+            EventMsg::ImageGenerationBegin(ev) => {
+                self.ensure_spinner_for_activity("image-generation-begin");
+                tracing::info!(
+                    "[order] ImageGenerationBegin call_id={} seq={}",
+                    ev.call_id,
+                    event.event_seq
+                );
+            }
+            EventMsg::ImageGenerationEnd(ev) => {
+                let ok = if let Some(om) = event.order.as_ref() { self.provider_order_key_from_order_meta(om) } else {
+                    tracing::warn!("missing OrderMeta on ImageGenerationEnd; using synthetic key");
+                    self.next_internal_key()
+                };
+                if let Some(path) = ev.saved_path.as_ref() {
+                    if let Some(record) = image_record_from_path(path.as_path()) {
+                        let cell = Box::new(history_cell::ImageOutputCell::from_record(record));
+                        let _ = self.history_insert_with_key_global(cell, ok);
+                    } else {
+                        tracing::warn!(
+                            "failed to load image generation artifact from {}",
+                            path.as_path().display()
+                        );
+                    }
+                } else {
+                    let state = history_cell::plain_message_state_from_lines(
+                        vec![Line::from(
+                            "Image generation complete - no saved path (will display on replay)"
+                                .to_string(),
+                        )],
+                        HistoryCellType::Notice,
+                    );
+                    let _ =
+                        self.history_insert_plain_state_with_key(state, ok, "image-generation");
+                }
+                self.bottom_pane.update_status_text("responding".to_owned());
+                self.maybe_hide_spinner();
+            }
             EventMsg::AgentMessageDelta(AgentMessageDeltaEvent { delta }) => {
                 self.handle_agent_message_delta_event(event.order.as_ref(), id, delta);
             }

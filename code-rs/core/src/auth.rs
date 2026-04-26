@@ -254,8 +254,12 @@ impl CodexAuth {
             .and_then(|t| t.id_token.chatgpt_plan_type.as_ref().map(PlanType::as_string))
     }
 
+    pub fn uses_codex_backend(&self) -> bool {
+        matches!(self.mode, AuthMode::ChatGPT | AuthMode::ChatgptAuthTokens)
+    }
+
     pub fn supports_pro_only_models(&self) -> bool {
-        self.mode.is_chatgpt()
+        self.uses_codex_backend()
             && self
                 .get_plan_type()
                 .is_some_and(|plan| plan.eq_ignore_ascii_case("pro"))

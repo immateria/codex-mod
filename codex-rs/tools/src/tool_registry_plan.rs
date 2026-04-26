@@ -8,13 +8,16 @@ use crate::TOOL_SEARCH_DEFAULT_LIMIT;
 use crate::TOOL_SEARCH_TOOL_NAME;
 use crate::TOOL_SUGGEST_TOOL_NAME;
 use crate::ToolHandlerKind;
+use crate::ToolName;
 use crate::ToolRegistryPlan;
 use crate::ToolRegistryPlanParams;
 use crate::ToolSearchSource;
+use crate::ToolSearchSourceInfo;
 use crate::ToolSpec;
 use crate::ToolsConfig;
 use crate::ViewImageToolOptions;
 use crate::WebSearchToolOptions;
+use crate::coalesce_loadable_tool_specs;
 use crate::collect_code_mode_exec_prompt_tool_definitions;
 use crate::collect_tool_search_source_infos;
 use crate::collect_tool_suggest_entries;
@@ -23,11 +26,11 @@ use crate::create_apply_patch_json_tool;
 use crate::create_close_agent_tool_v1;
 use crate::create_close_agent_tool_v2;
 use crate::create_code_mode_tool;
+use crate::create_create_goal_tool;
 use crate::create_exec_command_tool;
 use crate::create_followup_task_tool;
+use crate::create_get_goal_tool;
 use crate::create_image_generation_tool;
-use crate::create_js_repl_reset_tool;
-use crate::create_js_repl_tool;
 use crate::create_list_agents_tool;
 use crate::create_list_dir_tool;
 use crate::create_list_mcp_resource_templates_tool;
@@ -48,6 +51,7 @@ use crate::create_spawn_agents_on_csv_tool;
 use crate::create_test_sync_tool;
 use crate::create_tool_search_tool;
 use crate::create_tool_suggest_tool;
+use crate::create_update_goal_tool;
 use crate::create_update_plan_tool;
 use crate::create_view_image_tool;
 use crate::create_wait_agent_tool_v1;
@@ -56,7 +60,7 @@ use crate::create_wait_tool;
 use crate::create_web_search_tool;
 use crate::create_write_stdin_tool;
 use crate::default_namespace_description;
-use crate::dynamic_tool_to_responses_api_tool;
+use crate::dynamic_tool_to_loadable_tool_spec;
 use crate::mcp_tool_to_responses_api_tool;
 use crate::request_permissions_tool_description;
 use crate::request_user_input_tool_description;
@@ -214,20 +218,25 @@ pub fn build_tool_registry_plan(
         config.code_mode_enabled,
     );
     plan.register_handler("update_plan", ToolHandlerKind::Plan);
-
-    if config.has_environment && config.js_repl_enabled {
+    if config.goal_tools {
         plan.push_spec(
-            create_js_repl_tool(),
+            create_get_goal_tool(),
             /*supports_parallel_tool_calls*/ false,
             config.code_mode_enabled,
         );
+        plan.register_handler("get_goal", ToolHandlerKind::Goal);
         plan.push_spec(
-            create_js_repl_reset_tool(),
+            create_create_goal_tool(),
             /*supports_parallel_tool_calls*/ false,
             config.code_mode_enabled,
         );
-        plan.register_handler("js_repl", ToolHandlerKind::JsRepl);
-        plan.register_handler("js_repl_reset", ToolHandlerKind::JsReplReset);
+        plan.register_handler("create_goal", ToolHandlerKind::Goal);
+        plan.push_spec(
+            create_update_goal_tool(),
+            /*supports_parallel_tool_calls*/ false,
+            config.code_mode_enabled,
+        );
+        plan.register_handler("update_goal", ToolHandlerKind::Goal);
     }
 
     plan.push_spec(
@@ -251,17 +260,35 @@ pub fn build_tool_registry_plan(
         plan.register_handler("request_permissions", ToolHandlerKind::RequestPermissions);
     }
 
+    let deferred_dynamic_tools = params
+        .dynamic_tools
+        .iter()
+        .filter(|tool| tool.defer_loading)
+        .collect::<Vec<_>>();
+
     if config.search_tool
-        && let Some(deferred_mcp_tools) = params.deferred_mcp_tools
+        && (params.deferred_mcp_tools.is_some() || !deferred_dynamic_tools.is_empty())
     {
-        let search_source_infos =
-            collect_tool_search_source_infos(deferred_mcp_tools.iter().map(|tool| {
-                ToolSearchSource {
-                    server_name: tool.server_name,
-                    connector_name: tool.connector_name,
-                    connector_description: tool.connector_description,
-                }
-            }));
+        let mut search_source_infos = params
+            .deferred_mcp_tools
+            .map(|deferred_mcp_tools| {
+                collect_tool_search_source_infos(deferred_mcp_tools.iter().map(|tool| {
+                    ToolSearchSource {
+                        server_name: tool.server_name,
+                        connector_name: tool.connector_name,
+                        connector_description: tool.connector_description,
+                    }
+                }))
+            })
+            .unwrap_or_default();
+
+        if !deferred_dynamic_tools.is_empty() {
+            search_source_infos.push(ToolSearchSourceInfo {
+                name: "Dynamic tools".to_string(),
+                description: Some("Tools provided by the current Codex thread.".to_string()),
+            });
+        }
+
         plan.push_spec(
             create_tool_search_tool(&search_source_infos, TOOL_SEARCH_DEFAULT_LIMIT),
             /*supports_parallel_tool_calls*/ true,
@@ -269,8 +296,10 @@ pub fn build_tool_registry_plan(
         );
         plan.register_handler(TOOL_SEARCH_TOOL_NAME, ToolHandlerKind::ToolSearch);
 
-        for tool in deferred_mcp_tools {
-            plan.register_handler(tool.name.clone(), ToolHandlerKind::Mcp);
+        if let Some(deferred_mcp_tools) = params.deferred_mcp_tools {
+            for tool in deferred_mcp_tools {
+                plan.register_handler(tool.name.clone(), ToolHandlerKind::Mcp);
+            }
         }
     }
 
@@ -377,6 +406,7 @@ pub fn build_tool_registry_plan(
                     hide_agent_type_model_reasoning: config.hide_spawn_agent_metadata,
                     include_usage_hint: config.spawn_agent_usage_hint,
                     usage_hint_text: config.spawn_agent_usage_hint_text.clone(),
+                    max_concurrent_threads_per_session: config.max_concurrent_threads_per_session,
                 }),
                 /*supports_parallel_tool_calls*/ false,
                 config.code_mode_enabled,
@@ -422,6 +452,7 @@ pub fn build_tool_registry_plan(
                     hide_agent_type_model_reasoning: config.hide_spawn_agent_metadata,
                     include_usage_hint: config.spawn_agent_usage_hint,
                     usage_hint_text: config.spawn_agent_usage_hint_text.clone(),
+                    max_concurrent_threads_per_session: config.max_concurrent_threads_per_session,
                 }),
                 /*supports_parallel_tool_calls*/ false,
                 config.code_mode_enabled,
@@ -534,15 +565,13 @@ pub fn build_tool_registry_plan(
         }
     }
 
+    let mut dynamic_tool_specs = Vec::new();
     for tool in params.dynamic_tools {
-        match dynamic_tool_to_responses_api_tool(tool) {
-            Ok(converted_tool) => {
-                plan.push_spec(
-                    ToolSpec::Function(converted_tool),
-                    /*supports_parallel_tool_calls*/ false,
-                    config.code_mode_enabled,
-                );
-                plan.register_handler(tool.name.clone(), ToolHandlerKind::DynamicTool);
+        match dynamic_tool_to_loadable_tool_spec(tool) {
+            Ok(loadable_tool) => {
+                let handler_name = ToolName::new(tool.namespace.clone(), tool.name.clone());
+                dynamic_tool_specs.push(loadable_tool);
+                plan.register_handler(handler_name, ToolHandlerKind::DynamicTool);
             }
             Err(error) => {
                 tracing::error!(
@@ -551,6 +580,13 @@ pub fn build_tool_registry_plan(
                 );
             }
         }
+    }
+    for spec in coalesce_loadable_tool_specs(dynamic_tool_specs) {
+        plan.push_spec(
+            spec.into(),
+            /*supports_parallel_tool_calls*/ false,
+            config.code_mode_enabled,
+        );
     }
 
     plan

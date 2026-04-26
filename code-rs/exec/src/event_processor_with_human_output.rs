@@ -827,6 +827,8 @@ impl EventProcessor for EventProcessorWithHumanOutput {
                     status.style(self.dimmed),
                 );
             }
+            EventMsg::CompactionCheckpointWarning(_) => {}
+            EventMsg::ImageGenerationBegin(_) | EventMsg::ImageGenerationEnd(_) => {}
         }
         CodexStatus::Running
     }

@@ -5,8 +5,6 @@ use codex_protocol::protocol::FileSystemSandboxPolicy;
 #[cfg(test)]
 use codex_protocol::protocol::NetworkSandboxPolicy;
 #[cfg(test)]
-use codex_protocol::protocol::ReadOnlyAccess;
-#[cfg(test)]
 use codex_protocol::protocol::SandboxPolicy;
 #[cfg(test)]
 use codex_utils_absolute_path::AbsolutePathBuf;
@@ -48,6 +46,7 @@ fn inserts_bwrap_argv0_before_command_separator() {
         BwrapOptions {
             mount_proc: true,
             network_mode: BwrapNetworkMode::FullAccess,
+            ..Default::default()
         },
     )
     .args;
@@ -90,6 +89,7 @@ fn rewrites_inner_command_path_when_bwrap_lacks_argv0() {
         BwrapOptions {
             mount_proc: true,
             network_mode: BwrapNetworkMode::FullAccess,
+            ..Default::default()
         },
     )
     .args;
@@ -157,6 +157,7 @@ fn inserts_unshare_net_when_network_isolation_requested() {
         BwrapOptions {
             mount_proc: true,
             network_mode: BwrapNetworkMode::Isolated,
+            ..Default::default()
         },
     )
     .args;
@@ -174,6 +175,7 @@ fn inserts_unshare_net_when_proxy_only_network_mode_requested() {
         BwrapOptions {
             mount_proc: true,
             network_mode: BwrapNetworkMode::ProxyOnly,
+            ..Default::default()
         },
     )
     .args;
@@ -452,7 +454,6 @@ fn resolve_sandbox_policies_accepts_semantically_equivalent_workspace_write_inpu
     let workspace = AbsolutePathBuf::from_absolute_path(&workspace).expect("absolute workspace");
     let sandbox_policy = SandboxPolicy::WorkspaceWrite {
         writable_roots: vec![workspace],
-        read_only_access: ReadOnlyAccess::FullAccess,
         network_access: false,
         exclude_tmpdir_env_var: false,
         exclude_slash_tmp: false,

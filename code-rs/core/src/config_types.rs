@@ -3367,6 +3367,7 @@ pub enum ServiceTier {
     /// Legacy compatibility value for older local config files.
     Standard,
     Fast,
+    Flex,
 }
 
 /// Text verbosity level for `OpenAI` API responses.

@@ -16,13 +16,12 @@ schema and Responses API tool primitives that no longer need to live in
 - `ResponsesApiTool`
 - `FreeformTool`
 - `FreeformToolFormat`
-- `ToolSearchOutputTool`
+- `LoadableToolSpec`
 - `ResponsesApiWebSearchFilters`
 - `ResponsesApiWebSearchUserLocation`
 - `ResponsesApiNamespace`
 - `ResponsesApiNamespaceTool`
 - code-mode `ToolSpec` adapters and `exec` / `wait` spec builders
-- JS REPL spec builders
 - MCP resource, `list_dir`, and `test_sync_tool` spec builders
 - local host tool spec builders for shell/exec/request-permissions/view-image
 - collaboration and agent-job `ToolSpec` builders for spawn/send/wait/close,
@@ -35,6 +34,7 @@ schema and Responses API tool primitives that no longer need to live in
 - `create_tools_json_for_responses_api()`
 - `mcp_call_tool_result_output_schema()`
 - `tool_definition_to_responses_api_tool()`
+- `dynamic_tool_to_loadable_tool_spec()`
 - `dynamic_tool_to_responses_api_tool()`
 - `mcp_tool_to_responses_api_tool()`
 - `mcp_tool_to_deferred_responses_api_tool()`

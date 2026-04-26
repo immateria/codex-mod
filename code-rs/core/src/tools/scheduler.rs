@@ -63,7 +63,7 @@ fn classify_tool_call_parallelism(
 
     // Dynamic tool calls are Exclusive for now (they can mutate session-level
     // state and rely on strict ordering / user interaction).
-    if sess.is_dynamic_tool(tool_name) {
+    if sess.is_dynamic_tool(None, tool_name) {
         return ToolCallParallelism::Exclusive;
     }
     if let Some((server_name, _tool_name)) =

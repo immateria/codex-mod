@@ -6,6 +6,7 @@ use crate::protocol::v2::UserInput;
 use code_protocol::protocol::AgentReasoningEvent;
 use code_protocol::protocol::AgentReasoningRawContentEvent;
 use code_protocol::protocol::EventMsg;
+use code_protocol::protocol::ImageGenerationEndEvent;
 use code_protocol::protocol::ItemCompletedEvent;
 use code_protocol::protocol::ThreadRolledBackEvent;
 use code_protocol::protocol::TurnAbortedEvent;
@@ -57,6 +58,10 @@ impl ThreadHistoryBuilder {
                 self.handle_agent_reasoning_raw_content(payload);
             }
             EventMsg::ItemCompleted(payload) => self.handle_item_completed(payload),
+            EventMsg::ImageGenerationEnd(payload) => self.handle_image_generation_end(payload),
+            EventMsg::TokenCount(_) => {}
+            EventMsg::EnteredReviewMode(_) => {}
+            EventMsg::ExitedReviewMode(_) => {}
             EventMsg::ThreadRolledBack(payload) => self.handle_thread_rollback(payload),
             EventMsg::TurnAborted(payload) => self.handle_turn_aborted(payload),
             _ => {}
@@ -134,6 +139,17 @@ impl ThreadHistoryBuilder {
                 text: plan.text.clone(),
             });
         }
+    }
+
+    fn handle_image_generation_end(&mut self, payload: &ImageGenerationEndEvent) {
+        let id = payload.call_id.clone();
+        self.ensure_turn().items.push(ThreadItem::ImageGeneration {
+            id,
+            status: payload.status.clone(),
+            revised_prompt: payload.revised_prompt.clone(),
+            result: payload.result.clone(),
+            saved_path: payload.saved_path.clone(),
+        });
     }
 
     fn handle_turn_aborted(&mut self, _payload: &TurnAbortedEvent) {
@@ -568,5 +584,4 @@ mod tests {
         assert_eq!(turns, Vec::<Turn>::new());
     }
 }
-
 

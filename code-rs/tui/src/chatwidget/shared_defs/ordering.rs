@@ -365,6 +365,75 @@ fn image_record_from_path(path: &Path) -> Option<ImageRecord> {
     })
 }
 
+fn image_generation_replay_artifact_path(
+    code_home: &Path,
+    session_id: uuid::Uuid,
+    call_id: &str,
+) -> PathBuf {
+    fn sanitize(value: &str) -> String {
+        let sanitized: String = value
+            .chars()
+            .map(|ch| {
+                if ch.is_ascii_alphanumeric() || ch == '-' || ch == '_' {
+                    ch
+                } else {
+                    '_'
+                }
+            })
+            .collect();
+        if sanitized.is_empty() {
+            "generated_image".to_string()
+        } else {
+            sanitized
+        }
+    }
+
+    code_home
+        .join("generated_images")
+        .join(sanitize(&session_id.to_string()))
+        .join(format!("{}.png", sanitize(call_id)))
+}
+
+fn ensure_replayed_image_generation_artifact(
+    code_home: &Path,
+    session_id: Option<uuid::Uuid>,
+    call_id: &str,
+    result: &str,
+) -> Option<PathBuf> {
+    let session_id = session_id?;
+    let path = image_generation_replay_artifact_path(code_home, session_id, call_id);
+    if path.exists() {
+        return Some(path);
+    }
+    if result.starts_with("data:") {
+        return None;
+    }
+    let bytes = match BASE64_STANDARD.decode(result.trim().as_bytes()) {
+        Ok(bytes) => bytes,
+        Err(err) => {
+            tracing::warn!("failed to decode replayed image generation result: {err}");
+            return None;
+        }
+    };
+    if let Some(parent) = path.parent() {
+        if let Err(err) = std::fs::create_dir_all(parent) {
+            tracing::warn!(
+                "failed to create generated image replay dir {}: {err}",
+                parent.display()
+            );
+            return None;
+        }
+    }
+    if let Err(err) = std::fs::write(&path, bytes) {
+        tracing::warn!(
+            "failed to write replayed image generation artifact {}: {err}",
+            path.display()
+        );
+        return None;
+    }
+    Some(path)
+}
+
 fn image_view_path_from_params(params: &serde_json::Value, cwd: &Path) -> Option<PathBuf> {
     let path = params.get("path").and_then(|value| value.as_str())?;
     let trimmed = path.trim();

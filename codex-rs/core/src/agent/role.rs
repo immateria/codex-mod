@@ -18,6 +18,7 @@ use crate::config_loader::resolve_relative_paths_in_config_toml;
 use anyhow::anyhow;
 use codex_app_server_protocol::ConfigLayerSource;
 use codex_config::config_toml::ConfigToml;
+use codex_exec_server::LOCAL_FS;
 use std::collections::BTreeMap;
 use std::collections::BTreeSet;
 use std::path::Path;
@@ -168,6 +169,7 @@ mod reload {
         }
 
         let mut next_config = Config::load_config_with_layer_stack(
+            LOCAL_FS.as_ref(),
             merged_config,
             reload_overrides(config, preserve_current_provider),
             config.codex_home.clone(),
@@ -265,7 +267,6 @@ mod reload {
             model_provider: preserve_current_provider.then(|| config.model_provider_id.clone()),
             codex_linux_sandbox_exe: config.codex_linux_sandbox_exe.clone(),
             main_execve_wrapper_exe: config.main_execve_wrapper_exe.clone(),
-            js_repl_node_path: config.js_repl_node_path.clone(),
             ..Default::default()
         }
     }

@@ -1580,6 +1580,7 @@ async fn apply_bespoke_event_handling(
                 conversation_id,
                 turn_id: request.turn_id,
                 call_id: call_id.clone(),
+                namespace: request.namespace,
                 tool: request.tool,
                 arguments: request.arguments,
             };

@@ -269,7 +269,7 @@ impl ToolRouter {
     ) -> ResponseInputItem {
         let tool_name = name.clone();
 
-        if sess.is_dynamic_tool(tool_name.as_str()) {
+        if sess.is_dynamic_tool(None, tool_name.as_str()) {
             let call = ToolCall {
                 tool_name,
                 payload: ToolPayload::Function { arguments },

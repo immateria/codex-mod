@@ -42,8 +42,8 @@ fn default_enabled_features_are_stable() {
 }
 
 #[test]
-fn use_legacy_landlock_is_stable_and_disabled_by_default() {
-    assert_eq!(Feature::UseLegacyLandlock.stage(), Stage::Stable);
+fn use_legacy_landlock_is_deprecated_and_disabled_by_default() {
+    assert_eq!(Feature::UseLegacyLandlock.stage(), Stage::Deprecated);
     assert_eq!(Feature::UseLegacyLandlock.default_enabled(), false);
 }
 
@@ -60,23 +60,6 @@ fn image_detail_original_is_removed_and_disabled_by_default() {
 }
 
 #[test]
-fn js_repl_is_experimental_and_user_toggleable() {
-    let spec = Feature::JsRepl.info();
-    let stage = spec.stage;
-    let expected_node_version = include_str!("../../node-version.txt").trim_end();
-
-    assert!(matches!(stage, Stage::Experimental { .. }));
-    assert_eq!(stage.experimental_menu_name(), Some("JavaScript REPL"));
-    assert_eq!(
-        stage.experimental_menu_description().map(str::to_owned),
-        Some(format!(
-            "Enable a persistent Node-backed JavaScript REPL for interactive website debugging and other inline JavaScript execution capabilities. Requires Node >= v{expected_node_version} installed."
-        ))
-    );
-    assert_eq!(Feature::JsRepl.default_enabled(), false);
-}
-
-#[test]
 fn code_mode_only_requires_code_mode() {
     let mut features = Features::with_defaults();
     features.enable(Feature::CodeModeOnly);
@@ -87,20 +70,28 @@ fn code_mode_only_requires_code_mode() {
 }
 
 #[test]
-fn guardian_approval_is_experimental_and_user_toggleable() {
+fn guardian_approval_is_stable_and_enabled_by_default() {
     let spec = Feature::GuardianApproval.info();
+
+    assert_eq!(spec.stage, Stage::Stable);
+    assert_eq!(Feature::GuardianApproval.default_enabled(), true);
+}
+
+#[test]
+fn external_migration_is_experimental_and_disabled_by_default() {
+    let spec = Feature::ExternalMigration.info();
     let stage = spec.stage;
 
     assert!(matches!(stage, Stage::Experimental { .. }));
-    assert_eq!(stage.experimental_menu_name(), Some("Guardian Approvals"));
+    assert_eq!(stage.experimental_menu_name(), Some("External migration"));
     assert_eq!(
-        stage.experimental_menu_description().map(str::to_owned),
+        stage.experimental_menu_description(),
         Some(
-            "When Codex needs approval for higher-risk actions (e.g. sandbox escapes or blocked network access), route eligible approval requests to a carefully-prompted security reviewer subagent rather than blocking the agent on your input. This can consume significantly more tokens because it runs a subagent on every approval request.".to_string()
+            "Show a startup prompt when Codex detects migratable external agent config for this machine or project."
         )
     );
     assert_eq!(stage.experimental_announcement(), None);
-    assert_eq!(Feature::GuardianApproval.default_enabled(), false);
+    assert_eq!(Feature::ExternalMigration.default_enabled(), false);
 }
 
 #[test]
@@ -134,12 +125,21 @@ fn tool_search_is_stable_and_enabled_by_default() {
 }
 
 #[test]
-fn unavailable_dummy_tools_is_under_development_and_disabled_by_default() {
+fn browser_controls_are_stable_and_enabled_by_default() {
+    assert_eq!(Feature::InAppBrowser.stage(), Stage::Stable);
+    assert_eq!(Feature::InAppBrowser.default_enabled(), true);
     assert_eq!(
-        Feature::UnavailableDummyTools.stage(),
-        Stage::UnderDevelopment
+        feature_for_key("in_app_browser"),
+        Some(Feature::InAppBrowser)
     );
-    assert_eq!(Feature::UnavailableDummyTools.default_enabled(), false);
+
+    assert_eq!(Feature::BrowserUse.stage(), Stage::Stable);
+    assert_eq!(Feature::BrowserUse.default_enabled(), true);
+    assert_eq!(feature_for_key("browser_use"), Some(Feature::BrowserUse));
+
+    assert_eq!(Feature::ComputerUse.stage(), Stage::Stable);
+    assert_eq!(Feature::ComputerUse.default_enabled(), true);
+    assert_eq!(feature_for_key("computer_use"), Some(Feature::ComputerUse));
 }
 
 #[test]
@@ -167,10 +167,46 @@ fn image_generation_is_stable_and_enabled_by_default() {
 }
 
 #[test]
+fn use_legacy_landlock_config_records_deprecation_notice() {
+    let mut entries = BTreeMap::new();
+    entries.insert("use_legacy_landlock".to_string(), true);
+
+    let mut features = Features::with_defaults();
+    features.apply_map(&entries);
+
+    let usages = features.legacy_feature_usages().collect::<Vec<_>>();
+    assert_eq!(usages.len(), 1);
+    assert_eq!(usages[0].alias, "features.use_legacy_landlock");
+    assert_eq!(usages[0].feature, Feature::UseLegacyLandlock);
+    assert_eq!(
+        usages[0].summary,
+        "`[features].use_legacy_landlock` is deprecated and will be removed soon."
+    );
+    assert_eq!(
+        usages[0].details.as_deref(),
+        Some("Remove this setting to stop opting into the legacy Linux sandbox behavior.")
+    );
+}
+
+#[test]
 fn image_detail_original_is_a_removed_feature_key() {
     assert_eq!(
         feature_for_key("image_detail_original"),
         Some(Feature::ImageDetailOriginal)
+    );
+}
+
+#[test]
+fn js_repl_features_are_removed_feature_keys() {
+    assert_eq!(Feature::JsRepl.stage(), Stage::Removed);
+    assert_eq!(Feature::JsRepl.default_enabled(), false);
+    assert_eq!(feature_for_key("js_repl"), Some(Feature::JsRepl));
+
+    assert_eq!(Feature::JsReplToolsOnly.stage(), Stage::Removed);
+    assert_eq!(Feature::JsReplToolsOnly.default_enabled(), false);
+    assert_eq!(
+        feature_for_key("js_repl_tools_only"),
+        Some(Feature::JsReplToolsOnly)
     );
 }
 
@@ -187,12 +223,6 @@ fn remote_control_is_under_development() {
 }
 
 #[test]
-fn use_agent_identity_is_under_development() {
-    assert_eq!(Feature::UseAgentIdentity.stage(), Stage::UnderDevelopment);
-    assert_eq!(Feature::UseAgentIdentity.default_enabled(), false);
-}
-
-#[test]
 fn workspace_dependencies_is_stable_and_enabled_by_default() {
     assert_eq!(Feature::WorkspaceDependencies.stage(), Stage::Stable);
     assert_eq!(Feature::WorkspaceDependencies.default_enabled(), true);
@@ -200,6 +230,14 @@ fn workspace_dependencies_is_stable_and_enabled_by_default() {
         feature_for_key("workspace_dependencies"),
         Some(Feature::WorkspaceDependencies)
     );
+}
+
+#[test]
+fn telepathy_is_legacy_alias_for_chronicle() {
+    assert_eq!(Feature::Chronicle.stage(), Stage::UnderDevelopment);
+    assert_eq!(Feature::Chronicle.default_enabled(), false);
+    assert_eq!(feature_for_key("chronicle"), Some(Feature::Chronicle));
+    assert_eq!(feature_for_key("telepathy"), Some(Feature::Chronicle));
 }
 
 #[test]
@@ -290,6 +328,25 @@ fn from_sources_ignores_removed_image_detail_original_feature_key() {
         "image_detail_original".to_string(),
         true,
     )]));
+
+    let features = Features::from_sources(
+        FeatureConfigSource {
+            features: Some(&features_toml),
+            ..Default::default()
+        },
+        FeatureConfigSource::default(),
+        FeatureOverrides::default(),
+    );
+
+    assert_eq!(features, Features::with_defaults());
+}
+
+#[test]
+fn from_sources_ignores_removed_js_repl_feature_keys() {
+    let features_toml = FeaturesToml::from(BTreeMap::from([
+        ("js_repl".to_string(), true),
+        ("js_repl_tools_only".to_string(), true),
+    ]));
 
     let features = Features::from_sources(
         FeatureConfigSource {

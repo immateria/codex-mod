@@ -4,11 +4,11 @@ use crate::agent::registry::AgentRegistry;
 use crate::agent::role::DEFAULT_ROLE_NAME;
 use crate::agent::role::resolve_role_config;
 use crate::agent::status::is_final;
-use crate::codex::emit_subagent_session_started;
 use crate::codex_thread::ThreadConfigSnapshot;
 use crate::find_archived_thread_path_by_id_str;
 use crate::find_thread_path_by_id_str;
 use crate::rollout::RolloutRecorder;
+use crate::session::emit_subagent_session_started;
 use crate::session_prefix::format_subagent_context_line;
 use crate::session_prefix::format_subagent_notification_message;
 use crate::shell_snapshot::ShellSnapshot;
@@ -28,6 +28,7 @@ use codex_protocol::protocol::RolloutItem;
 use codex_protocol::protocol::SessionSource;
 use codex_protocol::protocol::SubAgentSource;
 use codex_protocol::protocol::TokenUsage;
+use codex_protocol::protocol::TurnEnvironmentSelection;
 use codex_protocol::user_input::UserInput;
 use codex_rollout::state_db;
 use codex_state::DirectionalThreadSpawnEdgeStatus;
@@ -52,6 +53,7 @@ pub(crate) enum SpawnAgentForkMode {
 pub(crate) struct SpawnAgentOptions {
     pub(crate) fork_parent_spawn_call_id: Option<String>,
     pub(crate) fork_mode: Option<SpawnAgentForkMode>,
+    pub(crate) environments: Option<Vec<TurnEnvironmentSelection>>,
 }
 
 #[derive(Clone, Debug)]
@@ -116,10 +118,10 @@ fn keep_forked_rollout_item(item: &RolloutItem) -> bool {
             | ResponseItem::Compaction { .. }
             | ResponseItem::Other,
         ) => false,
-        RolloutItem::Compacted(_)
-        | RolloutItem::EventMsg(_)
-        | RolloutItem::SessionMeta(_)
-        | RolloutItem::TurnContext(_) => true,
+        // A forked child gets its own runtime config, including spawned-agent
+        // instructions, so it must establish a fresh context diff baseline.
+        RolloutItem::TurnContext(_) => false,
+        RolloutItem::Compacted(_) | RolloutItem::EventMsg(_) | RolloutItem::SessionMeta(_) => true,
     }
 }
 
@@ -147,6 +149,15 @@ impl AgentControl {
         }
     }
 
+    /// Create a control-plane handle over the same thread manager with an independent live-agent
+    /// registry.
+    pub(crate) fn detached_registry(&self) -> Self {
+        Self {
+            manager: self.manager.clone(),
+            ..Default::default()
+        }
+    }
+
     /// Spawn a new agent thread and submit the initial prompt.
     pub(crate) async fn spawn_agent(
         &self,
@@ -154,15 +165,14 @@ impl AgentControl {
         initial_operation: Op,
         session_source: Option<SessionSource>,
     ) -> CodexResult<ThreadId> {
-        Ok(self
-            .spawn_agent_internal(
-                config,
-                initial_operation,
-                session_source,
-                SpawnAgentOptions::default(),
-            )
-            .await?
-            .thread_id)
+        let spawned_agent = Box::pin(self.spawn_agent_internal(
+            config,
+            initial_operation,
+            session_source,
+            SpawnAgentOptions::default(),
+        ))
+        .await?;
+        Ok(spawned_agent.thread_id)
     }
 
     /// Spawn an agent thread with some metadata.
@@ -173,7 +183,7 @@ impl AgentControl {
         session_source: Option<SessionSource>,
         options: SpawnAgentOptions, // TODO(jif) drop with new fork.
     ) -> CodexResult<LiveAgent> {
-        self.spawn_agent_internal(config, initial_operation, session_source, options)
+        Box::pin(self.spawn_agent_internal(config, initial_operation, session_source, options))
             .await
     }
 
@@ -238,6 +248,7 @@ impl AgentControl {
                         /*metrics_service_name*/ None,
                         inherited_shell_snapshot,
                         inherited_exec_policy,
+                        options.environments.clone(),
                     )
                     .await?
             }
@@ -267,7 +278,7 @@ impl AgentControl {
                         parent_thread_id = %parent_thread_id,
                         "skipping subagent thread analytics: failed to load parent thread metadata"
                     );
-                    crate::codex::AppServerClientMetadata {
+                    crate::session::session::AppServerClientMetadata {
                         client_name: None,
                         client_version: None,
                     }
@@ -397,6 +408,7 @@ impl AgentControl {
                 /*persist_extended_history*/ false,
                 inherited_shell_snapshot,
                 inherited_exec_policy,
+                options.environments.clone(),
             )
             .await
     }
@@ -409,9 +421,12 @@ impl AgentControl {
         session_source: SessionSource,
     ) -> CodexResult<ThreadId> {
         let root_depth = thread_spawn_depth(&session_source).unwrap_or(0);
-        let resumed_thread_id = self
-            .resume_single_agent_from_rollout(config.clone(), thread_id, session_source)
-            .await?;
+        let resumed_thread_id = Box::pin(self.resume_single_agent_from_rollout(
+            config.clone(),
+            thread_id,
+            session_source,
+        ))
+        .await?;
         let state = self.upgrade()?;
         let Ok(resumed_thread) = state.get_thread(resumed_thread_id).await else {
             return Ok(resumed_thread_id);
@@ -689,7 +704,7 @@ impl AgentControl {
         {
             warn!("failed to persist thread-spawn edge status for {agent_id}: {err}");
         }
-        self.shutdown_agent_tree(agent_id).await
+        Box::pin(self.shutdown_agent_tree(agent_id)).await
     }
 
     /// Shut down `agent_id` and any live descendants reachable from the in-memory spawn tree.

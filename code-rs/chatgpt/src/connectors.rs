@@ -1,16 +1,14 @@
 use std::collections::HashSet;
 use std::time::Duration;
 
-use code_app_server_protocol::AppInfo;
+use code_app_server_protocol::{AppInfo, AuthMode};
 use code_connectors::AllConnectorsCacheKey;
 use code_connectors::DirectoryListResponse;
 use code_core::config::Config;
+use code_core::CodexAuth;
 use code_core::plugins::AppConnectorId;
 use code_core::plugins::PluginsManager;
 use code_core::token_data::TokenData;
-
-use crate::chatgpt_token::get_chatgpt_token_data;
-use crate::chatgpt_token::init_chatgpt_token_from_auth;
 
 const DIRECTORY_CONNECTORS_TIMEOUT: Duration = Duration::from_secs(60);
 
@@ -60,14 +58,15 @@ pub async fn list_all_connectors_with_options(
 
 async fn token_data_for_directory_connectors(config: &Config) -> anyhow::Result<Option<TokenData>> {
     // Prefer the active auth.json (keeps behavior aligned with other ChatGPT API usage).
-    init_chatgpt_token_from_auth(
+    if let Some(auth) = CodexAuth::from_code_home_with_store_mode(
         &config.code_home,
         config.cli_auth_credentials_store_mode,
+        AuthMode::ChatGPT,
         &config.responses_originator_header,
-    )
-    .await?;
-    if let Some(token_data) = get_chatgpt_token_data() {
-        return Ok(Some(token_data));
+    )? {
+        if auth.uses_codex_backend() {
+            return Ok(Some(auth.get_token_data().await?));
+        }
     }
 
     // Fallback: use the first effective connector-source account (supports pinned-only setups).
@@ -90,6 +89,9 @@ async fn token_data_for_directory_connectors(config: &Config) -> anyhow::Result<
             "connectors_directory",
         )
         .await?;
+        if !auth.uses_codex_backend() {
+            continue;
+        }
         let Ok(token_data) = auth.get_token_data().await else {
             continue;
         };

@@ -50,10 +50,41 @@ const ALL_TEXT_VERBOSITY: &[TextVerbosityConfig] = &[
 static PRESETS: Lazy<Vec<ModelPreset>> = Lazy::new(|| {
     vec![
         ModelPreset {
-            id: "gpt-5.4".to_owned(),
-            model: "gpt-5.4".to_owned(),
-            display_name: "gpt-5.4".to_owned(),
-            description: "Frontier flagship model.".to_owned(),
+            id: "gpt-5.5".to_string(),
+            model: "gpt-5.5".to_string(),
+            display_name: "GPT-5.5".to_string(),
+            description: "Frontier model for complex coding, research, and real-world work."
+                .to_string(),
+            default_reasoning_effort: ReasoningEffort::Medium,
+            supported_reasoning_efforts: vec![
+                ReasoningEffortPreset {
+                    effort: ReasoningEffort::Low,
+                    description: "Fast responses with lighter reasoning".to_string(),
+                },
+                ReasoningEffortPreset {
+                    effort: ReasoningEffort::Medium,
+                    description: "Balances speed and reasoning depth for everyday tasks".to_string(),
+                },
+                ReasoningEffortPreset {
+                    effort: ReasoningEffort::High,
+                    description: "Greater reasoning depth for complex problems".to_string(),
+                },
+                ReasoningEffortPreset {
+                    effort: ReasoningEffort::XHigh,
+                    description: "Extra high reasoning depth for complex problems".to_string(),
+                },
+            ],
+            supported_text_verbosity: ALL_TEXT_VERBOSITY,
+            is_default: false,
+            upgrade: None,
+            pro_only: false,
+            show_in_picker: true,
+        },
+        ModelPreset {
+            id: "gpt-5.4".to_string(),
+            model: "gpt-5.4".to_string(),
+            display_name: "gpt-5.4".to_string(),
+            description: "Frontier flagship model.".to_string(),
             default_reasoning_effort: ReasoningEffort::Medium,
             supported_reasoning_efforts: vec![
                 ReasoningEffortPreset {
@@ -654,6 +685,12 @@ mod tests {
         let presets = builtin_model_presets(Some(AuthMode::ApiKey), false);
         assert!(presets.iter().any(|preset| preset.id == "gpt-5.4"));
         assert!(presets.iter().any(|preset| preset.id == "gpt-5.4-mini"));
+    }
+
+    #[test]
+    fn gpt_5_5_available_for_chatgpt_auth() {
+        let presets = builtin_model_presets(Some(AuthMode::Chatgpt), true);
+        assert!(presets.iter().any(|preset| preset.id == "gpt-5.5"));
     }
 
     #[test]
