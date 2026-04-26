@@ -21,6 +21,7 @@ use code_app_server_protocol::ToolsV2;
 use code_app_server_protocol::WriteStatus;
 use code_protocol::config_types::Verbosity;
 use code_protocol::config_types::WebSearchMode;
+use code_protocol::config_types::WebSearchToolConfig;
 use code_utils_absolute_path::AbsolutePathBuf;
 use code_utils_json_to_toml::json_to_toml;
 use std::collections::HashMap;
@@ -441,7 +442,11 @@ fn v2_config_snapshot_from(config: &Config) -> V2Config {
             WebSearchMode::Disabled
         }),
         tools: Some(ToolsV2 {
-            web_search: Some(config.tools_web_search_request),
+            web_search: if config.tools_web_search_request {
+                Some(WebSearchToolConfig::default())
+            } else {
+                None
+            },
             view_image: Some(config.include_view_image_tool),
         }),
         profile: config.active_profile.clone(),

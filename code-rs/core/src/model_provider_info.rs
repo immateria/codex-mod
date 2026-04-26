@@ -429,7 +429,7 @@ impl ModelProviderInfo {
     }
 
     pub(crate) fn get_full_url(&self, auth: Option<&CodexAuth>) -> String {
-        let default_base_url = if auth.as_ref().is_some_and(CodexAuth::uses_codex_backend) {
+        let default_base_url = if auth.as_ref().is_some_and(|a| a.uses_codex_backend()) {
             CHATGPT_CODEX_BASE_URL
         } else {
             OPENAI_API_BASE_URL

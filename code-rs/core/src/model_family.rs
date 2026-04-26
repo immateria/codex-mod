@@ -561,20 +561,8 @@ pub fn derive_default_model_family(model: &str) -> ModelFamily {
     })
 }
 
-fn supports_image_generation(model_info: &ModelInfo) -> bool {
+pub(crate) fn supports_image_generation(model_info: &ModelInfo) -> bool {
     model_info.input_modalities.contains(&InputModality::Image)
-}
-
-#[cfg(test)]
-mod tests {
-    use super::find_family_for_model;
-
-    #[test]
-    fn image_generation_support_tracks_image_input_modality() {
-        let family = find_family_for_model("gpt-5.4").expect("known upstream model");
-
-        assert!(family.supports_image_generation);
-    }
 }
 
 impl ModelFamily {
@@ -695,11 +683,19 @@ mod tests {
     use super::{
         default_auto_compact_limit_for_context_window,
         derive_default_model_family,
+        find_family_for_model,
         resolve_context_settings,
         supports_extended_context,
         supports_service_tier,
     };
     use crate::config_types::ContextMode;
+
+    #[test]
+    fn image_generation_support_tracks_image_input_modality() {
+        let family = find_family_for_model("gpt-5.4").expect("known upstream model");
+
+        assert!(family.supports_image_generation);
+    }
 
     #[test]
     fn service_tier_is_only_supported_for_gpt_5_4_variants() {

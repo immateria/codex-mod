@@ -302,6 +302,9 @@ pub(super) async fn try_run_turn(
                     });
                 }
             }
+            ResponseEvent::ResponseHeaders(_) => {
+                // Header metadata from the stream; no action needed.
+            }
             // Note: ReasoningSummaryPartAdded handled above without scratchpad mutation.
         }
     }

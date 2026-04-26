@@ -4126,9 +4126,11 @@ fn v2_dynamic_tool_spec_to_protocol(
     spec: code_app_server_protocol::DynamicToolSpec,
 ) -> code_protocol::dynamic_tools::DynamicToolSpec {
     code_protocol::dynamic_tools::DynamicToolSpec {
+        namespace: spec.namespace,
         name: spec.name,
         description: spec.description,
         input_schema: spec.input_schema,
+        defer_loading: spec.defer_loading,
     }
 }
 

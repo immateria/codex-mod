@@ -236,7 +236,7 @@ impl ChatWidget<'_> {
                     let _ =
                         self.history_insert_plain_state_with_key(state, ok, "image-generation");
                 }
-                self.bottom_pane.update_status_text("responding".to_owned());
+                self.bottom_pane.update_status_text("responding");
                 self.maybe_hide_spinner();
             }
             EventMsg::AgentMessageDelta(AgentMessageDeltaEvent { delta }) => {

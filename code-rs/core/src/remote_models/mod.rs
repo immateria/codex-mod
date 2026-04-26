@@ -7,7 +7,6 @@ use code_app_server_protocol::AuthMode;
 use code_protocol::config_types::ReasoningSummary as ProtocolReasoningSummary;
 use code_protocol::config_types::Personality as ProtocolPersonality;
 use code_protocol::openai_models::ApplyPatchToolType as ProtocolApplyPatchToolType;
-use code_protocol::openai_models::InputModality;
 use code_protocol::openai_models::ModelInfo;
 use code_protocol::openai_models::ModelsResponse;
 use code_protocol::openai_models::ReasoningEffort as ProtocolReasoningEffort;
@@ -21,7 +20,7 @@ use tokio::sync::RwLock;
 use crate::auth::AuthManager;
 use crate::config_types::Personality as ConfigPersonality;
 use crate::config_types::ReasoningSummary as ConfigReasoningSummary;
-use crate::model_family::{derive_default_model_family, find_family_for_model, ModelFamily};
+use crate::model_family::{derive_default_model_family, find_family_for_model, supports_image_generation, ModelFamily};
 use crate::model_provider_info::{
     ModelProviderInfo,
     CHATGPT_CODEX_BASE_URL,
@@ -326,7 +325,7 @@ impl RemoteModelsManager {
 
     fn models_url(&self, auth: Option<&CodexAuth>) -> crate::error::Result<Url> {
         let base_url = self.provider.base_url.clone().unwrap_or_else(|| {
-            if auth.as_ref().is_some_and(CodexAuth::uses_codex_backend) {
+            if auth.as_ref().is_some_and(|a| a.uses_codex_backend()) {
                 CHATGPT_CODEX_BASE_URL.to_owned()
             } else {
                 OPENAI_API_BASE_URL.to_owned()
