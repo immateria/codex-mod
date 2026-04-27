@@ -25,11 +25,9 @@ impl ExecLimitsSettingsView {
                 hint,
             )));
 
-            // Show effective limits (after user overrides) and what "Auto" would resolve to.
-            let eff_pids = code_core::config::exec_limits_effective_pids_max();
-            let eff_mem_bytes = code_core::config::exec_limits_effective_memory_max_bytes();
-            let eff_mem_mib =
-                eff_mem_bytes.map(|b| (b.saturating_add(1024 * 1024 - 1)) / (1024 * 1024));
+            // Show what effective limits would be with the current pending settings.
+            let eff_pids = self.get_effective_pids_max();
+            let eff_mem_mib = self.get_effective_memory_max_mib();
             let eff_line = match (eff_pids, eff_mem_mib) {
                 (Some(pids), Some(mib)) => {
                     format!("Effective: pids_max={pids} · memory_max={mib} MiB")
@@ -40,6 +38,7 @@ impl ExecLimitsSettingsView {
             };
             lines.push(Line::from(Span::styled(eff_line, hint)));
 
+            // Show what Auto would resolve to (always based on auto, never affected by pending changes).
             let auto_pids = code_core::config::exec_limits_auto_pids_max();
             let auto_mem_bytes = code_core::config::exec_limits_auto_memory_max_bytes();
             let auto_mem_mib =

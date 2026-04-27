@@ -128,6 +128,24 @@ pub(crate) fn auto_exec_pids_max() -> Option<u64> {
 }
 
 #[cfg(target_os = "linux")]
+pub(crate) fn exec_pids_max_with_override(override_: ExecLimitOverride) -> Option<u64> {
+    match override_ {
+        ExecLimitOverride::Disabled => None,
+        ExecLimitOverride::Value(value) => Some(value),
+        ExecLimitOverride::Auto => auto_exec_pids_max(),
+    }
+}
+
+#[cfg(target_os = "linux")]
+pub(crate) fn exec_memory_max_bytes_with_override(override_: ExecLimitOverride) -> Option<u64> {
+    match override_ {
+        ExecLimitOverride::Disabled => None,
+        ExecLimitOverride::Value(value) => Some(value),
+        ExecLimitOverride::Auto => auto_exec_memory_max_bytes(),
+    }
+}
+
+#[cfg(target_os = "linux")]
 fn read_mem_available_bytes() -> Option<u64> {
     let contents = std::fs::read_to_string("/proc/meminfo").ok()?;
     for line in contents.lines() {

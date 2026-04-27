@@ -419,12 +419,20 @@ pub fn record_rate_limit_snapshot(
         let mut info = data.rate_limit.take().unwrap_or_default();
         info.snapshot = Some(snapshot.clone());
         info.observed_at = Some(observed_at);
-        info.primary_next_reset_at = snapshot
-            .primary_reset_after_seconds
-            .map(|seconds| observed_at + Duration::seconds(i64::try_from(seconds).unwrap_or(i64::MAX)));
-        info.secondary_next_reset_at = snapshot
-            .secondary_reset_after_seconds
-            .map(|seconds| observed_at + Duration::seconds(i64::try_from(seconds).unwrap_or(i64::MAX)));
+        // Only overwrite the absolute reset time when the new snapshot
+        // actually carries a `*_reset_after_seconds` value. Otherwise keep
+        // the previous reset time so a partial response from a warm probe
+        // does not erase a still-valid reset deadline.
+        if let Some(seconds) = snapshot.primary_reset_after_seconds {
+            info.primary_next_reset_at = Some(
+                observed_at + Duration::seconds(i64::try_from(seconds).unwrap_or(i64::MAX)),
+            );
+        }
+        if let Some(seconds) = snapshot.secondary_reset_after_seconds {
+            info.secondary_next_reset_at = Some(
+                observed_at + Duration::seconds(i64::try_from(seconds).unwrap_or(i64::MAX)),
+            );
+        }
         data.rate_limit = Some(info);
     })
 }

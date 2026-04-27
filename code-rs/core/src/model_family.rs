@@ -435,6 +435,21 @@ pub fn find_family_for_model(slug: &str) -> Option<ModelFamily> {
             max_output_tokens: Some(MAX_OUTPUT_DEFAULT),
             truncation_policy: TruncationPolicy::Tokens(10_000),
         )
+    } else if slug.starts_with("gpt-5.5") {
+        // GPT-5.5 family currently exposes the same frontier defaults as GPT-5.4,
+        // including service-tier fast mode eligibility and 1M context support.
+        model_family!(
+            slug, "gpt-5.5",
+            supports_reasoning_summaries: true,
+            base_instructions: GPT_5_2_CODEX_INSTRUCTIONS.to_owned(),
+            apply_patch_tool_type: Some(ApplyPatchToolType::Freeform),
+            supports_parallel_tool_calls: true,
+            prefer_websockets: true,
+            supports_search_tool: true,
+            context_window: Some(CONTEXT_WINDOW_272K),
+            max_output_tokens: Some(MAX_OUTPUT_DEFAULT),
+            truncation_policy: TruncationPolicy::Tokens(10_000),
+        )
     } else if slug.starts_with("gpt-5.4") {
         // GPT-5.4 family: latest frontier model with freeform apply_patch,
         // shell_command tool, websocket preference, and token-based truncation.
@@ -603,7 +618,7 @@ pub fn supports_service_tier(model: &str) -> bool {
         .or_else(|| model.strip_prefix("test-"))
         .or_else(|| model.strip_prefix("cloud-"))
         .unwrap_or(model);
-    normalized.eq_ignore_ascii_case("gpt-5.4")
+    normalized.eq_ignore_ascii_case("gpt-5.5") || normalized.eq_ignore_ascii_case("gpt-5.4")
 }
 
 pub fn supports_extended_context(model: &str) -> bool {
@@ -687,6 +702,7 @@ mod tests {
         resolve_context_settings,
         supports_extended_context,
         supports_service_tier,
+        STANDARD_CONTEXT_WINDOW_272K,
     };
     use crate::config_types::ContextMode;
 
@@ -698,7 +714,10 @@ mod tests {
     }
 
     #[test]
-    fn service_tier_is_only_supported_for_gpt_5_4_variants() {
+    fn service_tier_is_supported_for_gpt_5_4_and_gpt_5_5_variants() {
+        assert!(supports_service_tier("gpt-5.5"));
+        assert!(supports_service_tier("code-gpt-5.5"));
+        assert!(supports_service_tier("test-gpt-5.5"));
         assert!(supports_service_tier("gpt-5.4"));
         assert!(supports_service_tier("code-gpt-5.4"));
         assert!(supports_service_tier("test-gpt-5.4"));
@@ -708,8 +727,19 @@ mod tests {
 
     #[test]
     fn extended_context_matches_service_tier_support() {
+        assert!(supports_extended_context("gpt-5.5"));
         assert!(supports_extended_context("gpt-5.4"));
         assert!(!supports_extended_context("gpt-5.4-mini"));
+    }
+
+    #[test]
+    fn gpt_5_5_uses_frontier_family_defaults() {
+        let family = find_family_for_model("gpt-5.5").expect("known upstream model");
+
+        assert_eq!(family.family, "gpt-5.5");
+        assert!(family.prefer_websockets);
+        assert!(family.supports_search_tool);
+        assert_eq!(family.context_window, Some(STANDARD_CONTEXT_WINDOW_272K));
     }
 
     #[test]

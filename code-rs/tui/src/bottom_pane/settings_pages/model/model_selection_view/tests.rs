@@ -78,6 +78,26 @@ fn entry_count_includes_fast_mode() {
 }
 
 #[test]
+fn presets_sort_gpt_5_5_above_gpt_5_4() {
+    let view = make_view(
+        ModelSelectionTarget::Session,
+        vec![preset("gpt-5.4"), preset("gpt-5.3-codex"), preset("gpt-5.5")],
+    );
+
+    let first_model = view
+        .data
+        .entries()
+        .into_iter()
+        .find_map(|entry| match entry {
+            EntryKind::Preset(idx) => Some(view.data.flat_presets[idx].model.as_str()),
+            _ => None,
+        })
+        .expect("first preset entry");
+
+    assert_eq!(first_model, "gpt-5.5");
+}
+
+#[test]
 fn get_entry_line_accounts_for_header_and_fast_block() {
     let view = make_view(ModelSelectionTarget::Session, vec![preset("gpt-5.3-codex")]);
     assert_eq!(view.data.entry_line(0), 5);

@@ -29,6 +29,8 @@ impl ExecLimitsSettingsView {
             viewport_rows: Cell::new(DEFAULT_VISIBLE_ROWS),
             is_complete: false,
             app_event_tx,
+            cached_pids_max: RefCell::new((code_core::config::ExecLimitsToml::default(), None)),
+            cached_memory_max_bytes: RefCell::new((code_core::config::ExecLimitsToml::default(), None)),
         }
     }
 
@@ -83,6 +85,31 @@ impl ExecLimitsSettingsView {
 
     pub(crate) fn has_back_navigation(&self) -> bool {
         !matches!(self.mode, ViewMode::Main)
+    }
+
+    #[cfg(target_os = "linux")]
+    pub(super) fn get_effective_pids_max(&self) -> Option<u64> {
+        let cached = self.cached_pids_max.borrow();
+        if cached.0 == self.settings {
+            return cached.1;
+        }
+        drop(cached);
+        let value = code_core::config::exec_limits_pids_max_with_setting(self.settings.pids_max);
+        *self.cached_pids_max.borrow_mut() = (self.settings.clone(), value);
+        value
+    }
+
+    #[cfg(target_os = "linux")]
+    pub(super) fn get_effective_memory_max_mib(&self) -> Option<u64> {
+        let cached = self.cached_memory_max_bytes.borrow();
+        if cached.0 == self.settings {
+            return cached.1;
+        }
+        drop(cached);
+        let bytes = code_core::config::exec_limits_memory_max_bytes_with_setting(self.settings.memory_max_mb);
+        let mib = bytes.map(|b| (b.saturating_add(1024 * 1024 - 1)) / (1024 * 1024));
+        *self.cached_memory_max_bytes.borrow_mut() = (self.settings.clone(), mib);
+        mib
     }
 }
 

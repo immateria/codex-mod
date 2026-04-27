@@ -1667,6 +1667,42 @@ pub fn exec_limits_auto_memory_max_bytes() -> Option<u64> {
     None
 }
 
+/// Computes the effective pids limit given a specific override setting (not reading from global state).
+/// Used by the TUI to show what values would be with pending changes.
+#[cfg_attr(not(target_os = "linux"), allow(unused_variables))]
+pub fn exec_limits_pids_max_with_setting(setting: ExecLimitToml) -> Option<u64> {
+    #[cfg(target_os = "linux")]
+    {
+        use crate::cgroup::ExecLimitOverride;
+        let override_ = match setting {
+            ExecLimitToml::Mode(ExecLimitModeToml::Auto) => ExecLimitOverride::Auto,
+            ExecLimitToml::Mode(ExecLimitModeToml::Disabled) => ExecLimitOverride::Disabled,
+            ExecLimitToml::Value(value) => ExecLimitOverride::Value(value),
+        };
+        return crate::cgroup::exec_pids_max_with_override(override_);
+    }
+    #[cfg(not(target_os = "linux"))]
+    None
+}
+
+/// Computes the effective memory limit given a specific override setting (not reading from global state).
+/// Used by the TUI to show what values would be with pending changes.
+#[cfg_attr(not(target_os = "linux"), allow(unused_variables))]
+pub fn exec_limits_memory_max_bytes_with_setting(setting: ExecLimitToml) -> Option<u64> {
+    #[cfg(target_os = "linux")]
+    {
+        use crate::cgroup::ExecLimitOverride;
+        let override_ = match setting {
+            ExecLimitToml::Mode(ExecLimitModeToml::Auto) => ExecLimitOverride::Auto,
+            ExecLimitToml::Mode(ExecLimitModeToml::Disabled) => ExecLimitOverride::Disabled,
+            ExecLimitToml::Value(mb) => ExecLimitOverride::Value(mb.saturating_mul(1024 * 1024)),
+        };
+        return crate::cgroup::exec_memory_max_bytes_with_override(override_);
+    }
+    #[cfg(not(target_os = "linux"))]
+    None
+}
+
 #[derive(Debug, Clone, Copy, Deserialize, Serialize, PartialEq, Eq, JsonSchema, Default)]
 #[serde(rename_all = "lowercase")]
 pub enum NetworkModeToml {

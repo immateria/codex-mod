@@ -49,10 +49,27 @@ impl LimitsOverlay {
     }
 
     pub(crate) fn set_content(&mut self, content: LimitsOverlayContent) {
+        // When transitioning between two tab lists, keep the user on the same
+        // account if it still exists. This stops a background refresh (e.g.
+        // warm-all snapshots arriving) from yanking the selection back to the
+        // active account every time the tabs are rebuilt.
+        let preserved_idx = match (&self.content, &content) {
+            (LimitsOverlayContent::Tabs(prev), LimitsOverlayContent::Tabs(next)) => {
+                let current_idx = self.selected_tab().min(prev.len().saturating_sub(1));
+                prev.get(current_idx)
+                    .and_then(|tab| tab.account_id.as_ref())
+                    .and_then(|prev_id| {
+                        next.iter()
+                            .position(|tab| tab.account_id.as_deref() == Some(prev_id.as_str()))
+                    })
+            }
+            _ => None,
+        };
+
         self.content = content;
         self.scroll.set(0);
         self.max_scroll.set(0);
-        self.selected_tab.set(0);
+        self.selected_tab.set(preserved_idx.unwrap_or(0));
     }
 
     pub(crate) fn scroll(&self) -> u16 {

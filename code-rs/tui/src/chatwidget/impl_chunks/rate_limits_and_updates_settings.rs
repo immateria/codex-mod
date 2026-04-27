@@ -214,17 +214,35 @@ impl ChatWidget<'_> {
             self.config.cli_auth_credentials_store_mode,
         ) {
             Ok(()) => {
+                // Update widget config eagerly so the in-memory using_chatgpt_auth
+                // matches auth.json before any refresh thread reads it. The app
+                // event is still emitted so the App state stays in sync.
+                self.set_using_chatgpt_auth(mode.is_chatgpt());
+                self.reload_auth();
                 self.app_event_tx.send(AppEvent::LoginUsingChatGptChanged {
                     using_chatgpt_auth: mode.is_chatgpt(),
                 });
+
+                // Clear the active session's stale snapshot so the UI doesn't
+                // briefly render the previous account's data while the refresh
+                // is in flight.
+                self.rate_limit_snapshot = None;
+                self.rate_limit_primary_next_reset_at = None;
+                self.rate_limit_secondary_next_reset_at = None;
+
                 // Re-probe the newly-active account so the overlay refreshes
-                // with live data.
+                // with live data. Pass the account explicitly so we use the
+                // new credentials directly, not whatever shared/cached auth
+                // the AuthManager last loaded.
                 self.rate_limit_fetch_inflight = true;
                 self.rate_limit_fetch_inflight_since = Some(std::time::Instant::now());
-                start_rate_limit_refresh(
+                start_rate_limit_refresh_for_account(
                     self.app_event_tx.clone(),
                     self.config.clone(),
                     self.config.debug,
+                    account,
+                    true,
+                    true,
                 );
                 self.set_limits_overlay_content(LimitsOverlayContent::Loading);
                 self.request_redraw();
@@ -315,17 +333,17 @@ impl ChatWidget<'_> {
 
     fn update_rate_limit_resets(&mut self, current: &RateLimitSnapshotEvent) {
         let now = Utc::now();
+        // Only refresh the absolute reset deadline when the new snapshot
+        // actually provides a `*_reset_after_seconds` value. A response that
+        // omits the header (warm probes can hit this case) should not erase
+        // the previous, still-valid reset time.
         if let Some(secs) = current.primary_reset_after_seconds {
             self.rate_limit_primary_next_reset_at =
                 Some(now + ChronoDuration::seconds(secs as i64));
-        } else {
-            self.rate_limit_primary_next_reset_at = None;
         }
         if let Some(secs) = current.secondary_reset_after_seconds {
             self.rate_limit_secondary_next_reset_at =
                 Some(now + ChronoDuration::seconds(secs as i64));
-        } else {
-            self.rate_limit_secondary_next_reset_at = None;
         }
         self.maybe_schedule_rate_limit_refresh();
     }

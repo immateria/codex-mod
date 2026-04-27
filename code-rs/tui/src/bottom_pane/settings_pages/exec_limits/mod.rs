@@ -1,4 +1,4 @@
-use std::cell::Cell;
+use std::cell::{Cell, RefCell};
 use std::time::Instant;
 
 use crate::app_event_sender::AppEventSender;
@@ -54,6 +54,12 @@ pub(crate) struct ExecLimitsSettingsView {
     viewport_rows: Cell<usize>,
     is_complete: bool,
     app_event_tx: AppEventSender,
+    // Cached computed values for the current settings (recomputed when settings change).
+    // Only used on Linux where cgroup-backed effective values are computed.
+    #[cfg_attr(not(target_os = "linux"), allow(dead_code))]
+    cached_pids_max: RefCell<(code_core::config::ExecLimitsToml, Option<u64>)>,
+    #[cfg_attr(not(target_os = "linux"), allow(dead_code))]
+    cached_memory_max_bytes: RefCell<(code_core::config::ExecLimitsToml, Option<u64>)>,
 }
 
 crate::bottom_pane::chrome_view::impl_chrome_view!(ExecLimitsSettingsView);
