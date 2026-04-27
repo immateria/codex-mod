@@ -257,6 +257,7 @@ mod tests {
             has_input_focus: true,
             using_chatgpt_auth: true,
             auto_drive_variant: AutoDriveVariant::default(),
+            code_home: None,
         })
     }
 

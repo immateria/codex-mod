@@ -1,6 +1,5 @@
 ---
 source: tui/tests/vt100_chatwidget_snapshot.rs
-assertion_line: 729
 expression: output
 ---
  +----------------------------------------------------------------------------+
@@ -17,6 +16,6 @@ expression: output
      browser_type=chromium, cursor_position=120,340
 
  +----------------------------------------------------------------------------+
- | What can I code for you today?                                             |
+ | Where do you want to start?                                                |
  +----------------------------------------------------------------------------+
  Read Only  (Shift+Tab change)                       Ctrl+G editor  •  API key

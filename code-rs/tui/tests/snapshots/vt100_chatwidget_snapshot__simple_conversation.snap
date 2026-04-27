@@ -1,6 +1,5 @@
 ---
 source: tui/tests/vt100_chatwidget_snapshot.rs
-assertion_line: 1123
 expression: output
 ---
  +----------------------------------------------------------------------------+
@@ -10,11 +9,11 @@ expression: output
 
  ›   Can you help me understand the available commands?
 
-     R #3 · gpt-5.3-codex · Xs ago
+     R #3 · gpt-5.4 · Xs ago
      Hello! How can I help you today?
 
 
-     R #4 · gpt-5.3-codex · Xs ago
+     R #4 · gpt-5.4 · Xs ago
  •   I can help with various tasks including:
  ▼
      - Writing code
@@ -23,6 +22,6 @@ expression: output
 
 
  +----------------------------------------------------------------------------+
- | What can I code for you today?                                             |
+ | Where do you want to start?                                                |
  +----------------------------------------------------------------------------+
  Read Only  (Shift+Tab change)                       Ctrl+G editor  •  API key

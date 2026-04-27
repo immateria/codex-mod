@@ -1,6 +1,5 @@
 ---
 source: tui/tests/vt100_chatwidget_snapshot.rs
-assertion_line: 2513
 expression: section_closed
 ---
  +------------------------------------------------------------------------------------------------+
@@ -11,22 +10,23 @@ expression: section_closed
  |                                                                                            +---+
  | ◂ hide                + Select Model & Reasoning --------------------------------------------+ |
  | ›  ⌂ Model            |                                                                      | |
- |    ✶ Theme            | Current model: gpt-5.3-codex                                         | |
+ |    ✶ Theme            | Current model: gpt-5.4                                               | |
  |    ⚙ Interface        | Reasoning effort: Medium                                             | |
- |    ✶ Experimental     |                                                                      | |
- |    ❯ Shell            | Mode Settings                                                        | |
- |    ▲ Shell escalation | Fast mode speeds up replies. 1M Context is available on supported mo | |
- |    ◈ Shell profiles   | Auto uses 1M limits and pre-turn compaction checks. Past 272,000 inp | |
- |    ⊘ Exec limits      | › Context preset: auto                                               | |
- |    ↓ Updates          |   Context window: 272,000 tokens (auto)                              | |
- |    ◉ Accounts         | ↑ ↓ navigate   ◂ ▸ +/- adjust   Enter select/edit                    | |
- |    ♦ Secrets          | Ctrl+S save default   Esc cancel                                     | |
- |  ↓ ★ Agents           +----------------------------------------------------------------------+ |
+ |    ❯ Shell            |                                                                      | |
+ |    ▲ Shell escalation | Fast mode                                                            | |
+ |    ◈ Shell profiles   | Same model, but 1.5x faster responses (uses 2x credits)              | |
+ |    ⊘ Exec limits      |   Fast mode: disabled                                                | |
+ |    ↓ Updates          |                                                                      | |
+ |    ◉ Accounts         |                                                                      | |
+ |    ♦ Secrets          | Mode Settings                                                        | |
+ |    ✶ Apps             | Fast mode speeds up replies. 1M Context is available on supported mo | |
+ |    ★ Agents           | Auto uses 1M limits and pre-turn compaction checks. Past 272,000 inp | |
+ |    ▤ Memories         |   Context preset: auto                                               | |
+ |    ✶ Prompts          |   Context window: 1,047,576 tokens (auto)                            | |
+ |    ☺ Personality      |   Auto-compact at: 942,818 tokens (auto)                             | |
+ |    ✎ Skills           | ↑ ↓ navigate   ◂ ▸ +/- adjust   Enter activate   Ctrl+Save default   | |
+ |    ⊞ Plugins          | Esc cancel                                                           | |
+ |  ↓ ▶ Auto Drive       +----------------------------------------------------------------------+ |
  | Ctrl+B hide  •  Esc back  •  focus: Content                                                    |
  |                                                                                                |
  +------------------------------------------------------------------------------------------------+
-
- +------------------------------------------------------------------------------------------------+
- | What can I code for you today?                                                                 |
- +------------------------------------------------------------------------------------------------+
- Read Only  (Shift+Tab change)                                           Ctrl+G editor  •  API key

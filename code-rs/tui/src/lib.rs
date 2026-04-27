@@ -139,6 +139,7 @@ mod height_manager;
 mod clipboard_copy;
 mod clipboard_paste;
 mod greeting;
+mod time_of_day;
 #[cfg(target_os = "macos")]
 mod agent_install_helpers;
 

@@ -1,6 +1,5 @@
 ---
 source: tui/tests/bottom_spacer_clip_regression.rs
-assertion_line: 20
 expression: output
 ---
  |                                    Code                                    |
@@ -22,6 +21,6 @@ expression: output
      wraps even on wider terminals, ensuring we cover the regression scenario
      where the final row historically vanished.
 
- | What can I code for you today?                                             |
+ | Where do you want to start?                                                |
 
  Read Only  (Shift+Tab change)                       Ctrl+G editor  •  API key

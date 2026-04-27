@@ -1,12 +1,11 @@
 ---
 source: tui/tests/vt100_chatwidget_snapshot.rs
-assertion_line: 898
 expression: "frames.join(\"\\n---FRAME---\\n\")"
 ---
  +----------------------------------------------------------------------------+
  |                                    Code                                    |
  +----------------------------------------------------------------------------+
-     R #2 · gpt-5.3-codex · Xs ago
+     R #2 · gpt-5.4 · Xs ago
  •   I can help with various tasks including:
  ▼
      - Writing code
@@ -17,7 +16,7 @@ expression: "frames.join(\"\\n---FRAME---\\n\")"
 
   Auto Drive > Auto Drive queued cargo fmt --check  ✶ Running (Xs)
  +----------------------------------------------------------------------------+
- | What can I code for you today?                                             |
+ | Where do you want to start?                                                |
  +----------------------------------------------------------------------------+
   • Agents Disabled  • Diagnostics Enabled                             API key
 
@@ -25,7 +24,7 @@ expression: "frames.join(\"\\n---FRAME---\\n\")"
  +----------------------------------------------------------------------------+
  |                                    Code                                    |
  +----------------------------------------------------------------------------+
-     R #2 · gpt-5.3-codex · Xs ago
+     R #2 · gpt-5.4 · Xs ago
  •   I can help with various tasks including:
  ▼
      - Writing code
@@ -36,7 +35,7 @@ expression: "frames.join(\"\\n---FRAME---\\n\")"
 
   Auto Drive > Auto Drive queued cargo fmt --check  ✶ Running (Xs)
  +----------------------------------------------------------------------------+
- | What can I code for you today?                                             |
+ | Where do you want to start?                                                |
  +----------------------------------------------------------------------------+
   • Agents Disabled  • Diagnostics Enabled                             API key
 
@@ -44,7 +43,7 @@ expression: "frames.join(\"\\n---FRAME---\\n\")"
  +----------------------------------------------------------------------------+
  |                                    Code                                    |
  +----------------------------------------------------------------------------+
-     R #2 · gpt-5.3-codex · Xs ago
+     R #2 · gpt-5.4 · Xs ago
  •   I can help with various tasks including:
  ▼
      - Writing code
@@ -55,6 +54,6 @@ expression: "frames.join(\"\\n---FRAME---\\n\")"
 
   Auto Drive > Running cargo fmt --check.  ✶ Thinking (Xs)
  +----------------------------------------------------------------------------+
- | What can I code for you today?                                             |
+ | Where do you want to start?                                                |
  +----------------------------------------------------------------------------+
   • Agents Disabled  • Diagnostics Enabled                             API key

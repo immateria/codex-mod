@@ -69,9 +69,11 @@ impl OnboardingScreen {
             login_status,
         } = args;
         let shared_chat_args = Arc::new(Mutex::new(chat_widget_args));
+        let greeting_config = crate::greeting::load_config(Some(&code_home));
 
         let mut steps: Vec<Step> = vec![Step::Welcome(Box::new(WelcomeWidget {
             is_logged_in: !matches!(login_status, LoginStatus::NotAuthenticated),
+            greeting_config,
         }))];
         if show_login_screen {
             steps.push(Step::Auth(Box::new(AuthModeWidget {

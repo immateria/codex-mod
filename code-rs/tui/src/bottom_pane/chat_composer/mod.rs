@@ -139,6 +139,7 @@ pub(crate) enum AgentHintLabel {
 pub(crate) struct ChatComposer {
     textarea: TextArea,
     textarea_state: RefCell<TextAreaState>,
+    greeting_config: crate::greeting::GreetingConfig,
     active_popup: ActivePopup,
     app_event_tx: AppEventSender,
     history: ChatComposerHistory,
@@ -227,6 +228,7 @@ impl ChatComposer {
         Self {
             textarea: TextArea::new(),
             textarea_state: RefCell::new(TextAreaState::default()),
+            greeting_config: crate::greeting::load_config(None),
             active_popup: ActivePopup::None,
             app_event_tx,
             history: ChatComposerHistory::new(),
@@ -268,6 +270,10 @@ impl ChatComposer {
             last_textarea_rect: RefCell::new(None),
             available_skills: Vec::new(),
         }
+    }
+
+    pub(crate) fn set_greeting_config(&mut self, config: crate::greeting::GreetingConfig) {
+        self.greeting_config = config;
     }
 
     pub fn set_using_chatgpt_auth(&mut self, using: bool) {

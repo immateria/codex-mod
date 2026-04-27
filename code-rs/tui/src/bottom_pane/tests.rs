@@ -82,6 +82,7 @@ fn make_bottom_pane() -> BottomPane<'static> {
         has_input_focus: true,
         using_chatgpt_auth: false,
         auto_drive_variant: AutoDriveVariant::default(),
+        code_home: None,
     })
 }
 

@@ -18,11 +18,12 @@ use super::{ActiveViewKind, BottomPane, BottomPaneParams, BottomPaneView, ChatCo
 
 impl<'a> BottomPane<'a> {
     pub fn new(params: BottomPaneParams) -> Self {
-        let composer = ChatComposer::new(
+        let mut composer = ChatComposer::new(
             params.has_input_focus,
             params.app_event_tx.clone(),
             params.using_chatgpt_auth,
         );
+        composer.set_greeting_config(crate::greeting::load_config(params.code_home.as_deref()));
 
         Self {
             composer,

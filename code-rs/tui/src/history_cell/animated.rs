@@ -1,5 +1,6 @@
 use super::*;
 use std::cell::{Cell, RefCell};
+use std::path::Path;
 use std::time::{Duration, Instant};
 
 const FADE_DURATION: Duration = Duration::from_millis(800);
@@ -14,11 +15,15 @@ pub(crate) struct AnimatedWelcomeCell {
     variant: Cell<Option<crate::glitch_animation::IntroArtSize>>,
     brand_title: String,
     version_label: String,
+    greeting_config: crate::greeting::GreetingConfig,
     hidden: Cell<bool>,
 }
 
 impl AnimatedWelcomeCell {
-    pub(crate) fn new(brand_title: Option<&str>) -> Self {
+    pub(crate) fn new(
+        brand_title: Option<&str>,
+        greeting_config: crate::greeting::GreetingConfig,
+    ) -> Self {
         let brand_title = crate::glitch_animation::resolve_brand_title(brand_title);
         Self {
             start_time: Instant::now(),
@@ -29,6 +34,7 @@ impl AnimatedWelcomeCell {
             variant: Cell::new(None),
             brand_title,
             version_label: format!("v{}", code_version::version()),
+            greeting_config,
             hidden: Cell::new(false),
         }
     }
@@ -85,7 +91,7 @@ impl HistoryCell for AnimatedWelcomeCell {
         vec![
             Line::from(""),
             Line::from(format!("Welcome to {welcome_title}")),
-            Line::from(crate::greeting::greeting_placeholder()),
+            Line::from(crate::greeting::greeting_placeholder(&self.greeting_config)),
             Line::from(""),
         ]
     }
@@ -256,6 +262,12 @@ impl HistoryCell for AnimatedWelcomeCell {
     }
 }
 
-pub(crate) fn new_animated_welcome(brand_title: Option<&str>) -> AnimatedWelcomeCell {
-    AnimatedWelcomeCell::new(brand_title)
+pub(crate) fn new_animated_welcome(
+    brand_title: Option<&str>,
+    code_home: &Path,
+) -> AnimatedWelcomeCell {
+    AnimatedWelcomeCell::new(
+        brand_title,
+        crate::greeting::load_config(Some(code_home)),
+    )
 }

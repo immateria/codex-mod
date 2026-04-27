@@ -1,6 +1,5 @@
 ---
 source: tui/tests/vt100_chatwidget_snapshot.rs
-assertion_line: 2132
 expression: output
 ---
  +----------------------------------------------------------------------------+
@@ -8,7 +7,7 @@ expression: output
  +----------------------------------------------------------------------------+
  •
 
-     R #2 · gpt-5.3-codex · Xs ago
+     R #2 · gpt-5.4 · Xs ago
  •   I can help with various tasks including:
  ▼
      - Writing code
@@ -31,6 +30,6 @@ expression: output
      +- [Ctrl+A] Expand · [Esc] Stop
 
  +----------------------------- ✶ Responding... -----------------------------+
- | What can I code for you today?                                             |
+ | Where do you want to start?                                                |
  +----------------------------------------------------------------------------+
  Read Only  (Shift+Tab change)                       Ctrl+G editor  •  API key

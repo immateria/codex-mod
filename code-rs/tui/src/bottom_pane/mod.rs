@@ -1,5 +1,7 @@
 //! Bottom pane: shows the `ChatComposer` or a `BottomPaneView`, if one is active.
 
+use std::path::PathBuf;
+
 use crate::app_event_sender::AppEventSender;
 use crate::auto_drive_style::AutoDriveVariant;
 use crate::chatwidget::BackgroundOrderTicket;
@@ -93,6 +95,7 @@ pub(crate) struct BottomPaneParams {
     pub(crate) has_input_focus: bool,
     pub(crate) using_chatgpt_auth: bool,
     pub(crate) auto_drive_variant: AutoDriveVariant,
+    pub(crate) code_home: Option<PathBuf>,
 }
 
 impl<'a> BottomPane<'a> {

@@ -33,6 +33,7 @@ impl ChatWidget<'_> {
             has_input_focus: true,
             using_chatgpt_auth: config.using_chatgpt_auth,
             auto_drive_variant,
+            code_home: Some(config.code_home.clone()),
         });
         bottom_pane.set_subagent_commands(
             config
@@ -338,6 +339,7 @@ impl ChatWidget<'_> {
         if show_welcome {
             w.history_push_top_next_req(history_cell::new_animated_welcome(
                 welcome_brand_title,
+                &config.code_home,
             ));
         }
         if w.test_mode {

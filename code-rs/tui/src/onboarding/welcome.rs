@@ -13,6 +13,7 @@ use super::onboarding_screen::StepState;
 
 pub(crate) struct WelcomeWidget {
     pub is_logged_in: bool,
+    pub greeting_config: crate::greeting::GreetingConfig,
 }
 
 impl WidgetRef for &WelcomeWidget {
@@ -30,7 +31,7 @@ impl WidgetRef for &WelcomeWidget {
         if area.height > 1 {
             let line2 = Line::from(vec![
                 Span::raw("   "), // Indent to align with text after ">_ "
-                Span::raw(crate::greeting::greeting_placeholder()),
+                Span::raw(crate::greeting::greeting_placeholder(&self.greeting_config)),
             ]);
             let line2_area = Rect {
                 x: area.x,

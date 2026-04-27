@@ -57,6 +57,7 @@ impl ChatWidget<'_> {
             has_input_focus: true,
             using_chatgpt_auth: config.using_chatgpt_auth,
             auto_drive_variant,
+            code_home: Some(config.code_home.clone()),
         });
         let bottom_status_line_enabled = config
             .tui
@@ -368,6 +369,7 @@ impl ChatWidget<'_> {
         if config.experimental_resume.is_none() {
             w.history_push_top_next_req(history_cell::new_animated_welcome(
                 welcome_brand_title,
+                &config.code_home,
             )); // tag: prelude
             if !w.config.auto_upgrade_enabled
                 && let Some(upgrade_cell) =

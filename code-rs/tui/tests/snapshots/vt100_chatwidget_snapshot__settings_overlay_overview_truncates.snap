@@ -1,6 +1,5 @@
 ---
 source: tui/tests/vt100_chatwidget_snapshot.rs
-assertion_line: 2437
 expression: output
 ---
  +--------------------------------------------------------+
@@ -9,16 +8,17 @@ expression: output
  +Settings ▸ Overview---------------------------------+---+
  |                                                    | x |
  |                                                    +---+
- | › ⌂ Model            Model: GPT-5.3-Codex (Medium)     |
+ | › ⌂ Model            Model: GPT-5.4 (Medium)           |
  |   + Choose the language model used for new comp...     |
  |                                                        |
- |   ✶ Theme            Theme: Light - Photon (16-colo... |
+ |   ✶ Theme            Theme: Light - Photon · Spinne... |
  |   + Switch between preset color palettes and ad...     |
+ |                                                        |
+ |   ⚙ Interface        Mode: overlay · Icons: Unicode    |
+ |   + Control Settings UI routing and other layou...     |
+ |                                                        |
+ |   ❯ Shell            Shell: auto                       |
+ |   + Select the shell used for tool execution.          |
  | ↑ ↓ navigate   Enter open   Esc close   ? help         |
  |                                                        |
  +--------------------------------------------------------+
-
- +--------------------------------------------------------+
- | What can I code for you today?                         |
- +--------------------------------------------------------+
- Read Only  (Shift+Tab change)   Ctrl+G editor  •  API key

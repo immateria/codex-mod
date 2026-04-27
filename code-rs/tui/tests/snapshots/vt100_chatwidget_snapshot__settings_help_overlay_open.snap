@@ -1,6 +1,5 @@
 ---
 source: tui/tests/vt100_chatwidget_snapshot.rs
-assertion_line: 2492
 expression: open
 ---
  +------------------------------------------------------------------------------------------------+
@@ -9,24 +8,25 @@ expression: open
  +Settings ▸ Overview-------------------------------------------------------------------------+---+
  |                                                                                            | x |
  |                                                                                            +---+
- | › ⌂ Model            Model: GPT-5.3-Codex (Medium)                                             |
- |   + Choose the language mo+----------------------------------------+                           |
+ | › ⌂ Model            Model: GPT-5.4 (Medium)                                                   |
+ |   + Choose the language model used for new completions.                                        |
+ |                                                                                                |
+ |   ✶ Theme            Theme: Light - Photon · Spinner: Diamond                                  |
+ |   + Switch between preset +----------------------------------------+                           |
  |                           |Settings Overview                       |                           |
- |   ✶ Theme            Theme|                                        |mond                       |
- |   + Switch between preset |• ↑ ↓  Move between sections            |                           |
+ |   ⚙ Interface        Mode:|                                        |                           |
+ |   + Control Settings UI ro|• ↑ ↓  Move between sections            |                           |
  |                           |• Enter  Open selected section          |                           |
- |   ⚙ Interface        Mode:|• Tab    Jump forward between sections  |                           |
- |   + Control Settings UI ro|• Esc    Close settings                 |                           |
+ |   ❯ Shell            Shell|• Tab    Jump forward between sections  |                           |
+ |   + Select the shell used |• Esc    Close settings                 |                           |
  |                           |• ?      Toggle this help               |                           |
- |   ✶ Experimental     Enabl|                                        |                           |
- |   + Toggle experimental fe|Press Esc to close                      |fter session reconf...     |
+ |   ▲ Shell escalation Disab|                                        |                           |
+ |   + Configure zsh-fork she|Press Esc to close                      |locked subcommands).       |
  |                           +----------------------------------------+                           |
- |   ❯ Shell            Shell: auto                                                               |
+ |   ◈ Shell profiles   Active: auto                                                              |
+ |   + Configure shell-style profiles (skills, references, MCP filters).                          |
+ |                                                                                                |
+ |   ⊘ Exec limits      PIDs: Auto · Mem: Auto                                                    |
  | ↑ ↓ navigate   Enter open   Esc close   ? help                                                 |
  |                                                                                                |
  +------------------------------------------------------------------------------------------------+
-
- +------------------------------------------------------------------------------------------------+
- | What can I code for you today?                                                                 |
- +------------------------------------------------------------------------------------------------+
- Read Only  (Shift+Tab change)                                           Ctrl+G editor  •  API key

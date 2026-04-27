@@ -160,7 +160,7 @@ impl WidgetRef for ChatComposer {
         StatefulWidgetRef::render_ref(&(&self.textarea), padded_textarea_rect, buf, &mut state);
         // Only show placeholder if there's no chat history AND no text typed
         if !self.typed_anything && self.textarea.text().is_empty() {
-            let placeholder = crate::greeting::greeting_placeholder();
+            let placeholder = crate::greeting::greeting_placeholder(&self.greeting_config);
             Line::from(placeholder)
                 .style(Style::default().dim())
                 .render_ref(padded_textarea_rect, buf);

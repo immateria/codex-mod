@@ -1,6 +1,5 @@
 ---
 source: tui/tests/vt100_chatwidget_snapshot.rs
-assertion_line: 861
 expression: "frames.join(\"\\n---FRAME---\\n\")"
 ---
  +----------------------------------------------------------------------------+
@@ -11,7 +10,7 @@ expression: "frames.join(\"\\n---FRAME---\\n\")"
 
   Auto Drive > Ready: run cargo check  ✶ Running (Xs)
  +----------------------------------------------------------------------------+
- | What can I code for you today?                                             |
+ | Where do you want to start?                                                |
  +----------------------------------------------------------------------------+
   • Agents Enabled  • Diagnostics Enabled                              API key
 
@@ -24,7 +23,7 @@ expression: "frames.join(\"\\n---FRAME---\\n\")"
 
   Auto Drive > Running cargo check... · Installed dependencies  ✶ Thinking (Xs)
  +----------------------------------------------------------------------------+
- | What can I code for you today?                                             |
+ | Where do you want to start?                                                |
  +----------------------------------------------------------------------------+
   • Agents Enabled  • Diagnostics Enabled                              API key
 
@@ -37,6 +36,6 @@ expression: "frames.join(\"\\n---FRAME---\\n\")"
 
   Auto Drive > Running cargo check... · Installed dependencies  ✶ Running (Xs)
  +----------------------------------------------------------------------------+
- | What can I code for you today?                                             |
+ | Where do you want to start?                                                |
  +----------------------------------------------------------------------------+
   • Agents Enabled  • Diagnostics Enabled                              API key

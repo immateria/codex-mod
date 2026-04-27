@@ -80,7 +80,8 @@ impl ChatWidgetHarness {
             let _env_lock = TEST_ENV_LOCK
                 .lock()
                 .unwrap_or_else(std::sync::PoisonError::into_inner);
-            unsafe { std::env::set_var("CODEX_TUI_FAKE_HOUR", "12"); }
+            // Pin greeting pool index so VT100 snapshots are deterministic.
+            unsafe { std::env::set_var("CODEX_TUI_GREETING_INDEX", "0"); }
             unsafe { std::env::set_var("CODE_TUI_TEST_MODE", "1"); }
         }
 

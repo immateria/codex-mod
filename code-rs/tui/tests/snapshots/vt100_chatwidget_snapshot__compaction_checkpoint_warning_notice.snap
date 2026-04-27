@@ -1,6 +1,5 @@
 ---
 source: tui/tests/vt100_chatwidget_snapshot.rs
-assertion_line: 2531
 expression: frame
 ---
  +----------------------------------------------------------------------------+
@@ -8,7 +7,7 @@ expression: frame
  +----------------------------------------------------------------------------+
  •
 
-     R #2 · gpt-5.3-codex · Xs ago
+     R #2 · gpt-5.4 · Xs ago
  •   I can help with various tasks including:
  ▼
      - Writing code
@@ -19,6 +18,6 @@ expression: frame
  ★   History checkpoint: earlier conversation compacted.
 
  +----------------------------------------------------------------------------+
- | What can I code for you today?                                             |
+ | Where do you want to start?                                                |
  +----------------------------------------------------------------------------+
  Read Only  (Shift+Tab change)                       Ctrl+G editor  •  API key

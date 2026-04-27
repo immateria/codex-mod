@@ -1,6 +1,5 @@
 ---
 source: tui/tests/vt100_chatwidget_snapshot.rs
-assertion_line: 2509
 expression: section_open
 ---
  +------------------------------------------------------------------------------------------------+
@@ -10,23 +9,24 @@ expression: section_open
  |                                                                                            | x |
  |                                                                                            +---+
  | ◂ hide                + Select Model & Reasoning --------------------------------------------+ |
- | ›  ⌂ Model            |  +-----------------------------------------+                         | |
- |    ✶ Theme            | C|Model Shortcuts                          |                         | |
- |    ⚙ Interface        | R|                                         |                         | |
- |    ✶ Experimental     |  |• Esc    Return to overview              |                         | |
- |    ❯ Shell            | M|• Tab    Focus content                   |                         | |
- |    ▲ Shell escalation | F|• Shift+Tab  Focus sidebar               |vailable on supported mo | |
- |    ◈ Shell profiles   | A|• ↑ ↓    Change section (sidebar focus)  |checks. Past 272,000 inp | |
- |    ⊘ Exec limits      | ›|• ?      Toggle this help                |                         | |
- |    ↓ Updates          |  |                                         |                         | |
- |    ◉ Accounts         | ↑|Press Esc twice to close                 |/edit                    | |
- |    ♦ Secrets          | C+-----------------------------------------+                         | |
- |  ↓ ★ Agents           +----------------------------------------------------------------------+ |
+ | ›  ⌂ Model            |                                                                      | |
+ |    ✶ Theme            | Current model: gpt-5.4                                               | |
+ |    ⚙ Interface        | R+-----------------------------------------+                         | |
+ |    ❯ Shell            |  |Model Shortcuts                          |                         | |
+ |    ▲ Shell escalation | F|                                         |                         | |
+ |    ◈ Shell profiles   | S|• Esc    Return to overview              |2x credits)              | |
+ |    ⊘ Exec limits      |  |• Tab    Focus content                   |                         | |
+ |    ↓ Updates          |  |• Shift+Tab  Focus sidebar               |                         | |
+ |    ◉ Accounts         |  |• ↑ ↓    Change section (sidebar focus)  |                         | |
+ |    ♦ Secrets          | M|• Enter/Space  Activate focused action   |                         | |
+ |    ✶ Apps             | F|• ?      Toggle this help                |vailable on supported mo | |
+ |    ★ Agents           | A|                                         |checks. Past 272,000 inp | |
+ |    ▤ Memories         |  |From overview: Esc closes settings       |                         | |
+ |    ✶ Prompts          |  +-----------------------------------------+                         | |
+ |    ☺ Personality      |   Auto-compact at: 942,818 tokens (auto)                             | |
+ |    ✎ Skills           | ↑ ↓ navigate   ◂ ▸ +/- adjust   Enter activate   Ctrl+Save default   | |
+ |    ⊞ Plugins          | Esc cancel                                                           | |
+ |  ↓ ▶ Auto Drive       +----------------------------------------------------------------------+ |
  | Ctrl+B hide  •  Esc back  •  focus: Content                                                    |
  |                                                                                                |
  +------------------------------------------------------------------------------------------------+
-
- +------------------------------------------------------------------------------------------------+
- | What can I code for you today?                                                                 |
- +------------------------------------------------------------------------------------------------+
- Read Only  (Shift+Tab change)                                           Ctrl+G editor  •  API key
