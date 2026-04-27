@@ -235,10 +235,10 @@ impl SettingsOverlayView {
     }
 
     pub(crate) fn set_mode_menu(&mut self, selected: Option<SettingsSection>) {
-        if !self.is_menu_active() {
-            if let Some(content) = self.active_content_mut() {
-                content.on_deactivate();
-            }
+        if !self.is_menu_active()
+            && let Some(content) = self.active_content_mut()
+        {
+            content.on_deactivate();
         }
         let section = selected.unwrap_or(self.last_section);
         self.mode = SettingsOverlayMode::Menu(MenuState::new(section));

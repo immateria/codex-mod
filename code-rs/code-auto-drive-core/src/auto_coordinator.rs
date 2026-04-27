@@ -53,7 +53,7 @@ use crate::coordinator_user_schema::{parse_user_turn_reply, user_turn_schema};
 use crate::session_metrics::SessionMetrics;
 use crate::retry::{retry_with_backoff, RetryDecision, RetryError, RetryOptions};
 #[cfg(feature = "dev-faults")]
-use crate::faults::{fault_to_error, next_fault, FaultScope, InjectedFault};
+use crate::faults::{fault_to_error, next_fault, FaultScope};
 use code_common::elapsed::format_duration;
 use chrono::{DateTime, Local, Utc};
 use rand::Rng;

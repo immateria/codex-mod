@@ -608,13 +608,13 @@ pub struct UserSavedConfig {
     pub profiles: HashMap<String, Profile>,
 }
 
-/// MCP representation of a [`code_core::config_profile::ConfigProfile`].
+/// MCP representation of a `code_core::config_profile::ConfigProfile`.
 #[derive(Deserialize, Debug, Clone, PartialEq, Eq, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct Profile {
     pub model: Option<String>,
     /// The key in the `model_providers` map identifying the
-    /// [`ModelProviderInfo`] to use.
+    /// `ModelProviderInfo` to use.
     pub model_provider: Option<String>,
     pub approval_policy: Option<AskForApproval>,
     pub model_reasoning_effort: Option<ReasoningEffort>,
@@ -622,7 +622,7 @@ pub struct Profile {
     pub model_verbosity: Option<Verbosity>,
     pub chatgpt_base_url: Option<String>,
 }
-/// MCP representation of a [`code_core::config::ToolsToml`].
+/// MCP representation of a `code_core::config::ToolsToml`.
 #[derive(Deserialize, Debug, Clone, PartialEq, Eq, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct Tools {
@@ -632,7 +632,7 @@ pub struct Tools {
     pub view_image: Option<bool>,
 }
 
-/// MCP representation of a [`code_core::config_types::SandboxWorkspaceWrite`].
+/// MCP representation of a `code_core::config_types::SandboxWorkspaceWrite`.
 #[derive(Deserialize, Debug, Clone, PartialEq, Eq, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct SandboxSettings {
@@ -751,8 +751,8 @@ pub enum ServerRequest {
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, TS)]
 pub struct ApplyPatchApprovalParams {
     pub conversation_id: ConversationId,
-    /// Use to correlate this with [`code_core::protocol::PatchApplyBeginEvent`]
-    /// and [`code_core::protocol::PatchApplyEndEvent`].
+    /// Use to correlate this with `code_core::protocol::PatchApplyBeginEvent`
+    /// and `code_core::protocol::PatchApplyEndEvent`.
     pub call_id: String,
     pub file_changes: HashMap<PathBuf, FileChange>,
     /// Optional explanatory reason (e.g. request for extra write access).
@@ -767,8 +767,8 @@ pub struct ApplyPatchApprovalParams {
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, TS)]
 pub struct ExecCommandApprovalParams {
     pub conversation_id: ConversationId,
-    /// Use to correlate this with [`code_core::protocol::ExecCommandBeginEvent`]
-    /// and [`code_core::protocol::ExecCommandEndEvent`].
+    /// Use to correlate this with `code_core::protocol::ExecCommandBeginEvent`
+    /// and `code_core::protocol::ExecCommandEndEvent`.
     pub call_id: String,
     /// Identifier for this specific approval callback.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -820,7 +820,7 @@ pub struct FuzzyFileSearchParams {
     pub cancellation_token: Option<String>,
 }
 
-/// Superset of [`code_file_search::FileMatch`]
+/// Superset of `code_file_search::FileMatch`
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, TS)]
 pub struct FuzzyFileSearchResult {
     pub root: String,

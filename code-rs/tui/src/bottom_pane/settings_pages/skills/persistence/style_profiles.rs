@@ -48,7 +48,7 @@ impl SkillsSettingsView {
         let profile = self
             .shell_style_profiles
             .entry(style.to_string())
-            .or_insert_with(Default::default);
+            .or_default();
         for identifier in &deduped_identifiers {
             remove_profile_skill(&mut profile.config.skills, identifier);
             remove_profile_skill(&mut profile.config.disabled_skills, identifier);
@@ -88,7 +88,7 @@ impl SkillsSettingsView {
 
         let key = style.to_string();
         let should_remove = {
-            let entry = self.shell_style_profiles.entry(key.clone()).or_insert_with(Default::default);
+            let entry = self.shell_style_profiles.entry(key.clone()).or_default();
             entry.config.references = references;
             entry.config.skill_roots = skill_roots;
             style_profile_is_empty(&entry.config)
@@ -128,7 +128,7 @@ impl SkillsSettingsView {
 
         let key = style.to_string();
         let should_remove = {
-            let entry = self.shell_style_profiles.entry(key.clone()).or_insert_with(Default::default);
+            let entry = self.shell_style_profiles.entry(key.clone()).or_default();
             entry.config.mcp_servers.include = include;
             entry.config.mcp_servers.exclude = exclude;
             style_profile_is_empty(&entry.config)

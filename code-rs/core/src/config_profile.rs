@@ -30,7 +30,7 @@ pub struct ConfigProfile {
     pub review_resolve_model_reasoning_effort: Option<ReasoningEffort>,
     pub review_resolve_use_chat_model: Option<bool>,
     /// The key in the `model_providers` map identifying the
-    /// [`ModelProviderInfo`] to use.
+    /// [`ModelProviderInfo`](crate::model_provider_info::ModelProviderInfo) to use.
     pub model_provider: Option<String>,
     pub approval_policy: Option<AskForApproval>,
     pub disable_response_storage: Option<bool>,

@@ -40,7 +40,7 @@ impl ShellProfilesSettingsView {
     pub(super) fn cycle_style_next(&mut self) {
         self.stage_pending_profile_from_fields();
         let styles = relevant_styles_for_shell(self.active_shell_path.as_deref());
-        let ids: Vec<String> = styles.iter().map(|s| s.to_string()).collect();
+        let ids: Vec<String> = styles.iter().map(ToString::to_string).collect();
         self.selected_id = match ids.iter().position(|id| id == &self.selected_id) {
             Some(i) => ids[(i + 1) % ids.len()].clone(),
             None => ids[0].clone(),
@@ -53,7 +53,7 @@ impl ShellProfilesSettingsView {
     pub(super) fn cycle_style_prev(&mut self) {
         self.stage_pending_profile_from_fields();
         let styles = relevant_styles_for_shell(self.active_shell_path.as_deref());
-        let ids: Vec<String> = styles.iter().map(|s| s.to_string()).collect();
+        let ids: Vec<String> = styles.iter().map(ToString::to_string).collect();
         self.selected_id = match ids.iter().position(|id| id == &self.selected_id) {
             Some(0) => ids[ids.len() - 1].clone(),
             Some(i) => ids[i - 1].clone(),
@@ -254,7 +254,7 @@ impl ShellProfilesSettingsView {
         let active_style = self
             .active_profile_id
             .as_deref()
-            .map_or_else(|| "auto".to_owned(), |id| id.to_owned());
+            .map_or_else(|| "auto".to_owned(), std::borrow::ToOwned::to_owned);
         let selected_style = self.selected_id.clone();
         let styles_summary = if selected_style == active_style {
             format!("style: {active_style}")
@@ -458,7 +458,7 @@ impl ShellProfilesSettingsView {
         let default_style = self
             .active_shell_path
             .as_deref()
-            .and_then(|p| ShellScriptStyle::infer_from_shell_program(p))
+            .and_then(ShellScriptStyle::infer_from_shell_program)
             .unwrap_or(ShellScriptStyle::BashZshCompatible);
         self.shell_style_profiles.insert(
             id.clone(),
@@ -480,7 +480,7 @@ impl ShellProfilesSettingsView {
         let styles = relevant_styles_for_shell(self.active_shell_path.as_deref());
         let next_id = styles
             .first()
-            .map(|s| s.to_string())
+            .map(ToString::to_string)
             .unwrap_or_else(|| ShellScriptStyle::BashZshCompatible.to_string());
         self.selected_id = next_id.clone();
         self.load_fields_for_style(&next_id);

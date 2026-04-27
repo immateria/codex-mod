@@ -9,7 +9,7 @@ pub(super) async fn load_skills_inventory_and_refresh_session(
     let active_profile = sess
         .user_shell
         .shell_command_path()
-        .map(|path| crate::shell::shell_basename(path))
+        .map(crate::shell::shell_basename)
         .and_then(|basename| {
             crate::config_types::resolve_shell_style_profile(
                 &config_snapshot.shell_style_profiles,

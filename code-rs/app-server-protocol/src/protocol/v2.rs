@@ -492,7 +492,7 @@ pub struct ProfileV2 {
     pub model_provider: Option<String>,
     #[experimental(nested)]
     pub approval_policy: Option<AskForApproval>,
-    /// [UNSTABLE] Optional profile-level override for where approval requests
+    /// \[UNSTABLE\] Optional profile-level override for where approval requests
     /// are routed for review. If omitted, the enclosing config default is
     /// used.
     #[experimental("config/read.approvalsReviewer")]
@@ -556,7 +556,7 @@ pub struct Config {
     pub model_provider: Option<String>,
     #[experimental(nested)]
     pub approval_policy: Option<AskForApproval>,
-    /// [UNSTABLE] Optional default for where approval requests are routed for
+    /// \[UNSTABLE\] Optional default for where approval requests are routed for
     /// review.
     #[experimental("config/read.approvalsReviewer")]
     pub approvals_reviewer: Option<ApprovalsReviewer>,
@@ -1306,7 +1306,7 @@ pub enum LoginAccountParams {
     #[serde(rename = "chatgpt")]
     #[ts(rename = "chatgpt")]
     Chatgpt,
-    /// [UNSTABLE] FOR OPENAI INTERNAL USE ONLY - DO NOT USE.
+    /// \[UNSTABLE\] FOR OPENAI INTERNAL USE ONLY - DO NOT USE.
     /// The access token must contain the same scopes that Codex-managed `ChatGPT` auth tokens have.
     #[experimental("account/login/start.chatgptAuthTokens")]
     #[serde(rename = "chatgptAuthTokens", rename_all = "camelCase")]
@@ -2212,14 +2212,14 @@ pub struct ThreadStartResponse {
 pub struct ThreadResumeParams {
     pub thread_id: String,
 
-    /// [UNSTABLE] FOR CODEX CLOUD - DO NOT USE.
+    /// \[UNSTABLE\] FOR CODEX CLOUD - DO NOT USE.
     /// If specified, the thread will be resumed with the provided history
     /// instead of loaded from disk.
     #[experimental("thread/resume.history")]
     #[ts(optional = nullable)]
     pub history: Option<Vec<ResponseItem>>,
 
-    /// [UNSTABLE] Specify the rollout path to resume from.
+    /// \[UNSTABLE\] Specify the rollout path to resume from.
     /// If specified, the `thread_id` param will be ignored.
     #[experimental("thread/resume.path")]
     #[ts(optional = nullable)]
@@ -2277,7 +2277,7 @@ pub struct ThreadResumeResponse {
 pub struct ThreadForkParams {
     pub thread_id: String,
 
-    /// [UNSTABLE] Specify the rollout path to fork from.
+    /// \[UNSTABLE\] Specify the rollout path to fork from.
     /// If specified, the `thread_id` param will be ignored.
     #[experimental("thread/fork.path")]
     #[ts(optional = nullable)]
@@ -3130,7 +3130,7 @@ pub struct Thread {
     /// Unix timestamp (in seconds) when the thread was last updated.
     #[ts(type = "number")]
     pub updated_at: i64,
-    /// [UNSTABLE] Path to the thread on disk.
+    /// \[UNSTABLE\] Path to the thread on disk.
     pub path: Option<PathBuf>,
     /// Working directory captured for the thread.
     pub cwd: PathBuf,
@@ -4786,7 +4786,7 @@ pub struct ItemStartedNotification {
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, JsonSchema, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export_to = "v2/")]
-/// [UNSTABLE] Lifecycle state for a guardian approval review.
+/// \[UNSTABLE\] Lifecycle state for a guardian approval review.
 pub enum GuardianApprovalReviewStatus {
     InProgress,
     Approved,
@@ -4797,14 +4797,14 @@ pub enum GuardianApprovalReviewStatus {
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, JsonSchema, TS)]
 #[serde(rename_all = "lowercase")]
 #[ts(export_to = "v2/")]
-/// [UNSTABLE] Risk level assigned by guardian approval review.
+/// \[UNSTABLE\] Risk level assigned by guardian approval review.
 pub enum GuardianRiskLevel {
     Low,
     Medium,
     High,
 }
 
-/// [UNSTABLE] Temporary guardian approval review payload used by
+/// \[UNSTABLE\] Temporary guardian approval review payload used by
 /// `item/autoApprovalReview/*` notifications. This shape is expected to change
 /// soon.
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, JsonSchema, TS)]
@@ -4823,7 +4823,7 @@ pub struct GuardianApprovalReview {
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, JsonSchema, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export_to = "v2/")]
-/// [UNSTABLE] Temporary notification payload for guardian automatic approval
+/// \[UNSTABLE\] Temporary notification payload for guardian automatic approval
 /// review. This shape is expected to change soon.
 ///
 /// TODO(ccunningham): Attach guardian review state to the reviewed tool item's
@@ -4840,7 +4840,7 @@ pub struct ItemGuardianApprovalReviewStartedNotification {
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, JsonSchema, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export_to = "v2/")]
-/// [UNSTABLE] Temporary notification payload for guardian automatic approval
+/// \[UNSTABLE\] Temporary notification payload for guardian automatic approval
 /// review. This shape is expected to change soon.
 ///
 /// TODO(ccunningham): Attach guardian review state to the reviewed tool item's
@@ -5160,7 +5160,7 @@ pub struct FileChangeRequestApprovalParams {
     /// Optional explanatory reason (e.g. request for extra write access).
     #[ts(optional = nullable)]
     pub reason: Option<String>,
-    /// [UNSTABLE] When set, the agent is asking the user to allow writes under this root
+    /// \[UNSTABLE\] When set, the agent is asking the user to allow writes under this root
     /// for the remainder of the session (unclear if this is honored today).
     #[ts(optional = nullable)]
     pub grant_root: Option<PathBuf>,

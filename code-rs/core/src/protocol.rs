@@ -674,7 +674,7 @@ pub enum InputItem {
     /// This will be converted to an `Image` variant but marked as ephemeral.
     EphemeralImage {
         path: std::path::PathBuf,
-        /// Optional metadata to help identify the image (e.g., "screenshot:1234567890:https://example.com")
+        /// Optional metadata to help identify the image (e.g., `"screenshot:1234567890:https://example.com"`)
         metadata: Option<String>,
     },
 }

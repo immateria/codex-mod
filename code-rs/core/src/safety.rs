@@ -131,7 +131,7 @@ pub fn resolve_command_safety_profile(
 
     let style_profile: Option<&ShellStyleProfileConfig> = shell
         .shell_command_path()
-        .map(|path| crate::shell::shell_basename(path))
+        .map(crate::shell::shell_basename)
         .and_then(|basename| {
             crate::config_types::resolve_shell_style_profile(shell_style_profiles, &basename)
                 .map(|(_, entry)| &entry.config)

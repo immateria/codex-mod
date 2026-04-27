@@ -229,7 +229,7 @@ impl Runner<'_> {
 
         let active_profile = resolved_shell
             .shell_command_path()
-            .map(|path| crate::shell::shell_basename(path))
+            .map(crate::shell::shell_basename)
             .and_then(|basename| {
                 crate::config_types::resolve_shell_style_profile(
                     &updated_config.shell_style_profiles,

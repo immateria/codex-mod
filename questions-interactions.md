@@ -29,18 +29,18 @@ not just more question types, but better mechanisms for communicating:
 
 ### What's Accurate vs Aspirational
 
-| Section | Status |
-|---------|--------|
-| Design Principles, Decision Science, Interruption Science | Universally applicable |
-| Question Types, Non-Question Patterns, Anti-Patterns | Design reference (not 1:1 code mapping) |
-| **CodexCLI TUI Architecture (Actual State)** | ✅ Current code |
-| **Rust Implementation Patterns (Using Existing Architecture)** | ✅ Current code |
-| **How to Add a Question Type: Step-by-Step** | ✅ Current code |
-| **Quick Start: Implementing Ranked Choice via Path A** | ✅ Current code |
-| **Priority Ranking for CodexCLI** | ✅ Based on current code |
-| **Pattern-to-Implementation Cross-Reference** | ✅ Current code |
-| Implementation Architecture (Conceptual Model) | ⚠ Design intent; not 1:1 types |
-| Implementation Details by Pattern (Conceptual) | ⚠ Design sketches |
+| Section                                                        | Status                                  |
+| -------------------------------------------------------------- | --------------------------------------- |
+| Design Principles, Decision Science, Interruption Science      | Universally applicable                  |
+| Question Types, Non-Question Patterns, Anti-Patterns           | Design reference (not 1:1 code mapping) |
+| **CodexCLI TUI Architecture (Actual State)**                   | ✅ Current code                         |
+| **Rust Implementation Patterns (Using Existing Architecture)** | ✅ Current code                         |
+| **How to Add a Question Type: Step-by-Step**                   | ✅ Current code                         |
+| **Quick Start: Implementing Ranked Choice via Path A**         | ✅ Current code                         |
+| **Priority Ranking for CodexCLI**                              | ✅ Based on current code                |
+| **Pattern-to-Implementation Cross-Reference**                  | ✅ Current code                         |
+| Implementation Architecture (Conceptual Model)                 | ⚠ Design intent; not 1:1 types         |
+| Implementation Details by Pattern (Conceptual)                 | ⚠ Design sketches                      |
 
 When in doubt, trust the **"Actual State"** and **"Step-by-Step"** sections. The conceptual sections describe what a fully-realized question system *could* look like, useful for understanding why an extension exists.
 
@@ -52,8 +52,8 @@ When in doubt, trust the **"Actual State"** and **"Step-by-Step"** sections. The
 
 All built on `RequestUserInputQuestion` in [code-rs/protocol/src/request_user_input.rs](code-rs/protocol/src/request_user_input.rs):
 
-| Pattern                             | Status         | Schema field                     |
-| ----------------------------------- | -------------- | -------------------------------- |
+| Pattern                             | Status         | Schema field                      |
+| ----------------------------------- | -------------- | --------------------------------- |
 | Single-choice (radio-style)         | ✅ implemented | `allow_multiple: false` + options |
 | Freeform text input                 | ✅ implemented | `options: None`                   |
 | Checkbox multi-select               | ✅ implemented | `allow_multiple: true` + options  |
@@ -95,19 +95,19 @@ All built on `RequestUserInputQuestion` in [code-rs/protocol/src/request_user_in
 
 These principles come from HCI research (Nielsen, Norman) and accessibility standards. They inform every pattern.
 
-| Principle | Definition | Implication |
-|-----------|-----------|------------|
-| **Recognition over recall** | Show options, don't require memory | Every control self-describing; show context |
-| **Progressive disclosure** | Show only what's needed now | Hide rare options; first screen actionable |
-| **Gulf of execution/evaluation** | Users must see affordances and results | Controls suggest what they do; every action has visible feedback |
-| **Error prevention** | Prevent bad input, don't clean it up | Disable submit until valid; confirm destructive actions |
-| **Chunking (4±1)** | Working memory limit is ~4 items | Cap visible options at 4; use search/grouping for more |
-| **Escape hatches** | Every flow needs a clear exit | Esc always cancels; always have "do nothing" path |
-| **Feedback loops** | Every state change gets immediate feedback | Select → checked; save → confirmation; apply → note in history |
-| **Keyboard-first** | TUI primary path is keyboard | All controls fully operable by keyboard |
-| **Accessible design** | Don't use color alone; support varied abilities | Symbol + color always; no icon-only; support high-contrast |
-| **Mixed-initiative** | Agent has agency *and* defers appropriately | Ask when: ambiguous intent, risk medium+, or irreversible. Take when: clear task, low risk, reversible. |
-| **Neurodiversity** | ADHD, autism, dyslexia, fatigue are core users | Predictable UI, explicit rules, icon+label always, minimize decisions, quiet mode available |
+| Principle                        | Definition                                      | Implication                                                                                             |
+| -------------------------------- | ----------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| **Recognition over recall**      | Show options, don't require memory              | Every control self-describing; show context                                                             |
+| **Progressive disclosure**       | Show only what's needed now                     | Hide rare options; first screen actionable                                                              |
+| **Gulf of execution/evaluation** | Users must see affordances and results          | Controls suggest what they do; every action has visible feedback                                        |
+| **Error prevention**             | Prevent bad input, don't clean it up            | Disable submit until valid; confirm destructive actions                                                 |
+| **Chunking (4±1)**               | Working memory limit is ~4 items                | Cap visible options at 4; use search/grouping for more                                                  |
+| **Escape hatches**               | Every flow needs a clear exit                   | Esc always cancels; always have "do nothing" path                                                       |
+| **Feedback loops**               | Every state change gets immediate feedback      | Select → checked; save → confirmation; apply → note in history                                          |
+| **Keyboard-first**               | TUI primary path is keyboard                    | All controls fully operable by keyboard                                                                 |
+| **Accessible design**            | Don't use color alone; support varied abilities | Symbol + color always; no icon-only; support high-contrast                                              |
+| **Mixed-initiative**             | Agent has agency *and* defers appropriately     | Ask when: ambiguous intent, risk medium+, or irreversible. Take when: clear task, low risk, reversible. |
+| **Neurodiversity**               | ADHD, autism, dyslexia, fatigue are core users  | Predictable UI, explicit rules, icon+label always, minimize decisions, quiet mode available             |
 
 **Key rules:**
 - Predictability > elegance (same key always does same thing)
@@ -1410,11 +1410,11 @@ Always pair color with a symbol. Never use color as the only differentiator.
 | Selected            | green or blue | `[x]` or `●` | `[x]`               |
 | Unselected          | dim           | `[ ]` or `○` | `[ ]`               |
 | Required            | bold/yellow   | `*`          | `*`                 |
-| Warning             | yellow        | `⚠`          | `[!]`               |
-| Error               | red           | `✗`          | `[X]`               |
-| Success             | green         | `✓`          | `[OK]`              |
+| Warning             | yellow        | `⚠`         | `[!]`               |
+| Error               | red           | `✗`         | `[X]`               |
+| Success             | green         | `✓`         | `[OK]`              |
 | Info                | blue/dim      | `ℹ`          | `[i]`               |
-| Permanent/dangerous | red bold      | `✗`          | `[!!!]`             |
+| Permanent/dangerous | red bold      | `✗`         | `[!!!]`             |
 
 ### Compact vs verbose modes
 Short-form controls for power users; full descriptions for first-time or
@@ -1618,18 +1618,18 @@ pub struct RequestUserInputAnswer {
 
 Don't reinvent these — use what exists:
 
-| Component | Location | Purpose |
-|-----------|----------|---------|
-| `ScrollState` | `components/scroll_state.rs` | Selection + scroll window for lists |
-| `GenericDisplayRow` | `components/selection_popup_common.rs` | Standard row rendering |
-| `render_rows()` | `components/selection_popup_common.rs` | List rendering with scroll |
-| `popup_frame::themed_block()` | `components/popup_frame.rs` | Consistent modal border |
-| `ui_interaction::contains_point()` | `ui_interaction.rs` | Mouse hit-testing |
-| `ui_interaction::redraw_if()` | `ui_interaction.rs` | Wraps bool → ConditionalUpdate |
-| `icons::checkbox_on/off()` | `icons.rs` | Consistent checkbox symbols |
-| `icons::nav_up_down()` | `icons.rs` | Arrow indicator |
-| `textwrap::wrap()` | external crate | Word wrapping |
-| `popup_frame` components | `components/popup_frame.rs` | Shared frame chrome |
+| Component                          | Location                               | Purpose                             |
+| ---------------------------------- | -------------------------------------- | ----------------------------------- |
+| `ScrollState`                      | `components/scroll_state.rs`           | Selection + scroll window for lists |
+| `GenericDisplayRow`                | `components/selection_popup_common.rs` | Standard row rendering              |
+| `render_rows()`                    | `components/selection_popup_common.rs` | List rendering with scroll          |
+| `popup_frame::themed_block()`      | `components/popup_frame.rs`            | Consistent modal border             |
+| `ui_interaction::contains_point()` | `ui_interaction.rs`                    | Mouse hit-testing                   |
+| `ui_interaction::redraw_if()`      | `ui_interaction.rs`                    | Wraps bool → ConditionalUpdate      |
+| `icons::checkbox_on/off()`         | `icons.rs`                             | Consistent checkbox symbols         |
+| `icons::nav_up_down()`             | `icons.rs`                             | Arrow indicator                     |
+| `textwrap::wrap()`                 | external crate                         | Word wrapping                       |
+| `popup_frame` components           | `components/popup_frame.rs`            | Shared frame chrome                 |
 
 ### Three Implementation Strategies
 
@@ -3039,45 +3039,45 @@ Given the existing `RequestUserInputQuestion` system and Auto Drive focus, rank 
 
 Backward-compatible additions to `RequestUserInputQuestion`.
 
-| Pattern | Schema Change | Render Change |
-|---------|--------------|---------------|
-| **Ranked choice** | `is_ranked: bool`, `allow_exclude: bool` | Position numbers, reorder keys |
-| **Required / Preferred / Optional tagging** | Per-option `ItemPriority` enum | Priority tag prefix on each row |
-| **Scope-of-answer tag** | `remember_as: Option<AnswerScope>` | Scope picker after submit |
-| **Confidence tagging** | Per-answer `confidence: Option<ConfidenceLevel>` | Inline chip picker |
-| **Reversibility indicator** | N/A (new history_cell variant) | New card in history with action buttons |
+| Pattern                                     | Schema Change                                    | Render Change                           |
+| ------------------------------------------- | ------------------------------------------------ | --------------------------------------- |
+| **Ranked choice**                           | `is_ranked: bool`, `allow_exclude: bool`         | Position numbers, reorder keys          |
+| **Required / Preferred / Optional tagging** | Per-option `ItemPriority` enum                   | Priority tag prefix on each row         |
+| **Scope-of-answer tag**                     | `remember_as: Option<AnswerScope>`               | Scope picker after submit               |
+| **Confidence tagging**                      | Per-answer `confidence: Option<ConfidenceLevel>` | Inline chip picker                      |
+| **Reversibility indicator**                 | N/A (new history_cell variant)                   | New card in history with action buttons |
 
 ### Tier 2 (Path C — New Panes)
 
 Standalone panes. Pattern = copy [request_user_input/](code-rs/tui/src/bottom_pane/panes/request_user_input/) directory structure.
 
-| Pattern | Dependency | Notes |
-|---------|-----------|-------|
-| **Checkpoint config** | Extends `AutoDriveSettings` in [config_types.rs](code-rs/core/src/config_types.rs) | Settings-style pane |
-| **Per-item approve/reject batch** | Extends [approval_modal/](code-rs/tui/src/bottom_pane/panes/approval_modal/) | Already has queuing |
-| **Notification digest** | New `ActiveViewKind::Digest` | Priority queue in chatwidget |
-| **Working-agreement panel** | Uses `chrome` slot in [bottom_pane/chrome.rs](code-rs/tui/src/bottom_pane/chrome.rs) | Persistent overlay |
+| Pattern                           | Dependency                                                                           | Notes                        |
+| --------------------------------- | ------------------------------------------------------------------------------------ | ---------------------------- |
+| **Checkpoint config**             | Extends `AutoDriveSettings` in [config_types.rs](code-rs/core/src/config_types.rs)   | Settings-style pane          |
+| **Per-item approve/reject batch** | Extends [approval_modal/](code-rs/tui/src/bottom_pane/panes/approval_modal/)         | Already has queuing          |
+| **Notification digest**           | New `ActiveViewKind::Digest`                                                         | Priority queue in chatwidget |
+| **Working-agreement panel**       | Uses `chrome` slot in [bottom_pane/chrome.rs](code-rs/tui/src/bottom_pane/chrome.rs) | Persistent overlay           |
 
 ### Tier 3 (Path B — New Protocol)
 
 Significant additions requiring new protocol design.
 
-| Pattern | Why New Protocol |
-|---------|------------------|
-| **Conditional branching** | Needs question DAG with re-evaluation semantics |
-| **Matrix questions** | 2D navigation; `ScrollState` is 1D only |
-| **Plan-as-artifact** | Multi-step editable structure |
-| **Disambiguation with examples** | Rich option data (code snippets, diffs) |
+| Pattern                          | Why New Protocol                                |
+| -------------------------------- | ----------------------------------------------- |
+| **Conditional branching**        | Needs question DAG with re-evaluation semantics |
+| **Matrix questions**             | 2D navigation; `ScrollState` is 1D only         |
+| **Plan-as-artifact**             | Multi-step editable structure                   |
+| **Disambiguation with examples** | Rich option data (code snippets, diffs)         |
 
 ### Tier 4 (Defer)
 
-| Pattern | Reason to Defer |
-|---------|-----------------|
-| **Pairwise comparison** | Path B; rare use case |
-| **Streaming state machine (formal four phases)** | Large refactor; current streaming is "good enough" |
-| **Multi-agent delegation UI** | Codebase uses sub-agent system differently; needs product decision |
-| **Focus mode** | Can ship via theme/density setting; no new pane needed |
-| **Editable answer summary** | Users can already revise via `/revise` on request |
+| Pattern                                          | Reason to Defer                                                    |
+| ------------------------------------------------ | ------------------------------------------------------------------ |
+| **Pairwise comparison**                          | Path B; rare use case                                              |
+| **Streaming state machine (formal four phases)** | Large refactor; current streaming is "good enough"                 |
+| **Multi-agent delegation UI**                    | Codebase uses sub-agent system differently; needs product decision |
+| **Focus mode**                                   | Can ship via theme/density setting; no new pane needed             |
+| **Editable answer summary**                      | Users can already revise via `/revise` on request                  |
 
 ---
 
@@ -3128,22 +3128,22 @@ The pipeline already exists. Questions plug into step 5-9 without touching 1-4 o
 
 When extending the existing question system:
 
-| What you want to change | File |
-|-------------------------|------|
-| Question protocol schema | [code-rs/protocol/src/request_user_input.rs](code-rs/protocol/src/request_user_input.rs) |
-| Agent tool handling | [code-rs/core/src/tools/handlers/request_user_input.rs](code-rs/core/src/tools/handlers/request_user_input.rs) |
-| TUI input pipeline dispatch | [code-rs/tui/src/chatwidget/input_pipeline/user_input/request_user_input.rs](code-rs/tui/src/chatwidget/input_pipeline/user_input/request_user_input.rs) |
-| View struct + AnswerState | [code-rs/tui/src/bottom_pane/panes/request_user_input/mod.rs](code-rs/tui/src/bottom_pane/panes/request_user_input/mod.rs) |
-| State transitions + submit | [code-rs/tui/src/bottom_pane/panes/request_user_input/model.rs](code-rs/tui/src/bottom_pane/panes/request_user_input/model.rs) |
-| Key/mouse handling | [code-rs/tui/src/bottom_pane/panes/request_user_input/pane_impl.rs](code-rs/tui/src/bottom_pane/panes/request_user_input/pane_impl.rs) |
-| Rendering | [code-rs/tui/src/bottom_pane/panes/request_user_input/render.rs](code-rs/tui/src/bottom_pane/panes/request_user_input/render.rs) |
-| Auto Drive settings | [code-rs/core/src/config_types.rs](code-rs/core/src/config_types.rs) `AutoDriveSettings` |
-| Auto Drive continue timing | Same file, `AutoDriveContinueMode` enum (Immediate/TenSeconds/SixtySeconds/Manual) |
-| Bottom pane container | [code-rs/tui/src/bottom_pane/mod.rs](code-rs/tui/src/bottom_pane/mod.rs) (`ActiveViewKind`) |
-| BottomPaneView trait | [code-rs/tui/src/bottom_pane/bottom_pane_view.rs](code-rs/tui/src/bottom_pane/bottom_pane_view.rs) |
-| App event enum | [code-rs/tui/src/app_event.rs](code-rs/tui/src/app_event.rs) |
-| History cells (for past Q&A) | [code-rs/tui/src/history_cell/](code-rs/tui/src/history_cell/) |
-| Reusable list/selection UI | [code-rs/tui/src/components/](code-rs/tui/src/components/) |
+| What you want to change      | File                                                                                                                                                     |
+| ---------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Question protocol schema     | [code-rs/protocol/src/request_user_input.rs](code-rs/protocol/src/request_user_input.rs)                                                                 |
+| Agent tool handling          | [code-rs/core/src/tools/handlers/request_user_input.rs](code-rs/core/src/tools/handlers/request_user_input.rs)                                           |
+| TUI input pipeline dispatch  | [code-rs/tui/src/chatwidget/input_pipeline/user_input/request_user_input.rs](code-rs/tui/src/chatwidget/input_pipeline/user_input/request_user_input.rs) |
+| View struct + AnswerState    | [code-rs/tui/src/bottom_pane/panes/request_user_input/mod.rs](code-rs/tui/src/bottom_pane/panes/request_user_input/mod.rs)                               |
+| State transitions + submit   | [code-rs/tui/src/bottom_pane/panes/request_user_input/model.rs](code-rs/tui/src/bottom_pane/panes/request_user_input/model.rs)                           |
+| Key/mouse handling           | [code-rs/tui/src/bottom_pane/panes/request_user_input/pane_impl.rs](code-rs/tui/src/bottom_pane/panes/request_user_input/pane_impl.rs)                   |
+| Rendering                    | [code-rs/tui/src/bottom_pane/panes/request_user_input/render.rs](code-rs/tui/src/bottom_pane/panes/request_user_input/render.rs)                         |
+| Auto Drive settings          | [code-rs/core/src/config_types.rs](code-rs/core/src/config_types.rs) `AutoDriveSettings`                                                                 |
+| Auto Drive continue timing   | Same file, `AutoDriveContinueMode` enum (Immediate/TenSeconds/SixtySeconds/Manual)                                                                       |
+| Bottom pane container        | [code-rs/tui/src/bottom_pane/mod.rs](code-rs/tui/src/bottom_pane/mod.rs) (`ActiveViewKind`)                                                              |
+| BottomPaneView trait         | [code-rs/tui/src/bottom_pane/bottom_pane_view.rs](code-rs/tui/src/bottom_pane/bottom_pane_view.rs)                                                       |
+| App event enum               | [code-rs/tui/src/app_event.rs](code-rs/tui/src/app_event.rs)                                                                                             |
+| History cells (for past Q&A) | [code-rs/tui/src/history_cell/](code-rs/tui/src/history_cell/)                                                                                           |
+| Reusable list/selection UI   | [code-rs/tui/src/components/](code-rs/tui/src/components/)                                                                                               |
 
 ### Example: Agent Asks Ranked Choice (Post-Path-A)
 
@@ -3351,16 +3351,16 @@ Leverage the existing `RequestUserInputQuestion` — no new pane, no new tool.
 
 ### File-by-File Change List
 
-| File | Change |
-|------|--------|
-| `code-rs/protocol/src/request_user_input.rs` | Add `is_ranked` and `allow_exclude` fields to `RequestUserInputQuestion` |
-| `code-rs/core/src/tools/handlers/request_user_input.rs` | Pass new fields through tool args deserialization |
-| `code-rs/tui/src/bottom_pane/panes/request_user_input/mod.rs` | Add `rank_order: Vec<usize>` and `excluded_options: BTreeSet<usize>` to `AnswerState` |
-| `code-rs/tui/src/bottom_pane/panes/request_user_input/model.rs` | Add `current_is_ranked()`, `move_ranked_item_up/down()`, `toggle_exclude_current()`; extend `submit()` |
-| `code-rs/tui/src/bottom_pane/panes/request_user_input/pane_impl.rs` | Add Alt+Up/Down and `x` key handling |
-| `code-rs/tui/src/bottom_pane/panes/request_user_input/render.rs` | Branch on `is_ranked` for row rendering and footer hints |
-| `code-rs/tui/src/bottom_pane/panes/request_user_input/model.rs` (tests) | Add 3-4 unit tests for rank/exclude/submit |
-| `code-rs/tui/tests/vt100_ranked_input.rs` (new) | VT100 snapshot tests for new render branch |
+| File                                                                    | Change                                                                                                 |
+| ----------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| `code-rs/protocol/src/request_user_input.rs`                            | Add `is_ranked` and `allow_exclude` fields to `RequestUserInputQuestion`                               |
+| `code-rs/core/src/tools/handlers/request_user_input.rs`                 | Pass new fields through tool args deserialization                                                      |
+| `code-rs/tui/src/bottom_pane/panes/request_user_input/mod.rs`           | Add `rank_order: Vec<usize>` and `excluded_options: BTreeSet<usize>` to `AnswerState`                  |
+| `code-rs/tui/src/bottom_pane/panes/request_user_input/model.rs`         | Add `current_is_ranked()`, `move_ranked_item_up/down()`, `toggle_exclude_current()`; extend `submit()` |
+| `code-rs/tui/src/bottom_pane/panes/request_user_input/pane_impl.rs`     | Add Alt+Up/Down and `x` key handling                                                                   |
+| `code-rs/tui/src/bottom_pane/panes/request_user_input/render.rs`        | Branch on `is_ranked` for row rendering and footer hints                                               |
+| `code-rs/tui/src/bottom_pane/panes/request_user_input/model.rs` (tests) | Add 3-4 unit tests for rank/exclude/submit                                                             |
+| `code-rs/tui/tests/vt100_ranked_input.rs` (new)                         | VT100 snapshot tests for new render branch                                                             |
 
 The existing tests in `model.rs` stay green; only new tests are added.
 
@@ -3871,51 +3871,51 @@ Then handle in the app event loop to open/close the pane.
 
 Quick lookup: for each pattern in this document, where to start in code.
 
-| Pattern | Best Path | Entry file | Existing Analog |
-|---------|-----------|-----------|-----------------|
-| Single choice | Already works | `request_user_input/render.rs` | `allow_multiple: false` |
-| Multi-select | Already works | `request_user_input/render.rs` | `allow_multiple: true` |
-| Freeform text | Already works | `request_user_input/render.rs` | `options: None` |
-| Secret input | Already works | `request_user_input/render.rs` | `is_secret: true` |
-| Ranked choice | **A** | `request_user_input/*` (extend) | N/A — add `is_ranked` |
-| Pairwise comparison | B | New pane + new tool | N/A |
-| Required/Preferred tagging | **A** | Extend `RequestUserInputQuestionOption` | N/A |
-| Budget/tradeoff presets | **A** | Use existing single-choice | Options as labels |
-| Matrix questions | B | New pane (2D grid widget) | `ScrollState` is 1D |
-| Conditional branching | B | New tool + coordinator logic | N/A |
-| Fill-in templates | **A** | Multi-question with freeform | Already works |
-| Constraint capture | **A** | Multi-question with `is_other` | Already works |
-| Scope-of-answer | **A** | Add `remember_as` field | N/A |
-| Confidence tagging | **A** | Per-answer `confidence` field | N/A |
-| Exception/carve-out | B | New tool for rule+exception pairs | N/A |
-| Checkpoint config | **C** | New pane + `AutoDriveSettings` | `AutoDriveContinueMode` |
-| Disambiguation | **A** | Use single-choice with context | Already works |
-| Typeahead/fuzzy | Integrate existing | `components/` search widgets | file_popup has pattern |
-| Per-item approve/reject | Extend | `bottom_pane/panes/approval_modal/` | Already has queue |
-| Decision cards | New history_cell | `history_cell/` | `proposed_plan.rs` pattern |
-| Side-by-side compare | New history_cell | `history_cell/` | N/A |
-| Multi-step wizard | Extend | Multi-question flow already works | PgUp/PgDn nav exists |
-| Inline progress + interrupt | Already works | Status bar in `chat_composer/status.rs` | `task_running.rs` |
-| Contextual help | Extend | Inline `?` key handler | Footer already has `?` hint |
-| Preview before apply | Extend | `history_cell/patch.rs` | Diff rendering exists |
-| Editable answer summary | Extend | Multi-question review screen | Would need new view |
-| Provenance log | New history_cell | `history_cell/` | Use append-only JSON |
-| `/revise` command | Extend slash commands | `slash_command.rs` | Pattern for `/revise` |
-| Working-agreement panel | **C** | `bottom_pane/chrome.rs` | Chrome slot exists |
-| Reversibility indicator | New history_cell | `history_cell/` | N/A |
-| Undo/redo as confirmation | Extend | `history_cell/` + ghost commits | `GhostCommit` exists |
-| Optimistic UI | Already works | N/A | Widely used |
-| Toast vs modal | Already distinct | `notifications/` settings | `EmitTuiNotification` event |
-| Plan-as-artifact | Extend | `history_cell/proposed_plan.rs` | Starting point exists |
-| Inline audit trail | Extend | `history_cell/exec.rs` | Exec cells track undos |
-| Task timeline | Extend | `history_cell/` | `auto_drive.rs` tracks phases |
-| Task resumption | Already works | `resume/` module | `ResumeCandidate` exists |
-| Agent narration | Already works | `history_cell/reasoning.rs` | Reasoning cells exist |
-| Pre-task expectation | **C** | New "plan card" before execution | N/A |
-| Post-task decision log | New history_cell | `history_cell/` | Could reuse summary cells |
-| Multi-agent delegation | Existing | `agent/` in chatwidget | Already shown |
-| Classified errors | Extend | `history_cell/` error variants | Error rendering exists |
-| Streaming state machine | Already works | `chatwidget/streaming.rs` | Four states present |
+| Pattern                     | Best Path             | Entry file                              | Existing Analog               |
+| --------------------------- | --------------------- | --------------------------------------- | ----------------------------- |
+| Single choice               | Already works         | `request_user_input/render.rs`          | `allow_multiple: false`       |
+| Multi-select                | Already works         | `request_user_input/render.rs`          | `allow_multiple: true`        |
+| Freeform text               | Already works         | `request_user_input/render.rs`          | `options: None`               |
+| Secret input                | Already works         | `request_user_input/render.rs`          | `is_secret: true`             |
+| Ranked choice               | **A**                 | `request_user_input/*` (extend)         | N/A — add `is_ranked`         |
+| Pairwise comparison         | B                     | New pane + new tool                     | N/A                           |
+| Required/Preferred tagging  | **A**                 | Extend `RequestUserInputQuestionOption` | N/A                           |
+| Budget/tradeoff presets     | **A**                 | Use existing single-choice              | Options as labels             |
+| Matrix questions            | B                     | New pane (2D grid widget)               | `ScrollState` is 1D           |
+| Conditional branching       | B                     | New tool + coordinator logic            | N/A                           |
+| Fill-in templates           | **A**                 | Multi-question with freeform            | Already works                 |
+| Constraint capture          | **A**                 | Multi-question with `is_other`          | Already works                 |
+| Scope-of-answer             | **A**                 | Add `remember_as` field                 | N/A                           |
+| Confidence tagging          | **A**                 | Per-answer `confidence` field           | N/A                           |
+| Exception/carve-out         | B                     | New tool for rule+exception pairs       | N/A                           |
+| Checkpoint config           | **C**                 | New pane + `AutoDriveSettings`          | `AutoDriveContinueMode`       |
+| Disambiguation              | **A**                 | Use single-choice with context          | Already works                 |
+| Typeahead/fuzzy             | Integrate existing    | `components/` search widgets            | file_popup has pattern        |
+| Per-item approve/reject     | Extend                | `bottom_pane/panes/approval_modal/`     | Already has queue             |
+| Decision cards              | New history_cell      | `history_cell/`                         | `proposed_plan.rs` pattern    |
+| Side-by-side compare        | New history_cell      | `history_cell/`                         | N/A                           |
+| Multi-step wizard           | Extend                | Multi-question flow already works       | PgUp/PgDn nav exists          |
+| Inline progress + interrupt | Already works         | Status bar in `chat_composer/status.rs` | `task_running.rs`             |
+| Contextual help             | Extend                | Inline `?` key handler                  | Footer already has `?` hint   |
+| Preview before apply        | Extend                | `history_cell/patch.rs`                 | Diff rendering exists         |
+| Editable answer summary     | Extend                | Multi-question review screen            | Would need new view           |
+| Provenance log              | New history_cell      | `history_cell/`                         | Use append-only JSON          |
+| `/revise` command           | Extend slash commands | `slash_command.rs`                      | Pattern for `/revise`         |
+| Working-agreement panel     | **C**                 | `bottom_pane/chrome.rs`                 | Chrome slot exists            |
+| Reversibility indicator     | New history_cell      | `history_cell/`                         | N/A                           |
+| Undo/redo as confirmation   | Extend                | `history_cell/` + ghost commits         | `GhostCommit` exists          |
+| Optimistic UI               | Already works         | N/A                                     | Widely used                   |
+| Toast vs modal              | Already distinct      | `notifications/` settings               | `EmitTuiNotification` event   |
+| Plan-as-artifact            | Extend                | `history_cell/proposed_plan.rs`         | Starting point exists         |
+| Inline audit trail          | Extend                | `history_cell/exec.rs`                  | Exec cells track undos        |
+| Task timeline               | Extend                | `history_cell/`                         | `auto_drive.rs` tracks phases |
+| Task resumption             | Already works         | `resume/` module                        | `ResumeCandidate` exists      |
+| Agent narration             | Already works         | `history_cell/reasoning.rs`             | Reasoning cells exist         |
+| Pre-task expectation        | **C**                 | New "plan card" before execution        | N/A                           |
+| Post-task decision log      | New history_cell      | `history_cell/`                         | Could reuse summary cells     |
+| Multi-agent delegation      | Existing              | `agent/` in chatwidget                  | Already shown                 |
+| Classified errors           | Extend                | `history_cell/` error variants          | Error rendering exists        |
+| Streaming state machine     | Already works         | `chatwidget/streaming.rs`               | Four states present           |
 
 **Convention:** **Bold letter** = recommended path. `A` = extend RequestUserInput schema. `B` = new tool. `C` = new pane.
 

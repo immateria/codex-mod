@@ -32,7 +32,7 @@ pub enum AuthMode {
     ApiKey,
     /// `ChatGPT` OAuth managed by Codex (tokens persisted and refreshed by Codex).
     Chatgpt,
-    /// [UNSTABLE] FOR OPENAI INTERNAL USE ONLY - DO NOT USE.
+    /// \[UNSTABLE\] FOR OPENAI INTERNAL USE ONLY - DO NOT USE.
     ///
     /// `ChatGPT` auth tokens are supplied by an external host app and are only
     /// stored in memory. Token refresh must be handled by the external host app.
@@ -818,7 +818,7 @@ pub struct FuzzyFileSearchParams {
     pub cancellation_token: Option<String>,
 }
 
-/// Superset of [`codex_file_search::FileMatch`]
+/// Superset of `codex_file_search::FileMatch`
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, JsonSchema, TS)]
 pub struct FuzzyFileSearchResult {
     pub root: String,

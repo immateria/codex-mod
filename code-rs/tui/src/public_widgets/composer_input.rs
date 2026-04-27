@@ -68,7 +68,7 @@ impl ComposerInput {
     }
 
     /// Override the footer hint items displayed under the composer.
-    /// Each tuple is rendered as "<key> <label>", with keys styled.
+    /// Each tuple is rendered as `"<key> <label>"`, with keys styled.
     pub fn set_hint_items(&mut self, items: Vec<(impl Into<String>, impl Into<String>)>) {
         let mapped: Vec<(String, String)> = items
             .into_iter()

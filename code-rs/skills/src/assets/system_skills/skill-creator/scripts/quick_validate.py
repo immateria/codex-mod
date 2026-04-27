@@ -14,20 +14,24 @@ from __future__ import annotations
 
 import argparse
 import sys
+from importlib import import_module
 from pathlib import Path
 
-try:
-    import yaml
-except ImportError:  # pragma: no cover
-    print("ERROR: missing dependency: PyYAML")
-    print("   Install with: python3 -m pip install pyyaml")
-    raise SystemExit(1)
+
+def _load_yaml():
+    try:
+        return import_module("yaml")
+    except ImportError:  # pragma: no cover
+        print("ERROR: missing dependency: PyYAML")
+        print("   Install with: python3 -m pip install pyyaml")
+        raise SystemExit(1)
 
 MAX_NAME_LEN = 64
 MAX_DESCRIPTION_LEN = 1024
 
 
 def validate_skill(skill_path: str | Path) -> tuple[bool, str]:
+    yaml = _load_yaml()
     skill_path = Path(skill_path)
 
     if not skill_path.exists():

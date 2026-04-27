@@ -2308,8 +2308,9 @@ pub struct SettingsMenuConfig {
     pub overlay_min_width: u16,
 
     /// When `true` (the default), shortcut hints whose key letter matches the
-    /// first letter of the action description are rendered fused — e.g. `r`
-    /// + ` refresh` becomes `r`+`efresh` with `r` in the key accent colour.
+    /// first letter of the action description are rendered fused (e.g. `r` +
+    /// ` refresh` becomes `r`+`efresh` with `r` in the key accent colour).
+    ///
     /// Disable for improved readability without relying on colour contrast.
     #[serde(default = "default_true")]
     pub fuse_hint_key_labels: bool,
@@ -3025,8 +3026,8 @@ pub struct ThemeConfig {
     pub label: Option<String>,
 
     /// Optional hint whether the custom theme targets a dark background.
-    /// When present and `name == Custom`, the UI can show "Dark - <label>"
-    /// or "Light - <label>" in lists.
+    /// When present and `name == Custom`, the UI can show "Dark - `<label>`"
+    /// or "Light - `<label>`" in lists.
     #[serde(default)]
     pub is_dark: Option<bool>,
 }
@@ -3068,7 +3069,7 @@ pub struct CustomSpinner {
 /// `theme` accepts the following values:
 /// - "auto" (default): choose a sensible built-in syntect theme based on
 ///   whether the current UI theme is light or dark.
-/// - "<name>": use a specific syntect theme by name from the default `ThemeSet`.
+/// - "\<name>": use a specific syntect theme by name from the default `ThemeSet`.
 #[derive(Deserialize, Debug, Clone, PartialEq, Eq, Default, JsonSchema)]
 pub struct HighlightConfig {
     /// Theme selection preference (see docstring for accepted values)

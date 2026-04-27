@@ -179,10 +179,10 @@ impl RequestUserInputView {
         };
         let idx = answer.option_state.selected_idx.unwrap_or(0).min(options_len - 1);
         answer.option_state.selected_idx = Some(idx);
-        if allows_multiple {
-            if !answer.checked_options.insert(idx) {
-                answer.checked_options.remove(&idx);
-            }
+        if allows_multiple
+            && !answer.checked_options.insert(idx)
+        {
+            answer.checked_options.remove(&idx);
         }
         answer
             .option_state
@@ -221,10 +221,10 @@ impl RequestUserInputView {
         answer
             .option_state
             .ensure_visible(options_len, options_len.clamp(1, 6));
-        if allows_multiple {
-            if !answer.checked_options.insert(idx) {
-                answer.checked_options.remove(&idx);
-            }
+        if allows_multiple
+            && !answer.checked_options.insert(idx)
+        {
+            answer.checked_options.remove(&idx);
         }
         true
     }

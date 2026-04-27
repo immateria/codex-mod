@@ -316,7 +316,7 @@ fn dynamic_code_agent_specs() -> Vec<AgentModelSpec> {
         .into_iter()
         .filter(|model| model.supported_in_api)
         .filter(|model| model.visibility.eq_ignore_ascii_case("list"))
-        .filter_map(|model| dynamic_code_agent_spec(model))
+        .filter_map(dynamic_code_agent_spec)
         .collect()
 }
 

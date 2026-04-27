@@ -184,7 +184,7 @@ impl CodexAuth {
         load_auth(code_home, true, preferred_auth_method, originator)
     }
 
-    /// Variant of [`from_code_home`] that accepts a credential store mode.
+    /// Variant of `from_code_home` that accepts a credential store mode.
     pub fn from_code_home_with_store_mode(
         code_home: &Path,
         _auth_credentials_store_mode: AuthCredentialsStoreMode,

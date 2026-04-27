@@ -305,6 +305,9 @@ def _handle_restore(message):
         _send({"type": "restore_result", "id": message.get("id", ""), "ok": True})
     except Exception as e:
         _send({"type": "restore_result", "id": message.get("id", ""), "ok": False, "error": str(e)})
+
+
+def _dispatch(message):
     msg_type = message.get("type")
     if msg_type == "exec":
         _handle_exec(message["id"], message["code"])

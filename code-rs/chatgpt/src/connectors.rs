@@ -63,10 +63,10 @@ async fn token_data_for_directory_connectors(config: &Config) -> anyhow::Result<
         config.cli_auth_credentials_store_mode,
         AuthMode::ChatGPT,
         &config.responses_originator_header,
-    )? {
-        if auth.uses_codex_backend() {
-            return Ok(Some(auth.get_token_data().await?));
-        }
+    )?
+        && auth.uses_codex_backend()
+    {
+        return Ok(Some(auth.get_token_data().await?));
     }
 
     // Fallback: use the first effective connector-source account (supports pinned-only setups).

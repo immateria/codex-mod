@@ -80,7 +80,7 @@ impl Shell {
             Shell::Zsh(zsh) => Some(&zsh.shell_path),
             Shell::Bash(bash) => Some(&bash.shell_path),
             Shell::PowerShell(ps) => Some(&ps.exe),
-            Shell::Generic(generic) => generic.command.first().map(|s| s.as_str()),
+            Shell::Generic(generic) => generic.command.first().map(String::as_str),
             Shell::Unknown => None,
         }
     }
@@ -502,10 +502,10 @@ pub async fn default_user_shell() -> Shell {
 
 /// Resolve the default zshrc path, preferring `$ZDOTDIR` over `$HOME`.
 pub(crate) fn default_zshrc_path() -> String {
-    if let Ok(zdotdir) = std::env::var("ZDOTDIR") {
-        if !zdotdir.is_empty() {
-            return format!("{zdotdir}/.zshrc");
-        }
+    if let Ok(zdotdir) = std::env::var("ZDOTDIR")
+        && !zdotdir.is_empty()
+    {
+        return format!("{zdotdir}/.zshrc");
     }
     format!("{}/.zshrc", home_dir_path())
 }
@@ -515,10 +515,10 @@ pub(crate) fn default_bashrc_path() -> String {
 }
 
 fn home_dir_path() -> String {
-    if let Ok(h) = std::env::var("HOME") {
-        if !h.is_empty() {
-            return h;
-        }
+    if let Ok(h) = std::env::var("HOME")
+        && !h.is_empty()
+    {
+        return h;
     }
     // Termux fallback: $TERMUX_PREFIX/../home
     if let Ok(prefix) = std::env::var("TERMUX_PREFIX") {

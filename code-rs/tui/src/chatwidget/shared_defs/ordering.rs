@@ -415,14 +415,14 @@ fn ensure_replayed_image_generation_artifact(
             return None;
         }
     };
-    if let Some(parent) = path.parent() {
-        if let Err(err) = std::fs::create_dir_all(parent) {
-            tracing::warn!(
-                "failed to create generated image replay dir {}: {err}",
-                parent.display()
-            );
-            return None;
-        }
+    if let Some(parent) = path.parent()
+        && let Err(err) = std::fs::create_dir_all(parent)
+    {
+        tracing::warn!(
+            "failed to create generated image replay dir {}: {err}",
+            parent.display()
+        );
+        return None;
     }
     if let Err(err) = std::fs::write(&path, bytes) {
         tracing::warn!(

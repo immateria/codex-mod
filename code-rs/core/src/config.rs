@@ -741,6 +741,7 @@ impl Config {
     /// This is the single access point for per-runtime path, args, and
     /// module-dirs — callers should use this instead of matching on the
     /// runtime kind and picking flat fields by hand.
+    #[cfg_attr(doc, allow(rustdoc::private_intra_doc_links))]
     pub fn repl_runtime_config(
         &self,
         kind: ReplRuntimeKindToml,
@@ -1527,9 +1528,11 @@ pub struct ToolsToml {
     /// Optional allow-list of domains used by the Responses API `web_search` tool.
     /// Example:
     ///
+    /// ```ignore
     /// [tools]
-    /// `web_search` = true
-    /// `web_search_allowed_domains` = ["openai.com", "arxiv.org"]
+    /// web_search = true
+    /// web_search_allowed_domains = ["openai.com", "arxiv.org"]
+    /// ```
     #[serde(default)]
     pub web_search_allowed_domains: Option<Vec<String>>,
 
@@ -2239,13 +2242,9 @@ impl Config {
             .get(&ReplRuntimeKindToml::Python)
             .cloned()
             .unwrap_or_default();
-        let repl_node_path = repl_node.path.clone();
-        let repl_node_args = repl_node.args.clone();
-        let repl_node_module_dirs = repl_node.module_dirs.clone();
-        let repl_deno_path = repl_deno.path.clone();
-        let repl_deno_args = repl_deno.args.clone();
-        let repl_python_path = repl_python.path.clone();
-        let repl_python_args = repl_python.args.clone();
+        let ReplRuntimeSpec { path: repl_node_path, args: repl_node_args, module_dirs: repl_node_module_dirs } = repl_node;
+        let ReplRuntimeSpec { path: repl_deno_path, args: repl_deno_args, module_dirs: _ } = repl_deno;
+        let ReplRuntimeSpec { path: repl_python_path, args: repl_python_args, module_dirs: _ } = repl_python;
 
         let tools_web_search_allowed_domains = cfg
             .tools

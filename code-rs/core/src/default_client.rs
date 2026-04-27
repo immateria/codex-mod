@@ -112,12 +112,12 @@ pub fn requested_model_headers(originator_override: Option<&str>, model: &str) -
     headers.insert(
         "version",
         HeaderValue::from_str(&requested_version)
-            .expect("requested model version should be a valid header value"),
+            .unwrap_or_else(|e| { tracing::error!("invalid version header: {e}"); HeaderValue::from_static("unknown") }),
     );
     headers.insert(
         reqwest::header::USER_AGENT,
         HeaderValue::from_str(&user_agent)
-            .expect("requested model user-agent should be a valid header value"),
+            .unwrap_or_else(|e| { tracing::error!("invalid user-agent header: {e}"); HeaderValue::from_static("unknown") }),
     );
     headers
 }

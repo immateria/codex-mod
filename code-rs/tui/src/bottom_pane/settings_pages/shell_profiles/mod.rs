@@ -165,7 +165,7 @@ impl ShellProfilesSettingsView {
             return;
         }
 
-        self.active_profile_id = active_profile_id.clone();
+        self.active_profile_id = active_profile_id;
 
         if matches!(self.mode, ViewMode::Main)
             && !self.dirty

@@ -135,7 +135,7 @@ impl ChatWidget<'_> {
         // Only preserve safety overrides when the shell executable hasn't
         // changed. Per-shell safety rules (e.g. "always allow `rm`" under
         // bash) should not silently carry over to a different shell.
-        let shell_path_changed = current_shell.map_or(true, |s| s.path != path);
+        let shell_path_changed = current_shell.is_none_or(|s| s.path != path);
         let (command_safety, dangerous_command_detection) = if shell_path_changed {
             (code_core::config_types::CommandSafetyProfileConfig::default(), None)
         } else {

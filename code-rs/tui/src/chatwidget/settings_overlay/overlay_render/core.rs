@@ -290,7 +290,8 @@ impl SettingsOverlayView {
             let label_visible_width = UnicodeWidthStr::width(label_visible.as_str());
             let mut label_text = label_visible;
             if label_visible_width < LABEL_COLUMN_WIDTH {
-                label_text.extend(std::iter::repeat(' ').take(
+                label_text.extend(std::iter::repeat_n(
+                    ' ',
                     LABEL_COLUMN_WIDTH.saturating_sub(label_visible_width),
                 ));
             }
@@ -451,6 +452,7 @@ impl SettingsOverlayView {
 }
 
 #[cfg(test)]
+#[allow(clippy::items_after_test_module)]
 mod tests {
     use super::*;
     use crate::chatwidget::SettingsOverviewRow;
@@ -475,7 +477,7 @@ mod tests {
                 overlay.render_overview_list(area, &mut buf);
 
                 let hit_ranges = overlay.last_overview_line_hit_ranges.borrow();
-                let first_line = hit_ranges.get(0).copied().expect("first hit range");
+                let first_line = hit_ranges.first().copied().expect("first hit range");
                 let (start, end) = first_line[0].expect("label hit range");
 
                 let icon_prefix = crate::icons::section_icon(SettingsSection::Model.label());

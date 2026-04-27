@@ -43,7 +43,7 @@ impl ShellProfilesSettingsView {
         let entry = self
             .shell_style_profiles
             .entry(selected_id.clone())
-            .or_insert_with(Default::default);
+            .or_default();
         entry.config.summary = summary;
         entry.config.references = references;
         entry.config.skill_roots = skill_roots;

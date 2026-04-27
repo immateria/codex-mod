@@ -4,13 +4,22 @@ Quick validation script for skills - minimal version
 """
 
 import sys
+from importlib import import_module
 from pathlib import Path
 
-import yaml
+
+def _load_yaml():
+    try:
+        return import_module("yaml")
+    except ImportError:
+        print("ERROR: missing dependency: PyYAML")
+        print("   Install with: python3 -m pip install pyyaml")
+        raise SystemExit(1)
 
 
 def validate_skill(skill_path):
     """Basic validation of a skill"""
+    yaml = _load_yaml()
     skill_path = Path(skill_path)
 
     # Check SKILL.md exists

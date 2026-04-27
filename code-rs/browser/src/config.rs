@@ -82,7 +82,7 @@ pub struct BrowserConfig {
     pub proxy_bypass_list: Option<String>,
 
     /// Optional value for the `Proxy-Authorization` header set via CDP
-    /// (e.g. "Basic <base64>") for correlating requests to a Codex network attempt.
+    /// (e.g. `"Basic \<base64>"`) for correlating requests to a Codex network attempt.
     #[serde(default)]
     pub proxy_authorization: Option<String>,
 }

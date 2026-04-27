@@ -1,8 +1,7 @@
 use std::path::PathBuf;
 use tempfile::Builder;
 
-#[cfg(feature = "clipboard")]
-use arboard;
+// arboard is used via cfg(feature = "clipboard") gates below.
 
 #[derive(Debug)]
 pub(crate) enum PasteImageError {

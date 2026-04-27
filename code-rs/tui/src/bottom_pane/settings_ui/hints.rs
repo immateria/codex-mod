@@ -279,15 +279,14 @@ const HINT_SEPARATOR_WIDTH: u16 = 3; // "   "
 fn hint_display_width(hint: &KeyHint<'_>) -> u16 {
     use unicode_width::UnicodeWidthStr;
 
-    if hint.key_spans.is_none() && fuse_hint_key_labels() {
-        if let Some((prefix, key_char, desc_rest)) =
+    if hint.key_spans.is_none() && fuse_hint_key_labels()
+        && let Some((prefix, key_char, desc_rest)) =
             fuse_key_description(&hint.key, &hint.description)
-        {
-            let prefix_w: u16 = prefix.map(|p| UnicodeWidthStr::width(p) as u16).unwrap_or(0);
-            let key_w: u16 = UnicodeWidthStr::width(key_char) as u16;
-            let rest_w: u16 = UnicodeWidthStr::width(desc_rest) as u16;
-            return prefix_w.saturating_add(key_w).saturating_add(rest_w);
-        }
+    {
+        let prefix_w: u16 = prefix.map(|p| UnicodeWidthStr::width(p) as u16).unwrap_or(0);
+        let key_w: u16 = UnicodeWidthStr::width(key_char) as u16;
+        let rest_w: u16 = UnicodeWidthStr::width(desc_rest) as u16;
+        return prefix_w.saturating_add(key_w).saturating_add(rest_w);
     }
 
     let key_w: u16 = if let Some(spans) = &hint.key_spans {
@@ -307,23 +306,22 @@ fn hint_display_width(hint: &KeyHint<'_>) -> u16 {
 /// letter is rendered once in accent colour and the description omits the
 /// redundant leading-space + matching first letter.
 fn hint_to_spans(hint: &KeyHint<'_>) -> Vec<Span<'static>> {
-    if hint.key_spans.is_none() && fuse_hint_key_labels() {
-        if let Some((prefix, key_char, desc_rest)) =
+    if hint.key_spans.is_none() && fuse_hint_key_labels()
+        && let Some((prefix, key_char, desc_rest)) =
             fuse_key_description(&hint.key, &hint.description)
-        {
-            let mut spans = Vec::with_capacity(3);
-            if let Some(p) = prefix {
-                spans.push(Span::styled(
-                    p.to_owned(),
-                    Style::new().fg(colors::text_dim()),
-                ));
-            }
-            spans.push(Span::styled(key_char.to_owned(), hint.key_style));
-            if !desc_rest.is_empty() {
-                spans.push(Span::styled(desc_rest.to_owned(), hint.description_style));
-            }
-            return spans;
+    {
+        let mut spans = Vec::with_capacity(3);
+        if let Some(p) = prefix {
+            spans.push(Span::styled(
+                p.to_owned(),
+                Style::new().fg(colors::text_dim()),
+            ));
         }
+        spans.push(Span::styled(key_char.to_owned(), hint.key_style));
+        if !desc_rest.is_empty() {
+            spans.push(Span::styled(desc_rest.to_owned(), hint.description_style));
+        }
+        return spans;
     }
 
     let mut spans = Vec::with_capacity(2);

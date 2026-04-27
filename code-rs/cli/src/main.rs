@@ -129,14 +129,14 @@ enum Subcommand {
     /// Remove stored authentication credentials.
     Logout(LogoutCommand),
 
-    /// [experimental] Run Codex as an MCP server and manage MCP servers.
+    /// \[experimental\] Run Codex as an MCP server and manage MCP servers.
     #[clap(visible_alias = "acp")]
     Mcp(McpCli),
 
-    /// [experimental] Run the Codex MCP server (stdio transport).
+    /// \[experimental\] Run the Codex MCP server (stdio transport).
     McpServer,
 
-    /// [experimental] Run the app server.
+    /// \[experimental\] Run the app server.
     AppServer,
 
     /// Generate shell completion scripts.
@@ -165,7 +165,7 @@ enum Subcommand {
     /// Internal: generate TypeScript protocol bindings.
     #[clap(hide = true)]
     GenerateTs(GenerateTsCommand),
-    /// [EXPERIMENTAL] Browse tasks from Codex Cloud and apply changes locally.
+    /// \[EXPERIMENTAL\] Browse tasks from Codex Cloud and apply changes locally.
     #[clap(name = "cloud", alias = "cloud-tasks")]
     Cloud(CloudTasksCli),
 

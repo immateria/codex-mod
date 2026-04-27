@@ -240,7 +240,7 @@ impl ShellProfilesSettingsView {
         let entry = self
             .shell_style_profiles
             .entry(selected_id.clone())
-            .or_insert_with(Default::default);
+            .or_default();
 
         match target {
             PickTarget::ApplicableShells => {
